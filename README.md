@@ -1,46 +1,289 @@
-# Getting Started with Create React App
+# FileVault - Image Security React Portal
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A comprehensive React frontend for the ImageSecurity API system, providing user management, cloud service configuration, and secure file handling.
 
-## Available Scripts
+## 🚀 Features
 
-In the project directory, you can run:
+### Core Features
+- **User Authentication & Management**
+  - User registration with multi-step form
+  - Login/logout functionality
+  - Profile management
+  - Password change
+  - Admin verification workflow
 
-### `npm start`
+- **Plan Management System**
+  - Plan selection and subscription
+  - Usage tracking and limits
+  - Plan upgrade/downgrade
+  - Billing cycle management
+  - Usage statistics and alerts
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- **Admin Dashboard**
+  - User management and verification
+  - Account status management
+  - System overview and statistics
+  - Plan management and analytics
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+- **Service Subscription Management**
+  - Dynamic cloud service configuration from API
+  - Support for S3, B2, Google Drive, and more
+  - Dynamic form generation based on service requirements
+  - Connection testing and status monitoring
+  - Service documentation integration
 
-### `npm test`
+- **File Management System**
+  - Dynamic file listing from API (`/api/images/user/all`)
+  - Support for multiple file types (images, documents, text files)
+  - File preview and download functionality
+  - Cloud service integration status display
+  - File deletion with API integration
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- **Security Features**
+  - JWT token management
+  - Role-based access control
+  - Secure credential handling
+  - Account lockout protection
 
-### `npm run build`
+## 🛠️ Tech Stack
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- **Frontend Framework**: React 18.x with TypeScript
+- **Routing**: React Router v6
+- **State Management**: React Query (TanStack Query)
+- **HTTP Client**: Axios
+- **Styling**: Tailwind CSS
+- **Forms**: React Hook Form
+- **Notifications**: React Hot Toast
+- **Icons**: React Icons
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## 📦 Installation
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd filevault
+   ```
 
-### `npm run eject`
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+3. **Set up environment variables**
+   Create a `.env` file in the root directory:
+   ```env
+   REACT_APP_API_URL=http://localhost:9090
+   REACT_APP_ENVIRONMENT=development
+   ```
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+4. **Start the development server**
+   ```bash
+   npm start
+   ```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+The application will be available at `http://localhost:3000`
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+## 🏗️ Project Structure
 
-## Learn More
+```
+src/
+├── components/
+│   ├── layout/
+│   │   ├── Header.tsx
+│   │   ├── Layout.tsx
+│   │   └── Footer.tsx
+│   ├── auth/
+│   │   ├── LoginForm.tsx
+│   │   ├── RegisterForm.tsx
+│   │   └── ProfileForm.tsx
+│   ├── admin/
+│   │   ├── UserManagement.tsx
+│   │   ├── UserVerification.tsx
+│   │   └── AdminDashboard.tsx
+│   ├── services/
+│   │   ├── ServiceList.tsx
+│   │   ├── ServiceConfiguration.tsx
+│   │   └── ServiceStatus.tsx
+│   └── common/
+│       ├── LoadingSpinner.tsx
+│       ├── ErrorBoundary.tsx
+│       └── Modal.tsx
+├── pages/
+│   ├── LoginPage.tsx
+│   ├── RegisterPage.tsx
+│   ├── DashboardPage.tsx
+│   └── AdminPage.tsx
+├── hooks/
+│   ├── useAuth.ts
+│   └── useApi.ts
+├── services/
+│   ├── api.ts
+│   ├── authService.ts
+│   └── userService.ts
+├── types/
+│   ├── auth.ts
+│   ├── user.ts
+│   └── services.ts
+├── utils/
+│   ├── constants.ts
+│   └── helpers.ts
+└── context/
+    └── AuthContext.tsx
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 🔐 Authentication
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+The application uses JWT tokens for authentication. The authentication flow includes:
+
+1. **Login**: Users can log in with username/password
+2. **Registration**: Multi-step registration process
+3. **Token Management**: Automatic token refresh and storage
+4. **Protected Routes**: Route protection based on authentication status
+5. **Role-based Access**: Admin and user role management
+
+### API Endpoints
+
+- `POST /api/auth/login` - User login
+- `POST /api/auth/register` - User registration
+- `GET /api/auth/profile` - Get user profile
+- `PUT /api/auth/profile` - Update user profile
+- `PUT /api/auth/change-password` - Change password
+
+## ☁️ Service Configuration
+
+The application supports configuration of multiple cloud storage services:
+
+### Supported Services
+- **Amazon S3**: Configure with access key, secret key, bucket name, and region
+- **Backblaze B2**: Configure with application key ID, application key, and bucket
+- **Google Drive**: Configure with client ID, client secret, and refresh token
+
+### Service Management
+- Dynamic form generation based on service requirements
+- Connection testing for each service
+- Service status monitoring
+- Enable/disable services
+
+## 👨‍💼 Admin Features
+
+Admin users have access to additional features:
+
+### User Management
+- View all users
+- Verify pending users
+- Activate/suspend users
+- Upgrade user plans
+- View user statistics
+
+### System Overview
+- Total users count
+- Active users
+- Pending verifications
+- Service usage statistics
+
+## 🎨 UI/UX Features
+
+### Design System
+- **Color Scheme**: Primary blue theme with status colors
+- **Typography**: Clean, readable fonts
+- **Components**: Reusable, consistent components
+- **Responsive**: Mobile-first responsive design
+
+### User Experience
+- **Loading States**: Skeleton loading and spinners
+- **Error Handling**: Graceful error boundaries
+- **Notifications**: Toast notifications for user feedback
+- **Form Validation**: Real-time form validation
+- **Accessibility**: WCAG compliant components
+
+## 🔧 Development
+
+### Available Scripts
+
+```bash
+# Start development server
+npm start
+
+# Build for production
+npm run build
+
+# Run tests
+npm test
+
+# Eject from Create React App
+npm run eject
+```
+
+### Code Quality
+
+- **TypeScript**: Full type safety
+- **ESLint**: Code linting
+- **Prettier**: Code formatting
+- **React Query**: Efficient data fetching and caching
+
+## 🚀 Deployment
+
+### Production Build
+
+1. **Build the application**
+   ```bash
+   npm run build
+   ```
+
+2. **Deploy to your hosting service**
+   - The build folder contains the production-ready files
+   - Configure your web server to serve the static files
+
+### Environment Configuration
+
+Set the following environment variables for production:
+
+```env
+REACT_APP_API_URL=https://api.imagesecurity.com
+REACT_APP_ENVIRONMENT=production
+```
+
+## 📱 Browser Support
+
+- Chrome (latest)
+- Firefox (latest)
+- Safari (latest)
+- Edge (latest)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🆘 Support
+
+For support and questions:
+- Create an issue in the repository
+- Contact the development team
+- Check the documentation
+
+## 🔄 API Integration
+
+This frontend integrates with the ImageSecurity API backend. Ensure the backend is running and accessible at the configured API URL.
+
+### API Base URL
+- Development: `http://localhost:9090`
+- Production: `https://api.imagesecurity.com`
+
+### Required Backend Services
+- Authentication service
+- User management service
+- Service subscription service
+- Plan management service
+- File upload service
+
+---
+
+**FileVault** - Secure, scalable image management for modern businesses.
