@@ -20,6 +20,7 @@ import PlansPage from './pages/PlansPage';
 import CheckoutPage from './pages/CheckoutPage';
 import ServicesPage from './pages/ServicesPage';
 import ProfilePage from './pages/ProfilePage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
@@ -34,7 +35,21 @@ const queryClient = new QueryClient({
 });
 
 const ProtectedRoute = ({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) => {
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, isLoading } = useAuth();
+  
+  console.log('ProtectedRoute:', { isLoading, isAuthenticated, isAdmin, adminOnly });
+  
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
   
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
@@ -48,10 +63,16 @@ const ProtectedRoute = ({ children, adminOnly = false }: { children: React.React
 };
 
 const AppRoutes = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/login" element={
+        !isLoading && isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />
+      } />
+      <Route path="/register" element={
+        !isLoading && isAuthenticated ? <Navigate to="/dashboard" /> : <RegisterPage />
+      } />
       
       <Route path="/" element={
         <ProtectedRoute>
@@ -61,6 +82,7 @@ const AppRoutes = () => {
         <Route index element={<Navigate to="/dashboard" />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="profile" element={<ProfilePage />} />
+        <Route path="change-password" element={<ChangePasswordPage />} />
         <Route path="services" element={<ServicesPage />} />
         <Route path="plans" element={<PlansPage />} />
         <Route path="plans/:planId" element={<PlanDetailsPage />} />

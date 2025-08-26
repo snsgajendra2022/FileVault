@@ -104,11 +104,11 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
               <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                 <div className="p-3">
                   <div className="flex items-center space-x-3 p-1 bg-gray-50 rounded-md mb-2">
-                    <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center">
+                    {/* <div className="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center">
                       <span className="text-white font-semibold text-sm">
                         {user?.firstName?.charAt(0) || user?.username?.charAt(0) || 'U'}
                       </span>
-                    </div>
+                    </div> */}
                     <div>
                       <p className="font-medium text-gray-900 text-sm">{user?.firstName} {user?.lastName}</p>
                       <p className="text-xs text-gray-600">{user?.email}</p>

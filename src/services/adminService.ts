@@ -233,6 +233,36 @@ class AdminService {
     const response = await api.post('/api/admin/users', userData);
     return response.data;
   }
+
+  // User Management Actions
+  async upgradeUser(userId: number) {
+    const response = await api.put(`/api/auth/admin/users/${userId}/upgrade`);
+    return response.data;
+  }
+
+  async verifyUserAdmin(userId: number) {
+    const response = await api.put(`/api/auth/admin/users/${userId}/verify`);
+    return response.data;
+  }
+
+  async suspendUserAdmin(userId: number) {
+    const response = await api.put(`/api/auth/admin/users/${userId}/suspend`);
+    return response.data;
+  }
+
+  async activateUserAdmin(userId: number) {
+    const response = await api.put(`/api/auth/admin/users/${userId}/activate`);
+    return response.data;
+  }
+
+  // Password Management
+  async changePassword(passwordData: {
+    currentPassword: string;
+    newPassword: string;
+  }) {
+    const response = await api.put('/api/auth/change-password', passwordData);
+    return response.data;
+  }
 }
 
 export default new AdminService();

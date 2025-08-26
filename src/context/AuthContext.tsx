@@ -48,9 +48,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isAuthenticated = !!user;
 
   useEffect(() => {
+    console.log('AuthContext: Initializing authentication state...');
+    
     // Check for existing token and user data in localStorage
     const token = getStoredToken();
     const userData = getStoredUserData();
+    
+    console.log('AuthContext: Found token:', !!token, 'Found userData:', !!userData);
     
     if (token && userData) {
       try {
@@ -59,6 +63,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         // Set user data from localStorage (convert to User type)
         setUser(userData as User);
+        setIsLoading(false);
         
         console.log('User data restored from localStorage:', userData);
         logAuthState();
@@ -74,7 +79,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         validateToken();
       } else {
+        // No token found, user is not authenticated
         setIsLoading(false);
+        console.log('No stored token found, user not authenticated');
       }
     }
   }, []);

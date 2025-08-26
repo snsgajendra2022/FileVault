@@ -37,7 +37,7 @@ const UserManagement = () => {
 
   // Mutations
   const verifyUserMutation = useMutation({
-    mutationFn: (userId: number) => adminService.verifyUser(userId),
+    mutationFn: (userId: number) => adminService.verifyUserAdmin(userId),
     onSuccess: () => {
       toast.success('User verified successfully');
       queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
@@ -47,7 +47,7 @@ const UserManagement = () => {
   });
 
   const suspendUserMutation = useMutation({
-    mutationFn: (userId: number) => adminService.suspendUser(userId),
+    mutationFn: (userId: number) => adminService.suspendUserAdmin(userId),
     onSuccess: () => {
       toast.success('User suspended successfully');
       queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
@@ -57,13 +57,23 @@ const UserManagement = () => {
   });
 
   const activateUserMutation = useMutation({
-    mutationFn: (userId: number) => adminService.activateUser(userId),
+    mutationFn: (userId: number) => adminService.activateUserAdmin(userId),
     onSuccess: () => {
       toast.success('User activated successfully');
       queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
       queryClient.invalidateQueries({ queryKey: ['userStatistics'] });
     },
     onError: () => toast.error('Failed to activate user')
+  });
+
+  const upgradeUserMutation = useMutation({
+    mutationFn: (userId: number) => adminService.upgradeUser(userId),
+    onSuccess: () => {
+      toast.success('User upgraded successfully');
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['userStatistics'] });
+    },
+    onError: () => toast.error('Failed to upgrade user')
   });
 
   const deleteUserMutation = useMutation({
@@ -102,6 +112,9 @@ const UserManagement = () => {
         break;
       case 'activate':
         activateUserMutation.mutate(userId);
+        break;
+      case 'upgrade':
+        upgradeUserMutation.mutate(userId);
         break;
       case 'delete':
         if (window.confirm('Are you sure you want to delete this user?')) {

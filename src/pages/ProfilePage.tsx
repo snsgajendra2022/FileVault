@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { FaUser, FaEnvelope, FaPhone, FaBuilding, FaSave, FaEdit, FaShieldAlt, FaUpload, FaLock } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 interface ProfileData {
   id: number;
@@ -30,6 +31,7 @@ interface ProfileData {
 const ProfilePage = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
 
   // Fetch profile data from API
@@ -434,6 +436,18 @@ const ProfilePage = () => {
           </button>
         </div>
       )}
+
+      {/* Security Actions */}
+      <div className="flex justify-center mt-8">
+        <button
+          type="button"
+          onClick={() => navigate('/change-password')}
+          className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-red-700 hover:to-pink-700 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
+        >
+          <FaLock className="h-5 w-5" />
+          <span>Change Password</span>
+        </button>
+      </div>
     </div>
   );
 };
