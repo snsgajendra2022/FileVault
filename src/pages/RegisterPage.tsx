@@ -224,7 +224,7 @@ const RegisterPage = () => {
           <input
             type="text"
             required
-            className={`w-full px-4 py-4 bg-white/3 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
+            className={`w-full px-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.firstName ? 'border-red-400' : 'border-white/20'
             }`}
             placeholder="First name"
@@ -239,7 +239,7 @@ const RegisterPage = () => {
           <input
             type="text"
             required
-            className={`w-full px-4 py-4 bg-white/3 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
+            className={`w-full px-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.lastName ? 'border-red-400' : 'border-white/20'
             }`}
             placeholder="Last name"
@@ -255,12 +255,12 @@ const RegisterPage = () => {
         <label className="block text-sm font-semibold text-white/90">Username *</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <FaUser className="h-5 w-5 text-purple-200 group-focus-within:text-purple-100 transition-colors drop-shadow-sm" />
+            <FaUser className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
           </div>
           <input
             type="text"
             required
-            className={`w-full pl-12 pr-4 py-4 bg-white/3 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
+            className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.username ? 'border-red-400' : 'border-white/20'
             }`}
             placeholder="Enter your username"
@@ -277,12 +277,12 @@ const RegisterPage = () => {
         <label className="block text-sm font-semibold text-white/90">Email *</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <FaEnvelope className="h-5 w-5 text-blue-200 group-focus-within:text-blue-100 transition-colors drop-shadow-sm" />
+            <FaEnvelope className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
           </div>
           <input
             type="email"
             required
-            className={`w-full pl-12 pr-4 py-4 bg-white/3 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
+            className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.email ? 'border-red-400' : 'border-white/20'
             }`}
             placeholder="Enter your email"
@@ -299,11 +299,11 @@ const RegisterPage = () => {
         <label className="block text-sm font-semibold text-white/90">Phone *</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <FaPhone className="h-5 w-5 text-green-200 group-focus-within:text-green-100 transition-colors drop-shadow-sm" />
+            <FaPhone className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
           </div>
           <input
             type="tel"
-            className={`w-full pl-12 pr-4 py-4 bg-white/3 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
+            className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.phone ? 'border-red-400' : 'border-white/20'
             }`}
             placeholder="Enter your phone number"
@@ -320,12 +320,12 @@ const RegisterPage = () => {
         <label className="block text-sm font-semibold text-white/90">Password *</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <FaShieldAlt className="h-5 w-5 text-pink-200 group-focus-within:text-pink-100 transition-colors drop-shadow-sm" />
+            <FaShieldAlt className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
           </div>
           <input
             type={showPassword ? 'text' : 'password'}
             required
-            className={`w-full pl-12 pr-12 py-4 bg-white/3 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
+            className={`w-full pl-12 pr-12 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.password ? 'border-red-400' : 'border-white/20'
             }`}
             placeholder="Enter your password"
@@ -336,7 +336,7 @@ const RegisterPage = () => {
           <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
             <button
               type="button"
-              className="text-pink-200 hover:text-pink-100 transition-colors duration-200 drop-shadow-sm"
+              className="text-white hover:text-white transition-colors duration-200 drop-shadow-sm"
               onClick={() => setShowPassword(!showPassword)}
             >
               {showPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
@@ -372,7 +372,7 @@ const RegisterPage = () => {
       <div className="space-y-2">
         <label className="block text-sm font-semibold text-white/90">Account Type *</label>
         <select
-          className="w-full px-4 py-4 bg-white/3 border border-white/20 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none"
+          className="w-full px-4 py-4 bg-black border border-white/20 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none"
           value={formData.accountType}
           onChange={(e) => handleFieldChange('accountType', e.target.value)}
           style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
@@ -385,11 +385,11 @@ const RegisterPage = () => {
         <label className="block text-sm font-semibold text-white/90">Company (Optional)</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <FaBuilding className="h-5 w-5 text-indigo-200 group-focus-within:text-indigo-100 transition-colors drop-shadow-sm" />
+            <FaBuilding className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
           </div>
           <input
             type="text"
-            className={`w-full pl-12 pr-4 py-4 bg-white/3 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
+            className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.company ? 'border-red-400' : 'border-white/20'
             }`}
             placeholder="Enter your company name"
@@ -407,11 +407,11 @@ const RegisterPage = () => {
           <label className="block text-sm font-semibold text-white/90">Role (Optional)</label>
           <div className="relative group">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <FaBriefcase className="h-5 w-5 text-cyan-200 group-focus-within:text-cyan-100 transition-colors drop-shadow-sm" />
+              <FaBriefcase className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
             </div>
             <input
               type="text"
-              className={`w-full pl-12 pr-4 py-4 bg-white/3 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
+              className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
                 errors.role ? 'border-red-400' : 'border-white/20'
               }`}
               placeholder="Enter your role"
@@ -427,7 +427,7 @@ const RegisterPage = () => {
           <label className="block text-sm font-semibold text-white/90">Department (Optional)</label>
           <input
             type="text"
-            className={`w-full px-4 py-4 bg-white/3 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
+            className={`w-full px-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.department ? 'border-red-400' : 'border-white/20'
             }`}
             placeholder="Enter your department"

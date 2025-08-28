@@ -36,3 +36,36 @@
     transform: rotate(360deg);
   }
 }
+
+/* Fix autofill background color */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px rgba(0, 0, 0, 0.1) inset !important;
+  -webkit-text-fill-color: inherit !important;
+  background-color: rgba(0, 0, 0, 0.1) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+input:-internal-autofill-selected {
+  appearance: menulist-button;
+  background-image: none !important;
+  background-color: rgba(0, 0, 0, 0.1) !important;
+  color: inherit !important;
+}
+
+/* Make icons visible when autofill is active */
+input:-webkit-autofill ~ .text-icon,
+input:-webkit-autofill:hover ~ .text-icon,
+input:-webkit-autofill:focus ~ .text-icon,
+input:-webkit-autofill:active ~ .text-icon,
+input:-webkit-autofill + .text-icon,
+input:-webkit-autofill:hover + .text-icon,
+input:-webkit-autofill:focus + .text-icon,
+input:-webkit-autofill:active + .text-icon {
+  --tw-text-opacity: 1 !important;
+  color: rgb(255 255 255) !important;
+  opacity: 1 !important;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) !important;
+}

@@ -53,6 +53,7 @@ interface AvailableService {
   requiredFields: AvailableServiceField[];
   optionalFields: AvailableServiceField[];
   documentationUrl: string;
+  configureUrl: string;
   iconUrl: string;
 }
 
@@ -146,19 +147,19 @@ const ServicesPage = () => {
 
   // Configure service mutation
   const configureServiceMutation = useMutation({
-    mutationFn: async ({ serviceType, config }: { serviceType: string; config: ServiceFormData }) => {
-      const response = await api.post(`/api/services/${serviceType}/configure`, config);
+    mutationFn: async ({ configureUrl, config }: { configureUrl: string; config: ServiceFormData }) => {
+      const response = await api.post(configureUrl, config);
       return response.data;
     },
     onSuccess: (data, variables) => {
-      toast.success(`${variables.serviceType} configured successfully!`);
+      toast.success(`configured successfully!`);
       setShowConfigModal(false);
       setFormData({});
       setIsConfiguring(false);
       refetch();
     },
     onError: (error, variables) => {
-      toast.error(`Failed to configure ${variables.serviceType}`);
+      toast.error(`Failed to configure `);
       setIsConfiguring(false);
     }
   });
@@ -166,7 +167,7 @@ const ServicesPage = () => {
   // Toggle service mutation
   const toggleServiceMutation = useMutation({
     mutationFn: async ({ serviceType, enabled }: { serviceType: string; enabled: boolean }) => {
-      const response = await api.put(`/api/services/${serviceType}/toggle`, { enabled });
+      const response = await api.put(`/api/services/${serviceType}/toggle`, { isEnabled: enabled });
       return response.data;
     },
     onSuccess: (data, variables) => {
@@ -180,8 +181,8 @@ const ServicesPage = () => {
 
   // Delete service mutation
   const deleteServiceMutation = useMutation({
-    mutationFn: async (serviceType: string) => {
-      const response = await api.delete(`/api/services/${serviceType}/configure`);
+    mutationFn: async (configureUrl: string) => {
+      const response = await api.delete(configureUrl);
       return response.data;
     },
     onSuccess: (data, serviceType) => {
@@ -224,7 +225,7 @@ const ServicesPage = () => {
 
     setIsConfiguring(true);
     configureServiceMutation.mutate({
-      serviceType: selectedService.serviceType,
+      configureUrl: selectedService.configureUrl,
       config: formData
     });
   };

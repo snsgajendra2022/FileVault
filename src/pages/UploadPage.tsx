@@ -82,7 +82,7 @@ const UploadPage = () => {
 
       toast.success(`${uploadFile.file.name} uploaded successfully!`);
     } catch (error: any) {
-      toast.error(error.response.data);
+      toast.error(error?.response?.data || error?.message);
       setUploadFiles(prev => 
         prev.map(f => 
           f.id === uploadFile.id 
