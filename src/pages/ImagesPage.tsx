@@ -379,7 +379,7 @@ const ImagesPage = () => {
                       <FiDownload className="h-3 w-3 mr-1" />
                       Download
                     </button>
-                  <button
+                  {/* <button
                     onClick={() => handleDelete(image)}
                     disabled={deleteImageMutation.isPending}
                     className="inline-flex justify-center items-center px-2 py-1 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 transition-colors disabled:opacity-50"
@@ -389,7 +389,7 @@ const ImagesPage = () => {
                      ) : (
                        <FiTrash2 className="h-3 w-3" />
                      )}
-                  </button>
+                  </button> */}
                 </div>
               </div>
             </div>
@@ -490,13 +490,13 @@ const ImagesPage = () => {
                    <FiDownload className="-ml-1 mr-2 h-4 w-4" />
                    Download
                  </button>
-                 <button
+                 {/* <button
                    onClick={() => handleDelete(selectedImage)}
                    className="inline-flex items-center px-4 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
                  >
                    <FiTrash2 className="-ml-1 mr-2 h-4 w-4" />
                    Delete
-                 </button>
+                 </button> */}
               </div>
             </div>
           </div>

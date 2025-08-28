@@ -355,12 +355,12 @@ const PlansPage = () => {
                       {userPlan.uploadsUsedThisMonth}/{userPlan.plan.maxUploadsPerMonth}
                     </p>
                   </div>
-                  <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-blue-100/50">
+                  {/* <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-blue-100/50">
                     <p className="text-sm text-gray-500 mb-1">Storage</p>
                     <p className="text-lg font-semibold text-gray-800">
                       {userPlan.storageUsedGB.toFixed(2)}/{userPlan.plan.storageQuotaGB} GB
                     </p>
-                  </div>
+                  </div> */}
                   <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-blue-100/50">
                     <p className="text-sm text-gray-500 mb-1">Status</p>
                     <p className={`text-lg font-semibold ${userPlan.status === 'ACTIVE' ? 'text-green-600' : 'text-yellow-600'}`}>

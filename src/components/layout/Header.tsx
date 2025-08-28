@@ -111,7 +111,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                     </div> */}
                     <div>
                       <p className="font-medium text-gray-900 text-sm">{user?.firstName} {user?.lastName}</p>
-                      <p className="text-xs text-gray-600">{user?.email}</p>
+                      <p className="text-xs text-gray-600" style={{ wordBreak: 'break-all' }}>{user?.email}</p>
                       <p className="text-xs text-blue-600 font-medium">{user?.accountType}</p>
                     </div>
                   </div>

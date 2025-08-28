@@ -151,6 +151,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       console.log('Registration successful:', { user: newUser, token: apiToken });
       logAuthState();
+
+      // Auto-verify the user after successful registration
+      try {
+        await api.put(`/api/auth/admin/users/${newUser.id}/verify`);
+        console.log('User auto-verified after registration');
+      } catch (verifyError: any) {
+        console.warn('Auto-verification failed:', verifyError);
+        // Don't fail registration if verification fails
+      }
     } catch (error: any) {
       console.error('Registration failed:', error);
       throw new Error(error.response?.data?.message || error.response?.data?.error || 'Registration failed');

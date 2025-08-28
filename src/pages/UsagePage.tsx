@@ -178,12 +178,12 @@ const UsagePage = () => {
                     {usage.uploadsUsedThisMonth || 0}/{usage.currentPlan.plan.maxUploadsPerMonth || 0}
                   </p>
                 </div>
-                <div className="bg-white/10 rounded-xl p-4">
+                {/* <div className="bg-white/10 rounded-xl p-4">
                   <p className="text-sm text-primary-100 mb-1">Storage Used</p>
                   <p className="text-2xl font-bold">
                     {(usage.storageUsedGB || 0).toFixed(2)}/{usage.currentPlan.plan.storageQuotaGB || 0} GB
                   </p>
-                </div>
+                </div> */}
               </div>
             </div>
             <div className="text-right">
@@ -254,7 +254,7 @@ const UsagePage = () => {
         </div>
 
           {/* Storage */}
-          <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
+          {/* <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center">
               <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mr-4">
@@ -303,7 +303,7 @@ const UsagePage = () => {
               />
             </div>
           )}
-        </div>
+        </div> */}
       </div>
 
         {/* Usage Alerts */}

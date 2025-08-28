@@ -181,8 +181,8 @@ const ServicesPage = () => {
 
   // Delete service mutation
   const deleteServiceMutation = useMutation({
-    mutationFn: async (configureUrl: string) => {
-      const response = await api.delete(configureUrl);
+    mutationFn: async (serviceType: string) => {
+      const response = await api.delete(`/api/services/${serviceType}/configure`);
       return response.data;
     },
     onSuccess: (data, serviceType) => {
@@ -489,7 +489,7 @@ const ServicesPage = () => {
                       ) : (
                         <>
                           <FaCheck className="h-4 w-4 mr-2" />
-                          Test
+                          Connect to service
                         </>
                       )}
                     </button>
