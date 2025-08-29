@@ -123,7 +123,27 @@ const ProfilePage = () => {
           Manage your account information and personalize your profile
         </p>
       </div>
-
+      <div style={{ display: 'flex', justifyContent: 'end', alignItems: 'center', gap: '10px' }}>
+        <div className="flex justify-center ">
+          <button
+            onClick={() => setIsEditing(!isEditing)}
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
+          >
+            {isEditing ? <FaSave className="h-5 w-5" /> : <FaEdit className="h-5 w-5" />}
+            <span>{isEditing ? 'Save Changes' : 'Edit Profile'}</span>
+          </button>
+        </div>
+        <div className="flex justify-center ">
+          <button
+            type="button"
+            onClick={() => navigate('/change-password')}
+            className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-red-700 hover:to-pink-700 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
+          >
+            <FaLock className="h-5 w-5" />
+            <span>Change Password</span>
+          </button>
+        </div>
+      </div>
       {/* Profile Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
         <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-2xl p-8 border border-blue-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
@@ -137,7 +157,7 @@ const ProfilePage = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/30 rounded-2xl p-8 border border-green-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
@@ -149,8 +169,8 @@ const ProfilePage = () => {
             </div>
           </div>
         </div>
-        
-        <div className="bg-gradient-to-br from-white via-yellow-50/30 to-orange-50/30 rounded-2xl p-8 border border-yellow-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+
+        {/* <div className="bg-gradient-to-br from-white via-yellow-50/30 to-orange-50/30 rounded-2xl p-8 border border-yellow-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium mb-2">Storage Quota</p>
@@ -160,9 +180,9 @@ const ProfilePage = () => {
               <FaUpload className="h-6 w-6 text-white" />
             </div>
           </div>
-        </div>
+        </div> */}
 
-        <div className="bg-gradient-to-br from-white via-purple-50/30 to-pink-50/30 rounded-2xl p-8 border border-purple-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+        {/* <div className="bg-gradient-to-br from-white via-purple-50/30 to-pink-50/30 rounded-2xl p-8 border border-purple-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium mb-2">Max File Size</p>
@@ -172,20 +192,12 @@ const ProfilePage = () => {
               <FaEdit className="h-6 w-6 text-white" />
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Edit Button */}
-      <div className="flex justify-center mb-8">
-        <button
-          onClick={() => setIsEditing(!isEditing)}
-          className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
-        >
-          {isEditing ? <FaSave className="h-5 w-5" /> : <FaEdit className="h-5 w-5" />}
-          <span>{isEditing ? 'Save Changes' : 'Edit Profile'}</span>
-        </button>
-      </div>
 
+      {/* Security Actions */}
       {/* Personal Information */}
       <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-3xl shadow-2xl border border-blue-100/50 p-8">
         <div className="flex items-center space-x-4 mb-8">
@@ -194,7 +206,7 @@ const ProfilePage = () => {
           </div>
           <h2 className="text-2xl font-bold text-gray-800">Personal Information</h2>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-blue-100/50">
@@ -204,7 +216,7 @@ const ProfilePage = () => {
                 disabled={!isEditing}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 text-base"
                 value={formData.firstName}
-                onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
               />
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-blue-100/50">
@@ -214,7 +226,7 @@ const ProfilePage = () => {
                 disabled={!isEditing}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 text-base"
                 value={formData.lastName}
-                onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
               />
             </div>
           </div>
@@ -230,7 +242,7 @@ const ProfilePage = () => {
                 disabled={!isEditing}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 text-base"
                 value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-blue-100/50">
@@ -243,7 +255,7 @@ const ProfilePage = () => {
                 disabled={!isEditing}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 text-base"
                 value={formData.phone}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
             </div>
           </div>
@@ -258,7 +270,7 @@ const ProfilePage = () => {
           </div>
           <h2 className="text-2xl font-bold text-gray-800">Professional Information</h2>
         </div>
-        
+
         <div className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-green-100/50">
@@ -271,7 +283,7 @@ const ProfilePage = () => {
                 disabled={!isEditing}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-50 text-base"
                 value={formData.company}
-                onChange={(e) => setFormData({...formData, company: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
               />
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-green-100/50">
@@ -281,7 +293,7 @@ const ProfilePage = () => {
                 disabled={!isEditing}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-50 text-base"
                 value={formData.role}
-                onChange={(e) => setFormData({...formData, role: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               />
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-green-100/50">
@@ -291,7 +303,7 @@ const ProfilePage = () => {
                 disabled={!isEditing}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-50 text-base"
                 value={formData.department}
-                onChange={(e) => setFormData({...formData, department: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
               />
             </div>
           </div>
@@ -307,7 +319,7 @@ const ProfilePage = () => {
           </div>
           <h2 className="text-2xl font-bold text-gray-800">Account Information</h2>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-yellow-100/50">
             <label className="block text-base font-semibold text-gray-800 mb-3">Username</label>
@@ -356,26 +368,8 @@ const ProfilePage = () => {
           </div>
           <h2 className="text-2xl font-bold text-gray-800">Storage & Security Settings</h2>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-indigo-100/50">
-            <label className="block text-base font-semibold text-gray-800 mb-3">Storage Quota</label>
-            <input
-              type="text"
-              disabled
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-base"
-              value={profileData ? `${Math.round(profileData.storageQuotaMB / 1024)} GB` : 'N/A'}
-            />
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-indigo-100/50">
-            <label className="block text-base font-semibold text-gray-800 mb-3">Max File Size</label>
-            <input
-              type="text"
-              disabled
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-base"
-              value={profileData ? `${Math.round(profileData.maxFileSizeMB / 1024)} GB` : 'N/A'}
-            />
-          </div>
           <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-indigo-100/50">
             <label className="block text-base font-semibold text-gray-800 mb-3">Allowed File Types</label>
             <input
@@ -403,15 +397,6 @@ const ProfilePage = () => {
               value={profileData?.lastLoginAt ? new Date(profileData.lastLoginAt).toLocaleString() : 'N/A'}
             />
           </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-indigo-100/50">
-            <label className="block text-base font-semibold text-gray-800 mb-3">Failed Login Attempts</label>
-            <input
-              type="text"
-              disabled
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-base"
-              value={profileData?.failedLoginAttempts || '0'}
-            />
-          </div>
         </div>
       </div>
 
@@ -437,17 +422,7 @@ const ProfilePage = () => {
         </div>
       )}
 
-      {/* Security Actions */}
-      <div className="flex justify-center mt-8">
-        <button
-          type="button"
-          onClick={() => navigate('/change-password')}
-          className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-red-700 hover:to-pink-700 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
-        >
-          <FaLock className="h-5 w-5" />
-          <span>Change Password</span>
-        </button>
-      </div>
+
     </div>
   );
 };
