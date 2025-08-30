@@ -126,7 +126,7 @@ const ProfilePage = () => {
       <div style={{ display: 'flex', justifyContent: 'end', alignItems: 'center', gap: '10px' }}>
         <div className="flex justify-center ">
           <button
-            onClick={() => setIsEditing(!isEditing)}
+              onClick={(e) => {setIsEditing(!isEditing);  isEditing && handleSubmit(e)}}
             className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
           >
             {isEditing ? <FaSave className="h-5 w-5" /> : <FaEdit className="h-5 w-5" />}
@@ -290,7 +290,7 @@ const ProfilePage = () => {
               <label className="block text-base font-semibold text-gray-800 mb-3">Role</label>
               <input
                 type="text"
-                disabled={!isEditing}
+                disabled
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-50 text-base"
                 value={formData.role}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value })}
