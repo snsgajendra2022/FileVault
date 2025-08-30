@@ -558,14 +558,14 @@ const UserDetailsModal = ({ user, onClose }: { user: AdminUser; onClose: () => v
                     <p className="text-sm text-gray-600">Images Count</p>
                     <p className="font-medium">{userDetails.imageCount || 0}</p>
                   </div>
-                  <div>
+                  {/* <div>
                     <p className="text-sm text-gray-600">Storage Used</p>
                     <p className="font-medium">{userDetails.totalStorageUsedMB || 0} MB</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Storage Quota</p>
                     <p className="font-medium">{userDetails.storageQuotaMB || 0} MB</p>
-                  </div>
+                  </div> */}
                   <div>
                     <p className="text-sm text-gray-600">Usage Percentage</p>
                     <p className="font-medium">{userDetails.storageUsagePercentage || 0}%</p>

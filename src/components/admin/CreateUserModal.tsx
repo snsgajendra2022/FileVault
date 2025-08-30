@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { FaUser, FaShieldAlt, FaCog, FaCloud, FaEye, FaEyeSlash, FaTimes } from 'react-icons/fa';
 import { AdminUser } from '../../services/adminService';
+import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 interface CreateUserModalProps {
   onClose: () => void;
@@ -20,18 +22,14 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit, is
     accountType: 'FREE',
     status: 'ACTIVE',
     company: '',
-    role: '',
-    department: '',
-    storageQuotaMB: 1000,
-    maxFileSizeMB: 50,
-    allowedFileTypes: 'jpg,jpeg,png,pdf,doc,docx',
-    twoFactorEnabled: false,
-    billingCycle: 'MONTHLY'
+    role: 'subscribed',
+    department: ''
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const { onSubmitUser } = useAuth();
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -77,11 +75,42 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit, is
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
       const { confirmPassword, ...submitData } = formData;
-      onSubmit(submitData);
+      
+      try {
+        // First create the user
+        // await onSubmit(submitData);
+        await onSubmitUser(submitData);
+        // After successful user creation, upgrade the user's plan
+        try {
+           if (submitData.accountType === 'FREE') {
+          const planIdMap: { [key: string]: number } = {
+            'FREE': 1,
+          };
+
+          const upgradeData = {
+            planId: 1,
+            billingCycle: 'MONTHLY',
+            prorate: true
+          }; 
+
+          await api.post('/api/plans/subscribe', upgradeData);
+          console.log(`User created successfully!`);
+        } else {
+          console.log(`User created successfully!`);
+        }
+        } catch (upgradeError: any) {
+          console.error('Plan upgrade failed:', upgradeError);
+          console.log('User created successfully! Welcome to ImageSecurity Portal.');
+          // Don't fail the user creation if plan upgrade fails
+        }
+      } catch (error: any) {
+        console.error('User creation failed:', error);
+        throw error; // Re-throw to let parent component handle the error
+      }
     }
   };
 
@@ -272,19 +301,6 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit, is
                   </div>
                   {errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>}
                 </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="twoFactorEnabled"
-                    checked={formData.twoFactorEnabled}
-                    onChange={(e) => handleFieldChange('twoFactorEnabled', e.target.checked)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="twoFactorEnabled" className="ml-2 block text-sm text-gray-700">
-                    Enable Two-Factor Authentication
-                  </label>
-                </div>
               </div>
             </div>
 
@@ -305,9 +321,6 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit, is
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                   >
                     <option value="FREE">Free</option>
-                    <option value="BASIC">Basic</option>
-                    <option value="PREMIUM">Premium</option>
-                    <option value="ENTERPRISE">Enterprise</option>
                     <option value="ADMIN">Admin</option>
                   </select>
                 </div>
@@ -349,7 +362,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit, is
                   />
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Billing Cycle</label>
                   <select
                     value={formData.billingCycle}
@@ -359,11 +372,11 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit, is
                     <option value="MONTHLY">Monthly</option>
                     <option value="YEARLY">Yearly</option>
                   </select>
-                </div>
+                </div> */}
               </div>
             </div>
 
-            {/* Storage & File Settings Section */}
+            {/* Storage & File Settings Section 
             <div className="bg-gray-50 rounded-2xl p-6">
               <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                 <FaCloud className="h-5 w-5 text-indigo-600 mr-2" />
@@ -408,7 +421,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit, is
                   <p className="text-xs text-gray-500 mt-1">Comma-separated file extensions</p>
                 </div>
               </div>
-            </div>
+            </div>*/}
 
             {/* Action Buttons */}
             <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">

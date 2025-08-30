@@ -18,6 +18,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (userData: any) => Promise<void>;
+  onSubmitUser: (userData: any) => Promise<any>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
 }
@@ -165,6 +166,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       throw new Error(error.response?.data?.message || error.response?.data?.error || 'Registration failed');
     }
   };
+  const onSubmitUser = async (userData: any) => {
+    try {
+      const response = await api.post('/api/auth/register', userData);
+      const { apiToken, ...newUser } = response.data;
+      return newUser;
+    } catch (error: any) {
+      console.error('Registration failed:', error);
+      throw new Error(error.response?.data?.message || error.response?.data?.error || 'Registration failed');
+    }
+  };
 
   const logout = () => {
     console.log('Logout initiated...');
@@ -205,6 +216,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading,
     login,
     register,
+    onSubmitUser,
     logout,
     updateUser
   };

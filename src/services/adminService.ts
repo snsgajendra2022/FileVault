@@ -19,7 +19,6 @@ export interface AdminUser {
   allowedFileTypes?: string;
   maxFileSizeMB?: number;
   twoFactorEnabled: boolean;
-  failedLoginAttempts: number;
 }
 
 export interface UserStatistics {
