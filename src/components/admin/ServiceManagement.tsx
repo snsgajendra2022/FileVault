@@ -166,13 +166,13 @@ const ServiceManagement = () => {
           <h3 className="text-2xl font-bold text-gray-900">Service Management</h3>
           <p className="text-sm text-gray-600">Manage existing services and create dynamic configurations</p>
         </div>
-        <button
+        {/* <button
           onClick={handleCreateService}
           className="btn-primary flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
         >
           <FaPlus className="h-4 w-4" />
           <span>Create Dynamic Service</span>
-        </button>
+        </button> */}
       </div>
 
       {/* Statistics Cards */}
