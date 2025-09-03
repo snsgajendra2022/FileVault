@@ -171,6 +171,8 @@ const FamilyTree: React.FC = () => {
   const { user: currentUser } = useAuth();
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<Relationship | null>(null);
 
   useEffect(() => {
     fetchFamilyRelationships();
@@ -191,6 +193,16 @@ const FamilyTree: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openModal = (user: Relationship) => {
+    setSelectedUser(user);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedUser(null);
   };
 
   // slot data for the fixed 8 → 4 → 2 → 1 layout
@@ -399,8 +411,82 @@ const FamilyTree: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* User Details Modal */}
+      {showModal && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">User Details</h2>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <p className="text-lg text-gray-900">
+                  {selectedUser.otherUserFirstName} {selectedUser.otherUserLastName}
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <p className="text-lg text-gray-900">{selectedUser.otherUserUsername}</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
+                <p className="text-lg text-gray-900">{relLabel(selectedUser.relationshipType)}</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Permissions</label>
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <span className={`w-3 h-3 rounded-full mr-2 ${selectedUser.canViewImages ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                    <span className="text-sm text-gray-700">View Images</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className={`w-3 h-3 rounded-full mr-2 ${selectedUser.canUploadImages ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                    <span className="text-sm text-gray-700">Upload Images</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className={`w-3 h-3 rounded-full mr-2 ${selectedUser.canDeleteImages ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                    <span className="text-sm text-gray-700">Delete Images</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className={`w-3 h-3 rounded-full mr-2 ${selectedUser.canManageAlbums ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                    <span className="text-sm text-gray-700">Manage Albums</span>
+                  </div>
+                </div>
+              </div>
+              
+              {selectedUser.relationshipNotes && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <p className="text-gray-900">{selectedUser.relationshipNotes}</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="mt-8 flex justify-end">
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-
 export default FamilyTree;
+
