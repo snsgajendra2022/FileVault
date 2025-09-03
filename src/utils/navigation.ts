@@ -28,6 +28,7 @@ export const isValidRoute = (pathname: string) => {
     '/',
     '/login',
     '/register',
+    '/accept-invitation',
     '/dashboard',
     '/profile',
     '/services',
@@ -37,6 +38,7 @@ export const isValidRoute = (pathname: string) => {
     '/settings',
     '/upload',
     '/analytics',
+    '/invitations',
     '/admin'
   ];
   

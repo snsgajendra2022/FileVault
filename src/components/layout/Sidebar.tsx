@@ -26,7 +26,8 @@ const Sidebar = () => {
     { name: 'Plans', href: '/plans', icon: FaPlus },
     { name: 'Usage', href: '/usage', icon: FaChartBar },
     // { name: 'Billing', href: '/billing', icon: FaPlus },
-    // { name: 'Analytics', href: '/analytics', icon: FaChartBar },
+    // { name: 'Analytics', href: '/analytics', icon: FaPlus },
+    { name: 'Invitations', href: '/invitations', icon: FaUsers },
     { name: 'Profile', href: '/profile', icon: FaUser },
     { name: 'Settings', href: '/settings', icon: FaCog },
   ];

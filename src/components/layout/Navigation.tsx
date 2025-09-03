@@ -31,6 +31,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
     { name: 'Usage', href: '/usage', icon: FaChartBar },
     { name: 'Billing', href: '/billing', icon: FaPlus },
     { name: 'Analytics', href: '/analytics', icon: FaChartBar },
+    { name: 'Invitations', href: '/invitations', icon: FaUsers },
     { name: 'Profile', href: '/profile', icon: FaUser },
     { name: 'Settings', href: '/settings', icon: FaCog },
   ];

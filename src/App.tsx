@@ -24,6 +24,8 @@ import ChangePasswordPage from './pages/ChangePasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
+import AcceptInvitationPage from './pages/AcceptInvitationPage';
+import InvitationsPage from './pages/InvitationsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -78,6 +80,9 @@ const AppRoutes = () => {
           <RegisterPage />
       } />
       
+      {/* Public invitation acceptance route */}
+      <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+      
       <Route path="/" element={
         <ProtectedRoute>
           <Layout />
@@ -99,6 +104,7 @@ const AppRoutes = () => {
         <Route path="upload" element={<UploadPage />} />
         <Route path="images" element={<ImagesPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="invitations" element={<InvitationsPage />} />
         {/* Admin route with proper protection */}
         <Route path="admin" element={
           <ProtectedRoute adminOnly>
