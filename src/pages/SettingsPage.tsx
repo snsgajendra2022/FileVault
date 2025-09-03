@@ -124,17 +124,17 @@ const SettingsPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         {/* Appearance Settings */}
-        <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-3xl shadow-2xl border border-blue-100/50 p-8">
+        <div className="bg-white rounded-3xl shadow-xl border border-blue-100 p-8">
           <div className="flex items-center space-x-4 mb-8">
-                         <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-               <FaCog className="h-6 w-6 text-white" />
-             </div>
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <FaCog className="h-6 w-6 text-white" />
+            </div>
             <h2 className="text-2xl font-bold text-gray-800">Appearance</h2>
           </div>
           
           <div className="space-y-6">
             {/* Theme Selection */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-blue-100/50">
+            <div className="bg-gray-50 rounded-xl p-6 border border-blue-100">
               <label className="block text-base font-semibold text-gray-800 mb-3">Theme</label>
               <select
                 disabled={!isEditing}
@@ -149,7 +149,7 @@ const SettingsPage = () => {
             </div>
 
             {/* Font Size */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-blue-100/50">
+            <div className="bg-gray-50 rounded-xl p-6 border border-blue-100">
               <label className="block text-base font-semibold text-gray-800 mb-3">Font Size</label>
               <select
                 disabled={!isEditing}
@@ -165,7 +165,7 @@ const SettingsPage = () => {
             </div>
 
             {/* Language */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-blue-100/50">
+            <div className="bg-gray-50 rounded-xl p-6 border border-blue-100">
               <label className="block text-base font-semibold text-gray-800 mb-3">Language</label>
               <select
                 disabled={!isEditing}
@@ -184,7 +184,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Notification Settings */}
-        <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/30 rounded-3xl shadow-2xl border border-green-100/50 p-8">
+        <div className="bg-white rounded-3xl shadow-xl border border-green-100 p-8">
           <div className="flex items-center space-x-4 mb-8">
             <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
               <FaBell className="h-6 w-6 text-white" />
@@ -199,10 +199,10 @@ const SettingsPage = () => {
               { key: 'smsNotifications', label: 'SMS Notifications', desc: 'Receive SMS notifications' },
               { key: 'marketingEmails', label: 'Marketing Emails', desc: 'Receive marketing updates' }
             ].map(({ key, label, desc }) => (
-              <div key={key} className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-green-100/50">
+              <div key={key} className="bg-gray-50 rounded-xl p-4 border border-green-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-white font-medium">{label}</h3>
+                    <h3 className="text-gray-800 font-medium">{label}</h3>
                     <p className="text-gray-600 text-sm">{desc}</p>
                   </div>
                   <button
@@ -225,7 +225,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Privacy Settings */}
-        <div className="bg-gradient-to-br from-white via-purple-50/30 to-pink-50/30 rounded-3xl shadow-2xl border border-purple-100/50 p-8">
+        <div className="bg-white rounded-3xl shadow-xl border border-purple-100 p-8">
           <div className="flex items-center space-x-4 mb-8">
             <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg">
               <FaLock className="h-6 w-6 text-white" />
@@ -235,7 +235,7 @@ const SettingsPage = () => {
           
           <div className="space-y-6">
             {/* Profile Visibility */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-purple-100/50">
+            <div className="bg-gray-50 rounded-xl p-6 border border-purple-100">
               <label className="block text-base font-semibold text-gray-800 mb-3">Profile Visibility</label>
               <select
                 disabled={!isEditing}
@@ -250,7 +250,7 @@ const SettingsPage = () => {
             </div>
 
             {/* Data Sharing */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-purple-100/50">
+            <div className="bg-gray-50 rounded-xl p-6 border border-purple-100">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-gray-800 font-medium">Data Sharing</h3>
@@ -273,7 +273,7 @@ const SettingsPage = () => {
             </div>
 
             {/* Analytics */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-purple-100/50">
+            <div className="bg-gray-50 rounded-xl p-6 border border-purple-100">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-gray-800 font-medium">Analytics</h3>
@@ -298,7 +298,7 @@ const SettingsPage = () => {
         </div>
 
         {/* Security Settings */}
-        <div className="bg-gradient-to-br from-white via-red-50/30 to-orange-50/30 rounded-3xl shadow-2xl border border-red-100/50 p-8">
+        <div className="bg-white rounded-3xl shadow-xl border border-red-100 p-8">
           <div className="flex items-center space-x-4 mb-8">
             <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
               <FaShieldAlt className="h-6 w-6 text-white" />
@@ -308,7 +308,7 @@ const SettingsPage = () => {
           
           <div className="space-y-6">
             {/* Two Factor Authentication */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-red-100/50">
+            <div className="bg-gray-50 rounded-xl p-6 border border-red-100">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-gray-800 font-medium">Two-Factor Authentication</h3>
@@ -331,7 +331,7 @@ const SettingsPage = () => {
             </div>
 
             {/* Session Timeout */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-red-100/50">
+            <div className="bg-gray-50 rounded-xl p-6 border border-red-100">
               <label className="block text-base font-semibold text-gray-800 mb-3">Session Timeout (minutes)</label>
               <input
                 type="range"
@@ -350,7 +350,7 @@ const SettingsPage = () => {
             </div>
 
             {/* Password Expiry */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-red-100/50">
+            <div className="bg-gray-50 rounded-xl p-6 border border-red-100">
               <label className="block text-base font-semibold text-gray-800 mb-3">Password Expiry (days)</label>
               <input
                 type="range"
@@ -372,7 +372,7 @@ const SettingsPage = () => {
       </div>
 
       {/* File Upload Settings */}
-      <div className="bg-gradient-to-br from-white via-yellow-50/30 to-orange-50/30 rounded-3xl shadow-2xl border border-yellow-100/50 p-8">
+      <div className="bg-white rounded-3xl shadow-xl border border-yellow-100 p-8">
         <div className="flex items-center space-x-4 mb-8">
           <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
             <FaUpload className="h-6 w-6 text-white" />
@@ -382,7 +382,7 @@ const SettingsPage = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Max File Size */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-yellow-100/50">
+          <div className="bg-gray-50 rounded-xl p-6 border border-yellow-100">
             <label className="block text-base font-semibold text-gray-800 mb-3">Max File Size (MB)</label>
             <input
               type="number"
@@ -396,7 +396,7 @@ const SettingsPage = () => {
           </div>
 
           {/* Allowed File Types */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-yellow-100/50">
+          <div className="bg-gray-50 rounded-xl p-6 border border-yellow-100">
             <label className="block text-base font-semibold text-gray-800 mb-3">Allowed File Types</label>
             <input
               type="text"
@@ -410,7 +410,7 @@ const SettingsPage = () => {
           </div>
 
           {/* Auto Compress */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-yellow-100/50">
+          <div className="bg-gray-50 rounded-xl p-6 border border-yellow-100">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-gray-800 font-medium">Auto Compress</h3>
