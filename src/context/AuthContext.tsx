@@ -116,6 +116,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       const { apiToken, ...userData } = response.data;
       
+      console.log('Login - Extracted user data:', userData);
+      console.log('Login - User account type:', userData.accountType);
+      console.log('Login - Is admin?', userData.accountType === 'ADMIN');
+      
       // Store token and user data using utility functions
       setStoredToken(apiToken);
       setStoredUserData(userData);

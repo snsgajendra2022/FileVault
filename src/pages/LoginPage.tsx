@@ -17,10 +17,15 @@ const LoginPage = () => {
   // Handle redirect based on user type after successful login or if already authenticated
   useEffect(() => {
     if (user && !isLoading) {
-      console.log('LoginPage - User authenticated, redirecting to:', user.accountType === 'ADMIN' ? '/admin' : '/dashboard');
+      console.log('LoginPage - User authenticated, user data:', user);
+      console.log('LoginPage - User account type:', user.accountType);
+      console.log('LoginPage - Redirecting to:', user.accountType === 'ADMIN' ? '/admin' : '/dashboard');
+      
       if (user.accountType === 'ADMIN') {
+        console.log('LoginPage - Redirecting admin user to /admin');
         navigate('/admin');
       } else {
+        console.log('LoginPage - Redirecting regular user to /dashboard');
         navigate('/dashboard');
       }
     }

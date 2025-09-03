@@ -78,7 +78,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
-          {/* Regular Navigation */}
+          {/* Regular Navigation - Show for all users */}
           {navigationItems.map((item) => (
             <NavLink
               key={item.name}

@@ -32,7 +32,7 @@ const Sidebar = () => {
   ];
 
   const adminNavigationItems = [
-    { name: 'Admin Dashboard', href: '/admin', icon: FaShieldAlt },
+    { name: 'Admin Dashboard', href: '/admin?tab=dashboard', icon: FaShieldAlt },
     { name: 'User Management', href: '/admin?tab=users', icon: FaUsers },
     { name: 'Service Config', href: '/admin?tab=services', icon: FaCloud },
     { name: 'Plan Management', href: '/admin?tab=plans', icon: FaPlus },
@@ -75,7 +75,7 @@ const Sidebar = () => {
 
         {/* Enhanced Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          {/* Regular Navigation */}
+          {/* Regular Navigation - Show for all users */}
           {!isAdmin && navigationItems.map((item) => (
             <NavLink
               key={item.name}
@@ -108,7 +108,7 @@ const Sidebar = () => {
           ))}
 
           {/* Admin Navigation - Only show for ADMIN users */}
-          {isAdmin && (
+          { isAdmin && (
             <>
               <div className="pt-4 pb-3">
                 <div className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">

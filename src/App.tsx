@@ -63,15 +63,19 @@ const ProtectedRoute = ({ children, adminOnly = false }: { children: React.React
 };
 
 const AppRoutes = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isAdmin } = useAuth();
   
   return (
     <Routes>
       <Route path="/login" element={
-        !isLoading && isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />
+        !isLoading && isAuthenticated ? 
+          (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />) : 
+          <LoginPage />
       } />
       <Route path="/register" element={
-        !isLoading && isAuthenticated ? <Navigate to="/dashboard" /> : <RegisterPage />
+        !isLoading && isAuthenticated ? 
+          (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />) : 
+          <RegisterPage />
       } />
       
       <Route path="/" element={
@@ -79,7 +83,9 @@ const AppRoutes = () => {
           <Layout />
         </ProtectedRoute>
       }>
-        <Route index element={<Navigate to="/dashboard" />} />
+        <Route index element={
+          isAdmin ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />
+        } />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="change-password" element={<ChangePasswordPage />} />
@@ -93,13 +99,16 @@ const AppRoutes = () => {
         <Route path="upload" element={<UploadPage />} />
         <Route path="images" element={<ImagesPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
+        {/* Admin route with proper protection */}
         <Route path="admin" element={
           <ProtectedRoute adminOnly>
             <AdminPage />
           </ProtectedRoute>
         } />
-        {/* Catch all unmatched routes and redirect to dashboard */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* Catch all unmatched routes and redirect to appropriate dashboard */}
+        <Route path="*" element={
+          isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/dashboard" replace />
+        } />
       </Route>
       
       {/* Catch all other routes and show 404 page */}
