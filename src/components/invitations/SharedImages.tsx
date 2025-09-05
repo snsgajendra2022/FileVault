@@ -54,15 +54,85 @@ const SharedImages: React.FC = () => {
   const fetchSharedImages = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/simple-invitations/shared-images');
-      if (response.data.success) {
-        setImages(response.data.images || []);
-        setPermissions(response.data.allowedActions || {
+      
+      // Use fetch to get raw text and clean it before parsing
+      const response = await fetch(process.env.REACT_APP_API_URL+'/api/simple-invitations/shared-images', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const rawText = await response.text();
+      console.log('Raw API Response Text:', rawText.substring(0, 500) + '...');
+      
+      // Remove recursive "user" inside "images" using regex
+      // This pattern matches "user": { ... } and removes it, handling nested objects
+      let cleaned = rawText;
+      
+      // First, try to remove the deeply nested user objects
+      // This handles the case where user objects contain nested images arrays
+      cleaned = cleaned.replace(/"user":\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\},?/g, "");
+      
+      // If that doesn't work, try a simpler approach
+      if (cleaned === rawText) {
+        cleaned = cleaned.replace(/"user":\{[^}]*\},?/g, "");
+      }
+      console.log('Cleaned Text:', cleaned.substring(0, 500) + '...');
+      
+      let data;
+      try {
+        data = JSON.parse(cleaned);
+        console.log('Parsed Data:', data);
+      } catch (parseError) {
+        console.error('Failed to parse cleaned JSON, trying alternative approach:', parseError);
+        // Fallback: try to parse the original text and handle it differently
+        try {
+          const originalData = JSON.parse(rawText);
+          console.log('Fallback: Parsed original data');
+          data = originalData;
+        } catch (originalParseError) {
+          console.error('Failed to parse original JSON:', originalParseError);
+          throw new Error('Unable to parse API response');
+        }
+      }
+      
+      if (data.success) {
+        const rawImages = data.images || [];
+        console.log('Raw images count:', rawImages.length);
+        
+        // Now clean the images data to extract only what we need
+        const cleanedImages = rawImages.map((image: any) => ({
+          id: image.id,
+          originalFilename: image.originalFilename,
+          storedFilename: image.storedFilename,
+          fileHash: image.fileHash,
+          uploadTime: image.uploadTime,
+          userId: image.userId,
+          user: image.user ? {
+            id: image.user.id,
+            firstName: image.user.firstName,
+            lastName: image.user.lastName,
+            username: image.user.username
+          } : null
+        }));
+        
+        console.log('Final Cleaned Images:', cleanedImages);
+        setImages(cleanedImages);
+        setPermissions(data.allowedActions || {
           canViewImages: true,
           canUploadImages: false,
           canDeleteImages: false,
           canManageAlbums: false
         });
+      } else {
+        console.error('API returned success: false', data);
+        toast.error(data.message || 'Failed to load shared images');
       }
     } catch (error: any) {
       console.error('Error fetching shared images:', error);
@@ -276,8 +346,9 @@ const SharedImages: React.FC = () => {
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto p-6">
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
+          <p className="text-gray-600">Loading shared images...</p>
         </div>
       </div>
     );
@@ -329,6 +400,15 @@ const SharedImages: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Debug Info */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <h3 className="font-semibold text-yellow-800 mb-2">Debug Info</h3>
+          <p className="text-sm text-yellow-700">Images loaded: {images.length}</p>
+          <p className="text-sm text-yellow-700">Permissions: {JSON.stringify(permissions)}</p>
+        </div>
+      )}
 
       {/* Header */}
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 mb-6">

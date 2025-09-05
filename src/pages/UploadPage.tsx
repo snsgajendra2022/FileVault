@@ -90,11 +90,31 @@ const UploadPage = () => {
       );
 
       if (uploadFile.uploadDestination === 'family-account' && uploadFile.targetFamilyMember) {
- const  inviteuserToken = localStorage.getItem('token');
+        // Upload to family member's account using inviterApiToken
+        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+        console.log('UserData:', userData);
+        console.log('Target Family Member:', uploadFile.targetFamilyMember);
+        
+        const familyRelationship = userData.familyRelationships?.find(
+          (rel: any) => rel.inviterId === uploadFile.targetFamilyMember.otherUserId
+        );
+        
+        console.log('Found Family Relationship:', familyRelationship);
+        
+        if (!familyRelationship || !familyRelationship.inviterApiToken) {
+          console.error('Family relationship or inviter token not found');
+          throw new Error('Family relationship or inviter token not found');
+        }
+
         const formData = new FormData();
         formData.append('file', uploadFile.file);
 
+        console.log('Using inviter token:', familyRelationship.inviterApiToken);
+
         await api.post('/api/images/upload', formData, {
+          headers: {
+            'Authorization': `Bearer ${familyRelationship.inviterApiToken}`
+          },
           onUploadProgress: (progressEvent) => {
             const progress = Math.round(
               (progressEvent.loaded * 100) / (progressEvent.total || 1)
@@ -118,35 +138,19 @@ const UploadPage = () => {
           )
         );
 
-        toast.success(`${uploadFile.file.name} uploaded to your account successfully!`);
-        // Upload to family member's account using base64
-        // const base64Image = await convertFileToBase64(uploadFile.file);
-        
-        // const response = await api.post('/api/simple-invitations/upload-to-inviter', {
-        //   originalFilename: uploadFile.file.name,
-        //   base64Image: base64Image,
-        //   contentType: uploadFile.file.type,
-        //   targetUserId: uploadFile.targetFamilyMember.otherUserId
-        // });
-
-        // if (response.data.success) {
-        //   setUploadFiles(prev => 
-        //     prev.map(f => 
-        //       f.id === uploadFile.id 
-        //         ? { ...f, status: 'completed' as const, progress: 100 }
-        //         : f
-        //     )
-        //   );
-        //   toast.success(`${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`);
-        // } else {
-        //   throw new Error(response.data.message || 'Upload failed');
-        // }
+        toast.success(`${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`);
       } else {
-        // Upload to my account using FormData
+        // Upload to my account using my own token
+        const myToken = localStorage.getItem('token');
+        console.log('Using my token:', myToken);
+        
         const formData = new FormData();
         formData.append('file', uploadFile.file);
 
         await api.post('/api/images/upload', formData, {
+          headers: {
+            'Authorization': `Bearer ${myToken}`
+          },
           onUploadProgress: (progressEvent) => {
             const progress = Math.round(
               (progressEvent.loaded * 100) / (progressEvent.total || 1)
@@ -236,7 +240,9 @@ const UploadPage = () => {
   };
 
   const openUploadOptions = (uploadFile: UploadFile) => {
-    setSelectedFileForOptions(uploadFile);
+    // Get the current state of the file from uploadFiles array
+    const currentFile = uploadFiles.find(f => f.id === uploadFile.id) || uploadFile;
+    setSelectedFileForOptions(currentFile);
     setShowUploadOptions(true);
   };
 
@@ -252,13 +258,30 @@ const UploadPage = () => {
           : f
       )
     );
-    setShowUploadOptions(false);
-    setSelectedFileForOptions(null);
+    
+    // Update the selectedFileForOptions to reflect the current state
+    if (selectedFileForOptions && selectedFileForOptions.id === fileId) {
+      setSelectedFileForOptions(prev => prev ? {
+        ...prev,
+        uploadDestination: destination,
+        targetFamilyMember: familyMember
+      } : null);
+    }
+    
+    // Only close modal if it's "my-account" or if family member is selected
+    if (destination === 'my-account' || familyMember) {
+      setShowUploadOptions(false);
+      setSelectedFileForOptions(null);
+    }
   };
 
   const getUploadDestinationText = (uploadFile: UploadFile) => {
-    if (uploadFile.uploadDestination === 'family-account' && uploadFile.targetFamilyMember) {
-      return `👥 ${uploadFile.targetFamilyMember.otherUserFirstName}'s Account`;
+    if (uploadFile.uploadDestination === 'family-account') {
+      if (uploadFile.targetFamilyMember) {
+        return `👥 ${uploadFile.targetFamilyMember.otherUserFirstName}'s Account`;
+      } else {
+        return '👥 Family Account (Select Member)';
+      }
     }
     return '🏠 My Account';
   };
@@ -562,6 +585,7 @@ const UploadPage = () => {
                       {selectedFileForOptions.uploadDestination === 'family-account' && (
                         <div className="ml-6">
                           <select
+                            value={selectedFileForOptions.targetFamilyMember?.id || ''}
                             onChange={(e) => {
                               const member = familyMembers.find(m => m.id === parseInt(e.target.value));
                               setUploadDestination(selectedFileForOptions.id, 'family-account', member);
@@ -575,6 +599,15 @@ const UploadPage = () => {
                               </option>
                             ))}
                           </select>
+                          
+                          {/* Show status when family-account is selected but no member chosen */}
+                          {selectedFileForOptions.uploadDestination === 'family-account' && !selectedFileForOptions.targetFamilyMember && (
+                            <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
+                              <p className="text-sm text-orange-700">
+                                ⚠️ Please select a family member to complete the upload destination.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
