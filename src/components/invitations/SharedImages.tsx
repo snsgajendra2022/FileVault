@@ -40,10 +40,15 @@ const SharedImages: React.FC = () => {
   });
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadDestination, setUploadDestination] = useState<'my-account' | 'inviter-account'>('my-account');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+  const [selectedFamilyMember, setSelectedFamilyMember] = useState<any>(null);
 
   useEffect(() => {
     fetchSharedImages();
     fetchPermissions();
+    fetchFamilyMembers();
   }, []);
 
   const fetchSharedImages = async () => {
@@ -82,6 +87,114 @@ const SharedImages: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error fetching permissions:', error);
+    }
+  };
+
+  const fetchFamilyMembers = async () => {
+    try {
+      const response = await api.get('/api/simple-invitations/family-relationships');
+      if (response.data.success && response.data.relationships.length > 0) {
+        setFamilyMembers(response.data.relationships);
+        // Set first family member as default selection
+        if (response.data.relationships.length > 0) {
+          setSelectedFamilyMember(response.data.relationships[0]);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error fetching family members:', error);
+    }
+  };
+
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        // Remove the data:image/jpeg;base64, prefix
+        const base64Data = base64.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Please select a valid image file (JPEG, PNG, GIF, WebP)');
+        return;
+      }
+      
+      // Validate file size (10MB limit)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        toast.error('File size must be less than 10MB');
+        return;
+      }
+      
+      setSelectedFile(file);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      toast.error('Please select a file to upload');
+      return;
+    }
+
+    if (uploadDestination === 'inviter-account' && !selectedFamilyMember) {
+      toast.error('Please select a family member');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const base64Image = await convertFileToBase64(selectedFile);
+
+      if (uploadDestination === 'inviter-account') {
+        // Upload to family member's account
+        const response = await api.post('/api/simple-invitations/upload-to-inviter', {
+          originalFilename: selectedFile.name,
+          base64Image: base64Image,
+          contentType: selectedFile.type,
+          targetUserId: selectedFamilyMember.otherUserId
+        });
+
+        if (response.data.success) {
+          toast.success(`Image uploaded to ${selectedFamilyMember.otherUserFirstName}'s account successfully!`);
+          fetchSharedImages(); // Refresh the images list
+        } else {
+          toast.error(response.data.message || 'Upload failed');
+        }
+      } else {
+        // Upload to my account (use regular upload API)
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        
+        const response = await api.post('/api/images/upload', formData);
+        
+        if (response.data !== '') {
+          toast.success('Image uploaded to your account successfully!');
+          fetchSharedImages(); // Refresh the images list
+        } else {
+          toast.error(response.data.message || 'Upload failed');
+        }
+      }
+
+      // Reset form
+      setSelectedFile(null);
+      setShowUploadModal(false);
+      setUploadDestination('my-account');
+      
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error(error.response?.data?.message || 'Upload failed');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -548,12 +661,16 @@ const SharedImages: React.FC = () => {
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-gray-900">📤 Upload Image</h3>
                 <button
-                  onClick={() => setShowUploadModal(false)}
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setSelectedFile(null);
+                    setUploadDestination('my-account');
+                  }}
                   className="text-gray-400 hover:text-gray-600 text-2xl"
                 >
                   ×
@@ -561,6 +678,30 @@ const SharedImages: React.FC = () => {
               </div>
 
               <div className="space-y-4">
+                {/* File Selection */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 mb-2">Select Image File</h4>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                  </div>
+                  {selectedFile && (
+                    <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-green-600">✅</span>
+                        <span className="text-sm font-medium text-green-800">
+                          Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Upload Destination */}
                 <div className="bg-blue-50 rounded-lg p-4">
                   <h4 className="font-semibold text-blue-900 mb-2">Choose Upload Destination</h4>
                   <div className="space-y-3">
@@ -593,6 +734,39 @@ const SharedImages: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Family Member Selection */}
+                {uploadDestination === 'inviter-account' && (
+                  <div className="bg-purple-50 rounded-lg p-4">
+                    <h4 className="font-semibold text-purple-900 mb-2">Select Family Member</h4>
+                    <select
+                      value={selectedFamilyMember?.id || ''}
+                      onChange={(e) => {
+                        const member = familyMembers.find(m => m.id === parseInt(e.target.value));
+                        setSelectedFamilyMember(member);
+                      }}
+                      className="w-full p-3 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="">Select a family member...</option>
+                      {familyMembers.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.otherUserFirstName} {member.otherUserLastName} ({member.relationshipType})
+                        </option>
+                      ))}
+                    </select>
+                    {selectedFamilyMember && (
+                      <div className="mt-3 p-3 bg-purple-100 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-purple-600">👤</span>
+                          <span className="text-sm font-medium text-purple-800">
+                            Selected: {selectedFamilyMember.otherUserFirstName} {selectedFamilyMember.otherUserLastName}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Warning Notice */}
                 {uploadDestination === 'inviter-account' && (
                   <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
                     <div className="flex items-start space-x-2">
@@ -613,21 +787,33 @@ const SharedImages: React.FC = () => {
                   </div>
                 )}
 
+                {/* Action Buttons */}
                 <div className="flex justify-end space-x-3 pt-4">
                   <button
-                    onClick={() => setShowUploadModal(false)}
+                    onClick={() => {
+                      setShowUploadModal(false);
+                      setSelectedFile(null);
+                      setUploadDestination('my-account');
+                    }}
                     className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={() => {
-                      toast.success(`Image will be uploaded to ${uploadDestination === 'my-account' ? 'your account' : 'family member\'s account'}`);
-                      setShowUploadModal(false);
-                    }}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    onClick={handleUpload}
+                    disabled={!selectedFile || uploading || (uploadDestination === 'inviter-account' && !selectedFamilyMember)}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                   >
-                    {uploadDestination === 'my-account' ? 'Upload to My Account' : 'Upload to Family Account'}
+                    {uploading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <span>
+                        {uploadDestination === 'my-account' ? 'Upload to My Account' : 'Upload to Family Account'}
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>

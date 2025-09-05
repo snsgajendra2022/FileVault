@@ -12,19 +12,41 @@ interface UploadFile {
   progress: number;
   status: 'pending' | 'uploading' | 'completed' | 'error';
   error?: string;
+  uploadDestination?: 'my-account' | 'family-account';
+  targetFamilyMember?: any;
 }
 
 const UploadPage = () => {
-  const { user } = useAuth();
+  // const { user } = useAuth();
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+  const [showUploadOptions, setShowUploadOptions] = useState(false);
+  const [selectedFileForOptions, setSelectedFileForOptions] = useState<UploadFile | null>(null);
+
+  // Fetch family members on component mount
+  React.useEffect(() => {
+    fetchFamilyMembers();
+  }, []);
+
+  const fetchFamilyMembers = async () => {
+    try {
+      const response = await api.get('/api/simple-invitations/family-relationships');
+      if (response.data.success && response.data.relationships.length > 0) {
+        setFamilyMembers(response.data.relationships);
+      }
+    } catch (error: any) {
+      console.error('Error fetching family members:', error);
+    }
+  };
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles: UploadFile[] = acceptedFiles.map(file => ({
       file,
       id: Math.random().toString(36).substr(2, 9),
       progress: 0,
-      status: 'pending'
+      status: 'pending',
+      uploadDestination: 'my-account' // Default to my account
     }));
     
     setUploadFiles(prev => [...prev, ...newFiles]);
@@ -43,10 +65,21 @@ const UploadPage = () => {
     setUploadFiles(prev => prev.filter(file => file.id !== id));
   };
 
-  const uploadSingleFile = async (uploadFile: UploadFile) => {
-    const formData = new FormData();
-    formData.append('file', uploadFile.file);
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        // Remove the data:image/jpeg;base64, prefix
+        const base64Data = base64.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
 
+  const uploadSingleFile = async (uploadFile: UploadFile) => {
     try {
       setUploadFiles(prev => 
         prev.map(f => 
@@ -56,45 +89,102 @@ const UploadPage = () => {
         )
       );
 
-      await api.post('/api/images/upload', formData, {
-        onUploadProgress: (progressEvent) => {
-          const progress = Math.round(
-            (progressEvent.loaded * 100) / (progressEvent.total || 1)
-          );
-          
-          setUploadFiles(prev => 
-            prev.map(f => 
-              f.id === uploadFile.id 
-                ? { ...f, progress }
-                : f
-            )
-          );
-        }
-      });
+      if (uploadFile.uploadDestination === 'family-account' && uploadFile.targetFamilyMember) {
+ const  inviteuserToken = localStorage.getItem('token');
+        const formData = new FormData();
+        formData.append('file', uploadFile.file);
 
-      setUploadFiles(prev => 
-        prev.map(f => 
-          f.id === uploadFile.id 
-            ? { ...f, status: 'completed' as const, progress: 100 }
-            : f
-        )
-      );
+        await api.post('/api/images/upload', formData, {
+          onUploadProgress: (progressEvent) => {
+            const progress = Math.round(
+              (progressEvent.loaded * 100) / (progressEvent.total || 1)
+            );
+            
+            setUploadFiles(prev => 
+              prev.map(f => 
+                f.id === uploadFile.id 
+                  ? { ...f, progress }
+                  : f
+              )
+            );
+          }
+        });
 
-      toast.success(`${uploadFile.file.name} uploaded successfully!`);
+        setUploadFiles(prev => 
+          prev.map(f => 
+            f.id === uploadFile.id 
+              ? { ...f, status: 'completed' as const, progress: 100 }
+              : f
+          )
+        );
+
+        toast.success(`${uploadFile.file.name} uploaded to your account successfully!`);
+        // Upload to family member's account using base64
+        // const base64Image = await convertFileToBase64(uploadFile.file);
+        
+        // const response = await api.post('/api/simple-invitations/upload-to-inviter', {
+        //   originalFilename: uploadFile.file.name,
+        //   base64Image: base64Image,
+        //   contentType: uploadFile.file.type,
+        //   targetUserId: uploadFile.targetFamilyMember.otherUserId
+        // });
+
+        // if (response.data.success) {
+        //   setUploadFiles(prev => 
+        //     prev.map(f => 
+        //       f.id === uploadFile.id 
+        //         ? { ...f, status: 'completed' as const, progress: 100 }
+        //         : f
+        //     )
+        //   );
+        //   toast.success(`${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`);
+        // } else {
+        //   throw new Error(response.data.message || 'Upload failed');
+        // }
+      } else {
+        // Upload to my account using FormData
+        const formData = new FormData();
+        formData.append('file', uploadFile.file);
+
+        await api.post('/api/images/upload', formData, {
+          onUploadProgress: (progressEvent) => {
+            const progress = Math.round(
+              (progressEvent.loaded * 100) / (progressEvent.total || 1)
+            );
+            
+            setUploadFiles(prev => 
+              prev.map(f => 
+                f.id === uploadFile.id 
+                  ? { ...f, progress }
+                  : f
+              )
+            );
+          }
+        });
+
+        setUploadFiles(prev => 
+          prev.map(f => 
+            f.id === uploadFile.id 
+              ? { ...f, status: 'completed' as const, progress: 100 }
+              : f
+          )
+        );
+
+        toast.success(`${uploadFile.file.name} uploaded to your account successfully!`);
+      }
     } catch (error: any) {
-      toast.error(error?.response?.data || error?.message);
+      toast.error(error?.response?.data?.message || error?.message || 'Upload failed');
       setUploadFiles(prev => 
         prev.map(f => 
           f.id === uploadFile.id 
             ? { 
                 ...f, 
                 status: 'error' as const, 
-                error: error.response?.data || 'Upload failed'
+                error: error.response?.data?.message || error?.message || 'Upload failed'
               }
             : f
         )
       );
-      // toast.error(`Failed to upload ${uploadFile.file.name}`);
     }
   };
 
@@ -143,6 +233,34 @@ const UploadPage = () => {
       default:
         return 'border-gray-200 bg-white';
     }
+  };
+
+  const openUploadOptions = (uploadFile: UploadFile) => {
+    setSelectedFileForOptions(uploadFile);
+    setShowUploadOptions(true);
+  };
+
+  const setUploadDestination = (fileId: string, destination: 'my-account' | 'family-account', familyMember?: any) => {
+    setUploadFiles(prev => 
+      prev.map(f => 
+        f.id === fileId 
+          ? { 
+              ...f, 
+              uploadDestination: destination,
+              targetFamilyMember: familyMember
+            }
+          : f
+      )
+    );
+    setShowUploadOptions(false);
+    setSelectedFileForOptions(null);
+  };
+
+  const getUploadDestinationText = (uploadFile: UploadFile) => {
+    if (uploadFile.uploadDestination === 'family-account' && uploadFile.targetFamilyMember) {
+      return `👥 ${uploadFile.targetFamilyMember.otherUserFirstName}'s Account`;
+    }
+    return '🏠 My Account';
   };
 
   return (
@@ -261,6 +379,9 @@ const UploadPage = () => {
                           <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
                           {formatFileSize(uploadFile.file.size)}
                         </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {getUploadDestinationText(uploadFile)}
+                        </p>
                       </div>
                     </div>
                     
@@ -277,12 +398,20 @@ const UploadPage = () => {
                       )}
                       
                       {uploadFile.status === 'pending' && (
-                        <button
-                          onClick={() => uploadSingleFile(uploadFile)}
-                          className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 shadow-lg transform hover:scale-105"
-                        >
-                          Upload
-                        </button>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => openUploadOptions(uploadFile)}
+                            className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-700 transition-all duration-300 shadow-lg transform hover:scale-105 text-sm"
+                          >
+                            Choose Destination
+                          </button>
+                          <button
+                            onClick={() => uploadSingleFile(uploadFile)}
+                            className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 shadow-lg transform hover:scale-105"
+                          >
+                            Upload
+                          </button>
+                        </div>
                       )}
                       
                       <button
@@ -353,6 +482,147 @@ const UploadPage = () => {
                 </div>
                 <p className="text-base font-semibold text-gray-800">Failed</p>
                 <p className="text-sm text-gray-500">Upload errors</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Options Modal */}
+      {showUploadOptions && selectedFileForOptions && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900">📤 Choose Upload Destination</h3>
+                <button
+                  onClick={() => {
+                    setShowUploadOptions(false);
+                    setSelectedFileForOptions(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* File Info */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 mb-2">Selected File</h4>
+                  <div className="flex items-center space-x-3">
+                    <FaFileImage className="h-8 w-8 text-blue-500" />
+                    <div>
+                      <p className="font-medium text-gray-900">{selectedFileForOptions.file.name}</p>
+                      <p className="text-sm text-gray-500">{formatFileSize(selectedFileForOptions.file.size)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Upload Destination Options */}
+                <div className="space-y-3">
+                  <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="radio"
+                          name="uploadDestination"
+                          value="my-account"
+                          checked={selectedFileForOptions.uploadDestination === 'my-account'}
+                          onChange={() => setUploadDestination(selectedFileForOptions.id, 'my-account')}
+                          className="text-blue-600"
+                        />
+                        <div>
+                          <label className="font-medium text-blue-900">🏠 Upload to MY Account</label>
+                          <p className="text-sm text-blue-700">Store in your personal account</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {familyMembers.length > 0 && (
+                    <div className="bg-purple-50 rounded-lg p-4 border-2 border-purple-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="radio"
+                            name="uploadDestination"
+                            value="family-account"
+                            checked={selectedFileForOptions.uploadDestination === 'family-account'}
+                            onChange={() => setUploadDestination(selectedFileForOptions.id, 'family-account')}
+                            className="text-purple-600"
+                          />
+                          <div>
+                            <label className="font-medium text-purple-900">👥 Upload to Family Member's Account</label>
+                            <p className="text-sm text-purple-700">Store in family member's account</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {selectedFileForOptions.uploadDestination === 'family-account' && (
+                        <div className="ml-6">
+                          <select
+                            onChange={(e) => {
+                              const member = familyMembers.find(m => m.id === parseInt(e.target.value));
+                              setUploadDestination(selectedFileForOptions.id, 'family-account', member);
+                            }}
+                            className="w-full p-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          >
+                            <option value="">Select a family member...</option>
+                            {familyMembers.map((member) => (
+                              <option key={member.id} value={member.id}>
+                                {member.otherUserFirstName} {member.otherUserLastName} ({member.relationshipType})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Warning Notice */}
+                {selectedFileForOptions.uploadDestination === 'family-account' && (
+                  <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                    <div className="flex items-start space-x-2">
+                      <span className="text-yellow-600 text-lg">⚠️</span>
+                      <div>
+                        <h5 className="font-semibold text-yellow-800">Important Notice</h5>
+                        <p className="text-sm text-yellow-700">
+                          <strong>This image will be stored under your family member's account, not yours.</strong>
+                        </p>
+                        <ul className="text-sm text-yellow-700 mt-2 space-y-1">
+                          <li>✅ You can view the image anytime</li>
+                          <li>✅ Your family member will see it in their account</li>
+                          <li>❌ You cannot move it to your account later</li>
+                          <li>❌ Your family member can delete it if they choose</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowUploadOptions(false);
+                      setSelectedFileForOptions(null);
+                    }}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowUploadOptions(false);
+                      setSelectedFileForOptions(null);
+                    }}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
             </div>
           </div>

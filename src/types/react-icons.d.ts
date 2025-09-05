@@ -56,6 +56,8 @@ declare module 'react-icons/fa' {
   export const FaAmazon: ComponentType<IconProps>;
   export const FaDollarSign: ComponentType<IconProps>;
   export const FaInfoCircle: ComponentType<IconProps>;
+  export const FaRedoAlt: ComponentType<IconProps>;
+  export const FaSpinner: ComponentType<IconProps>;
 }
 
 declare module 'react-icons/fi' {

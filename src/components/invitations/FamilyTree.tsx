@@ -1,11 +1,8 @@
 import React, { useMemo } from "react";
-// import ReactFlow, { Background, Node, Edge, Position } from "reactflow";
-import "reactflow/dist/style.css";
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { toast } from 'react-hot-toast';
 import { useState, useEffect } from 'react';
-import ReactFlow, { Background, Edge, Node, Position } from "reactflow";
 
 /** -------- Types for data you'll pass in later -------- */
 type Relationship = {
@@ -33,119 +30,519 @@ type CardData = {
 /** -------- Visual constants (match screenshot styling) -------- */
 const Navy = "#23233B";
 
-/** -------- Small "person card" component used by React Flow nodes -------- */
-const PersonCard: React.FC<{ data: CardData }> = ({ data }) => (
-  <div
-    style={{
-      width: 138,
-      height: 188,
-      borderRadius: 12,
-      border: `1.5px solid ${Navy}`,
-      background: "white",
-      boxShadow: "0 2px 8px rgba(0,0,0,.06)",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      paddingTop: 14,
-    }}
-  >
-    {/* avatar */}
+/** -------- Responsive "person card" component -------- */
+const PersonCard: React.FC<{ data: CardData; isMobile?: boolean; isTablet?: boolean; isSmallMobile?: boolean }> = ({ 
+  data, 
+  isMobile = false, 
+  isTablet = false,
+  isSmallMobile = false
+}) => {
+  const cardWidth = isSmallMobile ? 80 : isMobile ? 100 : isTablet ? 120 : 138;
+  const cardHeight = isSmallMobile ? 120 : isMobile ? 140 : isTablet ? 160 : 188;
+  const avatarSize = isSmallMobile ? 32 : isMobile ? 40 : isTablet ? 48 : 56;
+  const nameFontSize = isSmallMobile ? "10px" : isMobile ? "12px" : isTablet ? "13px" : "14px";
+  const subFontSize = isSmallMobile ? "8px" : isMobile ? "10px" : isTablet ? "11px" : "12px";
+  const badgeFontSize = isSmallMobile ? "7px" : isMobile ? "8px" : isTablet ? "9px" : "10px";
+  const contentWidth = isSmallMobile ? 60 : isMobile ? 70 : isTablet ? 80 : 88;
+
+  return (
     <div
       style={{
-        width: 56,
-        height: 56,
-        borderRadius: "50%",
-        overflow: "hidden",
-        border: "2px solid #E5E7EB",
-        // filter: data.gray ? "redscale(100%)" : "none",
-        // background:  "radial-gradient(circle at 30% 30%, #3b82f6 0%, #1d4ed8 40%, #1e40af 100%)",
-        background: data.gray 
-          ? "radial-gradient(circle at 30% 30%, #fca5a5 0%, #f43f5e 45%, #be123c 100%)"
-          : "radial-gradient(circle at 30% 30%, #3b82f6 0%, #1d4ed8 45%, #1e40af 100%)",
+        width: cardWidth,
+        height: cardHeight,
+        borderRadius: 12,
+        border: `1.5px solid ${Navy}`,
+        background: "white",
+        boxShadow: "0 2px 8px rgba(0,0,0,.06)",
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
-        fontSize: "24px",
-        fontWeight: "bold",
-        color: "white",
+        paddingTop: isSmallMobile ? 8 : isMobile ? 10 : isTablet ? 12 : 14,
       }}
     >
-      {data.name.charAt(0)}
-    </div>
-    {/* Name and Relationship */}
-    <div style={{ width: 88, marginTop: 12, textAlign: "center" }}>
-      {/* Name */}
+      {/* avatar */}
       <div
         style={{
-          fontSize: "14px",
-          fontWeight: "bold",
-          color: "#1f2937",
-          marginBottom: "4px",
-          lineHeight: "14px",
-          height: "14px",
+          width: avatarSize,
+          height: avatarSize,
+          borderRadius: "50%",
           overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
+          border: "2px solid #E5E7EB",
+          background: data.gray 
+            ? "radial-gradient(circle at 30% 30%, rgb(117 21 21) 0%, rgb(236 0 40) 45%, rgb(255 0 62) 100%)"
+            : "radial-gradient(circle at 30% 30%, #3b82f6 0%, #1d4ed8 45%, #1e40af 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: isSmallMobile ? "16px" : isMobile ? "18px" : isTablet ? "20px" : "24px",
+          fontWeight: "bold",
+          color: "white",
         }}
-        title={data.name}
       >
-        {data.name}
+        {data.name.charAt(0)}
       </div>
-      
-      {/* Relationship */}
-      {data.sub && (
+      {/* Name and Relationship */}
+      <div style={{ width: contentWidth, marginTop: isSmallMobile ? 6 : isMobile ? 8 : isTablet ? 10 : 12, textAlign: "center" }}>
+        {/* Name */}
         <div
           style={{
-            fontSize: "14px",
-            color: "#6b7280",
-            marginBottom: "1px",
-            marginTop: "5px",
-            lineHeight: "10px",
-            height: "10px",
+            fontSize: 10,
+            fontWeight: "bold",
+            color: "#1f2937",
+            marginBottom: "4px",
+            lineHeight: nameFontSize,
+            height: nameFontSize,
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
+          }}
+          title={data.name}
+        >
+          {data.name}
+        </div>
+        
+        {/* Relationship */}
+        {data.sub && (
+          <div
+            style={{
+              fontSize: subFontSize,
+              color: "#6b7280",
+              marginBottom: "1px",
+              marginTop: "5px",
+              lineHeight: subFontSize,
+              height: subFontSize,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {data.sub}
+          </div>
+        )}
+        
+        {/* Decorative line */}
+        <div
+          style={{
+            height: "2px",
+            borderRadius: "1px",
+            background: data.gray ? "rgb(242 7 46)" : "none",
+            width: "60%",
+            margin: "0 auto",
+          }}
+        />
+      </div>
+      {/* Relationship Badge */}
+      {data.sub && (
+        <div
+          style={{
+            marginTop: isSmallMobile ? "4px" : isMobile ? "6px" : isTablet ? "7px" : "8px",
+            fontSize: badgeFontSize,
+            padding: isSmallMobile ? "1px 4px" : isMobile ? "2px 6px" : isTablet ? "2px 7px" : "3px 8px",
+            borderRadius: "12px",
+            background: data.gray ? "#dbeafe" : "#dbeafe",
+            color: data.gray ? "#1e40af" : "#1e40af",
+            border: `1px solid ${data.gray ? "#e5e7eb" : "#93c5fd"}`,
+            fontWeight: "500",
           }}
         >
           {data.sub}
         </div>
       )}
-      
-      {/* Decorative line */}
-      <div
-        style={{
-          height: "2px",
-          borderRadius: "1px",
-          background: data.gray ? "#3b82f6" : "none",
-          width: "60%",
-          margin: "0 auto",
-        }}
-      />
     </div>
-    {/* Relationship Badge */}
-    {data.sub && (
-      <div
+  );
+};
+
+// Custom SVG-based family tree component
+const CustomFamilyTree: React.FC<{
+  topLeft4: CardData[];
+  topRight4: CardData[];
+  midLeft2: CardData[];
+  midRight2: CardData[];
+  parents2: CardData[];
+  child1: CardData;
+}> = ({ topLeft4, topRight4, midLeft2, midRight2, parents2, child1 }) => {
+  // Responsive coordinates based on screen size
+  const [screenSize, setScreenSize] = React.useState({
+    width: window.innerWidth,
+    height: window.innerHeight
+  });
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setScreenSize({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Responsive layout calculations
+  const isMobile = screenSize.width < 768;
+  const isTablet = screenSize.width >= 768 && screenSize.width < 1024;
+  const isSmallMobile = screenSize.width < 480;
+  
+  // Card dimensions
+  const cardWidth = isSmallMobile ? 80 : isMobile ? 100 : isTablet ? 120 : 138;
+  const cardHeight = isSmallMobile ? 120 : isMobile ? 140 : isTablet ? 160 : 188;
+  
+  // Calculate responsive coordinates with better spacing
+  const getResponsiveCoordinates = () => {
+    if (isSmallMobile) {
+      // Small mobile: Very compact layout
+      return {
+        X: {
+          tl1: 10, tl2: 100, tl3: 190, tl4: 300,
+          tr1: 370, tr2: 460, tr3: 550, tr4: 640,
+          ml1: 55, ml2: 145, mr1: 415, mr2: 505,
+          pL: 100, pR: 190, c: 145,
+        },
+        Y: { top: 10, mid: 150, par: 290, kid: 430 }
+      };
+    } else if (isMobile) {
+      // Mobile: Compact layout with horizontal scrolling
+      return {
+        X: {
+          tl1: 20, tl2: 130, tl3: 240, tl4: 350,
+          tr1: 460, tr2: 570, tr3: 715, tr4: 790,
+          ml1: 75, ml2: 185, mr1: 515, mr2: 625,
+          pL: 130, pR: 240, c: 185,
+        },
+        Y: { top: 20, mid: 170, par: 320, kid: 470 }
+      };
+    } else if (isTablet) {
+      // Tablet: Medium spacing
+      return {
+        X: {
+          tl1: 50, tl2: 200, tl3: 350, tl4: 500,
+          tr1: 700, tr2: 850, tr3: 1000, tr4: 1150,
+          ml1: 200, ml2: 350, mr1: 800, mr2: 950,
+          pL: 400, pR: 550, c: 475,
+        },
+        Y: { top: 50, mid: 250, par: 450, kid: 650 }
+      };
+    } else {
+      // Desktop: Full spacing
+      return {
+        X: {
+          tl1: 80, tl2: 240, tl3: 400, tl4: 560,
+          tr1: 800, tr2: 960, tr3: 1120, tr4: 1280,
+          ml1: 320, ml2: 507, mr1: 920, mr2: 1080,
+          pL: 520, pR: 720, c: 620,
+        },
+        Y: { top: 80, mid: 300, par: 507, kid: 715}
+      };
+    }
+  };
+
+  const { X, Y } = getResponsiveCoordinates();
+
+  // SVG path for connection lines
+  const createConnectionPath = (fromX: number, fromY: number, toX: number, toY: number) => {
+    const midY = (fromY + toY) / 2;
+    return `M ${fromX} ${fromY} L ${fromX} ${midY} L ${toX} ${midY} L ${toX} ${toY}`;
+  };
+
+  // Create junction points for cleaner connections
+  const createJunctionPath = (fromX: number, fromY: number, junctionX: number, junctionY: number, toX: number, toY: number) => {
+    return `M ${fromX} ${fromY} L ${fromX} ${junctionY} L ${junctionX} ${junctionY} L ${junctionX} ${toY} L ${toX} ${toY}`;
+  };
+
+  // Calculate container dimensions
+  const containerWidth = isSmallMobile ? 730 : isMobile ? 900 : isTablet ? 1200 : 1480;
+  const containerHeight = isSmallMobile ? 550 : isMobile ? 600 : isTablet ? 700 : 840;
+
+  return (
+    <div 
+      style={{ 
+        position: 'relative', 
+        width: '100%', 
+        height: '100%',
+        overflow: (isMobile || isSmallMobile) ? 'auto' : 'visible',
+        minHeight: containerHeight,
+        minWidth: containerWidth
+      }}
+    >
+      {/* SVG for connection lines */}
+      <svg
         style={{
-          marginTop: "8px",
-          fontSize: "10px",
-          padding: "3px 8px",
-          borderRadius: "12px",
-          background: data.gray ? "#dbeafe" : "#dbeafe",
-          color: data.gray ? "#1e40af" : "#1e40af",
-          border: `1px solid ${data.gray ? "#e5e7eb" : "#93c5fd"}`,
-          fontWeight: "500",
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: containerWidth,
+          height: containerHeight,
+          pointerEvents: 'none',
+          zIndex: 1,
         }}
+        viewBox={`0 0 ${containerWidth} ${containerHeight}`}
       >
-        {data.sub}
+        {/* Responsive connection lines */}
+        {!isSmallMobile && (
+          <>
+            {/* Top-left cluster to mid-left connections */}
+            {topLeft4.map((_, index) => {
+              const fromX = X[`tl${index + 1}` as keyof typeof X];
+              const junctionY = isMobile ? 95 : isTablet ? 150 : 180;
+              const junctionX = isMobile ? 130 : isTablet ? 275 : 400;
+              const cardCenterY = Y.top + (cardHeight / 2);
+              const midCardCenterY = Y.mid + (cardHeight / 2);
+              return (
+                <path
+                  key={`tl${index + 1}-junction`}
+                  d={createJunctionPath(fromX, cardCenterY, junctionX, junctionY, junctionX, midCardCenterY)}
+                  stroke="#3b82f6"
+                  strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
+                  fill="none"
+                />
+              );
+            })}
+            
+            {/* Junction to mid-left nodes */}
+            <path
+              d={createConnectionPath(
+                isMobile ? 130 : isTablet ? 275 : 400, 
+                isMobile ? 95 : isTablet ? 150 : 180, 
+                X.ml1, 
+                Y.mid + (cardHeight / 2)
+              )}
+              stroke="#3b82f6"
+              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
+              fill="none"
+            />
+            <path
+              d={createConnectionPath(
+                isMobile ? 130 : isTablet ? 275 : 400, 
+                isMobile ? 95 : isTablet ? 150 : 180, 
+                X.ml2, 
+                Y.mid + (cardHeight / 2)
+              )}
+              stroke="#3b82f6"
+              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
+              fill="none"
+            />
+
+            {/* Top-right cluster to mid-right connections */}
+            {topRight4.map((_, index) => {
+              const fromX = X[`tr${index + 1}` as keyof typeof X];
+              const junctionY = isMobile ? 95 : isTablet ? 150 : 180;
+              const junctionX = isMobile ? 570 : isTablet ? 875 : 1000;
+              const cardCenterY = Y.top + (cardHeight / 2);
+              const midCardCenterY = Y.mid + (cardHeight / 2);
+              return (
+                <path
+                  key={`tr${index + 1}-junction`}
+                  d={createJunctionPath(fromX, cardCenterY, junctionX, junctionY, junctionX, midCardCenterY)}
+                  stroke="#3b82f6"
+                  strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
+                  fill="none"
+                />
+              );
+            })}
+            
+            {/* Junction to mid-right nodes */}
+            <path
+              d={createConnectionPath(
+                isMobile ? 570 : isTablet ? 875 : 1000, 
+                isMobile ? 95 : isTablet ? 150 : 180, 
+                X.mr1, 
+                Y.mid + (cardHeight / 2)
+              )}
+              stroke="#3b82f6"
+              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
+              fill="none"
+            />
+            <path
+              d={createConnectionPath(
+                isMobile ? 570 : isTablet ? 875 : 1000, 
+                isMobile ? 95 : isTablet ? 150 : 180, 
+                X.mr2, 
+                Y.mid + (cardHeight / 2)
+              )}
+              stroke="#3b82f6"
+              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
+              fill="none"
+            />
+
+            {/* Mid-left to parent-left */}
+            <path
+              d={createJunctionPath(
+                X.ml1, 
+                Y.mid + (cardHeight / 2), 
+                isMobile ? 185 : isTablet ? 475 : 520, 
+                isMobile ? 245 : isTablet ? 350 : 380, 
+                X.pL, 
+                Y.par + (cardHeight / 2)
+              )}
+              stroke="#3b82f6"
+              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
+              fill="none"
+            />
+            <path
+              d={createJunctionPath(
+                X.ml2, 
+                Y.mid + (cardHeight / 2), 
+                isMobile ? 185 : isTablet ? 475 : 520, 
+                isMobile ? 245 : isTablet ? 350 : 380, 
+                X.pL, 
+                Y.par + (cardHeight / 2)
+              )}
+              stroke="#3b82f6"
+              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
+              fill="none"
+            />
+
+            {/* Mid-right to parent-right */}
+            <path
+              d={createJunctionPath(
+                X.mr1, 
+                Y.mid + (cardHeight / 2), 
+                isMobile ? 395 : isTablet ? 575 : 720, 
+                isMobile ? 245 : isTablet ? 350 : 380, 
+                X.pR, 
+                Y.par + (cardHeight / 2)
+              )}
+              stroke="#3b82f6"
+              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
+              fill="none"
+            />
+            <path
+              d={createJunctionPath(
+                X.mr2, 
+                Y.mid + (cardHeight / 2), 
+                isMobile ? 395 : isTablet ? 575 : 720, 
+                isMobile ? 245 : isTablet ? 350 : 380, 
+                X.pR, 
+                Y.par + (cardHeight / 2)
+              )}
+              stroke="#3b82f6"
+              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
+              fill="none"
+            />
+
+            {/* Parents to child */}
+            <path
+              d={createJunctionPath(
+                X.pL, 
+                Y.par + (cardHeight / 2), 
+                isMobile ? 185 : isTablet ? 475 : 620, 
+                isMobile ? 405 : isTablet ? 550 : 580, 
+                X.c, 
+                Y.kid + (cardHeight / 2)
+              )}
+              stroke="#3b82f6"
+              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
+              fill="none"
+            />
+            <path
+              d={createJunctionPath(
+                X.pR, 
+                Y.par + (cardHeight / 2), 
+                isMobile ? 185 : isTablet ? 475 : 620, 
+                isMobile ? 405 : isTablet ? 550 : 580, 
+                X.c, 
+                Y.kid + (cardHeight / 2)
+              )}
+              stroke="#3b82f6"
+              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
+              fill="none"
+            />
+          </>
+        )}
+      </svg>
+
+      {/* Person cards positioned absolutely */}
+      <div style={{ position: 'relative', zIndex: 2, width: containerWidth, height: containerHeight }}>
+        {/* Top row - 8 cards */}
+        {topLeft4.map((card, index) => (
+          <div
+            key={`tl${index + 1}`}
+            style={{
+              position: 'absolute',
+              left: X[`tl${index + 1}` as keyof typeof X] - (cardWidth / 2),
+              top: Y.top,
+            }}
+          >
+            <PersonCard data={card} isMobile={isMobile} isTablet={isTablet} isSmallMobile={isSmallMobile} />
+          </div>
+        ))}
+        
+        {topRight4.map((card, index) => (
+          <div
+            key={`tr${index + 1}`}
+            style={{
+              position: 'absolute',
+              left: X[`tr${index + 1}` as keyof typeof X] - (cardWidth / 2),
+              top: Y.top,
+            }}
+          >
+            <PersonCard data={card} isMobile={isMobile} isTablet={isTablet} isSmallMobile={isSmallMobile} />
+          </div>
+        ))}
+
+        {/* Mid row - 4 cards (grandparents) */}
+        {midLeft2.map((card, index) => (
+          <div
+            key={`ml${index + 1}`}
+            style={{
+              position: 'absolute',
+              left: X[`ml${index + 1}` as keyof typeof X] - (cardWidth / 2),
+              top: Y.mid,
+            }}
+          >
+            <PersonCard data={card} isMobile={isMobile} isTablet={isTablet} isSmallMobile={isSmallMobile} />
+          </div>
+        ))}
+        
+        {midRight2.map((card, index) => (
+          <div
+            key={`mr${index + 1}`}
+            style={{
+              position: 'absolute',
+              left: X[`mr${index + 1}` as keyof typeof X] - (cardWidth / 2),
+              top: Y.mid,
+            }}
+          >
+            <PersonCard data={card} isMobile={isMobile} isTablet={isTablet} isSmallMobile={isSmallMobile} />
+          </div>
+        ))}
+
+        {/* Parents row - 2 cards */}
+        <div
+          style={{
+            position: 'absolute',
+            left: X.pL - (cardWidth / 2),
+            top: Y.par,
+          }}
+        >
+          <PersonCard data={parents2[0]} isMobile={isMobile} isTablet={isTablet} />
+        </div>
+        
+        <div
+          style={{
+            position: 'absolute',
+            left: X.pR - (cardWidth / 2),
+            top: Y.par,
+          }}
+        >
+          <PersonCard data={parents2[1]} isMobile={isMobile} isTablet={isTablet} />
+        </div>
+
+        {/* Child row - 1 card */}
+        <div
+          style={{
+            position: 'absolute',
+            left: X.c - (cardWidth / 2),
+            top: Y.kid,
+          }}
+        >
+          <PersonCard data={child1} isMobile={isMobile} isTablet={isTablet} />
+        </div>
       </div>
-    )}
-  </div>
-);
-
-// tiny invisible node used to bend step edges cleanly
-const Junction: React.FC = () => <div style={{ width: 1, height: 1 }} />;
-
-const nodeTypes = { person: PersonCard, junction: Junction };
+    </div>
+  );
+};
 
 /** -------- Helper to label relationship types -------- */
 const relLabel = (t: string) =>
@@ -195,10 +592,10 @@ const FamilyTree: React.FC = () => {
     }
   };
 
-  const openModal = (user: Relationship) => {
-    setSelectedUser(user);
-    setShowModal(true);
-  };
+  // const openModal = (user: Relationship) => {
+  //   setSelectedUser(user);
+  //   setShowModal(true);
+  // };
 
   const closeModal = () => {
     setShowModal(false);
@@ -273,84 +670,10 @@ const FamilyTree: React.FC = () => {
     );
   }
 
-  // fixed coordinates that mimic your screenshot
-  const X = {
-    tl1: -520, tl2: -360, tl3: -200, tl4: -40,
-    tr1: 200,  tr2: 360,  tr3: 520,  tr4: 680,
-    ml1: -280, ml2: -120, mr1: 320,  mr2: 480,
-    pL: -80,   pR: 120,   c: 20,
-  };
-  const Y = { top: 0, mid: 200, par: 400, kid: 600 };
-
-  const mkNode = (id: string, x: number, y: number, data: CardData, type = "person"): Node => ({
-    id,
-    type,
-    position: { x, y },
-    data,
-    sourcePosition: Position.Bottom,
-    targetPosition: Position.Top,
-    draggable: false,
-    selectable: false,
-    style: { background: "transparent" },
-  });
-
-  const nodes: Node[] = [
-    // top left 4
-    mkNode("tl1", X.tl1, Y.top, topLeft4[0]),
-    mkNode("tl2", X.tl2, Y.top, topLeft4[1]),
-    mkNode("tl3", X.tl3, Y.top, topLeft4[2]),
-    mkNode("tl4", X.tl4, Y.top, topLeft4[3]),
-    // top right 4
-    mkNode("tr1", X.tr1, Y.top, topRight4[0]),
-    mkNode("tr2", X.tr2, Y.top, topRight4[1]),
-    mkNode("tr3", X.tr3, Y.top, topRight4[2]),
-    mkNode("tr4", X.tr4, Y.top, topRight4[3]),
-    // mid (grandparents)
-    mkNode("ml1", X.ml1, Y.mid, midLeft2[0]),
-    mkNode("ml2", X.ml2, Y.mid, midLeft2[1]),
-    mkNode("mr1", X.mr1, Y.mid, midRight2[0]),
-    mkNode("mr2", X.mr2, Y.mid, midRight2[1]),
-    // parents
-    mkNode("pL", X.pL, Y.par, parents2[0]),
-    mkNode("pR", X.pR, Y.par, parents2[1]),
-    // child
-    mkNode("c", X.c, Y.kid, child1),
-    // invisible junctions to shape elbows
-    { id: "J_topL", type: "junction", position: { x: -240, y: 120 }, data: {} },
-    { id: "J_topR", type: "junction", position: { x:  440, y: 120 }, data: {} },
-    { id: "J_midL", type: "junction", position: { x: -200, y: 320 }, data: {} },
-    { id: "J_midR", type: "junction", position: { x:  400, y: 320 }, data: {} },
-    { id: "J_par",  type: "junction", position: { x:   20, y: 520 }, data: {} },
-  ];
-
-  const estyle = { stroke: "#3b82f6", strokeWidth: 3 };
-  const E = (id: string, s: string, t: string): Edge => ({
-    id, source: s, target: t, type: "step", style: estyle,
-  });
-
-  const edges: Edge[] = [
-    // top-left cluster to mid-left
-    E("e_tl1_JL","tl1","J_topL"), E("e_tl2_JL","tl2","J_topL"),
-    E("e_tl3_JL","tl3","J_topL"), E("e_tl4_JL","tl4","J_topL"),
-    E("e_JL_ml1","J_topL","ml1"), E("e_JL_ml2","J_topL","ml2"),
-
-    // top-right cluster to mid-right
-    E("e_tr1_JR","tr1","J_topR"), E("e_tr2_JR","tr2","J_topR"),
-    E("e_tr3_JR","tr3","J_topR"), E("e_tr4_JR","tr4","J_topR"),
-    E("e_JR_mr1","J_topR","mr1"), E("e_JR_mr2","J_topR","mr2"),
-
-    // mids to parents
-    E("e_ml1_JmL","ml1","J_midL"), E("e_ml2_JmL","ml2","J_midL"),
-    E("e_mr1_JmR","mr1","J_midR"), E("e_mr2_JmR","mr2","J_midR"),
-    E("e_JmL_pL","J_midL","pL"),   E("e_JmR_pR","J_midR","pR"),
-
-    // parents to child (Y branch)
-    E("e_pL_JP","pL","J_par"), E("e_pR_JP","pR","J_par"), E("e_JP_c","J_par","c"),
-  ];
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-full mx-auto p-6">
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Family Tree</h1>
@@ -371,42 +694,35 @@ const FamilyTree: React.FC = () => {
         ) : (
           <div
             style={{
-              height: 840,
+              height: 1000,
               width: "100%",
               background: "white",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              padding: 24,
+              padding: window.innerWidth < 480 ? 8 : window.innerWidth < 768 ? 12 : 24,
             }}
           >
             <div
               style={{
-                height: '100%',
+                height: 1000,
                 width: "100%",
-                maxWidth: 1480,
+                maxWidth: window.innerWidth < 480 ? "100%" : window.innerWidth < 768 ? "100%" : 1480,
                 borderRadius: 16,
-                overflow: "hidden",
+                overflow: window.innerWidth < 768 ? "auto" : "hidden",
                 border: "1px solid #EEE",
                 background: "white",
+                position: "relative",
               }}
             >
-              <ReactFlow
-                nodes={nodes as Node[]}
-                edges={edges}
-                nodeTypes={nodeTypes}
-                fitView
-                nodesDraggable={false}
-                nodesConnectable={false}
-                elementsSelectable={false}
-                zoomOnScroll={false}
-                zoomOnPinch={false}
-                panOnScroll={false}
-                panOnDrag={false}
-                style={{ background: "white" }}
-              >
-                <Background color="transparent" />
-              </ReactFlow>
+              <CustomFamilyTree
+                topLeft4={topLeft4}
+                topRight4={topRight4}
+                midLeft2={midLeft2}
+                midRight2={midRight2}
+                parents2={parents2}
+                child1={child1}
+              />
             </div>
           </div>
         )}
