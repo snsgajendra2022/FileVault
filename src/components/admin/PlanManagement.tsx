@@ -23,8 +23,8 @@ const PlanManagement = () => {
                 plansResponse?.data ? plansResponse.data : [];
 
   // Debug logging
-  console.log('Plans response:', plansResponse);
-  console.log('Extracted plans:', plans);
+  // console.log('Plans response:', plansResponse);
+  // console.log('Extracted plans:', plans);
 
   // Create plan mutation
   const createPlanMutation = useMutation({

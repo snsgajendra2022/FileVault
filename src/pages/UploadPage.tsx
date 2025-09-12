@@ -92,14 +92,14 @@ const UploadPage = () => {
       if (uploadFile.uploadDestination === 'family-account' && uploadFile.targetFamilyMember) {
         // Upload to family member's account using inviterApiToken
         const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-        console.log('UserData:', userData);
-        console.log('Target Family Member:', uploadFile.targetFamilyMember);
+        // console.log('UserData:', userData);
+        // console.log('Target Family Member:', uploadFile.targetFamilyMember);
         
         const familyRelationship = userData.familyRelationships?.find(
           (rel: any) => rel.inviterId === uploadFile.targetFamilyMember.otherUserId
         );
         
-        console.log('Found Family Relationship:', familyRelationship);
+        // console.log('Found Family Relationship:', familyRelationship);
         
         if (!familyRelationship || !familyRelationship.inviterApiToken) {
           console.error('Family relationship or inviter token not found');
@@ -109,7 +109,7 @@ const UploadPage = () => {
         const formData = new FormData();
         formData.append('file', uploadFile.file);
 
-        console.log('Using inviter token:', familyRelationship.inviterApiToken);
+        // console.log('Using inviter token:', familyRelationship.inviterApiToken);
 
         await api.post('/api/images/upload', formData, {
           headers: {
@@ -142,7 +142,7 @@ const UploadPage = () => {
       } else {
         // Upload to my account using my own token
         const myToken = localStorage.getItem('token');
-        console.log('Using my token:', myToken);
+        // console.log('Using my token:', myToken);
         
         const formData = new FormData();
         formData.append('file', uploadFile.file);

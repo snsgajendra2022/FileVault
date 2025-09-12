@@ -17,7 +17,7 @@ const InvitationsPage = () => {
     { id: 'create', name: 'Create Invitation', icon: FaPlus, color: 'bg-blue-500' },
     { id: 'history', name: 'Invitation History', icon: FaUsers, color: 'bg-green-500' },
     { id: 'family', name: 'Family Tree', icon: FaUsers, color: 'bg-purple-500' },
-    { id: 'shared', name: 'Shared Images', icon: FaEnvelope, color: 'bg-orange-500' },
+    // { id: 'shared', name: 'Shared Images', icon: FaEnvelope, color: 'bg-orange-500' },
   ];
 
   const renderTabContent = () => {

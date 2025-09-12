@@ -43,7 +43,7 @@ const SettingsPage = () => {
   const handleSaveSettings = async () => {
     try {
       // Here you would typically save to API
-      console.log('Saving settings:', settings);
+      // console.log('Saving settings:', settings);
       
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));

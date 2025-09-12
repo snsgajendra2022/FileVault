@@ -17,7 +17,7 @@ const UsagePage = () => {
       console.log('Fetching usage data...');
       try {
         const response = await api.get('/api/plans/usage');
-        console.log('Usage data received:', response.data);
+        // console.log('Usage data received:', response.data);
         return response.data;
       } catch (error) {
         console.error('Error fetching usage data:', error);
@@ -26,7 +26,7 @@ const UsagePage = () => {
     },
   });
 
-  console.log('UsagePage state:', { usage, isLoading, error });
+  // console.log('UsagePage state:', { usage, isLoading, error });
 
   if (isLoading) {
     return <LoadingSpinner />;

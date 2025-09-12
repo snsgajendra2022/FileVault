@@ -23,8 +23,8 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
   };
 
   // Debug: Log user data
-  console.log('Header - User data:', user);
-  console.log('Header - Is admin:', isAdmin);
+  // console.log('Header - User data:', user);
+  // console.log('Header - Is admin:', isAdmin);
 
   return (
     <header className="relative bg-gradient-to-r from-white via-gray-50 to-white border-b border-gray-200 shadow-xl">

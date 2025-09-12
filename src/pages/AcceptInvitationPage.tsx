@@ -15,9 +15,6 @@ const AcceptInvitationPage: React.FC = () => {
     username: '',
     password: '',
     confirmPassword: '',
-    firstName: '',
-    lastName: '',
-    email: ''
   });
 
   const invitationToken = searchParams.get('token');
@@ -50,10 +47,6 @@ const AcceptInvitationPage: React.FC = () => {
       return false;
     }
     
-    if (!formData.username || !formData.firstName || !formData.lastName || !formData.email) {
-      toast.error('Please fill in all required fields');
-      return false;
-    }
     
     return true;
   };
@@ -70,9 +63,6 @@ const AcceptInvitationPage: React.FC = () => {
         invitationToken: invitationToken,
         username: formData.username,
         password: formData.password,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email
       });
       
       if (response.data.success) {
@@ -206,60 +196,6 @@ const AcceptInvitationPage: React.FC = () => {
                 onChange={handleInputChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 placeholder="Confirm your password"
-              />
-            </div>
-
-            {/* First Name */}
-            <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
-                <FaUser className="inline h-4 w-4 mr-2 text-blue-500" />
-                First Name
-              </label>
-              <input
-                type="text"
-                id="firstName"
-                name="firstName"
-                required
-                value={formData.firstName}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                placeholder="Enter your first name"
-              />
-            </div>
-
-            {/* Last Name */}
-            <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
-                <FaUser className="inline h-4 w-4 mr-2 text-blue-500" />
-                Last Name
-              </label>
-              <input
-                type="text"
-                id="lastName"
-                name="lastName"
-                required
-                value={formData.lastName}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                placeholder="Enter your last name"
-              />
-            </div>
-
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                <FaEnvelope className="inline h-4 w-4 mr-2 text-blue-500" />
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                required
-                value={formData.email}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                placeholder="Enter your email address"
               />
             </div>
 

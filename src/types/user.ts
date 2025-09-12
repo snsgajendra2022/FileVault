@@ -1,3 +1,17 @@
+export interface FamilyRelationship {
+  inviterId: number;
+  inviterApiToken: string;
+  inviterUsername: string;
+  inviterFirstName: string;
+  inviterLastName: string;
+  relationshipType: string;
+  relationshipNotes: string;
+  canViewImages: boolean;
+  canUploadImages: boolean;
+  canDeleteImages: boolean;
+  canManageAlbums: boolean;
+}
+
 export interface User {
   id: number;
   username: string;
@@ -16,6 +30,8 @@ export interface User {
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string;
+  hasFamilyAccess?: boolean;
+  familyRelationships?: FamilyRelationship[];
 }
 
 export interface UpdateProfileData {

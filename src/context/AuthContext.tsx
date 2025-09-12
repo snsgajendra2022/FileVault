@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const token = getStoredToken();
     const userData = getStoredUserData();
     
-    console.log('AuthContext: Found token:', !!token, 'Found userData:', !!userData);
+    // console.log('AuthContext: Found token:', !!token, 'Found userData:', !!userData);
     
     if (token && userData) {
       try {
@@ -96,7 +96,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setStoredUserData(userData);
       setUser(userData);
       
-      console.log('Token validated, user data updated:', userData);
+      // console.log('Token validated, user data updated:', userData);
     } catch (error) {
       console.error('Token validation failed:', error);
       // Clear invalid data
@@ -109,16 +109,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (username: string, password: string) => {
     try {
-      console.log('Attempting login with username:', username);
+      // console.log('Attempting login with username:', username);
       
       const response = await api.post('/api/auth/login', { username, password });
-      console.log('Login response:', response.data);
+      // console.log('Login response:', response.data);
       
       const { apiToken, ...userData } = response.data;
       
-      console.log('Login - Extracted user data:', userData);
-      console.log('Login - User account type:', userData.accountType);
-      console.log('Login - Is admin?', userData.accountType === 'ADMIN');
+      // console.log('Login - Extracted user data:', userData);
+      // console.log('Login - User account type:', userData.accountType);
+      // console.log('Login - Is admin?', userData.accountType === 'ADMIN');
       
       // Store token and user data using utility functions
       setStoredToken(apiToken);
@@ -130,7 +130,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Store user data in state
       setUser(userData);
       
-      console.log('Login successful:', { user: userData, token: apiToken });
+      // console.log('Login successful:', { user: userData, token: apiToken });
       logAuthState();
     } catch (error: any) {
       console.error('Login failed:', error);
@@ -154,7 +154,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Store user data in state
       setUser(newUser);
       
-      console.log('Registration successful:', { user: newUser, token: apiToken });
+      // console.log('Registration successful:', { user: newUser, token: apiToken });
       logAuthState();
 
       // Auto-verify the user after successful registration
@@ -209,7 +209,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Update user data in localStorage
     if (updatedUser) {
       setStoredUserData(updatedUser);
-      console.log('User data updated in localStorage:', updatedUser);
+      // console.log('User data updated in localStorage:', updatedUser);
     }
   };
 

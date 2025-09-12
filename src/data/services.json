@@ -1,0 +1,498 @@
+{
+  "services": [
+    {
+      "id": "google-drive",
+      "name": "Google Drive",
+      "description": "Store and sync your files with Google Drive",
+      "icon": "google-drive",
+      "color": "#4285F4",
+      "category": "cloud-storage",
+      "popular": true,
+      "features": [
+        "15GB free storage",
+        "Real-time collaboration",
+        "Mobile and desktop sync",
+        "Advanced search",
+        "Version history"
+      ],
+      "setupSteps": [
+        {
+          "step": 1,
+          "title": "Go to Google Cloud Console",
+          "description": "Open Google Cloud Console and log in with your Google account",
+          "action": "Visit https://console.cloud.google.com",
+          "details": "Make sure you're logged in with the Google account you want to use for your service"
+        },
+        {
+          "step": 2,
+          "title": "Select Your Project",
+          "description": "Choose your project or create a new one",
+          "action": "Click the project dropdown at the top",
+          "details": "If you don't have a project, click 'New Project' and follow the setup wizard"
+        },
+        {
+          "step": 3,
+          "title": "Enable APIs",
+          "description": "Enable the Google Drive API for your project",
+          "action": "Go to APIs & Services → Library",
+          "details": "Search for 'Google Drive API' and click 'Enable'"
+        },
+        {
+          "step": 4,
+          "title": "Create OAuth 2.0 Credentials",
+          "description": "Create OAuth 2.0 client ID for your application",
+          "action": "Navigate to APIs & Services → Credentials",
+          "details": "Click 'Create Credentials' → 'OAuth 2.0 Client ID', choose 'Web application' type"
+        },
+        {
+          "step": 5,
+          "title": "Configure OAuth Consent Screen",
+          "description": "Set up the OAuth consent screen for your application",
+          "action": "Go to OAuth consent screen and configure your app details",
+          "details": "Add your app name, user support email, and authorized domains"
+        },
+        {
+          "step": 6,
+          "title": "Add Redirect URI",
+          "description": "Configure the redirect URI for OAuth callback",
+          "action": "In your OAuth client, add redirect URI: http://localhost:9090/api/drive/oauth/callback",
+          "details": "This URI will handle the OAuth callback after user authorization"
+        },
+        {
+          "step": 7,
+          "title": "Get Client Credentials",
+          "description": "Copy your Client ID and Client Secret",
+          "action": "In your OAuth client, copy the Client ID and Client Secret",
+          "details": "You'll need these credentials to configure FileVault"
+        }
+      ],
+      "requirements": [
+        "Google account",
+        "Google Cloud Project",
+        "OAuth 2.0 Client ID",
+        "OAuth 2.0 Client Secret"
+      ],
+      "troubleshooting": [
+        {
+          "issue": "API not enabled",
+          "solution": "Make sure Google Drive API is enabled in your Google Cloud Console"
+        },
+        {
+          "issue": "Invalid Client ID or Secret",
+          "solution": "Verify your OAuth 2.0 credentials are correct in Google Cloud Console"
+        },
+        {
+          "issue": "Redirect URI mismatch",
+          "solution": "Ensure the redirect URI in your OAuth client matches: http://localhost:9090/api/drive/oauth/callback"
+        },
+        {
+          "issue": "OAuth consent screen not configured",
+          "solution": "Complete the OAuth consent screen setup in Google Cloud Console"
+        }
+      ]
+    },
+    {
+      "id": "dropbox",
+      "name": "Dropbox",
+      "description": "Secure file storage and sharing with Dropbox",
+      "icon": "dropbox",
+      "color": "#0061FF",
+      "category": "cloud-storage",
+      "popular": true,
+      "features": [
+        "2GB free storage",
+        "File versioning",
+        "Team collaboration",
+        "Offline access",
+        "Advanced sharing controls"
+      ],
+      "setupSteps": [
+        {
+          "step": 1,
+          "title": "Create Dropbox App",
+          "description": "Go to Dropbox App Console and create a new app",
+          "action": "Visit https://www.dropbox.com/developers/apps",
+          "details": "Click 'Create app' and choose 'Scoped access' for better security"
+        },
+        {
+          "step": 2,
+          "title": "Configure App Settings",
+          "description": "Set up your app permissions and settings",
+          "action": "In your app dashboard, go to 'Permissions' tab",
+          "details": "Enable 'files.metadata.write' and 'files.content.write' permissions"
+        },
+        {
+          "step": 3,
+          "title": "Generate Access Token",
+          "description": "Create an access token for your app",
+          "action": "Go to 'Settings' tab and click 'Generate access token'",
+          "details": "Copy the generated token - you'll need this for FileVault"
+        },
+        {
+          "step": 4,
+          "title": "Add Token to FileVault",
+          "description": "Enter your access token in FileVault",
+          "action": "Paste the token in the configuration form below",
+          "details": "The token will be encrypted and stored securely"
+        }
+      ],
+      "requirements": [
+        "Dropbox account",
+        "Dropbox app",
+        "Access token"
+      ],
+      "troubleshooting": [
+        {
+          "issue": "Invalid token",
+          "solution": "Generate a new access token from your Dropbox app console"
+        },
+        {
+          "issue": "Permission denied",
+          "solution": "Check that your app has the required permissions enabled"
+        }
+      ]
+    },
+    {
+      "id": "onedrive",
+      "name": "OneDrive",
+      "description": "Microsoft's cloud storage solution",
+      "icon": "microsoft-onedrive",
+      "color": "#0078D4",
+      "category": "cloud-storage",
+      "popular": true,
+      "features": [
+        "5GB free storage",
+        "Office 365 integration",
+        "Real-time collaboration",
+        "Advanced security",
+        "Mobile apps"
+      ],
+      "setupSteps": [
+        {
+          "step": 1,
+          "title": "Register App in Azure",
+          "description": "Create an app registration in Azure Active Directory",
+          "action": "Go to https://portal.azure.com → Azure Active Directory → App registrations",
+          "details": "Click 'New registration' and enter your app details"
+        },
+        {
+          "step": 2,
+          "title": "Configure API Permissions",
+          "description": "Add Microsoft Graph permissions for OneDrive",
+          "action": "In your app, go to 'API permissions' → 'Add a permission'",
+          "details": "Add 'Files.ReadWrite' and 'User.Read' permissions"
+        },
+        {
+          "step": 3,
+          "title": "Generate Client Secret",
+          "description": "Create a client secret for authentication",
+          "action": "Go to 'Certificates & secrets' → 'New client secret'",
+          "details": "Copy the secret value - you'll need this for FileVault"
+        },
+        {
+          "step": 4,
+          "title": "Configure FileVault",
+          "description": "Enter your app details in FileVault",
+          "action": "Fill in the Client ID and Client Secret below",
+          "details": "These will be used to authenticate with OneDrive"
+        }
+      ],
+      "requirements": [
+        "Microsoft account",
+        "Azure app registration",
+        "Client ID and Secret"
+      ],
+      "troubleshooting": [
+        {
+          "issue": "Authentication failed",
+          "solution": "Verify your Client ID and Secret are correct"
+        },
+        {
+          "issue": "Insufficient permissions",
+          "solution": "Check that your app has the required Graph API permissions"
+        }
+      ]
+    },
+    {
+      "id": "aws-s3",
+      "name": "Amazon S3",
+      "description": "Scalable cloud storage with Amazon S3",
+      "icon": "aws",
+      "color": "#FF9900",
+      "category": "cloud-storage",
+      "popular": false,
+      "features": [
+        "Unlimited storage",
+        "High durability",
+        "Global availability",
+        "Advanced security",
+        "Cost-effective"
+      ],
+      "setupSteps": [
+        {
+          "step": 1,
+          "title": "Create AWS Account",
+          "description": "Sign up for Amazon Web Services",
+          "action": "Visit https://aws.amazon.com and create an account",
+          "details": "You'll need a credit card for verification, but S3 has a free tier"
+        },
+        {
+          "step": 2,
+          "title": "Create S3 Bucket",
+          "description": "Create a new S3 bucket for your files",
+          "action": "Go to S3 console and click 'Create bucket'",
+          "details": "Choose a unique bucket name and select your preferred region"
+        },
+        {
+          "step": 3,
+          "title": "Create IAM User",
+          "description": "Create a user with S3 access permissions",
+          "action": "Go to IAM → Users → Create user",
+          "details": "Attach the 'AmazonS3FullAccess' policy to the user"
+        },
+        {
+          "step": 4,
+          "title": "Generate Access Keys",
+          "description": "Create access keys for the IAM user",
+          "action": "In your user, go to 'Security credentials' → 'Create access key'",
+          "details": "Download the CSV file with your Access Key ID and Secret"
+        },
+        {
+          "step": 5,
+          "title": "Configure FileVault",
+          "description": "Enter your AWS credentials in FileVault",
+          "action": "Fill in the Access Key ID, Secret Key, and Bucket name below",
+          "details": "These will be encrypted and stored securely"
+        }
+      ],
+      "requirements": [
+        "AWS account",
+        "S3 bucket",
+        "IAM user with S3 permissions",
+        "Access Key ID and Secret Key"
+      ],
+      "troubleshooting": [
+        {
+          "issue": "Access denied",
+          "solution": "Check that your IAM user has S3 permissions"
+        },
+        {
+          "issue": "Bucket not found",
+          "solution": "Verify the bucket name and region are correct"
+        }
+      ]
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "description": "Version control and code storage with GitHub",
+      "icon": "github",
+      "color": "#181717",
+      "category": "version-control",
+      "popular": false,
+      "features": [
+        "Unlimited public repositories",
+        "Version control",
+        "Collaboration tools",
+        "Issue tracking",
+        "CI/CD integration"
+      ],
+      "setupSteps": [
+        {
+          "step": 1,
+          "title": "Create GitHub Account",
+          "description": "Sign up for a GitHub account if you don't have one",
+          "action": "Visit https://github.com and create an account",
+          "details": "Choose a username and verify your email address"
+        },
+        {
+          "step": 2,
+          "title": "Generate Personal Access Token",
+          "description": "Create a token for API access",
+          "action": "Go to Settings → Developer settings → Personal access tokens",
+          "details": "Click 'Generate new token' and select 'repo' scope"
+        },
+        {
+          "step": 3,
+          "title": "Create Repository",
+          "description": "Create a new repository for your files",
+          "action": "Click 'New repository' on GitHub",
+          "details": "Choose a name and make it private for security"
+        },
+        {
+          "step": 4,
+          "title": "Configure FileVault",
+          "description": "Enter your GitHub details in FileVault",
+          "action": "Fill in your username, token, and repository name below",
+          "details": "The token will be encrypted and stored securely"
+        }
+      ],
+      "requirements": [
+        "GitHub account",
+        "Personal access token",
+        "Repository"
+      ],
+      "troubleshooting": [
+        {
+          "issue": "Authentication failed",
+          "solution": "Check that your personal access token is valid"
+        },
+        {
+          "issue": "Repository not found",
+          "solution": "Verify the repository name and that you have access"
+        }
+      ]
+    },
+    {
+      "id": "backblaze-b2",
+      "name": "Backblaze B2",
+      "description": "Low-cost cloud storage with Backblaze B2",
+      "icon": "backblaze",
+      "color": "#0066CC",
+      "category": "cloud-storage",
+      "popular": false,
+      "features": [
+        "Low-cost storage",
+        "High performance",
+        "S3-compatible API",
+        "Global CDN",
+        "99.999999999% durability"
+      ],
+      "setupSteps": [
+        {
+          "step": 1,
+          "title": "Create Backblaze Account",
+          "description": "Sign up for a Backblaze B2 account",
+          "action": "Visit https://www.backblaze.com/b2/cloud-storage.html",
+          "details": "Create an account and verify your email address"
+        },
+        {
+          "step": 2,
+          "title": "Create B2 Bucket",
+          "description": "Create a new B2 bucket for your files",
+          "action": "Go to B2 Cloud Storage and click 'Create a Bucket'",
+          "details": "Choose a unique bucket name and select your preferred region"
+        },
+        {
+          "step": 3,
+          "title": "Create Application Key",
+          "description": "Generate an application key for API access",
+          "action": "Go to 'App Keys' and click 'Add a New Application Key'",
+          "details": "Give it a name and select the bucket you created"
+        },
+        {
+          "step": 4,
+          "title": "Configure FileVault",
+          "description": "Enter your B2 credentials in FileVault",
+          "action": "Fill in the Application Key ID and Application Key below",
+          "details": "These will be encrypted and stored securely"
+        }
+      ],
+      "requirements": [
+        "Backblaze B2 account",
+        "B2 bucket",
+        "Application Key ID",
+        "Application Key"
+      ],
+      "troubleshooting": [
+        {
+          "issue": "Access denied",
+          "solution": "Check that your application key has the correct permissions"
+        },
+        {
+          "issue": "Bucket not found",
+          "solution": "Verify the bucket name and that it exists in your B2 account"
+        }
+      ]
+    },
+    {
+      "id": "azure-blob",
+      "name": "Azure Blob Storage",
+      "description": "Microsoft's scalable cloud storage solution",
+      "icon": "microsoft-azure",
+      "color": "#0078D4",
+      "category": "cloud-storage",
+      "popular": false,
+      "features": [
+        "Unlimited storage",
+        "Hot, cool, and archive tiers",
+        "Global availability",
+        "Advanced security",
+        "Cost-effective"
+      ],
+      "setupSteps": [
+        {
+          "step": 1,
+          "title": "Create Azure Account",
+          "description": "Sign up for Microsoft Azure",
+          "action": "Visit https://azure.microsoft.com and create an account",
+          "details": "You'll need a credit card for verification, but Azure has a free tier"
+        },
+        {
+          "step": 2,
+          "title": "Create Storage Account",
+          "description": "Create a new Azure Storage Account",
+          "action": "Go to Azure Portal → Storage accounts → Create",
+          "details": "Choose a unique name and select your preferred region"
+        },
+        {
+          "step": 3,
+          "title": "Create Container",
+          "description": "Create a blob container in your storage account",
+          "action": "In your storage account, go to 'Containers' and click 'Add container'",
+          "details": "Choose a name for your container and set the access level"
+        },
+        {
+          "step": 4,
+          "title": "Get Access Keys",
+          "description": "Retrieve your storage account access keys",
+          "action": "Go to 'Access keys' in your storage account settings",
+          "details": "Copy the key1 or key2 - you'll need this for FileVault"
+        },
+        {
+          "step": 5,
+          "title": "Configure FileVault",
+          "description": "Enter your Azure credentials in FileVault",
+          "action": "Fill in the Account Name, Access Key, and Container name below",
+          "details": "These will be encrypted and stored securely"
+        }
+      ],
+      "requirements": [
+        "Azure account",
+        "Storage account",
+        "Blob container",
+        "Account name and access key"
+      ],
+      "troubleshooting": [
+        {
+          "issue": "Access denied",
+          "solution": "Check that your access key is correct and has the necessary permissions"
+        },
+        {
+          "issue": "Container not found",
+          "solution": "Verify the container name and that it exists in your storage account"
+        }
+      ]
+    }
+  ],
+  "categories": [
+    {
+      "id": "cloud-storage",
+      "name": "Cloud Storage",
+      "description": "Store and sync files in the cloud",
+      "icon": "cloud"
+    },
+    {
+      "id": "version-control",
+      "name": "Version Control",
+      "description": "Track changes and collaborate on code",
+      "icon": "git"
+    },
+    {
+      "id": "backup",
+      "name": "Backup Services",
+      "description": "Automated backup solutions",
+      "icon": "backup"
+    }
+  ]
+}

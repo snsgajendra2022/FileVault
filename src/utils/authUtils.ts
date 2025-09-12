@@ -66,10 +66,10 @@ export const logAuthState = (): void => {
   const token = getStoredToken();
   const userData = getStoredUserData();
   
-  console.log('=== Current Auth State ===');
-  console.log('Token:', token ? 'Present' : 'Not found');
-  console.log('User Data:', userData);
-  console.log('Is Admin:', isUserAdmin(userData));
-  console.log('Display Name:', getUserDisplayName(userData));
-  console.log('========================');
+  // console.log('=== Current Auth State ===');
+  // console.log('Token:', token ? 'Present' : 'Not found');
+  // console.log('User Data:', userData);
+  // console.log('Is Admin:', isUserAdmin(userData));
+  // console.log('Display Name:', getUserDisplayName(userData));
+  // console.log('========================');
 };

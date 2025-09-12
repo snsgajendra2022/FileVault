@@ -26,6 +26,7 @@ import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
 import AcceptInvitationPage from './pages/AcceptInvitationPage';
 import InvitationsPage from './pages/InvitationsPage';
+import ServiceConfigPage from './pages/ServiceConfigPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,7 +40,7 @@ const queryClient = new QueryClient({
 const ProtectedRoute = ({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) => {
   const { isAuthenticated, isAdmin, isLoading } = useAuth();
   
-  console.log('ProtectedRoute:', { isLoading, isAuthenticated, isAdmin, adminOnly });
+  // console.log('ProtectedRoute:', { isLoading, isAuthenticated, isAdmin, adminOnly });
   
   // Show loading state while checking authentication
   if (isLoading) {
@@ -105,6 +106,7 @@ const AppRoutes = () => {
         <Route path="images" element={<ImagesPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="invitations" element={<InvitationsPage />} />
+        <Route path="services/config/:serviceId" element={<ServiceConfigPage />} />
         {/* Admin route with proper protection */}
         <Route path="admin" element={
           <ProtectedRoute adminOnly>

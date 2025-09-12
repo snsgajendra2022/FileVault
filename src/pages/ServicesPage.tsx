@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { FaTimes, FaPlus, FaCheck, FaExclamationTriangle, FaCog, FaCloud, FaEye, FaEdit } from 'react-icons/fa';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import servicesData from '../data/services.json';
 
 interface UserService {
   id: number;
@@ -63,6 +65,7 @@ interface ServiceFormData {
 
 const ServicesPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [selectedService, setSelectedService] = useState<AvailableService | null>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -99,7 +102,7 @@ const ServicesPage = () => {
               ...statusResponse.data
             });
           } catch (error) {
-            console.log(`Error fetching status for ${service.serviceType}:`, error);
+            // console.log(`Error fetching status for ${service.serviceType}:`, error);
             statuses.push({
               ...service,
               connectionStatus: 'DISCONNECTED',
@@ -152,7 +155,7 @@ const ServicesPage = () => {
       return response.data;
     },
     onSuccess: (data, variables) => {
-      toast.success(`configured successfully!`);
+      toast.success(data.message);
       setShowConfigModal(false);
       setFormData({});
       setIsConfiguring(false);
@@ -198,6 +201,22 @@ const ServicesPage = () => {
     setSelectedService(service);
     setFormData({});
     setShowConfigModal(true);
+  };
+
+  const handleConfigureWithSteps = (serviceType: string) => {
+    // Map service types to our service IDs
+    const serviceIdMap: Record<string, string> = {
+      'GOOGLE_DRIVE': 'google-drive',
+      'S3_BUCKET': 'aws-s3',
+      'DROPBOX': 'dropbox',
+      'ONEDRIVE': 'onedrive',
+      'GITHUB': 'github',
+      'B2_SERVICE': 'backblaze-b2',
+      'AZURE_BLOB': 'azure-blob'
+    };
+    
+    const serviceId = serviceIdMap[serviceType] || serviceType.toLowerCase();
+    navigate(`/services/config/${serviceId}`);
   };
 
   const handleViewDetails = (userService: UserService) => {
@@ -584,13 +603,22 @@ const ServicesPage = () => {
                   {/* Actions */}
                   <div className="space-y-4">
                     {!isConfigured ? (
-                      <button
-                        onClick={() => handleConfigureService(service)}
-                        className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 flex items-center justify-center shadow-lg transform hover:scale-105"
-                      >
-                        <FaPlus className="h-5 w-5 mr-3" />
-                        Configure
-                      </button>
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => handleConfigureWithSteps(service.serviceType)}
+                          className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 flex items-center justify-center shadow-lg transform hover:scale-105"
+                        >
+                          <FaPlus className="h-5 w-5 mr-3" />
+                          Configure with Steps
+                        </button>
+                        <button
+                          onClick={() => handleConfigureService(service)}
+                          className="w-full bg-gradient-to-r from-gray-500 to-gray-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-gray-600 hover:to-gray-700 transition-all duration-300 flex items-center justify-center shadow-md transform hover:scale-105"
+                        >
+                          <FaCog className="h-4 w-4 mr-2" />
+                          Quick Configure
+                        </button>
+                      </div>
                     ) : (
                       <button
                         disabled
@@ -789,7 +817,7 @@ const ServicesPage = () => {
                             <input
                               type={field.type}
                               required={field.required}
-                              value={formData[field.name] || field.defaultValue || ''}
+                              value={formData[field.name] || ''}
                               onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
@@ -838,7 +866,7 @@ const ServicesPage = () => {
                           ) : (
                             <input
                               type={field.type}
-                              value={formData[field.name] || field.defaultValue || ''}
+                               value={formData[field.name]  || ''}
                               onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}

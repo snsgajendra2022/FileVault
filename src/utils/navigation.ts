@@ -10,7 +10,7 @@ export const clearNavigationState = () => {
 
 export const handleInvalidRoute = (pathname: string) => {
   // Log invalid routes for debugging
-  console.log(`Invalid route accessed: ${pathname}`);
+  // console.log(`Invalid route accessed: ${pathname}`);
   
   // Clear any problematic state
   clearNavigationState();

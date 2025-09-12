@@ -69,7 +69,7 @@ const SharedImages: React.FC = () => {
       }
       
       const rawText = await response.text();
-      console.log('Raw API Response Text:', rawText.substring(0, 500) + '...');
+      // console.log('Raw API Response Text:', rawText.substring(0, 500) + '...');
       
       // Remove recursive "user" inside "images" using regex
       // This pattern matches "user": { ... } and removes it, handling nested objects
@@ -83,12 +83,12 @@ const SharedImages: React.FC = () => {
       if (cleaned === rawText) {
         cleaned = cleaned.replace(/"user":\{[^}]*\},?/g, "");
       }
-      console.log('Cleaned Text:', cleaned.substring(0, 500) + '...');
+      // console.log('Cleaned Text:', cleaned.substring(0, 500) + '...');
       
       let data;
       try {
         data = JSON.parse(cleaned);
-        console.log('Parsed Data:', data);
+        // console.log('Parsed Data:', data);
       } catch (parseError) {
         console.error('Failed to parse cleaned JSON, trying alternative approach:', parseError);
         // Fallback: try to parse the original text and handle it differently
@@ -104,7 +104,7 @@ const SharedImages: React.FC = () => {
       
       if (data.success) {
         const rawImages = data.images || [];
-        console.log('Raw images count:', rawImages.length);
+        // console.log('Raw images count:', rawImages.length);
         
         // Now clean the images data to extract only what we need
         const cleanedImages = rawImages.map((image: any) => ({
@@ -122,7 +122,7 @@ const SharedImages: React.FC = () => {
           } : null
         }));
         
-        console.log('Final Cleaned Images:', cleanedImages);
+        // console.log('Final Cleaned Images:', cleanedImages);
         setImages(cleanedImages);
         setPermissions(data.allowedActions || {
           canViewImages: true,

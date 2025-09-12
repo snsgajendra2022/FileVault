@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { FaUpload, FaEye, FaLock, FaTimes, FaCloud } from 'react-icons/fa';
+import { FaUpload, FaEye, FaLock, FaTimes, FaCloud, FaUsers, FaUser } from 'react-icons/fa';
 import { FiDownload, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
+import { FamilyRelationship } from '../types/user';
 
 // API Response Interfaces
 interface UserImage {
@@ -35,23 +36,36 @@ interface Image {
   thumbnail?: string;
 }
 
+// Using FamilyRelationship from types/user.ts instead of separate interface
+
 const ImagesPage = () => {
   const { user } = useAuth();
   const [selectedImage, setSelectedImage] = useState<UserImage | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<FamilyRelationship | null>(null);
+  const [viewMode, setViewMode] = useState<'my' | 'invited'>('my');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  // Get family relationships from user data (stored in localStorage)
+  const familyRelationships = user?.familyRelationships || [];
+
   // Fetch user images from API
   const { data: userImagesData, isLoading, error, refetch } = useQuery({
-          queryKey: ['userImages'],
-      queryFn: async () => {
-        const token = localStorage.getItem('token');
-        const response = await api.get(`/api/images/user/all?token=${token}`);
-        return response.data as UserImagesResponse;
-      },
+    queryKey: ['userImages', selectedUser?.inviterApiToken],
+    queryFn: async () => {
+      let token = localStorage.getItem('token');
+      
+      // If viewing invited user's images, use their invitation token
+      if (selectedUser && viewMode === 'invited') {
+        token = selectedUser.inviterApiToken;
+      }
+      
+      const response = await api.get(`/api/images/user/all?token=${token}`);
+      return response.data as UserImagesResponse;
+    },
     retry: 2,
     refetchInterval: 30000,
-    enabled: !!user // Only fetch if user is authenticated
+    enabled: !!user && (viewMode === 'my' || (viewMode === 'invited' && !!selectedUser))
   });
 
   // Delete image mutation
@@ -178,6 +192,16 @@ const ImagesPage = () => {
     return Object.keys(enabledServices).length;
   };
 
+  const handleUserSelect = (familyMember: FamilyRelationship) => {
+    setSelectedUser(familyMember);
+    setViewMode('invited');
+  };
+
+  const handleBackToMyFiles = () => {
+    setSelectedUser(null);
+    setViewMode('my');
+  };
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -210,15 +234,103 @@ const ImagesPage = () => {
     );
   }
 
-  const images = userImagesData?.images || [];
+  const images = (userImagesData as UserImagesResponse)?.images || [];
 
   return (
     <div className="p-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">My Files</h1>
-        <p className="text-gray-600">Manage and view your uploaded files</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {viewMode === 'my' ? 'My Files' : `${selectedUser?.inviterFirstName} ${selectedUser?.inviterLastName}'s Files`}
+            </h1>
+            <p className="text-gray-600">
+              {viewMode === 'my' ? 'Manage and view your uploaded files' : 'View shared files from family member'}
+            </p>
+          </div>
+          {viewMode === 'invited' && (
+            <button
+              onClick={handleBackToMyFiles}
+              className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              <FaUser className="h-4 w-4 mr-2" />
+              Back to My Files
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* User Selection for Invited Users */}
+      {viewMode === 'my' && (
+        <div className="mb-6">
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <FaUsers className="h-5 w-5 mr-2 text-blue-600" />
+              Family Members
+            </h3>
+            {familyRelationships.length === 0 ? (
+              <div className="text-center py-6">
+                <FaUsers className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-500">No family relationships found</p>
+                <p className="text-sm text-gray-400">You haven't been invited to any family accounts yet</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {familyRelationships.map((familyMember, index) => (
+                  <div
+                    key={familyMember.inviterId}
+                    onClick={() => handleUserSelect(familyMember)}
+                    className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center mb-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <FaUser className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div className="ml-3">
+                        <h4 className="font-medium text-gray-900">
+                          {familyMember.inviterFirstName} {familyMember.inviterLastName}
+                        </h4>
+                        <p className="text-sm text-gray-500">{familyMember.relationshipType}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-600">
+                        <span className="font-medium">Username:</span> {familyMember.inviterUsername}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        <span className="font-medium">Relationship:</span> {familyMember.relationshipNotes}
+                      </p>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {familyMember.canViewImages && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            View
+                          </span>
+                        )}
+                        {familyMember.canUploadImages && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Upload
+                          </span>
+                        )}
+                        {familyMember.canDeleteImages && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Delete
+                          </span>
+                        )}
+                        {familyMember.canManageAlbums && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            Albums
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -229,7 +341,7 @@ const ImagesPage = () => {
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-500">Total Files</p>
-              <p className="text-lg font-semibold text-gray-900">{userImagesData?.totalImages || 0}</p>
+              <p className="text-lg font-semibold text-gray-900">{(userImagesData as UserImagesResponse)?.totalImages || 0}</p>
             </div>
           </div>
         </div>
@@ -280,19 +392,26 @@ const ImagesPage = () => {
           <div className="mx-auto h-12 w-12 text-gray-400">
             <FaUpload className="h-12 w-12" />
           </div>
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No files uploaded</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">
+            {viewMode === 'my' ? 'No files uploaded' : 'No files shared'}
+          </h3>
           <p className="mt-1 text-sm text-gray-500">
-            Get started by uploading your first file.
+            {viewMode === 'my' 
+              ? 'Get started by uploading your first file.'
+              : `${selectedUser?.inviterFirstName} hasn't shared any files yet.`
+            }
           </p>
-          <div className="mt-6">
-            <button
-              onClick={() => window.location.href = '/upload'}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-            >
-              <FaUpload className="-ml-1 mr-2 h-4 w-4" />
-              Upload File
-            </button>
-          </div>
+          {viewMode === 'my' && (
+            <div className="mt-6">
+              <button
+                onClick={() => window.location.href = '/upload'}
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              >
+                <FaUpload className="-ml-1 mr-2 h-4 w-4" />
+                Upload File
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -372,24 +491,27 @@ const ImagesPage = () => {
                     <FaEye className="h-3 w-3 mr-1" />
                     View
                   </button>
-                                      <button
-                      onClick={() => handleDownload(image)}
-                      className="flex-1 inline-flex justify-center items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                    >
-                      <FiDownload className="h-3 w-3 mr-1" />
-                      Download
-                    </button>
-                  {/* <button
-                    onClick={() => handleDelete(image)}
-                    disabled={deleteImageMutation.isPending}
-                    className="inline-flex justify-center items-center px-2 py-1 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 transition-colors disabled:opacity-50"
+                  <button
+                    onClick={() => handleDownload(image)}
+                    className="flex-1 inline-flex justify-center items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                   >
-                                         {deleteImageMutation.isPending ? (
-                       <LoadingSpinner size="sm" />
-                     ) : (
-                       <FiTrash2 className="h-3 w-3" />
-                     )}
-                  </button> */}
+                    <FiDownload className="h-3 w-3 mr-1" />
+                    Download
+                  </button>
+                  {/* Only show delete button for own files and if user has delete permission */}
+                  {viewMode === 'my' && (
+                    <button
+                      onClick={() => handleDelete(image)}
+                      disabled={deleteImageMutation.isPending}
+                      className="inline-flex justify-center items-center px-2 py-1 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                      {deleteImageMutation.isPending ? (
+                        <LoadingSpinner size="sm" />
+                      ) : (
+                        <FiTrash2 className="h-3 w-3" />
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -483,20 +605,23 @@ const ImagesPage = () => {
               )}
               
               <div className="mt-6 flex justify-center space-x-4">
-                                 <button
-                   onClick={() => handleDownload(selectedImage)}
-                   className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                 >
-                   <FiDownload className="-ml-1 mr-2 h-4 w-4" />
-                   Download
-                 </button>
-                 {/* <button
-                   onClick={() => handleDelete(selectedImage)}
-                   className="inline-flex items-center px-4 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
-                 >
-                   <FiTrash2 className="-ml-1 mr-2 h-4 w-4" />
-                   Delete
-                 </button> */}
+                <button
+                  onClick={() => handleDownload(selectedImage)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                >
+                  <FiDownload className="-ml-1 mr-2 h-4 w-4" />
+                  Download
+                </button>
+                {/* Only show delete button for own files */}
+                {viewMode === 'my' && (
+                  <button
+                    onClick={() => handleDelete(selectedImage)}
+                    className="inline-flex items-center px-4 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
+                  >
+                    <FiTrash2 className="-ml-1 mr-2 h-4 w-4" />
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           </div>

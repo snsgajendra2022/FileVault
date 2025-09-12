@@ -196,8 +196,8 @@ const DashboardPage = () => {
       const files = filesResult.status === 'fulfilled' ? filesResult.value.data : [];
       const stats = statsResult.status === 'fulfilled' ? statsResult.value.data : null;
 
-      console.log('Files API Response:', files); // Debug log
-      console.log('Stats API Response:', stats); // Debug log
+      // console.log('Files API Response:', files); // Debug log
+      // console.log('Stats API Response:', stats); // Debug log
 
       const totalFiles = Array.isArray(files) ? files.length : 0;
       const totalSize = stats?.totalSize || '0 MB';
@@ -235,7 +235,7 @@ const DashboardPage = () => {
   const fetchServicesData = async (): Promise<ServiceData[]> => {
     try {
       const response = await api.get('/api/services/user');
-      console.log('Services API Response:', response.data); // Debug log
+      // console.log('Services API Response:', response.data); // Debug log
       
       const services = response.data.subscriptions || [];
       const summary = response.data.summary || {};
@@ -326,8 +326,8 @@ const DashboardPage = () => {
       const stats = userStats.status === 'fulfilled' ? userStats.value.data : null;
       const health = systemHealth.status === 'fulfilled' ? systemHealth.value.data : null;
 
-      console.log('User Stats API Response:', stats); // Debug log
-      console.log('System Health API Response:', health); // Debug log
+      // console.log('User Stats API Response:', stats); // Debug log
+      // console.log('System Health API Response:', health); // Debug log
 
       return {
         totalUsers: health?.totalUsers || stats?.totalUsers || 0,

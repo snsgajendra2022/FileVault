@@ -1,173 +1,376 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { toast } from 'react-hot-toast';
-import { useState, useEffect } from 'react';
 
-/** -------- Types for data you'll pass in later -------- */
-type Relationship = {
-  id: number;
-  otherUserFirstName: string;
-  otherUserLastName: string;
-  relationshipType: string; // e.g. 'FATHER'|'MOTHER'|'GRANDPARENT'|'COUSIN'|'SON'|'DAUGHTER'|'CHILD'|...
-  otherUserUsername: string;
-  canViewImages: boolean;
-  canUploadImages: boolean;
-  canDeleteImages: boolean;
-  canManageAlbums: boolean;
-  createdAt: string;
-  relationshipNotes: string;
-};
+// Add CSS animation for loading spinner
+const spinnerStyle = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
 
-type CardData = { 
-  name: string; 
-  sub?: string; 
-  gray?: boolean;
+// Inject the CSS
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = spinnerStyle;
+  document.head.appendChild(style);
+}
+
+/** -------- Types for the new family data structure -------- */
+type FamilyMember = {
+  name: string;
+  age: number | null;
+  gender: string | null;
+  relation: string;
+  isYou?: boolean;
+  isElder?: boolean;
+  userId?: number;
   username?: string;
-  relationship?: Relationship;
+  email?: string;
 };
 
-/** -------- Visual constants (match screenshot styling) -------- */
-const Navy = "#23233B";
+type FamilyData = {
+  you: FamilyMember;
+  parents: FamilyMember[];
+  siblings: FamilyMember[];
+  spouse: FamilyMember | null;
+  children: FamilyMember[];
+  grandparents: FamilyMember[];
+  unclesAunts: FamilyMember[];
+  cousins: FamilyMember[];
+};
 
-/** -------- Responsive "person card" component -------- */
-const PersonCard: React.FC<{ data: CardData; isMobile?: boolean; isTablet?: boolean; isSmallMobile?: boolean }> = ({ 
-  data, 
+type FamilyResponse = {
+  familyData: FamilyData;
+  success: boolean;
+  message: string;
+};
+
+/** -------- Person Card Component -------- */
+const PersonCard: React.FC<{ 
+  person: FamilyMember; 
+  isMobile?: boolean; 
+  isTablet?: boolean; 
+  isSmallMobile?: boolean;
+  onClick?: () => void;
+}> = ({ 
+  person, 
   isMobile = false, 
   isTablet = false,
-  isSmallMobile = false
+  isSmallMobile = false,
+  onClick
 }) => {
-  const cardWidth = isSmallMobile ? 80 : isMobile ? 100 : isTablet ? 120 : 138;
-  const cardHeight = isSmallMobile ? 120 : isMobile ? 140 : isTablet ? 160 : 188;
-  const avatarSize = isSmallMobile ? 32 : isMobile ? 40 : isTablet ? 48 : 56;
-  const nameFontSize = isSmallMobile ? "10px" : isMobile ? "12px" : isTablet ? "13px" : "14px";
-  const subFontSize = isSmallMobile ? "8px" : isMobile ? "10px" : isTablet ? "11px" : "12px";
-  const badgeFontSize = isSmallMobile ? "7px" : isMobile ? "8px" : isTablet ? "9px" : "10px";
-  const contentWidth = isSmallMobile ? 60 : isMobile ? 70 : isTablet ? 80 : 88;
+  const getAvatarBackground = () => {
+    if (person.isYou) {
+      return "linear-gradient(135deg, #4f46e5, #7c3aed)";
+    } else if (person.isElder) {
+      return "linear-gradient(135deg, #f59e0b, #d97706)";
+    } else if (person.gender === 'male') {
+      return "linear-gradient(135deg, #3b82f6, #1d4ed8)";
+    } else if (person.gender === 'female') {
+      return "linear-gradient(135deg, #ec4899, #be185d)";
+    } else {
+      return "linear-gradient(135deg, #6b7280, #4b5563)";
+    }
+  };
+
+  const getInitials = () => {
+    return person.name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
 
   return (
     <div
+      className={`person-card ${person.isYou ? 'you' : ''} ${person.isElder ? 'elder' : ''} ${person.gender || ''}`}
+      onClick={onClick}
       style={{
-        width: cardWidth,
-        height: cardHeight,
-        borderRadius: 12,
-        border: `1.5px solid ${Navy}`,
-        background: "white",
-        boxShadow: "0 2px 8px rgba(0,0,0,.06)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        paddingTop: isSmallMobile ? 8 : isMobile ? 10 : isTablet ? 12 : 14,
+        background: person.isYou ? 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)' : 'white',
+        border: person.isYou ? '3px solid #4f46e5' : '3px solid transparent',
+        transform: person.isYou ? 'scale(1.05)' : 'scale(1)',
+        minWidth: '176px',
+        maxWidth: '188px',
+        width: '100%',
+        borderRadius: '12px',
+        padding: isSmallMobile ? '10px' : '12px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+        textAlign: 'center',
+        position: 'relative',
+        transition: 'all 0.3s ease',
+        cursor: onClick ? 'pointer' : 'default',
+        flexShrink: 0,
+      }}
+      onMouseEnter={(e) => {
+        if (onClick) {
+          e.currentTarget.style.transform = person.isYou ? 'scale(1.1) translateY(-5px)' : 'translateY(-5px)';
+          e.currentTarget.style.boxShadow = '0 8px 30px rgba(0,0,0,0.15)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (onClick) {
+          e.currentTarget.style.transform = person.isYou ? 'scale(1.05)' : 'scale(1)';
+          e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,0.1)';
+        }
       }}
     >
-      {/* avatar */}
+      {/* Avatar */}
       <div
+        className="person-avatar"
         style={{
-          width: avatarSize,
-          height: avatarSize,
-          borderRadius: "50%",
-          overflow: "hidden",
-          border: "2px solid #E5E7EB",
-          background: data.gray 
-            ? "radial-gradient(circle at 30% 30%, rgb(117 21 21) 0%, rgb(236 0 40) 45%, rgb(255 0 62) 100%)"
-            : "radial-gradient(circle at 30% 30%, #3b82f6 0%, #1d4ed8 45%, #1e40af 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: isSmallMobile ? "16px" : isMobile ? "18px" : isTablet ? "20px" : "24px",
-          fontWeight: "bold",
-          color: "white",
+          width: person.isYou ? (isSmallMobile ? '55px' : isMobile ? '60px' : '65px') : (isSmallMobile ? '45px' : isMobile ? '50px' : '55px'),
+          height: person.isYou ? (isSmallMobile ? '55px' : isMobile ? '60px' : '65px') : (isSmallMobile ? '45px' : isMobile ? '50px' : '55px'),
+          borderRadius: '50%',
+          margin: '0 auto 10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: person.isYou ? (isSmallMobile ? '22px' : isMobile ? '24px' : '26px') : (isSmallMobile ? '18px' : isMobile ? '20px' : '22px'),
+          fontWeight: 'bold',
+          color: 'white',
+          background: getAvatarBackground(),
         }}
       >
-        {data.name.charAt(0)}
+        {getInitials()}
       </div>
-      {/* Name and Relationship */}
-      <div style={{ width: contentWidth, marginTop: isSmallMobile ? 6 : isMobile ? 8 : isTablet ? 10 : 12, textAlign: "center" }}>
-        {/* Name */}
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: "bold",
-            color: "#1f2937",
-            marginBottom: "4px",
-            lineHeight: nameFontSize,
-            height: nameFontSize,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-          title={data.name}
-        >
-          {data.name}
-        </div>
-        
-        {/* Relationship */}
-        {data.sub && (
-          <div
-            style={{
-              fontSize: subFontSize,
-              color: "#6b7280",
-              marginBottom: "1px",
-              marginTop: "5px",
-              lineHeight: subFontSize,
-              height: subFontSize,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {data.sub}
-          </div>
-        )}
-        
-        {/* Decorative line */}
-        <div
-          style={{
-            height: "2px",
-            borderRadius: "1px",
-            background: data.gray ? "rgb(242 7 46)" : "none",
-            width: "60%",
-            margin: "0 auto",
-          }}
-        />
+
+      {/* Name */}
+      <div
+        className="person-name"
+        style={{
+          fontSize: isSmallMobile ? '0.9rem' : isMobile ? '1rem' : '1.1rem',
+          fontWeight: '600',
+          marginBottom: '5px',
+          color: '#1e293b',
+          wordWrap: 'break-word',
+          lineHeight: '1.2',
+        }}
+      >
+        {person.name}
       </div>
-      {/* Relationship Badge */}
-      {data.sub && (
+
+      {/* Relation */}
+      <div
+        className="person-relation"
+        style={{
+          fontSize: isSmallMobile ? '0.8rem' : isMobile ? '0.85rem' : '0.9rem',
+          color: '#64748b',
+          marginBottom: '8px',
+        }}
+      >
+        {person.relation}
+      </div>
+
+      {/* Age */}
+      {person.age && (
         <div
+          className="person-age"
           style={{
-            marginTop: isSmallMobile ? "4px" : isMobile ? "6px" : isTablet ? "7px" : "8px",
-            fontSize: badgeFontSize,
-            padding: isSmallMobile ? "1px 4px" : isMobile ? "2px 6px" : isTablet ? "2px 7px" : "3px 8px",
-            borderRadius: "12px",
-            background: data.gray ? "#dbeafe" : "#dbeafe",
-            color: data.gray ? "#1e40af" : "#1e40af",
-            border: `1px solid ${data.gray ? "#e5e7eb" : "#93c5fd"}`,
-            fontWeight: "500",
+            fontSize: isSmallMobile ? '0.7rem' : '0.75rem',
+            color: '#94a3b8',
+            background: '#f1f5f9',
+            padding: '3px 8px',
+            borderRadius: '12px',
+            display: 'inline-block',
           }}
         >
-          {data.sub}
+          {person.age} years
         </div>
       )}
     </div>
   );
 };
 
-// Custom SVG-based family tree component
-const CustomFamilyTree: React.FC<{
-  topLeft4: CardData[];
-  topRight4: CardData[];
-  midLeft2: CardData[];
-  midRight2: CardData[];
-  parents2: CardData[];
-  child1: CardData;
-}> = ({ topLeft4, topRight4, midLeft2, midRight2, parents2, child1 }) => {
-  // Responsive coordinates based on screen size
-  const [screenSize, setScreenSize] = React.useState({
+/** -------- Generation Section Component -------- */
+const GenerationSection: React.FC<{
+  label: string;
+  people: FamilyMember[];
+  isMobile?: boolean;
+  isTablet?: boolean;
+  isSmallMobile?: boolean;
+  onPersonClick?: (person: FamilyMember) => void;
+}> = ({ label, people, isMobile, isTablet, isSmallMobile, onPersonClick }) => {
+  if (!people || people.length === 0) return null;
+
+  return (
+    <div className="generation-section" style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '15px',
+      minWidth: isSmallMobile ? '100%' : isMobile ? '200px' : '250px',
+      flex: 1,
+    }}>
+      <div className="generation-label" style={{
+        fontSize: isSmallMobile ? '0.9rem' : isMobile ? '1rem' : '1.1rem',
+        fontWeight: '700',
+        color: '#4f46e5',
+        textTransform: 'uppercase',
+        letterSpacing: '1px',
+        whiteSpace: 'nowrap',
+        background: 'white',
+        padding: isSmallMobile ? '8px 12px' : '10px 15px',
+        borderRadius: '8px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        border: '2px solid #e2e8f0',
+        textAlign: 'center',
+        width: 'fit-content',
+      }}>
+        {label}
+      </div>
+      
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        gap: '12px',
+        width: '100%',
+      }}>
+        {people.map((person, index) => (
+          <PersonCard
+            key={`${label}-${index}`}
+            person={person}
+            isMobile={isMobile}
+            isTablet={isTablet}
+            isSmallMobile={isSmallMobile}
+            onClick={() => onPersonClick?.(person)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/** -------- Family Statistics Component -------- */
+const FamilyStats: React.FC<{ familyData: FamilyData }> = ({ familyData }) => {
+  const totalMembers = Object.values(familyData).flat().length;
+  // const maleCount = Object.values(familyData).flat().filter(m => m?.gender === 'male').length;
+  // const femaleCount = Object.values(familyData).flat().filter(m => m?.gender === 'female').length;
+  const elderCount = Object.values(familyData).flat().filter(m => m?.isElder).length;
+
+  return (
+    <div className="stats" style={{
+      background: '#f8fafc',
+      padding: '15px',
+      borderRadius: '8px',
+      marginBottom: '20px',
+      border: '1px solid #e2e8f0',
+    }}>
+      <h3 style={{
+        color: '#1e293b',
+        marginBottom: '10px',
+        fontSize: '1.1rem',
+      }}>
+        Family Statistics
+      </h3>
+      <div className="stats-grid" style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+        gap: '10px',
+      }}>
+        <div className="stat-item" style={{
+          background: 'white',
+          padding: '10px',
+          borderRadius: '6px',
+          textAlign: 'center',
+          border: '1px solid #e2e8f0',
+        }}>
+          <div className="stat-number" style={{
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            color: '#4f46e5',
+          }}>
+            {totalMembers}
+          </div>
+          <div className="stat-label" style={{
+            fontSize: '0.8rem',
+            color: '#64748b',
+          }}>
+            Total Members
+          </div>
+        </div>
+        {/* <div className="stat-item" style={{
+          background: 'white',
+          padding: '10px',
+          borderRadius: '6px',
+          textAlign: 'center',
+          border: '1px solid #e2e8f0',
+        }}>
+          <div className="stat-number" style={{
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            color: '#4f46e5',
+          }}>
+            {maleCount}
+          </div>
+          <div className="stat-label" style={{
+            fontSize: '0.8rem',
+            color: '#64748b',
+          }}>
+            Male
+          </div>
+        </div> */}
+        {/* <div className="stat-item" style={{
+          background: 'white',
+          padding: '10px',
+          borderRadius: '6px',
+          textAlign: 'center',
+          border: '1px solid #e2e8f0',
+        }}>
+          <div className="stat-number" style={{
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            color: '#4f46e5',
+          }}>
+            {femaleCount}
+          </div>
+          <div className="stat-label" style={{
+            fontSize: '0.8rem',
+            color: '#64748b',
+          }}>
+            Female
+          </div>
+        </div> */}
+        <div className="stat-item" style={{
+          background: 'white',
+          padding: '10px',
+          borderRadius: '6px',
+          textAlign: 'center',
+          border: '1px solid #e2e8f0',
+        }}>
+          <div className="stat-number" style={{
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            color: '#4f46e5',
+          }}>
+            {elderCount}
+          </div>
+          <div className="stat-label" style={{
+            fontSize: '0.8rem',
+            color: '#64748b',
+          }}>
+            Elders
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/** -------- Main Family Tree Component -------- */
+const FamilyTree: React.FC = () => {
+  const { user: currentUser } = useAuth();
+  const [familyData, setFamilyData] = useState<FamilyData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState<FamilyMember | null>(null);
+  const [screenSize, setScreenSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
+    fetchFamilyData();
+    
     const handleResize = () => {
       setScreenSize({
         width: window.innerWidth,
@@ -179,630 +382,530 @@ const CustomFamilyTree: React.FC<{
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Responsive layout calculations
-  const isMobile = screenSize.width < 768;
-  const isTablet = screenSize.width >= 768 && screenSize.width < 1024;
-  const isSmallMobile = screenSize.width < 480;
-  
-  // Card dimensions
-  const cardWidth = isSmallMobile ? 80 : isMobile ? 100 : isTablet ? 120 : 138;
-  const cardHeight = isSmallMobile ? 120 : isMobile ? 140 : isTablet ? 160 : 188;
-  
-  // Calculate responsive coordinates with better spacing
-  const getResponsiveCoordinates = () => {
-    if (isSmallMobile) {
-      // Small mobile: Very compact layout
-      return {
-        X: {
-          tl1: 10, tl2: 100, tl3: 190, tl4: 300,
-          tr1: 370, tr2: 460, tr3: 550, tr4: 640,
-          ml1: 55, ml2: 145, mr1: 415, mr2: 505,
-          pL: 100, pR: 190, c: 145,
-        },
-        Y: { top: 10, mid: 150, par: 290, kid: 430 }
-      };
-    } else if (isMobile) {
-      // Mobile: Compact layout with horizontal scrolling
-      return {
-        X: {
-          tl1: 20, tl2: 130, tl3: 240, tl4: 350,
-          tr1: 460, tr2: 570, tr3: 715, tr4: 790,
-          ml1: 75, ml2: 185, mr1: 515, mr2: 625,
-          pL: 130, pR: 240, c: 185,
-        },
-        Y: { top: 20, mid: 170, par: 320, kid: 470 }
-      };
-    } else if (isTablet) {
-      // Tablet: Medium spacing
-      return {
-        X: {
-          tl1: 50, tl2: 200, tl3: 350, tl4: 500,
-          tr1: 700, tr2: 850, tr3: 1000, tr4: 1150,
-          ml1: 200, ml2: 350, mr1: 800, mr2: 950,
-          pL: 400, pR: 550, c: 475,
-        },
-        Y: { top: 50, mid: 250, par: 450, kid: 650 }
-      };
-    } else {
-      // Desktop: Full spacing
-      return {
-        X: {
-          tl1: 80, tl2: 240, tl3: 400, tl4: 560,
-          tr1: 800, tr2: 960, tr3: 1120, tr4: 1280,
-          ml1: 320, ml2: 507, mr1: 920, mr2: 1080,
-          pL: 520, pR: 720, c: 620,
-        },
-        Y: { top: 80, mid: 300, par: 507, kid: 715}
-      };
-    }
-  };
-
-  const { X, Y } = getResponsiveCoordinates();
-
-  // SVG path for connection lines
-  const createConnectionPath = (fromX: number, fromY: number, toX: number, toY: number) => {
-    const midY = (fromY + toY) / 2;
-    return `M ${fromX} ${fromY} L ${fromX} ${midY} L ${toX} ${midY} L ${toX} ${toY}`;
-  };
-
-  // Create junction points for cleaner connections
-  const createJunctionPath = (fromX: number, fromY: number, junctionX: number, junctionY: number, toX: number, toY: number) => {
-    return `M ${fromX} ${fromY} L ${fromX} ${junctionY} L ${junctionX} ${junctionY} L ${junctionX} ${toY} L ${toX} ${toY}`;
-  };
-
-  // Calculate container dimensions
-  const containerWidth = isSmallMobile ? 730 : isMobile ? 900 : isTablet ? 1200 : 1480;
-  const containerHeight = isSmallMobile ? 550 : isMobile ? 600 : isTablet ? 700 : 840;
-
-  return (
-    <div 
-      style={{ 
-        position: 'relative', 
-        width: '100%', 
-        height: '100%',
-        overflow: (isMobile || isSmallMobile) ? 'auto' : 'visible',
-        minHeight: containerHeight,
-        minWidth: containerWidth
-      }}
-    >
-      {/* SVG for connection lines */}
-      <svg
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: containerWidth,
-          height: containerHeight,
-          pointerEvents: 'none',
-          zIndex: 1,
-        }}
-        viewBox={`0 0 ${containerWidth} ${containerHeight}`}
-      >
-        {/* Responsive connection lines */}
-        {!isSmallMobile && (
-          <>
-            {/* Top-left cluster to mid-left connections */}
-            {topLeft4.map((_, index) => {
-              const fromX = X[`tl${index + 1}` as keyof typeof X];
-              const junctionY = isMobile ? 95 : isTablet ? 150 : 180;
-              const junctionX = isMobile ? 130 : isTablet ? 275 : 400;
-              const cardCenterY = Y.top + (cardHeight / 2);
-              const midCardCenterY = Y.mid + (cardHeight / 2);
-              return (
-                <path
-                  key={`tl${index + 1}-junction`}
-                  d={createJunctionPath(fromX, cardCenterY, junctionX, junctionY, junctionX, midCardCenterY)}
-                  stroke="#3b82f6"
-                  strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
-                  fill="none"
-                />
-              );
-            })}
-            
-            {/* Junction to mid-left nodes */}
-            <path
-              d={createConnectionPath(
-                isMobile ? 130 : isTablet ? 275 : 400, 
-                isMobile ? 95 : isTablet ? 150 : 180, 
-                X.ml1, 
-                Y.mid + (cardHeight / 2)
-              )}
-              stroke="#3b82f6"
-              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
-              fill="none"
-            />
-            <path
-              d={createConnectionPath(
-                isMobile ? 130 : isTablet ? 275 : 400, 
-                isMobile ? 95 : isTablet ? 150 : 180, 
-                X.ml2, 
-                Y.mid + (cardHeight / 2)
-              )}
-              stroke="#3b82f6"
-              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
-              fill="none"
-            />
-
-            {/* Top-right cluster to mid-right connections */}
-            {topRight4.map((_, index) => {
-              const fromX = X[`tr${index + 1}` as keyof typeof X];
-              const junctionY = isMobile ? 95 : isTablet ? 150 : 180;
-              const junctionX = isMobile ? 570 : isTablet ? 875 : 1000;
-              const cardCenterY = Y.top + (cardHeight / 2);
-              const midCardCenterY = Y.mid + (cardHeight / 2);
-              return (
-                <path
-                  key={`tr${index + 1}-junction`}
-                  d={createJunctionPath(fromX, cardCenterY, junctionX, junctionY, junctionX, midCardCenterY)}
-                  stroke="#3b82f6"
-                  strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
-                  fill="none"
-                />
-              );
-            })}
-            
-            {/* Junction to mid-right nodes */}
-            <path
-              d={createConnectionPath(
-                isMobile ? 570 : isTablet ? 875 : 1000, 
-                isMobile ? 95 : isTablet ? 150 : 180, 
-                X.mr1, 
-                Y.mid + (cardHeight / 2)
-              )}
-              stroke="#3b82f6"
-              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
-              fill="none"
-            />
-            <path
-              d={createConnectionPath(
-                isMobile ? 570 : isTablet ? 875 : 1000, 
-                isMobile ? 95 : isTablet ? 150 : 180, 
-                X.mr2, 
-                Y.mid + (cardHeight / 2)
-              )}
-              stroke="#3b82f6"
-              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
-              fill="none"
-            />
-
-            {/* Mid-left to parent-left */}
-            <path
-              d={createJunctionPath(
-                X.ml1, 
-                Y.mid + (cardHeight / 2), 
-                isMobile ? 185 : isTablet ? 475 : 520, 
-                isMobile ? 245 : isTablet ? 350 : 380, 
-                X.pL, 
-                Y.par + (cardHeight / 2)
-              )}
-              stroke="#3b82f6"
-              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
-              fill="none"
-            />
-            <path
-              d={createJunctionPath(
-                X.ml2, 
-                Y.mid + (cardHeight / 2), 
-                isMobile ? 185 : isTablet ? 475 : 520, 
-                isMobile ? 245 : isTablet ? 350 : 380, 
-                X.pL, 
-                Y.par + (cardHeight / 2)
-              )}
-              stroke="#3b82f6"
-              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
-              fill="none"
-            />
-
-            {/* Mid-right to parent-right */}
-            <path
-              d={createJunctionPath(
-                X.mr1, 
-                Y.mid + (cardHeight / 2), 
-                isMobile ? 395 : isTablet ? 575 : 720, 
-                isMobile ? 245 : isTablet ? 350 : 380, 
-                X.pR, 
-                Y.par + (cardHeight / 2)
-              )}
-              stroke="#3b82f6"
-              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
-              fill="none"
-            />
-            <path
-              d={createJunctionPath(
-                X.mr2, 
-                Y.mid + (cardHeight / 2), 
-                isMobile ? 395 : isTablet ? 575 : 720, 
-                isMobile ? 245 : isTablet ? 350 : 380, 
-                X.pR, 
-                Y.par + (cardHeight / 2)
-              )}
-              stroke="#3b82f6"
-              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
-              fill="none"
-            />
-
-            {/* Parents to child */}
-            <path
-              d={createJunctionPath(
-                X.pL, 
-                Y.par + (cardHeight / 2), 
-                isMobile ? 185 : isTablet ? 475 : 620, 
-                isMobile ? 405 : isTablet ? 550 : 580, 
-                X.c, 
-                Y.kid + (cardHeight / 2)
-              )}
-              stroke="#3b82f6"
-              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
-              fill="none"
-            />
-            <path
-              d={createJunctionPath(
-                X.pR, 
-                Y.par + (cardHeight / 2), 
-                isMobile ? 185 : isTablet ? 475 : 620, 
-                isMobile ? 405 : isTablet ? 550 : 580, 
-                X.c, 
-                Y.kid + (cardHeight / 2)
-              )}
-              stroke="#3b82f6"
-              strokeWidth={isMobile ? "1.5" : isTablet ? "2" : "3"}
-              fill="none"
-            />
-          </>
-        )}
-      </svg>
-
-      {/* Person cards positioned absolutely */}
-      <div style={{ position: 'relative', zIndex: 2, width: containerWidth, height: containerHeight }}>
-        {/* Top row - 8 cards */}
-        {topLeft4.map((card, index) => (
-          <div
-            key={`tl${index + 1}`}
-            style={{
-              position: 'absolute',
-              left: X[`tl${index + 1}` as keyof typeof X] - (cardWidth / 2),
-              top: Y.top,
-            }}
-          >
-            <PersonCard data={card} isMobile={isMobile} isTablet={isTablet} isSmallMobile={isSmallMobile} />
-          </div>
-        ))}
-        
-        {topRight4.map((card, index) => (
-          <div
-            key={`tr${index + 1}`}
-            style={{
-              position: 'absolute',
-              left: X[`tr${index + 1}` as keyof typeof X] - (cardWidth / 2),
-              top: Y.top,
-            }}
-          >
-            <PersonCard data={card} isMobile={isMobile} isTablet={isTablet} isSmallMobile={isSmallMobile} />
-          </div>
-        ))}
-
-        {/* Mid row - 4 cards (grandparents) */}
-        {midLeft2.map((card, index) => (
-          <div
-            key={`ml${index + 1}`}
-            style={{
-              position: 'absolute',
-              left: X[`ml${index + 1}` as keyof typeof X] - (cardWidth / 2),
-              top: Y.mid,
-            }}
-          >
-            <PersonCard data={card} isMobile={isMobile} isTablet={isTablet} isSmallMobile={isSmallMobile} />
-          </div>
-        ))}
-        
-        {midRight2.map((card, index) => (
-          <div
-            key={`mr${index + 1}`}
-            style={{
-              position: 'absolute',
-              left: X[`mr${index + 1}` as keyof typeof X] - (cardWidth / 2),
-              top: Y.mid,
-            }}
-          >
-            <PersonCard data={card} isMobile={isMobile} isTablet={isTablet} isSmallMobile={isSmallMobile} />
-          </div>
-        ))}
-
-        {/* Parents row - 2 cards */}
-        <div
-          style={{
-            position: 'absolute',
-            left: X.pL - (cardWidth / 2),
-            top: Y.par,
-          }}
-        >
-          <PersonCard data={parents2[0]} isMobile={isMobile} isTablet={isTablet} />
-        </div>
-        
-        <div
-          style={{
-            position: 'absolute',
-            left: X.pR - (cardWidth / 2),
-            top: Y.par,
-          }}
-        >
-          <PersonCard data={parents2[1]} isMobile={isMobile} isTablet={isTablet} />
-        </div>
-
-        {/* Child row - 1 card */}
-        <div
-          style={{
-            position: 'absolute',
-            left: X.c - (cardWidth / 2),
-            top: Y.kid,
-          }}
-        >
-          <PersonCard data={child1} isMobile={isMobile} isTablet={isTablet} />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/** -------- Helper to label relationship types -------- */
-const relLabel = (t: string) =>
-  ({
-    SPOUSE: "Spouse",
-    PARENT: "Parent",
-    MOTHER: "Mother",
-    FATHER: "Father",
-    CHILD: "Child",
-    SON: "Son",
-    DAUGHTER: "Daughter",
-    BROTHER: "Brother",
-    SISTER: "Sister",
-    GRANDPARENT: "Grandparent",
-    GRANDCHILD: "Grandchild",
-    UNCLE: "Uncle",
-    AUNT: "Aunt",
-    COUSIN: "Cousin",
-  }[t] || t);
-
-/** -------- Single-page component -------- */
-const FamilyTree: React.FC = () => {
-  const { user: currentUser } = useAuth();
-  const [relationships, setRelationships] = useState<Relationship[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<Relationship | null>(null);
-
-  useEffect(() => {
-    fetchFamilyRelationships();
-  }, []);
-
-  const fetchFamilyRelationships = async () => {
+  const fetchFamilyData = async () => {
     try {
       setLoading(true);
+      console.log('Fetching family data from API...');
+      
       const response = await api.get('/api/simple-invitations/family-relationships');
+      console.log('Family data API response:', response.data);
+      
       if (response.data.success) {
-        setRelationships(response.data.relationships || []);
+        // Check if the API response has the expected structure
+        if (response.data.familyData) {
+          setFamilyData(response.data.familyData);
+          toast.success('Family data loaded successfully');
+        } else {
+          console.error('API response missing familyData:', response.data);
+          toast.error('Invalid data format received from server');
+          setFamilyData(null);
+        }
       } else {
-        setRelationships([]);
+        console.error('API returned success: false', response.data);
+        toast.error(response.data.message || 'Failed to load family data');
+        setFamilyData(null);
       }
     } catch (error: any) {
-      console.error('Error fetching family relationships:', error);
-      toast.error('Failed to load family relationships');
+      console.error('Error fetching family data:', error);
+      
+      // Handle different types of errors
+      if (error.response) {
+        // Server responded with error status
+        const errorMessage = error.response.data?.message || `Server error: ${error.response.status}`;
+        toast.error(errorMessage);
+        console.error('Server error details:', error.response.data);
+      } else if (error.request) {
+        // Network error
+        toast.error('Network error: Unable to connect to server');
+        console.error('Network error:', error.request);
+      } else {
+        // Other error
+        toast.error('Failed to load family data');
+        console.error('Other error:', error.message);
+      }
+      
+      setFamilyData(null);
     } finally {
       setLoading(false);
     }
   };
 
-  // const openModal = (user: Relationship) => {
-  //   setSelectedUser(user);
-  //   setShowModal(true);
-  // };
+  const openModal = (person: FamilyMember) => {
+    setSelectedPerson(person);
+    setShowModal(true);
+  };
 
   const closeModal = () => {
     setShowModal(false);
-    setSelectedUser(null);
+    setSelectedPerson(null);
   };
 
-  // slot data for the fixed 8 → 4 → 2 → 1 layout
-  const { topLeft4, topRight4, midLeft2, midRight2, parents2, child1 } =
-    useMemo(() => {
-      const makeCard = (r?: Relationship): CardData =>
-        r
-          ? {
-              name: `${r.otherUserFirstName} ${r.otherUserLastName}`.trim(),
-              sub: relLabel(r.relationshipType),
-              gray: /GRAND|COUSIN|UNCLE|AUNT/.test(r.relationshipType),
-              username: r.otherUserUsername,
-              relationship: r,
-            }
-          : { name: "—", gray: true };
-
-      const by = (types: string[]) =>
-        relationships.filter((r) => types.includes(r.relationshipType));
-
-      const father = by(["FATHER"])[0] || by(["PARENT"])[0];
-      const mother =
-        by(["MOTHER"])[0] || by(["PARENT"]).filter((p) => p !== father)[0];
-
-      const parents2 = [makeCard(father), makeCard(mother)];
-
-      const grands = by(["GRANDPARENT"]).slice(0, 4);
-      const midLeft2 = [makeCard(grands[0]), makeCard(grands[1])];
-      const midRight2 = [makeCard(grands[2]), makeCard(grands[3])];
-
-      const extended = relationships
-        .filter(
-          (r) =>
-            !["FATHER", "MOTHER", "PARENT", "GRANDPARENT", "SON", "DAUGHTER", "CHILD"].includes(
-              r.relationshipType
-            )
-        )
-        .slice(0, 8);
-      while (extended.length < 8) extended.push(undefined as any);
-      const topLeft4 = extended.slice(0, 4).map(makeCard);
-      const topRight4 = extended.slice(4, 8).map(makeCard);
-
-      const kids = by(["SON", "DAUGHTER", "CHILD"]);
-      const child1 = makeCard(kids[0] || { 
-        id: 999, 
-        otherUserFirstName: currentUser?.firstName || "You", 
-        otherUserLastName: currentUser?.lastName || "", 
-        relationshipType: "CHILD",
-        otherUserUsername: currentUser?.username || "",
-        canViewImages: false,
-        canUploadImages: false,
-        canDeleteImages: false,
-        canManageAlbums: false,
-        createdAt: "",
-        relationshipNotes: ""
-      });
-
-      return { topLeft4, topRight4, midLeft2, midRight2, parents2, child1 };
-    }, [relationships, currentUser]);
+  // Responsive layout calculations
+  const isMobile = screenSize.width < 768;
+  const isTablet = screenSize.width >= 768 && screenSize.width < 1024;
+  const isSmallMobile = screenSize.width < 480;
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-700 text-lg">Loading your family tree...</p>
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '64px',
+            height: '64px',
+            border: '4px solid #4f46e5',
+            borderTop: '4px solid transparent',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 16px',
+          }}></div>
+          <p style={{ color: 'white', fontSize: '18px' }}>Loading your family tree...</p>
         </div>
       </div>
     );
   }
 
+  if (!familyData) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px',
+      }}>
+        <div style={{
+          background: 'white',
+          borderRadius: '12px',
+          padding: '48px',
+          textAlign: 'center',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+          maxWidth: '400px',
+        }}>
+          <div style={{
+            width: '80px',
+            height: '80px',
+            background: '#f0f9ff',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 16px',
+            fontSize: '32px',
+          }}>
+            👥
+          </div>
+          <h3 style={{
+            fontSize: '20px',
+            fontWeight: 'bold',
+            color: '#1e293b',
+            marginBottom: '8px',
+          }}>
+            Start Building Your Family Tree
+          </h3>
+          <p style={{ color: '#64748b' }}>
+            Send invitations to family members and create your family network
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const generations = [
+    { label: 'Grandparents', members: familyData.grandparents },
+    { label: 'Parents', members: familyData.parents },
+    { label: 'Uncles & Aunts', members: familyData.unclesAunts },
+    { label: 'You', members: [familyData.you] },
+    { label: 'Siblings', members: familyData.siblings },
+    { label: 'Cousins', members: familyData.cousins },
+    { label: 'Spouse', members: familyData.spouse ? [familyData.spouse] : [] },
+    { label: 'Children', members: familyData.children }
+  ].filter(gen => gen.members.length > 0);
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-full mx-auto p-6">
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: '20px',
+      color: '#1e293b',
+    }}>
+      <div style={{
+        maxWidth: '100%',
+        margin: '0 auto',
+        background: 'white',
+        borderRadius: '12px',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+        overflow: 'hidden',
+      }}>
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Family Tree</h1>
-          <p className="text-gray-600">Your family connections and relationships</p>
+        <div style={{
+          background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+          color: 'white',
+          padding: '30px',
+          textAlign: 'center',
+        }}>
+          <h1 style={{
+            fontSize: isSmallMobile ? '1.8rem' : isMobile ? '2rem' : '2.5rem',
+            fontWeight: '700',
+            marginBottom: '10px',
+          }}>
+            🌳 Family Tree
+          </h1>
+          <p style={{
+            fontSize: isSmallMobile ? '1rem' : '1.1rem',
+            opacity: 0.9,
+          }}>
+            Your Family Connections and Relationships
+          </p>
         </div>
 
-        {/* Family Tree Visualization */}
-        {relationships.length === 0 ? (
-          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center shadow-sm">
-            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">👥</span>
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Start Building Your Family Tree</h3>
-            <p className="text-gray-600">
-              Send invitations to family members and create your family network
-            </p>
+        {/* Legend */}
+        {/* <div style={{
+          position: isSmallMobile ? 'relative' : 'fixed',
+          top: isSmallMobile ? 'auto' : '20px',
+          right: isSmallMobile ? 'auto' : '20px',
+          background: 'white',
+          padding: '20px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+          zIndex: 1000,
+          maxWidth: isSmallMobile ? '100%' : '200px',
+          marginBottom: isSmallMobile ? '20px' : '0',
+        }}>
+          <h3 style={{
+            fontSize: '1rem',
+            marginBottom: '15px',
+            color: '#1e293b',
+          }}>
+            Legend
+          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', fontSize: '0.85rem' }}>
+            <div style={{
+              width: '16px',
+              height: '16px',
+              borderRadius: '50%',
+              marginRight: '8px',
+              background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+            }}></div>
+            <span>You</span>
           </div>
-        ) : (
-          <div
-            style={{
-              height: 1000,
-              width: "100%",
-              background: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: window.innerWidth < 480 ? 8 : window.innerWidth < 768 ? 12 : 24,
-            }}
-          >
-            <div
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', fontSize: '0.85rem' }}>
+            <div style={{
+              width: '16px',
+              height: '16px',
+              borderRadius: '50%',
+              marginRight: '8px',
+              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+            }}></div>
+            <span>Male</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', fontSize: '0.85rem' }}>
+            <div style={{
+              width: '16px',
+              height: '16px',
+              borderRadius: '50%',
+              marginRight: '8px',
+              background: 'linear-gradient(135deg, #ec4899, #be185d)',
+            }}></div>
+            <span>Female</span>
+            </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', fontSize: '0.85rem' }}>
+            <div style={{
+              width: '16px',
+              height: '16px',
+              borderRadius: '50%',
+              marginRight: '8px',
+              background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+            }}></div>
+            <span>Elder</span>
+          </div>
+        </div> */}
+
+            {/* Family Tree Container */}
+        <div style={{
+          padding: isSmallMobile ? '15px 10px' : isMobile ? '20px 15px' : '40px',
+          background: '#f8fafc',
+          minHeight: '80vh',
+          overflowX: 'auto',
+          overflowY: 'auto',
+        }}>
+          {/* Refresh Button */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginBottom: '20px',
+          }}>
+            <button
+              onClick={fetchFamilyData}
+              disabled={loading}
               style={{
-                height: 1000,
-                width: "100%",
-                maxWidth: window.innerWidth < 480 ? "100%" : window.innerWidth < 768 ? "100%" : 1480,
-                borderRadius: 16,
-                overflow: window.innerWidth < 768 ? "auto" : "hidden",
-                border: "1px solid #EEE",
-                background: "white",
-                position: "relative",
+                padding: '10px 20px',
+                background: loading ? '#9ca3af' : '#4f46e5',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.background = '#3730a3';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.background = '#4f46e5';
+                }
               }}
             >
-              <CustomFamilyTree
-                topLeft4={topLeft4}
-                topRight4={topRight4}
-                midLeft2={midLeft2}
-                midRight2={midRight2}
-                parents2={parents2}
-                child1={child1}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* User Details Modal */}
-      {showModal && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">User Details</h2>
+              {loading ? (
+                <>
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    border: '2px solid #ffffff',
+                    borderTop: '2px solid transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                  }}></div>
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <span>🔄</span>
+                  Refresh Family Data
+                </>
+              )}
+            </button>
+                        </div>
+                        
+          {/* Family Statistics */}
+          <FamilyStats familyData={familyData} />
+          
+          {/* Family Tree */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            minWidth: '100%',
+            position: 'relative',
+            gap: '15px',
+          }}>
+            {generations.map((generation, index) => (
+              <div key={generation.label} style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'flex-start',
+                margin: '20px 0',
+                gap: '20px',
+                position: 'relative',
+                width: '100%',
+                flexWrap: 'wrap',
+                maxWidth: '100%',
+              }}>
+                <GenerationSection
+                  label={generation.label}
+                  people={generation.members}
+                  isMobile={isMobile}
+                  isTablet={isTablet}
+                  isSmallMobile={isSmallMobile}
+                  onPersonClick={openModal}
+                />
+                    </div>
+                  ))}
+                </div>
+                          </div>
+                        </div>
+                        
+      {/* Person Details Modal */}
+      {showModal && selectedPerson && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50,
+          padding: '20px',
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '32px',
+            maxWidth: '400px',
+            width: '100%',
+            maxHeight: '80vh',
+            overflow: 'auto',
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '24px',
+            }}>
+              <h2 style={{
+                fontSize: '24px',
+                fontWeight: 'bold',
+                color: '#1e293b',
+              }}>
+                Family Member Details
+              </h2>
               <button
                 onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                style={{
+                  color: '#9ca3af',
+                  fontSize: '24px',
+                  fontWeight: 'bold',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
               >
                 ×
               </button>
-            </div>
-            
-            <div className="space-y-4">
+                        </div>
+                        
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <p className="text-lg text-gray-900">
-                  {selectedUser.otherUserFirstName} {selectedUser.otherUserLastName}
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: '4px',
+                }}>
+                  Name
+                </label>
+                <p style={{
+                  fontSize: '18px',
+                  color: '#1e293b',
+                }}>
+                  {selectedPerson.name}
                 </p>
-              </div>
-              
+                        </div>
+                        
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                <p className="text-lg text-gray-900">{selectedUser.otherUserUsername}</p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
-                <p className="text-lg text-gray-900">{relLabel(selectedUser.relationshipType)}</p>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Permissions</label>
-                <div className="space-y-2">
-                  <div className="flex items-center">
-                    <span className={`w-3 h-3 rounded-full mr-2 ${selectedUser.canViewImages ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                    <span className="text-sm text-gray-700">View Images</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className={`w-3 h-3 rounded-full mr-2 ${selectedUser.canUploadImages ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                    <span className="text-sm text-gray-700">Upload Images</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className={`w-3 h-3 rounded-full mr-2 ${selectedUser.canDeleteImages ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                    <span className="text-sm text-gray-700">Delete Images</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className={`w-3 h-3 rounded-full mr-2 ${selectedUser.canManageAlbums ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                    <span className="text-sm text-gray-700">Manage Albums</span>
-                  </div>
-                </div>
-              </div>
-              
-              {selectedUser.relationshipNotes && (
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: '4px',
+                }}>
+                  Relationship
+                </label>
+                <p style={{
+                  fontSize: '18px',
+                  color: '#1e293b',
+                }}>
+                  {selectedPerson.relation}
+                </p>
+                        </div>
+                        
+              {selectedPerson.username && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                  <p className="text-gray-900">{selectedUser.relationshipNotes}</p>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '4px',
+                  }}>
+                    Username
+                  </label>
+                  <p style={{
+                    fontSize: '18px',
+                    color: '#1e293b',
+                  }}>
+                    {selectedPerson.username}
+                  </p>
+                </div>
+              )}
+
+              {selectedPerson.email && (
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '4px',
+                  }}>
+                    Email
+                  </label>
+                  <p style={{
+                    fontSize: '18px',
+                    color: '#1e293b',
+                  }}>
+                    {selectedPerson.email}
+                  </p>
+                </div>
+              )}
+
+              {selectedPerson.age && (
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151',
+                    marginBottom: '4px',
+                  }}>
+                    Age
+                  </label>
+                  <p style={{
+                    fontSize: '18px',
+                    color: '#1e293b',
+                  }}>
+                    {selectedPerson.age} years
+                  </p>
                 </div>
               )}
             </div>
-            
-            <div className="mt-8 flex justify-end">
-              <button
+
+            <div style={{
+              marginTop: '32px',
+              display: 'flex',
+              justifyContent: 'flex-end',
+            }}>
+                  <button
                 onClick={closeModal}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                Close
-              </button>
+                style={{
+                  padding: '8px 16px',
+                  background: '#6b7280',
+                  color: 'white',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                }}
+                  >
+                    Close
+                  </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 };
+
 export default FamilyTree;
 

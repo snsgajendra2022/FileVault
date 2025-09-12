@@ -29,7 +29,7 @@ const Sidebar = () => {
     // { name: 'Analytics', href: '/analytics', icon: FaPlus },
     { name: 'Invitations', href: '/invitations', icon: FaUsers },
     { name: 'Profile', href: '/profile', icon: FaUser },
-    { name: 'Settings', href: '/settings', icon: FaCog },
+    // { name: 'Settings', href: '/settings', icon: FaCog },
   ];
 
   const adminNavigationItems = [
