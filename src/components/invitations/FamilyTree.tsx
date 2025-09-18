@@ -3,11 +3,123 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { toast } from 'react-hot-toast';
 
-// Add CSS animation for loading spinner
+// Add CSS animation for loading spinner and tree connectors/styles
 const spinnerStyle = `
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+  }
+
+  /* Tree styles (inspired by provided HTML/CSS) */
+  .tree {
+    width: 100%;
+    height: auto;
+    text-align: center;
+  }
+  .tree ul {
+    padding-top: 20px;
+    position: relative;
+    transition: .5s;
+  }
+  .tree li {
+    display: inline-table;
+    text-align: center;
+    list-style-type: none;
+    position: relative;
+    padding: 10px;
+    transition: .5s;
+  }
+  .tree li::before, .tree li::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 50%;
+    border-top: 1px solid #cbd5e1; /* slate-300 */
+    width: 51%;
+    height: 10px;
+  }
+  .tree li::after {
+    right: auto;
+    left: 50%;
+    border-left: 1px solid #cbd5e1;
+  }
+  .tree li:only-child::after, .tree li:only-child::before {
+    display: none;
+  }
+  .tree li:only-child {
+    padding-top: 0;
+  }
+  .tree li:first-child::before, .tree li:last-child::after {
+    border: 0 none;
+  }
+  .tree li:last-child::before {
+    border-right: 1px solid #cbd5e1;
+    border-radius: 0 5px 0 0;
+  }
+  .tree li:first-child::after {
+    border-radius: 5px 0 0 0;
+  }
+  .tree ul ul::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    border-left: 1px solid #cbd5e1;
+    width: 0;
+    height: 20px;
+  }
+  .tree li a {
+    border: 1px solid #e2e8f0; /* slate-200 */
+    padding: 10px;
+    display: inline-grid;
+    border-radius: 8px;
+    text-decoration-line: none;
+    transition: .3s;
+    background: white;
+    min-width: 120px;
+  }
+  .tree li a:hover, .tree li a:hover span, .tree li a:hover + ul li a {
+    background: #e0f2fe; /* sky-100 */
+    color: #0f172a; /* slate-900 */
+    border: 1px solid #94a3b8; /* slate-400 */
+  }
+  .tree li a:hover + ul li::after, .tree li a:hover + ul li::before, .tree li a:hover + ul::before, .tree li a:hover + ul ul::before {
+    border-color: #94a3b8;
+  }
+  .tree .avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 9999px;
+    margin: 0 auto 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 20px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  }
+  .tree .label {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    color: #334155; /* slate-700 */
+    padding: 6px 8px;
+    font-size: 12px;
+    text-transform: none;
+    letter-spacing: 0.2px;
+    font-weight: 600;
+    background: #f8fafc;
+  }
+  .tree .relation-label {
+    margin-top: 6px;
+    display: inline-block;
+    color: #64748b; /* slate-500 */
+    font-size: 11px;
+    padding: 4px 6px;
+    background: #f1f5f9; /* slate-100 */
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-weight: 500;
   }
 `;
 
@@ -529,10 +641,51 @@ const FamilyTree: React.FC = () => {
     { label: 'Children', members: familyData.children }
   ].filter(gen => gen.members.length > 0);
 
+  // Helpers for tree rendering
+  const getAvatarBackground = (person?: FamilyMember) => {
+    if (!person) return 'linear-gradient(135deg, #64748b, #475569)';
+    if (person.isYou) return 'linear-gradient(135deg, #4f46e5, #7c3aed)';
+    if (person.isElder) return 'linear-gradient(135deg, #f59e0b, #d97706)';
+    if (person.gender === 'male') return 'linear-gradient(135deg, #3b82f6, #1d4ed8)';
+    if (person.gender === 'female') return 'linear-gradient(135deg, #ec4899, #be185d)';
+    return 'linear-gradient(135deg, #6b7280, #4b5563)';
+  };
+
+  const getInitial = (name: string) => (name?.trim()?.charAt(0) || '?').toUpperCase();
+
+  const TreePerson = ({ person }: { person: FamilyMember }) => (
+    <a href="#" onClick={(e) => { e.preventDefault(); openModal(person); }}>
+      <div className="avatar" style={{ background: getAvatarBackground(person) }}>
+        {getInitial(person.name)}
+      </div>
+      <span className="label">{person.name}</span>
+      {person.relation && (
+        <span className="relation-label">{person.relation}</span>
+      )}
+    </a>
+  );
+
+  const TreeGroup = ({ title, people }: { title: string; people: FamilyMember[] }) => (
+    <li>
+      <a href="#" onClick={(e) => e.preventDefault()}>
+        <span className="label">{title}</span>
+      </a>
+      {people && people.length > 0 && (
+        <ul>
+          {people.map((p, idx) => (
+            <li key={`${title}-${idx}`}>
+              <TreePerson person={p} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: '#fff',
       padding: '20px',
       color: '#1e293b',
     }}>
@@ -546,7 +699,7 @@ const FamilyTree: React.FC = () => {
       }}>
         {/* Header */}
         <div style={{
-          background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+         background: 'linear-gradient(311deg, rgb(124 72 237) 0%, rgb(115 79 238) 100%)',
           color: 'white',
           padding: '30px',
           textAlign: 'center',
@@ -628,7 +781,7 @@ const FamilyTree: React.FC = () => {
           </div>
         </div> */}
 
-            {/* Family Tree Container */}
+        {/* Family Tree Container */}
         <div style={{
           padding: isSmallMobile ? '15px 10px' : isMobile ? '20px 15px' : '40px',
           background: '#f8fafc',
@@ -694,38 +847,42 @@ const FamilyTree: React.FC = () => {
           {/* Family Statistics */}
           <FamilyStats familyData={familyData} />
           
-          {/* Family Tree */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            minWidth: '100%',
-            position: 'relative',
-            gap: '15px',
-          }}>
-            {generations.map((generation, index) => (
-              <div key={generation.label} style={{
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'flex-start',
-                margin: '20px 0',
-                gap: '20px',
-                position: 'relative',
-                width: '100%',
-                flexWrap: 'wrap',
-                maxWidth: '100%',
-              }}>
-                <GenerationSection
-                  label={generation.label}
-                  people={generation.members}
-                  isMobile={isMobile}
-                  isTablet={isTablet}
-                  isSmallMobile={isSmallMobile}
-                  onPersonClick={openModal}
-                />
-                    </div>
-                  ))}
-                </div>
+          {/* Connector-style Family Tree (dynamic) */}
+          <div className="tree" style={{ width: '100%', overflowX: 'auto' }}>
+            <ul>
+              <li>
+                <a href="#" onClick={(e) => { e.preventDefault(); openModal(familyData.you); }}>
+                  <div className="avatar" style={{ background: getAvatarBackground(familyData.you) }}>
+                    {getInitial(familyData.you.name)}
+                  </div>
+                  <span className="label">{familyData.you.name}</span>
+                </a>
+                <ul>
+                  {familyData.parents && familyData.parents.length > 0 && (
+                    <TreeGroup title="Parents" people={familyData.parents} />
+                  )}
+                  {familyData.siblings && familyData.siblings.length > 0 && (
+                    <TreeGroup title="Siblings" people={familyData.siblings} />
+                  )}
+                  {familyData.spouse && (
+                    <TreeGroup title="Spouse" people={[familyData.spouse]} />
+                  )}
+                  {familyData.children && familyData.children.length > 0 && (
+                    <TreeGroup title="Children" people={familyData.children} />
+                  )}
+                  {familyData.grandparents && familyData.grandparents.length > 0 && (
+                    <TreeGroup title="Grandparents" people={familyData.grandparents} />
+                  )}
+                  {familyData.unclesAunts && familyData.unclesAunts.length > 0 && (
+                    <TreeGroup title="Uncles & Aunts" people={familyData.unclesAunts} />
+                  )}
+                  {familyData.cousins && familyData.cousins.length > 0 && (
+                    <TreeGroup title="Cousins" people={familyData.cousins} />
+                  )}
+                </ul>
+              </li>
+            </ul>
+          </div>
                           </div>
                         </div>
                         
