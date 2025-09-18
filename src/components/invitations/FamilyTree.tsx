@@ -198,14 +198,14 @@ const PersonCard: React.FC<{
       onClick={onClick}
       style={{
         background: person.isYou ? 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)' : 'white',
-        border: person.isYou ? '3px solid #4f46e5' : '3px solid transparent',
-        transform: person.isYou ? 'scale(1.05)' : 'scale(1)',
-        minWidth: '176px',
-        maxWidth: '188px',
+        border: person.isYou ? '2px solid #4f46e5' : '1px solid #e5e7eb',
+        transform: person.isYou ? 'scale(1.02)' : 'scale(1)',
+        minWidth: isSmallMobile ? '148px' : '160px',
+        maxWidth: isSmallMobile ? '160px' : '176px',
         width: '100%',
-        borderRadius: '12px',
+        borderRadius: '16px',
         padding: isSmallMobile ? '10px' : '12px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
         textAlign: 'center',
         position: 'relative',
         transition: 'all 0.3s ease',
@@ -225,18 +225,18 @@ const PersonCard: React.FC<{
         }
       }}
     >
-      {/* Avatar */}
+      {/* Avatar (Initial) */}
       <div
         className="person-avatar"
         style={{
-          width: person.isYou ? (isSmallMobile ? '55px' : isMobile ? '60px' : '65px') : (isSmallMobile ? '45px' : isMobile ? '50px' : '55px'),
-          height: person.isYou ? (isSmallMobile ? '55px' : isMobile ? '60px' : '65px') : (isSmallMobile ? '45px' : isMobile ? '50px' : '55px'),
+          width: person.isYou ? (isSmallMobile ? '52px' : isMobile ? '56px' : '60px') : (isSmallMobile ? '44px' : isMobile ? '48px' : '52px'),
+          height: person.isYou ? (isSmallMobile ? '52px' : isMobile ? '56px' : '60px') : (isSmallMobile ? '44px' : isMobile ? '48px' : '52px'),
           borderRadius: '50%',
           margin: '0 auto 10px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: person.isYou ? (isSmallMobile ? '22px' : isMobile ? '24px' : '26px') : (isSmallMobile ? '18px' : isMobile ? '20px' : '22px'),
+          fontSize: person.isYou ? (isSmallMobile ? '20px' : isMobile ? '22px' : '24px') : (isSmallMobile ? '16px' : isMobile ? '18px' : '20px'),
           fontWeight: 'bold',
           color: 'white',
           background: getAvatarBackground(),
@@ -249,10 +249,10 @@ const PersonCard: React.FC<{
       <div
         className="person-name"
         style={{
-          fontSize: isSmallMobile ? '0.9rem' : isMobile ? '1rem' : '1.1rem',
-          fontWeight: '600',
-          marginBottom: '5px',
-          color: '#1e293b',
+          fontSize: isSmallMobile ? '0.95rem' : isMobile ? '1rem' : '1.05rem',
+          fontWeight: 700,
+          marginBottom: '6px',
+          color: '#111827',
           wordWrap: 'break-word',
           lineHeight: '1.2',
         }}
@@ -260,17 +260,25 @@ const PersonCard: React.FC<{
         {person.name}
       </div>
 
-      {/* Relation */}
-      <div
-        className="person-relation"
-        style={{
-          fontSize: isSmallMobile ? '0.8rem' : isMobile ? '0.85rem' : '0.9rem',
-          color: '#64748b',
-          marginBottom: '8px',
-        }}
-      >
-        {person.relation}
-      </div>
+      {/* Relation Badge */}
+      {person.relation && (
+        <div
+          className="person-relation-badge"
+          style={{
+            display: 'inline-block',
+            fontSize: isSmallMobile ? '0.7rem' : '0.75rem',
+            color: '#64748b',
+            background: '#f1f5f9',
+            border: '1px solid #e5e7eb',
+            padding: '4px 8px',
+            borderRadius: '9999px',
+            marginBottom: '8px',
+            fontWeight: 600,
+          }}
+        >
+          {person.relation}
+        </div>
+      )}
 
       {/* Age */}
       {person.age && (
@@ -279,7 +287,7 @@ const PersonCard: React.FC<{
           style={{
             fontSize: isSmallMobile ? '0.7rem' : '0.75rem',
             color: '#94a3b8',
-            background: '#f1f5f9',
+            background: '#f8fafc',
             padding: '3px 8px',
             borderRadius: '12px',
             display: 'inline-block',
