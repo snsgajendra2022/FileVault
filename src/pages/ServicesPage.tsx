@@ -73,7 +73,7 @@ const ServicesPage = () => {
   const [formData, setFormData] = useState<ServiceFormData>({});
   const [isConfiguring, setIsConfiguring] = useState(false);
   const queryClient = useQueryClient();
-
+  const [toggleService, setToggleService] = useState(false);
   // Fetch available services from API
   const { data: availableServices, isLoading: isLoadingAvailableServices, error: availableServicesError } = useQuery({
     queryKey: ['availableServices'],
@@ -154,12 +154,43 @@ const ServicesPage = () => {
       const response = await api.post(configureUrl, config);
       return response.data;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       toast.success(data.message);
       setShowConfigModal(false);
       setFormData({});
       setIsConfiguring(false);
       refetch();
+      
+      // Only for Google Drive service
+      if (data.serviceType === 'GOOGLE_DRIVE') {
+        try {
+          // Enable the service first
+          await handleToggleService(data.serviceType, true);
+          
+          // Wait a bit for the service to be enabled, then test connection
+          setTimeout(async () => {
+            try {
+              const testData:any = await handleTestConnection(data.serviceType);
+              
+              // If test returns authorizationUrl, open it for OAuth
+              if (testData.success && testData.authorizationUrl) {
+                toast.success('Opening Google Drive authorization...');
+                window.open(testData.authorizationUrl, '_blank');
+              } else if (testData.success) {
+                toast.success('Google Drive connection test successful!');
+              } else {
+                toast.error('Google Drive connection test failed');
+              }
+            } catch (error) {
+              console.error('Error testing Google Drive connection:', error);
+              toast.error('Failed to test Google Drive connection');
+            }
+          }, 1000);
+        } catch (error) {
+          console.error('Error enabling Google Drive service:', error);
+          toast.error('Failed to enable Google Drive service');
+        }
+      }
     },
     onError: (error, variables) => {
       toast.error(`Failed to configure `);
@@ -175,6 +206,7 @@ const ServicesPage = () => {
     },
     onSuccess: (data, variables) => {
       toast.success(`${variables.serviceType} ${variables.enabled ? 'enabled' : 'disabled'} successfully!`);
+      setToggleService(true);
       refetch();
     },
     onError: (error, variables) => {
@@ -223,13 +255,34 @@ const ServicesPage = () => {
     setSelectedUserService(userService);
     setShowDetailsModal(true);
   };
-
-  const handleTestConnection = (serviceType: string) => {
-    testConnectionMutation.mutate(serviceType);
+ //connect to service test connection
+  const handleTestConnection = async (serviceType: string) => {
+    return new Promise((resolve, reject) => {
+      testConnectionMutation.mutate(serviceType, {
+        onSuccess: (data) => {
+          resolve(data);
+        },
+        onError: (error) => {
+          reject(error);
+        }
+      });
+    });
   };
-
-  const handleToggleService = (serviceType: string, enabled: boolean) => {
-    toggleServiceMutation.mutate({ serviceType, enabled });
+ //connect to service enable and disable
+  const handleToggleService = async (serviceType: string, enabled: boolean) => {
+    return new Promise((resolve, reject) => {
+      toggleServiceMutation.mutate(
+        { serviceType, enabled },
+        {
+          onSuccess: (data) => {
+            resolve(data);
+          },
+          onError: (error) => {
+            reject(error);
+          }
+        }
+      );
+    });
   };
 
   const handleDeleteService = (serviceType: string) => {

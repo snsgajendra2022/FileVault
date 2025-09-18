@@ -5,6 +5,7 @@ import api from '../../services/api';
 
 interface Invitation {
   id: number;
+  invitationToken: string;
   inviteeEmail: string;
   inviteeFirstName: string;
   inviteeLastName: string;
@@ -77,7 +78,7 @@ const InvitationHistory: React.FC = () => {
   };
 
   const copyInvitationLink = (invitation: Invitation) => {
-    const link = `${window.location.origin}/accept-invitation?token=${invitation.id}`;
+    const link = `${window.location.origin}/accept-invitation?token=${invitation.invitationToken}`;
     navigator.clipboard.writeText(link);
     toast.success('Invitation link copied to clipboard!');
   };
