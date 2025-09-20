@@ -423,7 +423,7 @@ const BarcodeSystem: React.FC = () => {
                       src={item.thumbnail || item.mediaUrl} 
                       alt={item.mediaName}
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/placeholder-image.jpg';
+                        (e.target as HTMLImageElement).src = 'https://placehold.co/600x400';
                       }}
                     />
                   ) : (
