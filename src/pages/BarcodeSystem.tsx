@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import QRCode from 'react-qr-code';
 import { 
   FaQrcode, 
   FaSearch, 
@@ -65,6 +66,13 @@ const BarcodeSystem: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
 
+  // Function to generate QR code data URL
+
+  // Function to generate shareable URL for QR codes
+  const generateShareableUrl = (barcode: string): string => {
+    return `${window.location.origin}/client/view/${barcode}`;
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -91,6 +99,11 @@ const BarcodeSystem: React.FC = () => {
         { id: 's3', name: 'Wedding Photography', clientId: '3' }
       ];
 
+      // Generate shareable URLs for mock data
+      const shareUrl1 = generateShareableUrl('PS001');
+      const shareUrl2 = generateShareableUrl('PS002');
+      const shareUrl3 = generateShareableUrl('CH001');
+
       const mockBarcodeItems: BarcodeItem[] = [
         {
           id: '1',
@@ -100,7 +113,7 @@ const BarcodeSystem: React.FC = () => {
           mediaUrl: '/api/media/1',
           thumbnail: '/api/thumbnails/1',
           barcode: 'PS001',
-          qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+          qrCode: shareUrl1,
           clientId: '1',
           clientName: 'Sarah Johnson',
           sessionId: 's1',
@@ -118,7 +131,7 @@ const BarcodeSystem: React.FC = () => {
           mediaUrl: '/api/media/2',
           thumbnail: '/api/thumbnails/2',
           barcode: 'PS002',
-          qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+          qrCode: shareUrl2,
           clientId: '1',
           clientName: 'Sarah Johnson',
           sessionId: 's1',
@@ -136,7 +149,7 @@ const BarcodeSystem: React.FC = () => {
           mediaUrl: '/api/media/3',
           thumbnail: '/api/thumbnails/3',
           barcode: 'CH001',
-          qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+          qrCode: shareUrl3,
           clientId: '2',
           clientName: 'Mike Chen',
           sessionId: 's2',
@@ -191,23 +204,28 @@ const BarcodeSystem: React.FC = () => {
       // Simulate barcode generation
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      const newBarcodes: BarcodeItem[] = mediaIds.map((mediaId, index) => ({
-        id: Date.now().toString() + index,
-        mediaId,
-        mediaName: `media_${mediaId}.jpg`,
-        mediaType: 'image' as const,
-        mediaUrl: `/api/media/${mediaId}`,
-        thumbnail: `/api/thumbnails/${mediaId}`,
-        barcode: `BC${Date.now().toString().slice(-6)}${index}`,
-        qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-        clientId: '1',
-        clientName: 'Sarah Johnson',
-        sessionId: 's1',
-        sessionName: 'New Session',
-        createdAt: new Date().toISOString().split('T')[0],
-        isActive: true,
-        scanCount: 0
-      }));
+      const newBarcodes: BarcodeItem[] = mediaIds.map((mediaId, index) => {
+          const barcode = `BC${Date.now().toString().slice(-6)}${index}`;
+          const qrCode = generateShareableUrl(barcode);
+          
+          return {
+            id: Date.now().toString() + index,
+            mediaId,
+            mediaName: `media_${mediaId}.jpg`,
+            mediaType: 'image' as const,
+            mediaUrl: `/api/media/${mediaId}`,
+            thumbnail: `/api/thumbnails/${mediaId}`,
+            barcode,
+            qrCode,
+            clientId: '1',
+            clientName: 'Sarah Johnson',
+            sessionId: 's1',
+            sessionName: 'New Session',
+            createdAt: new Date().toISOString().split('T')[0],
+            isActive: true,
+            scanCount: 0
+          };
+        });
 
       setBarcodeItems(prev => [...newBarcodes, ...prev]);
       setShowGenerateModal(false);
@@ -247,7 +265,23 @@ const BarcodeSystem: React.FC = () => {
     // Show success message
   };
 
+  const regenerateQRCode = (item: BarcodeItem) => {
+    try {
+      const newQRCode = generateShareableUrl(item.barcode);
+      setBarcodeItems(prev => prev.map(barcodeItem => 
+        barcodeItem.id === item.id 
+          ? { ...barcodeItem, qrCode: newQRCode }
+          : barcodeItem
+      ));
+    } catch (error) {
+      console.error('Error regenerating QR code:', error);
+    }
+  };
+
   const printBarcode = (item: BarcodeItem) => {
+    // Generate shareable URL for printing
+    const printUrl = generateShareableUrl(item.barcode);
+    
     // Open print dialog with barcode
     const printWindow = window.open('', '_blank');
     if (printWindow) {
@@ -256,24 +290,70 @@ const BarcodeSystem: React.FC = () => {
           <head>
             <title>Barcode - ${item.barcode}</title>
             <style>
-              body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-              .barcode-container { margin: 20px 0; }
-              .barcode-info { margin: 10px 0; }
-              .qr-code { margin: 20px 0; }
+              body { 
+                font-family: Arial, sans-serif; 
+                text-align: center; 
+                padding: 20px; 
+                background: white;
+              }
+              .barcode-container { 
+                margin: 20px 0; 
+                border: 2px solid #333;
+                padding: 20px;
+                border-radius: 10px;
+              }
+              .barcode-info { 
+                margin: 10px 0; 
+                font-size: 16px;
+              }
+              .qr-code { 
+                margin: 20px 0; 
+                border: 1px solid #ddd;
+                padding: 10px;
+                border-radius: 5px;
+                display: flex;
+                justify-content: center;
+              }
+              .barcode-title {
+                font-size: 24px;
+                font-weight: bold;
+                margin-bottom: 20px;
+                color: #333;
+              }
+              .qr-placeholder {
+                width: 300px;
+                height: 300px;
+                border: 2px dashed #ccc;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #f9f9f9;
+                color: #666;
+                font-size: 14px;
+              }
             </style>
           </head>
           <body>
-            <h2>${item.mediaName}</h2>
+            <div class="barcode-title">PhotoStudio Pro - Media Barcode</div>
             <div class="barcode-container">
+              <div class="barcode-info">
+                <strong>Media:</strong> ${item.mediaName}
+              </div>
               <div class="barcode-info">
                 <strong>Barcode:</strong> ${item.barcode}
               </div>
               <div class="qr-code">
-                <img src="${item.qrCode}" alt="QR Code" style="width: 200px; height: 200px;">
+                <div class="qr-placeholder">
+                  QR Code for: ${printUrl}
+                </div>
               </div>
               <div class="barcode-info">
                 <strong>Client:</strong> ${item.clientName}<br>
-                <strong>Session:</strong> ${item.sessionName}
+                <strong>Session:</strong> ${item.sessionName}<br>
+                <strong>Generated:</strong> ${formatDate(item.createdAt)}
+              </div>
+              <div class="barcode-info" style="margin-top: 20px; font-size: 14px; color: #666;">
+                Scan this QR code to view the media online
               </div>
             </div>
           </body>
@@ -342,9 +422,10 @@ const BarcodeSystem: React.FC = () => {
 
         <div className="filters-section">
           <div className="filter-group">
-            <FaFilter className="filter-icon" />
+            {/* <FaFilter className="filter-icon" /> */}
             <select
               value={clientFilter}
+              className='filter-select'
               onChange={(e) => setClientFilter(e.target.value)}
             >
               <option value="all">All Clients</option>
@@ -453,16 +534,16 @@ const BarcodeSystem: React.FC = () => {
 
               <div className="card-content">
                 <div className="qr-code-section">
-                  <img 
-                    src={item.qrCode} 
-                    alt="QR Code" 
+                  <div 
                     className="qr-code"
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedBarcode(item);
                       setShowBarcodeViewer(true);
                     }}
-                  />
+                  >
+                    <QRCode value={item.qrCode} size={200} />
+                  </div>
                   <p>Click QR code to view</p>
                 </div>
 
@@ -511,6 +592,17 @@ const BarcodeSystem: React.FC = () => {
                 >
                   <FaPrint />
                   Print
+                </button>
+                <button 
+                  className="action-btn refresh"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    regenerateQRCode(item);
+                  }}
+                  title="Regenerate QR Code"
+                >
+                  <FaQrcode />
+                  Refresh QR
                 </button>
                 <button 
                   className={`action-btn ${item.isActive ? 'deactivate' : 'activate'}`}
@@ -641,30 +733,36 @@ const BarcodeSystem: React.FC = () => {
 
             <div className="viewer-content">
               <div className="media-info">
-                <div className="media-preview-large">
-                  {selectedBarcode.mediaType === 'image' ? (
-                    <img 
-                      src={selectedBarcode.thumbnail || selectedBarcode.mediaUrl} 
-                      alt={selectedBarcode.mediaName}
-                    />
-                  ) : (
-                    <div className="video-preview-large">
-                      <FaCamera />
-                    </div>
-                  )}
+                <div className="media-header">
+                  <h3 className="media-name">{selectedBarcode.mediaName}</h3>
+                  <div className="media-divider"></div>
                 </div>
-                <div className="media-details">
-                  <h3>{selectedBarcode.mediaName}</h3>
-                  <p><strong>Client:</strong> {selectedBarcode.clientName}</p>
-                  <p><strong>Session:</strong> {selectedBarcode.sessionName}</p>
-                  <p><strong>Barcode:</strong> {selectedBarcode.barcode}</p>
-                  <p><strong>Created:</strong> {formatDate(selectedBarcode.createdAt)}</p>
-                  <p><strong>Scans:</strong> {selectedBarcode.scanCount}</p>
+                <div className="media-metadata">
+                  <div className="metadata-row">
+                    <span className="metadata-label">Client:</span>
+                    <span className="metadata-value">{selectedBarcode.clientName}</span>
+                  </div>
+                  <div className="metadata-row">
+                    <span className="metadata-label">Session:</span>
+                    <span className="metadata-value">{selectedBarcode.sessionName}</span>
+                  </div>
+                  <div className="metadata-row">
+                    <span className="metadata-label">Barcode:</span>
+                    <span className="metadata-value">{selectedBarcode.barcode}</span>
+                  </div>
+                  <div className="metadata-row">
+                    <span className="metadata-label">Created:</span>
+                    <span className="metadata-value">{formatDate(selectedBarcode.createdAt)}</span>
+                  </div>
+                  <div className="metadata-row">
+                    <span className="metadata-label">Scans:</span>
+                    <span className="metadata-value">{selectedBarcode.scanCount}</span>
+                  </div>
                 </div>
               </div>
 
               <div className="qr-code-large">
-                <img src={selectedBarcode.qrCode} alt="QR Code" />
+                <QRCode value={selectedBarcode.qrCode} size={300} />
                 <p>Scan this QR code to view the media</p>
               </div>
             </div>
