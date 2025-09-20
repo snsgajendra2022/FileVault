@@ -192,7 +192,7 @@ const PersonCard: React.FC<{
     return person.name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-  return (
+    return (
     <div
       className={`person-card ${person.isYou ? 'you' : ''} ${person.isElder ? 'elder' : ''} ${person.gender || ''}`}
       onClick={onClick}
@@ -243,9 +243,9 @@ const PersonCard: React.FC<{
         }}
       >
         {getInitials()}
-      </div>
-
-      {/* Name */}
+                        </div>
+                        
+                        {/* Name */}
       <div
         className="person-name"
         style={{
@@ -258,8 +258,8 @@ const PersonCard: React.FC<{
         }}
       >
         {person.name}
-      </div>
-
+                        </div>
+                        
       {/* Relation Badge */}
       {person.relation && (
         <div
@@ -277,8 +277,8 @@ const PersonCard: React.FC<{
           }}
         >
           {person.relation}
-        </div>
-      )}
+                </div>
+              )}
 
       {/* Age */}
       {person.age && (
@@ -294,7 +294,7 @@ const PersonCard: React.FC<{
           }}
         >
           {person.age} years
-        </div>
+                        </div>
       )}
     </div>
   );
@@ -336,7 +336,7 @@ const GenerationSection: React.FC<{
         width: 'fit-content',
       }}>
         {label}
-      </div>
+                          </div>
       
       <div style={{
         display: 'flex',
@@ -355,8 +355,8 @@ const GenerationSection: React.FC<{
             onClick={() => onPersonClick?.(person)}
           />
         ))}
-      </div>
-    </div>
+                          </div>
+                        </div>
   );
 };
 
@@ -400,14 +400,14 @@ const FamilyStats: React.FC<{ familyData: FamilyData }> = ({ familyData }) => {
             color: '#4f46e5',
           }}>
             {totalMembers}
-          </div>
+                        </div>
           <div className="stat-label" style={{
             fontSize: '0.8rem',
             color: '#64748b',
           }}>
             Total Members
-          </div>
-        </div>
+                      </div>
+                    </div>
         {/* <div className="stat-item" style={{
           background: 'white',
           padding: '10px',
@@ -421,13 +421,13 @@ const FamilyStats: React.FC<{ familyData: FamilyData }> = ({ familyData }) => {
             color: '#4f46e5',
           }}>
             {maleCount}
-          </div>
+                </div>
           <div className="stat-label" style={{
             fontSize: '0.8rem',
             color: '#64748b',
           }}>
             Male
-          </div>
+                        </div>
         </div> */}
         {/* <div className="stat-item" style={{
           background: 'white',
@@ -442,13 +442,13 @@ const FamilyStats: React.FC<{ familyData: FamilyData }> = ({ familyData }) => {
             color: '#4f46e5',
           }}>
             {femaleCount}
-          </div>
+                          </div>
           <div className="stat-label" style={{
             fontSize: '0.8rem',
             color: '#64748b',
           }}>
             Female
-          </div>
+                          </div>
         </div> */}
         <div className="stat-item" style={{
           background: 'white',
@@ -463,16 +463,16 @@ const FamilyStats: React.FC<{ familyData: FamilyData }> = ({ familyData }) => {
             color: '#4f46e5',
           }}>
             {elderCount}
-          </div>
+                        </div>
           <div className="stat-label" style={{
             fontSize: '0.8rem',
             color: '#64748b',
           }}>
             Elders
-          </div>
-        </div>
-      </div>
-    </div>
+                        </div>
+                        </div>
+                      </div>
+                    </div>
   );
 };
 
@@ -586,8 +586,8 @@ const FamilyTree: React.FC = () => {
             margin: '0 auto 16px',
           }}></div>
           <p style={{ color: 'white', fontSize: '18px' }}>Loading your family tree...</p>
-        </div>
-      </div>
+                      </div>
+                    </div>
     );
   }
 
@@ -621,7 +621,7 @@ const FamilyTree: React.FC = () => {
             fontSize: '32px',
           }}>
             👥
-          </div>
+                  </div>
           <h3 style={{
             fontSize: '20px',
             fontWeight: 'bold',
@@ -633,7 +633,7 @@ const FamilyTree: React.FC = () => {
           <p style={{ color: '#64748b' }}>
             Send invitations to family members and create your family network
           </p>
-        </div>
+              </div>
       </div>
     );
   }
@@ -665,7 +665,7 @@ const FamilyTree: React.FC = () => {
     <a href="#" onClick={(e) => { e.preventDefault(); openModal(person); }}>
       <div className="avatar" style={{ background: getAvatarBackground(person) }}>
         {getInitial(person.name)}
-      </div>
+                        </div>
       <span className="label">{person.name}</span>
       {person.relation && (
         <span className="relation-label">{person.relation}</span>
@@ -725,7 +725,7 @@ const FamilyTree: React.FC = () => {
           }}>
             Your Family Connections and Relationships
           </p>
-        </div>
+                  </div>
 
         {/* Legend */}
         {/* <div style={{
@@ -756,7 +756,7 @@ const FamilyTree: React.FC = () => {
               background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
             }}></div>
             <span>You</span>
-          </div>
+                    </div>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', fontSize: '0.85rem' }}>
             <div style={{
               width: '16px',
@@ -766,7 +766,7 @@ const FamilyTree: React.FC = () => {
               background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
             }}></div>
             <span>Male</span>
-          </div>
+                  </div>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', fontSize: '0.85rem' }}>
             <div style={{
               width: '16px',
@@ -776,7 +776,7 @@ const FamilyTree: React.FC = () => {
               background: 'linear-gradient(135deg, #ec4899, #be185d)',
             }}></div>
             <span>Female</span>
-            </div>
+                    </div>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px', fontSize: '0.85rem' }}>
             <div style={{
               width: '16px',
@@ -786,7 +786,7 @@ const FamilyTree: React.FC = () => {
               background: 'linear-gradient(135deg, #f59e0b, #d97706)',
             }}></div>
             <span>Elder</span>
-          </div>
+                  </div>
         </div> */}
 
         {/* Family Tree Container */}
@@ -850,7 +850,7 @@ const FamilyTree: React.FC = () => {
                 </>
               )}
             </button>
-                        </div>
+                </div>
                         
           {/* Family Statistics */}
           <FamilyStats familyData={familyData} />
@@ -862,7 +862,7 @@ const FamilyTree: React.FC = () => {
                 <a href="#" onClick={(e) => { e.preventDefault(); openModal(familyData.you); }}>
                   <div className="avatar" style={{ background: getAvatarBackground(familyData.you) }}>
                     {getInitial(familyData.you.name)}
-                  </div>
+              </div>
                   <span className="label">{familyData.you.name}</span>
                 </a>
                 <ul>
@@ -890,8 +890,8 @@ const FamilyTree: React.FC = () => {
                 </ul>
               </li>
             </ul>
+            </div>
           </div>
-                          </div>
                         </div>
                         
       {/* Person Details Modal */}
@@ -931,7 +931,7 @@ const FamilyTree: React.FC = () => {
               }}>
                 Family Member Details
               </h2>
-              <button
+                  <button
                 onClick={closeModal}
                 style={{
                   color: '#9ca3af',
@@ -941,11 +941,11 @@ const FamilyTree: React.FC = () => {
                   border: 'none',
                   cursor: 'pointer',
                 }}
-              >
-                ×
-              </button>
-                        </div>
-                        
+                  >
+                    ×
+                  </button>
+                </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{
@@ -963,7 +963,7 @@ const FamilyTree: React.FC = () => {
                 }}>
                   {selectedPerson.name}
                 </p>
-                        </div>
+                    </div>
                         
               <div>
                 <label style={{
@@ -980,9 +980,9 @@ const FamilyTree: React.FC = () => {
                   color: '#1e293b',
                 }}>
                   {selectedPerson.relation}
-                </p>
-                        </div>
-                        
+                    </p>
+                  </div>
+
               {selectedPerson.username && (
                 <div>
                   <label style={{
@@ -1000,7 +1000,7 @@ const FamilyTree: React.FC = () => {
                   }}>
                     {selectedPerson.username}
                   </p>
-                </div>
+                    </div>
               )}
 
               {selectedPerson.email && (
@@ -1020,7 +1020,7 @@ const FamilyTree: React.FC = () => {
                   }}>
                     {selectedPerson.email}
                   </p>
-                </div>
+                      </div>
               )}
 
               {selectedPerson.age && (
@@ -1040,9 +1040,9 @@ const FamilyTree: React.FC = () => {
                   }}>
                     {selectedPerson.age} years
                   </p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
             <div style={{
               marginTop: '32px',

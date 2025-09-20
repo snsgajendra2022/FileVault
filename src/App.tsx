@@ -27,6 +27,15 @@ import LoginPage from './pages/LoginPage';
 import AcceptInvitationPage from './pages/AcceptInvitationPage';
 import InvitationsPage from './pages/InvitationsPage';
 import ServiceConfigPage from './pages/ServiceConfigPage';
+// PhotoStudio Pro imports
+import StudioLanding from './pages/StudioLanding';
+import StudioAuthPage from './pages/StudioAuthPage';
+import StudioDashboard from './pages/StudioDashboard';
+import ClientManagement from './pages/ClientManagement';
+import PhotoGallery from './pages/PhotoGallery';
+import ClientPortal from './pages/ClientPortal';
+import BarcodeSystem from './pages/BarcodeSystem';
+import StudioSettings from './pages/StudioSettings';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -84,6 +93,11 @@ const AppRoutes = () => {
       {/* Public invitation acceptance route */}
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
       
+      {/* PhotoStudio Pro Routes */}
+      <Route path="/studio" element={<StudioLanding />} />
+      <Route path="/studio/auth" element={<StudioAuthPage />} />
+      <Route path="/client/:clientId" element={<ClientPortal />} />
+      
       <Route path="/" element={
         <ProtectedRoute>
           <Layout />
@@ -107,6 +121,12 @@ const AppRoutes = () => {
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="invitations" element={<InvitationsPage />} />
         <Route path="services/config/:serviceId" element={<ServiceConfigPage />} />
+        {/* PhotoStudio Pro Routes */}
+        <Route path="studio/dashboard" element={<StudioDashboard />} />
+        <Route path="studio/clients" element={<ClientManagement />} />
+        <Route path="studio/gallery" element={<PhotoGallery />} />
+        <Route path="studio/barcodes" element={<BarcodeSystem />} />
+        <Route path="studio/settings" element={<StudioSettings />} />
         {/* Admin route with proper protection */}
         <Route path="admin" element={
           <ProtectedRoute adminOnly>

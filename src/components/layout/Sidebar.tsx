@@ -12,7 +12,10 @@ import {
   FaPlus,
   FaUser,
   FaStar,
-  FaCrown
+  FaCrown,
+  FaCamera,
+  FaImages,
+  FaQrcode
 } from 'react-icons/fa';
 
 const Sidebar = () => {
@@ -30,6 +33,14 @@ const Sidebar = () => {
     { name: 'Invitations', href: '/invitations', icon: FaUsers },
     { name: 'Profile', href: '/profile', icon: FaUser },
     // { name: 'Settings', href: '/settings', icon: FaCog },
+  ];
+
+  const studioNavigationItems = [
+    { name: 'Studio Dashboard', href: '/studio/dashboard', icon: FaCamera },
+    { name: 'Studio Clients', href: '/studio/clients', icon: FaUsers },
+    { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages },
+    { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode },
+    { name: 'Studio Settings', href: '/studio/settings', icon: FaCog },
   ];
 
   const adminNavigationItems = [
@@ -77,7 +88,9 @@ const Sidebar = () => {
         {/* Enhanced Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {/* Regular Navigation - Show for all users */}
-          {!isAdmin && navigationItems.map((item) => (
+          {!isAdmin && (
+            <>
+              {navigationItems.map((item) => (
             <NavLink
               key={item.name}
               to={item.href}
@@ -106,7 +119,50 @@ const Sidebar = () => {
                 </>
               )}
             </NavLink>
-          ))}
+              ))}
+              
+              {/* Studio Section */}
+              <div className="pt-6 pb-3">
+                <div className="flex items-center px-4 py-2 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-200">
+                  <FaCamera className="h-4 w-4 text-pink-600 mr-2" />
+                  <h3 className="text-xs font-bold text-pink-700 uppercase tracking-wider">
+                    PhotoStudio Pro
+                  </h3>
+                </div>
+              </div>
+              
+              {studioNavigationItems.map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  className={({ isActive }) =>
+                    `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
+                      isActive
+                        ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-xl border-r-4 border-pink-400'
+                        : 'text-gray-700 hover:text-gray-900 hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 border-r-4 border-transparent hover:border-pink-200'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      {/* Active indicator */}
+                      {isActive && (
+                        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
+                      )}
+                      
+                      <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-pink-700'}`}>
+                        <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
+                      </div>
+                      <span className="font-semibold">{item.name}</span>
+                      
+                      {/* Hover glow effect */}
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-pink-400 to-purple-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </>
+          )}
 
           {/* Admin Navigation - Only show for ADMIN users */}
           { isAdmin && (

@@ -58,6 +58,28 @@ declare module 'react-icons/fa' {
   export const FaInfoCircle: ComponentType<IconProps>;
   export const FaRedoAlt: ComponentType<IconProps>;
   export const FaSpinner: ComponentType<IconProps>;
+  export const FaCamera: ComponentType<IconProps>;
+  export const FaSearch: ComponentType<IconProps>;
+  export const FaFilter: ComponentType<IconProps>;
+  export const FaTrash: ComponentType<IconProps>;
+  export const FaCalendarAlt: ComponentType<IconProps>;
+  export const FaImages: ComponentType<IconProps>;
+  export const FaQrcode: ComponentType<IconProps>;
+  export const FaShare: ComponentType<IconProps>;
+  export const FaMapMarkerAlt: ComponentType<IconProps>;
+  export const FaChartLine: ComponentType<IconProps>;
+  export const FaDownload: ComponentType<IconProps>;
+  export const FaPrint: ComponentType<IconProps>;
+  export const FaCopy: ComponentType<IconProps>;
+  export const FaBarcode: ComponentType<IconProps>;
+  export const FaVideo: ComponentType<IconProps>;
+  export const FaFolder: ComponentType<IconProps>;
+  export const FaFolderOpen: ComponentType<IconProps>;
+  export const FaChevronLeft: ComponentType<IconProps>;
+  export const FaChevronRight: ComponentType<IconProps>;
+  export const FaPalette: ComponentType<IconProps>;
+  export const FaGlobe: ComponentType<IconProps>;
+  export const FaKey: ComponentType<IconProps>;
 }
 
 declare module 'react-icons/fi' {
