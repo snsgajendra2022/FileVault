@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOMServer from 'react-dom/server';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 import { Link } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import { 
@@ -52,6 +56,7 @@ interface Session {
 }
 
 const BarcodeSystem: React.FC = () => {
+  const { user } = useAuth();
   const [barcodeItems, setBarcodeItems] = useState<BarcodeItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<BarcodeItem[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -73,102 +78,109 @@ const BarcodeSystem: React.FC = () => {
     return `${window.location.origin}/client/view/${barcode}`;
   };
 
+      // Build a PNG Blob from a QR SVG rendered by react-qr-code
+      const generateQrPngBlob = async (value: string, size: number = 512): Promise<Blob> => {
+        const svgString = ReactDOMServer.renderToStaticMarkup(
+          <QRCode value={value} size={size} level="M" />
+        );
+        const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(svgBlob);
+        return await new Promise<Blob>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              URL.revokeObjectURL(url);
+              reject(new Error('Canvas not supported'));
+              return;
+            }
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, size, size);
+            ctx.drawImage(img, 0, 0, size, size);
+            canvas.toBlob((blob) => {
+              URL.revokeObjectURL(url);
+              if (blob) resolve(blob);
+              else reject(new Error('Failed to create QR image blob'));
+            }, 'image/png');
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('Failed to load QR SVG'));
+          };
+          img.src = url;
+        });
+      };
+
+  // Types reused from Images API
+  interface UserImage {
+    previewUrl: string;
+    filename: string;
+    downloadUrl: string;
+    enabledServices: { [key: string]: string };
+    uploadTime: string;
+    fileType: string;
+  }
+
+  interface UserImagesResponse {
+    totalImages: number;
+    images: UserImage[];
+  }
+
+  // Fetch user images dynamically (same API flow as ImagesPage)
+  const { data: userImagesData, isLoading, error } = useQuery({
+    queryKey: ['userImages-barcodes'],
+    queryFn: async (): Promise<UserImagesResponse> => {
+      let token = localStorage.getItem('token');
+      const response = await api.get(`/api/images/user/all?token=${token}`);
+      return response.data as UserImagesResponse;
+    },
+    retry: 2,
+    refetchInterval: 30000,
+    enabled: true,
+  });
+
+  // Map images API to barcode items
   useEffect(() => {
-    fetchData();
-  }, []);
+    setLoading(isLoading);
+    if (!isLoading && userImagesData) {
+      const items: BarcodeItem[] = userImagesData.images.map((img, index) => {
+        const safeName = (img.filename || 'MEDIA').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        const barcode = `${safeName.slice(0, 8)}-${index}`;
+        const qrCode = generateShareableUrl(barcode);
+        const lower = img.fileType?.toLowerCase?.() || '';
+        const isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(lower);
+        return {
+          id: `${img.downloadUrl || img.filename}-${index}`,
+          mediaId: `${index}`,
+          mediaName: img.filename,
+          mediaType: isVideo ? 'video' : 'image',
+          mediaUrl: img.downloadUrl,
+          thumbnail: img.previewUrl,
+          barcode,
+          qrCode,
+          clientId: 'general',
+          clientName: 'My Library',
+          sessionId: 'general',
+          sessionName: 'General',
+          createdAt: img.uploadTime,
+          isActive: true,
+          scanCount: 0,
+        };
+      });
+      setBarcodeItems(items);
+      setClients([{ id: 'general', name: 'My Library' }]);
+      setSessions([{ id: 'general', name: 'General', clientId: 'general' }]);
+    }
+  }, [isLoading, userImagesData]);
 
   useEffect(() => {
     filterItems();
   }, [barcodeItems, searchTerm, clientFilter, statusFilter]);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // Simulate API calls
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockClients: Client[] = [
-        { id: '1', name: 'Sarah Johnson' },
-        { id: '2', name: 'Mike Chen' },
-        { id: '3', name: 'Emily Davis' }
-      ];
-
-      const mockSessions: Session[] = [
-        { id: 's1', name: 'Portrait Session', clientId: '1' },
-        { id: 's2', name: 'Corporate Headshots', clientId: '2' },
-        { id: 's3', name: 'Wedding Photography', clientId: '3' }
-      ];
-
-      // Generate shareable URLs for mock data
-      const shareUrl1 = generateShareableUrl('PS001');
-      const shareUrl2 = generateShareableUrl('PS002');
-      const shareUrl3 = generateShareableUrl('CH001');
-
-      const mockBarcodeItems: BarcodeItem[] = [
-        {
-          id: '1',
-          mediaId: 'm1',
-          mediaName: 'portrait_001.jpg',
-          mediaType: 'image',
-          mediaUrl: '/api/media/1',
-          thumbnail: '/api/thumbnails/1',
-          barcode: 'PS001',
-          qrCode: shareUrl1,
-          clientId: '1',
-          clientName: 'Sarah Johnson',
-          sessionId: 's1',
-          sessionName: 'Portrait Session',
-          createdAt: '2024-09-10',
-          isActive: true,
-          scanCount: 5,
-          lastScanned: '2024-09-12'
-        },
-        {
-          id: '2',
-          mediaId: 'm2',
-          mediaName: 'portrait_002.jpg',
-          mediaType: 'image',
-          mediaUrl: '/api/media/2',
-          thumbnail: '/api/thumbnails/2',
-          barcode: 'PS002',
-          qrCode: shareUrl2,
-          clientId: '1',
-          clientName: 'Sarah Johnson',
-          sessionId: 's1',
-          sessionName: 'Portrait Session',
-          createdAt: '2024-09-10',
-          isActive: true,
-          scanCount: 3,
-          lastScanned: '2024-09-11'
-        },
-        {
-          id: '3',
-          mediaId: 'm3',
-          mediaName: 'headshot_001.jpg',
-          mediaType: 'image',
-          mediaUrl: '/api/media/3',
-          thumbnail: '/api/thumbnails/3',
-          barcode: 'CH001',
-          qrCode: shareUrl3,
-          clientId: '2',
-          clientName: 'Mike Chen',
-          sessionId: 's2',
-          sessionName: 'Corporate Headshots',
-          createdAt: '2024-09-08',
-          isActive: false,
-          scanCount: 0
-        }
-      ];
-
-      setClients(mockClients);
-      setSessions(mockSessions);
-      setBarcodeItems(mockBarcodeItems);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Removed local mock data fetch in favor of live API
 
   const filterItems = () => {
     let filtered = barcodeItems;
@@ -278,89 +290,35 @@ const BarcodeSystem: React.FC = () => {
     }
   };
 
-  const printBarcode = (item: BarcodeItem) => {
-    // Generate shareable URL for printing
-    const printUrl = generateShareableUrl(item.barcode);
-    
-    // Open print dialog with barcode
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Barcode - ${item.barcode}</title>
-            <style>
-              body { 
-                font-family: Arial, sans-serif; 
-                text-align: center; 
-                padding: 20px; 
-                background: white;
-              }
-              .barcode-container { 
-                margin: 20px 0; 
-                border: 2px solid #333;
-                padding: 20px;
-                border-radius: 10px;
-              }
-              .barcode-info { 
-                margin: 10px 0; 
-                font-size: 16px;
-              }
-              .qr-code { 
-                margin: 20px 0; 
-                border: 1px solid #ddd;
-                padding: 10px;
-                border-radius: 5px;
-                display: flex;
-                justify-content: center;
-              }
-              .barcode-title {
-                font-size: 24px;
-                font-weight: bold;
-                margin-bottom: 20px;
-                color: #333;
-              }
-              .qr-placeholder {
-                width: 300px;
-                height: 300px;
-                border: 2px dashed #ccc;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: #f9f9f9;
-                color: #666;
-                font-size: 14px;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="barcode-title">PhotoStudio Pro - Media Barcode</div>
-            <div class="barcode-container">
-              <div class="barcode-info">
-                <strong>Media:</strong> ${item.mediaName}
-              </div>
-              <div class="barcode-info">
-                <strong>Barcode:</strong> ${item.barcode}
-              </div>
-              <div class="qr-code">
-                <div class="qr-placeholder">
-                  QR Code for: ${printUrl}
-                </div>
-              </div>
-              <div class="barcode-info">
-                <strong>Client:</strong> ${item.clientName}<br>
-                <strong>Session:</strong> ${item.sessionName}<br>
-                <strong>Generated:</strong> ${formatDate(item.createdAt)}
-              </div>
-              <div class="barcode-info" style="margin-top: 20px; font-size: 14px; color: #666;">
-                Scan this QR code to view the media online
-              </div>
-            </div>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.print();
+  const printBarcode = async (item: BarcodeItem) => {
+    // Share QR Code image instead of printing
+    const shareUrl = generateShareableUrl(item.barcode);
+    try {
+      const blob = await generateQrPngBlob(shareUrl, 512);
+      const safeName = (item.mediaName || 'media').replace(/[^a-z0-9-_]+/gi, '_');
+      const file = new File([blob], `${safeName}-qr.png`, { type: 'image/png' });
+      // @ts-ignore - navigator.canShare may not be in TS lib
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        // @ts-ignore - share with files
+        await navigator.share({ files: [file], title: item.mediaName, text: `Scan to view: ${shareUrl}` });
+        return;
+      }
+      if (navigator.share) {
+        await navigator.share({ title: item.mediaName, text: 'Scan to view', url: shareUrl });
+        return;
+      }
+      // Fallback: download the QR image
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${safeName}-qr.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      alert('Downloaded QR image');
+    } catch (e) {
+      alert('Failed to share QR');
     }
   };
 
@@ -377,6 +335,14 @@ const BarcodeSystem: React.FC = () => {
       <div className="barcode-loading">
         <div className="loading-spinner"></div>
         <p>Loading barcode system...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="barcode-loading">
+        <p>Failed to load barcodes.</p>
       </div>
     );
   }
@@ -584,14 +550,14 @@ const BarcodeSystem: React.FC = () => {
                   View
                 </button>
                 <button 
-                  className="action-btn print"
+                  className="action-btn share"
                   onClick={(e) => {
                     e.stopPropagation();
                     printBarcode(item);
                   }}
                 >
-                  <FaPrint />
-                  Print
+                  <FaShare />
+                  Share QR
                 </button>
                 <button 
                   className="action-btn refresh"
@@ -731,8 +697,8 @@ const BarcodeSystem: React.FC = () => {
               </button>
             </div>
 
-            <div className="viewer-content">
-              <div className="media-info">
+           <div className="viewer-content">
+              {/*  <div className="media-info">
                 <div className="media-header">
                   <h3 className="media-name">{selectedBarcode.mediaName}</h3>
                   <div className="media-divider"></div>
@@ -759,7 +725,7 @@ const BarcodeSystem: React.FC = () => {
                     <span className="metadata-value">{selectedBarcode.scanCount}</span>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               <div className="qr-code-large">
                 <QRCode value={selectedBarcode.qrCode} size={300} />
@@ -776,25 +742,47 @@ const BarcodeSystem: React.FC = () => {
                 Copy Barcode
               </button>
               <button 
-                className="action-btn print"
-                onClick={() => printBarcode(selectedBarcode)}
+                className="action-btn copy"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(selectedBarcode.qrCode);
+                    alert('Link copied');
+                  } catch {
+                    const ta = document.createElement('textarea');
+                    ta.value = selectedBarcode.qrCode;
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.focus();
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    alert('Link copied');
+                  }
+                }}
               >
-                <FaPrint />
-                Print
+                <FaCopy />
+                Copy Link
               </button>
               <button 
                 className="action-btn share"
                 onClick={() => {
-                  // Share functionality
                   navigator.share?.({
                     title: selectedBarcode.mediaName,
-                    text: `Check out this photo: ${selectedBarcode.barcode}`,
-                    url: window.location.href
+                    text: `Scan or open: ${selectedBarcode.qrCode}`,
+                    url: selectedBarcode.qrCode
                   });
                 }}
               >
                 <FaShare />
-                Share
+                Share Link
+              </button>
+              <button 
+                className="action-btn print"
+                onClick={() => printBarcode(selectedBarcode)}
+              >
+                <FaShare />
+                Share QR
               </button>
             </div>
           </div>

@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOMServer from 'react-dom/server';
+import QRCode from 'react-qr-code';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 import { Link } from 'react-router-dom';
 import { 
   FaImages, 
@@ -19,7 +24,8 @@ import {
   FaUpload,
   FaTimes,
   FaCheck,
-  FaSpinner
+  FaSpinner,
+  FaCopy
 } from 'react-icons/fa';
 import './PhotoGallery.css';
 
@@ -51,6 +57,7 @@ interface Session {
 }
 
 const PhotoGallery: React.FC = () => {
+  const { user } = useAuth();
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<MediaItem[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -64,105 +71,77 @@ const PhotoGallery: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [viewerItem, setViewerItem] = useState<MediaItem | null>(null);
+  const [qrItem, setQrItem] = useState<MediaItem | null>(null);
 
+  // Types reused from ImagesPage API
+  interface UserImage {
+    previewUrl: string;
+    filename: string;
+    downloadUrl: string;
+    enabledServices: { [key: string]: string };
+    uploadTime: string;
+    fileType: string;
+  }
+
+  interface UserImagesResponse {
+    totalImages: number;
+    images: UserImage[];
+  }
+
+  // Fetch user images dynamically (same API flow as ImagesPage)
+  const { data: userImagesData, isLoading, error } = useQuery({
+    queryKey: ['userImages-gallery'],
+    queryFn: async (): Promise<UserImagesResponse> => {
+      let token = localStorage.getItem('token');
+      const response = await api.get(`/api/images/user/all?token=${token}`);
+      return response.data as UserImagesResponse;
+    },
+    retry: 2,
+    refetchInterval: 30000,
+    enabled: true,
+  });
+
+  // Map API images into gallery media items when data loads
   useEffect(() => {
-    fetchData();
-  }, []);
+    setLoading(isLoading);
+    if (!isLoading && userImagesData) {
+      const items: MediaItem[] = userImagesData.images.map((img, index) => {
+        const lower = img.fileType?.toLowerCase?.() || '';
+        const isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(lower);
+        return {
+          id: `${img.downloadUrl || img.filename}-${index}`,
+          name: img.filename,
+          type: isVideo ? 'video' : 'image',
+          url: img.downloadUrl,
+          thumbnail: img.previewUrl,
+          size: 0,
+          uploadDate: img.uploadTime,
+          clientId: 'general',
+          clientName: 'My Library',
+          sessionId: 'general',
+          sessionName: 'General',
+          tags: [],
+        };
+      });
+      setMediaItems(items);
+      // Build simple client/session lists from items (unique by id)
+      const clientList: Client[] = [
+        { id: 'general', name: 'My Library' },
+      ];
+      setClients(clientList);
+      const sessionList: Session[] = [
+        { id: 'general', name: 'General', clientId: 'general' },
+      ];
+      setSessions(sessionList);
+    }
+  }, [isLoading, userImagesData]);
 
   useEffect(() => {
     filterItems();
   }, [mediaItems, searchTerm, clientFilter, typeFilter]);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // Simulate API calls
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockClients: Client[] = [
-        { id: '1', name: 'Sarah Johnson' },
-        { id: '2', name: 'Mike Chen' },
-        { id: '3', name: 'Emily Davis' }
-      ];
-
-      const mockSessions: Session[] = [
-        { id: 's1', name: 'Portrait Session', clientId: '1' },
-        { id: 's2', name: 'Corporate Headshots', clientId: '2' },
-        { id: 's3', name: 'Wedding Photography', clientId: '3' }
-      ];
-
-      const mockMediaItems: MediaItem[] = [
-        {
-          id: '1',
-          name: 'portrait_001.jpg',
-          type: 'image',
-          url: '/api/media/1',
-          thumbnail: '/api/thumbnails/1',
-          size: 2048576,
-          uploadDate: '2024-09-10',
-          clientId: '1',
-          clientName: 'Sarah Johnson',
-          sessionId: 's1',
-          sessionName: 'Portrait Session',
-          tags: ['portrait', 'professional'],
-          barcode: 'PS001'
-        },
-        {
-          id: '2',
-          name: 'portrait_002.jpg',
-          type: 'image',
-          url: '/api/media/2',
-          thumbnail: '/api/thumbnails/2',
-          size: 1876543,
-          uploadDate: '2024-09-10',
-          clientId: '1',
-          clientName: 'Sarah Johnson',
-          sessionId: 's1',
-          sessionName: 'Portrait Session',
-          tags: ['portrait', 'outdoor'],
-          barcode: 'PS002'
-        },
-        {
-          id: '3',
-          name: 'headshot_001.jpg',
-          type: 'image',
-          url: '/api/media/3',
-          thumbnail: '/api/thumbnails/3',
-          size: 1654321,
-          uploadDate: '2024-09-08',
-          clientId: '2',
-          clientName: 'Mike Chen',
-          sessionId: 's2',
-          sessionName: 'Corporate Headshots',
-          tags: ['corporate', 'headshot'],
-          barcode: 'CH001'
-        },
-        {
-          id: '4',
-          name: 'wedding_ceremony.mp4',
-          type: 'video',
-          url: '/api/media/4',
-          thumbnail: '/api/thumbnails/4',
-          size: 52428800,
-          uploadDate: '2024-08-25',
-          clientId: '3',
-          clientName: 'Emily Davis',
-          sessionId: 's3',
-          sessionName: 'Wedding Photography',
-          tags: ['wedding', 'ceremony', 'video'],
-          barcode: 'WP001'
-        }
-      ];
-
-      setClients(mockClients);
-      setSessions(mockSessions);
-      setMediaItems(mockMediaItems);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Removed local mock data fetch in favor of live API
 
   const filterItems = () => {
     let filtered = mediaItems;
@@ -202,21 +181,21 @@ const PhotoGallery: React.FC = () => {
           setUploadProgress(progress);
         }
         
-        // Simulate successful upload
+        // Simulate successful upload (client/session default to General)
         const newItem: MediaItem = {
           id: Date.now().toString() + index,
           name: file.name,
           type: file.type.startsWith('video/') ? 'video' : 'image',
           url: URL.createObjectURL(file),
+          thumbnail: undefined,
           size: file.size,
           uploadDate: new Date().toISOString().split('T')[0],
-          clientId: '1', // Default client for demo
-          clientName: 'Sarah Johnson',
-          sessionId: 's1',
-          sessionName: 'New Session',
-          tags: []
+          clientId: 'general',
+          clientName: 'My Library',
+          sessionId: 'general',
+          sessionName: 'General',
+          tags: [],
         };
-        
         return newItem;
       });
 
@@ -263,16 +242,22 @@ const PhotoGallery: React.FC = () => {
 
   const handleShareSelected = () => {
     const selectedMedia = mediaItems.filter(item => selectedItems.includes(item.id));
-    console.log('Sharing items:', selectedMedia.map(item => item.name));
-    // In a real app, this would open a share dialog
-    alert(`Sharing ${selectedItems.length} items...`);
+    if (selectedMedia.length === 0) {
+      alert('Select at least one item to share.');
+      return;
+    }
+    // Open QR modal for the first selected item
+    setQrItem(selectedMedia[0]);
   };
 
   const handleGenerateBarcodes = () => {
     const selectedMedia = mediaItems.filter(item => selectedItems.includes(item.id));
-    console.log('Generating barcodes for:', selectedMedia.map(item => item.name));
-    // In a real app, this would generate QR codes
-    alert(`Generating barcodes for ${selectedItems.length} items...`);
+    if (selectedMedia.length === 0) {
+      alert('Select at least one item to generate QR.');
+      return;
+    }
+    // Reuse QR modal for per-item QR preview
+    setQrItem(selectedMedia[0]);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -291,11 +276,94 @@ const PhotoGallery: React.FC = () => {
     });
   };
 
+  // Display filename cleanly (keep original name, trim length only)
+  const getDisplayName = (filename: string): string => {
+    if (!filename) return 'Untitled';
+    const base = filename.split('/').pop() || filename;
+    const noExt = base.replace(/\.[^.]+$/, '');
+    const display = noExt;
+    if (display.length > 28) {
+      return display.slice(0, 18) + '…' + display.slice(-8);
+    }
+    return display;
+  };
+
+  const buildShareUrl = (item: MediaItem): string => {
+    const target = item.url || item.id;
+    const encoded = encodeURIComponent(btoa(target));
+    return `${window.location.origin}/view?u=${encoded}`;
+  };
+
+  const copyTextToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert('Copied');
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        alert('Copied');
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    }
+  };
+
+  const generateQrPngBlob = async (value: string, size: number = 512): Promise<Blob> => {
+    const svgString = ReactDOMServer.renderToStaticMarkup(
+      <QRCode value={value} size={size} level="M" />
+    );
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(svgBlob);
+    return await new Promise<Blob>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          reject(new Error('Canvas not supported'));
+          return;
+        }
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(img, 0, 0, size, size);
+        canvas.toBlob((blob) => {
+          URL.revokeObjectURL(url);
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to create QR image blob'));
+        }, 'image/png');
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load QR SVG'));
+      };
+      img.src = url;
+    });
+  };
+
   if (loading) {
     return (
       <div className="gallery-loading">
         <div className="loading-spinner"></div>
         <p>Loading gallery...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="gallery-loading">
+        <p>Failed to load gallery.</p>
       </div>
     );
   }
@@ -340,7 +408,7 @@ const PhotoGallery: React.FC = () => {
         </div>
 
         <div className="filters-section">
-          <div className="filter-group">
+          <div className="filter-groups">
             <FaFilter className="filter-icon" />
             <select
               value={clientFilter}
@@ -355,7 +423,7 @@ const PhotoGallery: React.FC = () => {
             </select>
           </div>
 
-          <div className="filter-group">
+          <div className="filter-groups">
            <FaFilter className="filter-icon" />
             <select
               value={typeFilter}
@@ -398,32 +466,25 @@ const PhotoGallery: React.FC = () => {
           </div>
           <div className="selection-actions">
             <button 
-              className="action-btn download"
+              className="action-btns download"
               onClick={handleDownloadSelected}
             >
               <FaDownload />
               Download
             </button>
             <button 
-              className="action-btn share"
+              className="action-btns share"
               onClick={handleShareSelected}
             >
               <FaShare />
               Share
             </button>
             <button 
-              className="action-btn barcode"
+              className="action-btns barcode"
               onClick={handleGenerateBarcodes}
             >
               <FaQrcode />
               Generate Barcodes
-            </button>
-            <button 
-              className="action-btn delete"
-              onClick={handleDeleteSelected}
-            >
-              <FaTrash />
-              Delete
             </button>
           </div>
         </div>
@@ -454,10 +515,23 @@ const PhotoGallery: React.FC = () => {
               <div className="media-preview">
                 {item.type === 'image' ? (
                   <img 
-                    src={item.thumbnail || item.url} 
-                    alt={item.name}
+                    src={item.thumbnail || item.url || 'https://placehold.co/1200x800'} 
+                    alt={getDisplayName(item.name)}
+                    loading="lazy"
+                    decoding="async"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewerItem(item);
+                    }}
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://placehold.co/600x400';
+                      const imgEl = e.target as HTMLImageElement;
+                      const primary = item.thumbnail || '';
+                      const secondary = item.url || '';
+                      if (imgEl.src !== secondary && secondary) {
+                        imgEl.src = secondary;
+                      } else {
+                        imgEl.src = 'https://placehold.co/1200x800?text=Preview+Unavailable';
+                      }
                     }}
                   />
                 ) : (
@@ -465,44 +539,17 @@ const PhotoGallery: React.FC = () => {
                     <video 
                       src={item.url}
                       poster={item.thumbnail}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setViewerItem(item);
+                      }}
                     />
                     <div className="video-overlay">
                       <FaVideo />
                     </div>
                   </div>
                 )}
-                
-                <div className="media-overlay">
-                  <div className="overlay-actions">
-                    <button 
-                      className="overlay-btn view"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Open media viewer
-                      }}
-                    >
-                      <FaEye />
-                    </button>
-                    <button 
-                      className="overlay-btn edit"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Open edit modal
-                      }}
-                    >
-                      <FaEdit />
-                    </button>
-                    <button 
-                      className="overlay-btn barcode"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Show barcode
-                      }}
-                    >
-                      <FaQrcode />
-                    </button>
-                  </div>
-                </div>
+                {/* Overlay actions intentionally removed; persistent actions shown below */}
 
                 {selectedItems.includes(item.id) && (
                   <div className="selection-indicator">
@@ -510,14 +557,61 @@ const PhotoGallery: React.FC = () => {
                   </div>
                 )}
               </div>
-
+              {viewMode === 'grid' && (
+                <div className="media-actions">
+                  <button 
+                    className="media-action-btn view"
+                    title="View"
+                    aria-label="View"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewerItem(item);
+                    }}
+                  >
+                    <FaEye />
+                    <span className="label">View</span>
+                  </button>
+                  {/* <button 
+                    className="media-action-btn edit"
+                    title="Edit"
+                    aria-label="Edit"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Open edit modal
+                    }}
+                  >
+                    <FaEdit />
+                    <span className="label">Edit</span>
+                  </button> */}
+                  <button 
+                    className="media-action-btn barcode"
+                    title="Barcode"
+                    aria-label="Barcode"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setQrItem(item);
+                    }}
+                  >
+                    <FaQrcode />
+                    <span className="label">Code</span>
+                  </button>
+                </div>
+              )}
+              {viewMode === 'grid' && (
+                <div className="media-caption" title={item.name}>
+                  {getDisplayName(item.name)}
+                </div>
+              )}
+              {viewMode === 'list' && (
               <div className="media-info">
-                <h4 className="media-name">{item.name}</h4>
+                <h4 className="media-name" title={item.name}>{getDisplayName(item.name)}</h4>
                 <p className="media-meta">
                   {item.clientName} • {item.sessionName}
                 </p>
                 <div className="media-details">
-                  <span className="file-size">{formatFileSize(item.size)}</span>
+                  {item.size > 0 && (
+                    <span className="file-size">{formatFileSize(item.size)}</span>
+                  )}
                   <span className="upload-date">{formatDate(item.uploadDate)}</span>
                   {item.barcode && (
                     <span className="barcode">#{item.barcode}</span>
@@ -530,7 +624,46 @@ const PhotoGallery: React.FC = () => {
                     ))}
                   </div>
                 )}
+                <div className="media-actions">
+                  <button 
+                    className="media-action-btn view"
+                    title="View"
+                    aria-label="View"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewerItem(item);
+                    }}
+                  >
+                    <FaEye />
+                    <span className="label">View</span>
+                  </button>
+                  {/* <button 
+                    className="media-action-btn edit"
+                    title="Edit"
+                    aria-label="Edit"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Open edit modal
+                    }}
+                  >
+                    <FaEdit />
+                    <span className="label">Edit</span>
+                  </button> */}
+                  <button 
+                    className="media-action-btn barcode"
+                    title="Barcode"
+                    aria-label="Barcode"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setQrItem(item);
+                    }}
+                  >
+                    <FaQrcode />
+                    <span className="label">Code</span>
+                  </button>
+                </div>
               </div>
+              )}
             </div>
           ))
         )}
@@ -598,6 +731,156 @@ const PhotoGallery: React.FC = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Viewer Modal */}
+      {viewerItem && (
+        <div className="modal-overlay">
+          <div className="modal-content upload-modal">
+            <div className="modal-header">
+              <h2>{getDisplayName(viewerItem.name)}</h2>
+              <button 
+                className="close-btn"
+                onClick={() => setViewerItem(null)}
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="upload-area" style={{ display: 'flex', justifyContent: 'center' }}>
+              {viewerItem.type === 'image' ? (
+                <img
+                  src={viewerItem.url || viewerItem.thumbnail || 'https://placehold.co/1600x1200'}
+                  alt={viewerItem.name}
+                  style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 12 }}
+                />
+              ) : (
+                <video
+                  src={viewerItem.url}
+                  poster={viewerItem.thumbnail}
+                  controls
+                  style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 12 }}
+                />
+              )}
+            </div>
+
+            <div className="upload-options" style={{ gridTemplateColumns: '1fr 1fr' }}>
+              <div className="option-group">
+                <label>Filename</label>
+                <div>{viewerItem.name}</div>
+              </div>
+              <div className="option-group">
+                <label>Uploaded</label>
+                <div>{formatDate(viewerItem.uploadDate)}</div>
+              </div>
+              <div className="option-group">
+                <label>Client • Session</label>
+                <div>{viewerItem.clientName} • {viewerItem.sessionName}</div>
+              </div>
+              {viewerItem.size > 0 && (
+                <div className="option-group">
+                  <label>Size</label>
+                  <div>{formatFileSize(viewerItem.size)}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {qrItem && (
+        <div className="modal-overlay">
+          <div className="modal-content upload-modal">
+            <div className="modal-header">
+              <h2>QR Code</h2>
+              <button 
+                className="close-btn"
+                onClick={() => setQrItem(null)}
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="upload-area" style={{ display: 'flex', justifyContent: 'center' }}>
+              <div style={{ background: 'white', padding: 16, borderRadius: 12 }}>
+                <QRCode value={buildShareUrl(qrItem)} size={220} level="M" />
+              </div>
+            </div>
+
+            <div className="upload-options" style={{ gridTemplateColumns: '1fr 220px', alignItems: 'end' }}>
+              <div className="option-group">
+                <label>Item</label>
+                <div>{getDisplayName(qrItem.name)}</div>
+              </div>
+              <div className="option-group" style={{ alignItems: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    className="media-action-btn view"
+                    title="Open link"
+                    aria-label="Open link"
+                    onClick={() => {
+                      const url = buildShareUrl(qrItem);
+                      window.open(url, '_blank', 'noopener');
+                    }}
+                  >
+                    <FaEye />
+                    <span className="label">Open</span>
+                  </button>
+                  <button
+                    className="media-action-btn view"
+                    title="Copy link"
+                    aria-label="Copy link"
+                    onClick={() => {
+                      const qrValue = buildShareUrl(qrItem);
+                      const svgMarkup = ReactDOMServer.renderToStaticMarkup(
+                        <QRCode value={qrValue} size={220} level="M" />
+                      );
+                      copyTextToClipboard(svgMarkup);
+                    }}
+                  >
+                    <FaCopy />
+                    <span className="label">Copy QR</span>
+                  </button>
+                  <button
+                    className="media-action-btn share"
+                    title="Share link"
+                    aria-label="Share link"
+                    onClick={async () => {
+                      const shareValue = buildShareUrl(qrItem);
+                      try {
+                        const blob = await generateQrPngBlob(shareValue, 512);
+                        const file = new File([blob], `${getDisplayName(qrItem.name)}-qr.png`, { type: 'image/png' });
+                        // @ts-ignore
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                          // @ts-ignore
+                          await navigator.share({ files: [file], title: getDisplayName(qrItem.name) });
+                        } else if (navigator.share) {
+                          await navigator.share({ title: getDisplayName(qrItem.name), url: shareValue });
+                        } else {
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `${getDisplayName(qrItem.name)}-qr.png`;
+                          document.body.appendChild(a);
+                          a.click();
+                          a.remove();
+                          URL.revokeObjectURL(url);
+                          alert('Downloaded QR image');
+                        }
+                      } catch (e) {
+                        alert('Failed to share QR');
+                      }
+                    }}
+                  >
+                    <FaShare />
+                    <span className="label">Share QR</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

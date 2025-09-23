@@ -36,6 +36,7 @@ import PhotoGallery from './pages/PhotoGallery';
 import ClientPortal from './pages/ClientPortal';
 import BarcodeSystem from './pages/BarcodeSystem';
 import StudioSettings from './pages/StudioSettings';
+import ViewImagePage from './pages/ViewImagePage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -79,6 +80,8 @@ const AppRoutes = () => {
   
   return (
     <Routes>
+      {/* Public image view route */}
+      <Route path="/view" element={<ViewImagePage />} />
       <Route path="/login" element={
         !isLoading && isAuthenticated ? 
           (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />) : 
