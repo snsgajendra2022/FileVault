@@ -3,14 +3,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 
-// ---------- Types ----------
+// Dummy Data
 export type Person = {
   id: string;
   name: string;
   children?: Person[];
 };
 
-// ---------- Dummy Data ----------
 function makeChild(index: number, depth: number, breadth: number): Person {
   const node: Person = {
     id: `p-${depth}-${index}-${Math.random().toString(36).slice(2, 7)}`,
@@ -46,7 +45,6 @@ const TOP_NAMES = [
   "Candy Morales", "Ericka Rush", "Ramona Hogan", "Stanley Wilson", "Jose Delacruz",
 ];
 
-// ---------- Visual Helpers ----------
 const AVATAR_SILHOUETTE = (
   <path
     d="M12 13.5c3.59 0 6.5 2.24 6.5 5v.75a.75.75 0 0 1-.75.75H6.25a.75.75 0 0 1-.75-.75V18.5c0-2.76 2.91-5 6.5-5Zm0-1.5a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9Z"
@@ -60,7 +58,6 @@ function linkPath(s: [number, number], t: [number, number]) {
   return `M${s[0]},${s[1]} C ${s[0]},${(s[1] + t[1]) / 2} ${x},${(s[1] + t[1]) / 2} ${t[0]},${t[1]}`;
 }
 
-// ---------- Component ----------
 export default function TreePage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -72,30 +69,36 @@ export default function TreePage() {
 
   const root = useMemo(() => d3.hierarchy<Person>(rootData), [rootData]);
 
-  // Layout
+  // Layout computation
   const layout = useMemo(() => {
     const tree = d3
       .tree<Person>()
-      .nodeSize([80, 140])
+      // Horizontal spacing equals card width (168px) + 5px gap
+      .nodeSize([173, 140])
       .separation((a, b) => (a.parent === b.parent ? 1.2 : 1.6));
+
     const copy = root.copy();
     copy.eachBefore((d) => {
       if (collapsed.has(d.data.id)) d.children = null;
     });
+
     return tree(copy);
   }, [root, collapsed]);
 
-  // Zoom / pan
+  // Zoom & pan functionality
   useEffect(() => {
     if (!svgRef.current || !gRef.current) return;
     const svg = d3.select(svgRef.current);
     const g = d3.select(gRef.current);
 
     const zoomed = (event: any) => g.attr("transform", event.transform.toString());
-    const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.25, 2.5]).on("zoom", zoomed);
+    const zoom = d3
+      .zoom<SVGSVGElement, unknown>()
+      // Allow much smaller zoom-out to see the full tree
+      .scaleExtent([0.05, 3])
+      .on("zoom", zoomed);
     svg.call(zoom as any);
 
-    // initial fit
     const { width, height } = svgRef.current.getBoundingClientRect();
     const xExtent = d3.extent(layout.descendants(), (d) => d.x) as [number, number];
     const yExtent = d3.extent(layout.descendants(), (d) => d.y) as [number, number];
@@ -113,7 +116,7 @@ export default function TreePage() {
     };
   }, [layout]);
 
-  // Focus on node
+  // Focus on selected node
   const focusOn = (nodeId: string) => {
     const node = layout.descendants().find((d) => d.data.id === nodeId);
     if (!node || !svgRef.current) return;
@@ -126,6 +129,7 @@ export default function TreePage() {
     svg.transition().duration(600).call((d3 as any).zoom().transform, transform);
   };
 
+  // Toggle node collapse
   const toggle = (id: string) =>
     setCollapsed((prev) => {
       const n = new Set(prev);
@@ -133,36 +137,27 @@ export default function TreePage() {
       return n;
     });
 
-  // Expand only one level for this node; keep deeper descendants collapsed
-  const stepToggle = (id: string) => {
+  // Collapse all descendants of a node
+  const collapseAll = (id: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-        const node = layout.descendants().find((d) => d.data.id === id);
-        if (node && node.children) {
-          const collapseDeep = (d: typeof node) => {
-            if (!d.children) return;
-            for (const c of d.children) {
-              next.add(c.data.id);
-              collapseDeep(c as any);
-            }
-          };
-          collapseDeep(node);
-        }
+      const node = layout.descendants().find((d) => d.data.id === id);
+      if (node) {
+        // Collapse the entire subtree
+        node.descendants().forEach((d) => next.add(d.data.id));
       } else {
         next.add(id);
       }
       return next;
     });
-  };
 
-  // Expand/collapse all descendants for a node
+  // Expand all descendants of a node
   const expandAll = (id: string) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
       const node = layout.descendants().find((d) => d.data.id === id);
       if (node) {
+        // Remove collapsed marks for this node and all its descendants
         node.descendants().forEach((d) => next.delete(d.data.id));
       } else {
         next.delete(id);
@@ -170,23 +165,11 @@ export default function TreePage() {
       return next;
     });
 
-  const collapseAll = (id: string) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-
   const nodes = layout.descendants();
   const links = layout.links();
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-screen h-screen bg-[#f8fafc]"
-      style={{ fontFamily: "Inter, ui-sans-serif, system-ui" }}
-    >
-      {/* FULL-SCREEN SVG AREA */}
+    <div ref={containerRef} className="relative w-screen h-screen bg-[#f8fafc]">
       <div className="absolute inset-0 bg-white shadow-sm ring-1 ring-gray-200 overflow-hidden">
         <svg ref={svgRef} className="w-full h-full block select-none" aria-label="Family/Client Tree">
           <defs>
@@ -195,7 +178,6 @@ export default function TreePage() {
             </filter>
           </defs>
           <g ref={gRef}>
-            {/* Links */}
             {links.map((l, i) => (
               <path
                 key={i}
@@ -207,7 +189,6 @@ export default function TreePage() {
               />
             ))}
 
-            {/* Nodes */}
             {nodes.map((n) => (
               <g key={n.data.id} transform={`translate(${n.x},${n.y})`}>
                 <rect
@@ -221,25 +202,14 @@ export default function TreePage() {
                   strokeWidth={selected === n.data.id ? 2 : 1}
                   filter="url(#shadow)"
                 />
-                <text
-                  x={0}
-                  y={-14}
-                  textAnchor="middle"
-                  fontSize={12}
-                  fontWeight={700}
-                  fill="#6B7280"
-                  style={{ userSelect: "none" }}
-                >
+                <text x={0} y={-14} textAnchor="middle" fontSize={12} fontWeight={700} fill="#6B7280" style={{ userSelect: "none" }}>
                   {n.data.name.toUpperCase()}
                 </text>
 
-                <g
-                  className="cursor-pointer"
-                  onClick={() => {
-                    setSelected(n.data.id);
-                    focusOn(n.data.id);
-                  }}
-                >
+                <g className="cursor-pointer" onClick={() => {
+                  setSelected(n.data.id);
+                  focusOn(n.data.id);
+                }}>
                   <circle cx={0} cy={26} r={28} fill="#fff" stroke="#2B79C2" strokeWidth={4} />
                   <g transform="translate(-12,12)" fill="#111827">
                     {AVATAR_SILHOUETTE}
@@ -248,30 +218,14 @@ export default function TreePage() {
 
                 <g transform={`translate(${0},${68})`}>
                   {collapsed.has(n.data.id) ? (
-                    <g
-                      className="cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        stepToggle(n.data.id);
-                      }}
-                    >
+                    <g className="cursor-pointer" onClick={(e) => { e.stopPropagation(); toggle(n.data.id); }}>
                       <circle cx={0} cy={0} r={10} fill="#2B79C2" />
-                      <text x={0} y={4} textAnchor="middle" fontSize={14} fontWeight={700} fill="#fff">
-                        +
-                      </text>
+                      <text x={0} y={4} textAnchor="middle" fontSize={14} fontWeight={700} fill="#fff">+</text>
                     </g>
                   ) : (
-                    <g
-                      className="cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        collapseAll(n.data.id);
-                      }}
-                    >
+                    <g className="cursor-pointer" onClick={(e) => { e.stopPropagation(); toggle(n.data.id); }}>
                       <circle cx={0} cy={0} r={10} fill="#EF4444" />
-                      <text x={0} y={4} textAnchor="middle" fontSize={16} fontWeight={800} fill="#fff">
-                        –
-                      </text>
+                      <text x={0} y={4} textAnchor="middle" fontSize={16} fontWeight={800} fill="#fff">–</text>
                     </g>
                   )}
                 </g>
@@ -279,18 +233,13 @@ export default function TreePage() {
             ))}
           </g>
         </svg>
-
-        <div className="pointer-events-none absolute left-0 right-0 top-1 h-[2px] bg-gradient-to-r from-transparent via-gray-300 to-transparent opacity-70" />
       </div>
 
-      {/* RIGHT DRAWER: shows when a node is selected */}
       {selected && (
         <aside className="fixed right-4 top-4 bottom-4 w-80 rounded-2xl bg-white ring-1 ring-gray-200 shadow-lg p-4 flex flex-col z-50">
           <div className="flex items-center gap-3 border-b pb-3">
             <div className="w-10 h-10 rounded-full bg-gray-100 grid place-items-center text-gray-600">
-              <svg viewBox="0 0 24 24" width="20" height="20">
-                {AVATAR_SILHOUETTE}
-              </svg>
+              <svg viewBox="0 0 24 24" width="20" height="20">{AVATAR_SILHOUETTE}</svg>
             </div>
             <div className="flex-1">
               <div className="text-sm text-gray-500">Selected</div>
@@ -298,24 +247,18 @@ export default function TreePage() {
                 {nodes.find((n) => n.data.id === selected)?.data.name || "None"}
               </div>
             </div>
-            <button
-              className="ml-2 text-gray-400 hover:text-gray-600"
-              onClick={() => setSelected(null)}
-              aria-label="Close"
-            >
-              ✕
-            </button>
+            <button className="ml-2 text-gray-400 hover:text-gray-600" onClick={() => setSelected(null)} aria-label="Close">✕</button>
           </div>
 
           <div className="mt-4 grid gap-2">
             <Action label="Focus tree on selected" onClick={() => selected && focusOn(selected)} />
-            <Action label="Expand one level" onClick={() => selected && stepToggle(selected)} />
+            <Action label="Expand one level" onClick={() => selected && toggle(selected)} />
             <Action label="Expand all under selected" onClick={() => selected && expandAll(selected)} />
             <Action label="Collapse selected" onClick={() => selected && collapseAll(selected)} />
           </div>
 
           <div className="mt-auto pt-4 text-xs text-gray-400">
-            Zoom: mouse wheel • Pan: drag • Double‑click avatar to focus
+            Zoom: mouse wheel • Pan: drag • Collapse: Hide/Expand
           </div>
         </aside>
       )}
