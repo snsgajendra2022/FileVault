@@ -37,6 +37,7 @@ import ClientPortal from './pages/ClientPortal';
 import BarcodeSystem from './pages/BarcodeSystem';
 import StudioSettings from './pages/StudioSettings';
 import ViewImagePage from './pages/ViewImagePage';
+import TreePage from './pages/TreeF';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -130,6 +131,7 @@ const AppRoutes = () => {
         <Route path="studio/gallery" element={<PhotoGallery />} />
         <Route path="studio/barcodes" element={<BarcodeSystem />} />
         <Route path="studio/settings" element={<StudioSettings />} />
+        <Route path="treePage" element={<TreePage />} />
         {/* Admin route with proper protection */}
         <Route path="admin" element={
           <ProtectedRoute adminOnly>

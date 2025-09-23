@@ -511,6 +511,34 @@ const BarcodeSystem: React.FC = () => {
                     <QRCode value={item.qrCode} size={200} />
                   </div>
                   <p>Click QR code to view</p>
+                  <div className="qr-actions">
+                    <button
+                      className="action-btn copy"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        (async () => {
+                          try {
+                            await navigator.clipboard.writeText(item.qrCode);
+                            alert('Link copied');
+                          } catch {
+                            const ta = document.createElement('textarea');
+                            ta.value = item.qrCode;
+                            ta.style.position = 'fixed';
+                            ta.style.left = '-9999px';
+                            document.body.appendChild(ta);
+                            ta.focus();
+                            ta.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(ta);
+                            alert('Link copied');
+                          }
+                        })();
+                      }}
+                    >
+                      <FaCopy />
+                      Copy Link
+                    </button>
+                  </div>
                 </div>
 
                 <div className="barcode-stats">

@@ -31,6 +31,7 @@ const Sidebar = () => {
     // { name: 'Billing', href: '/billing', icon: FaPlus },
     // { name: 'Analytics', href: '/analytics', icon: FaPlus },
     { name: 'Invitations', href: '/invitations', icon: FaUsers },
+    { name: 'Family Tree', href: '/treePage', icon: FaUsers },
     { name: 'Profile', href: '/profile', icon: FaUser },
     // { name: 'Settings', href: '/settings', icon: FaCog },
   ];

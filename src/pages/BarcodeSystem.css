@@ -1063,6 +1063,8 @@
 .action-btn.copy {
   color: #3b82f6;
   border-color: #dbeafe;
+  max-width: 133px;
+  min-width: 110px;
 }
 
 .action-btn.copy:hover {

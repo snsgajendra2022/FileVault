@@ -1,0 +1,338 @@
+"use client";
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import * as d3 from "d3";
+
+// ---------- Types ----------
+export type Person = {
+  id: string;
+  name: string;
+  children?: Person[];
+};
+
+// ---------- Dummy Data ----------
+function makeChild(index: number, depth: number, breadth: number): Person {
+  const node: Person = {
+    id: `p-${depth}-${index}-${Math.random().toString(36).slice(2, 7)}`,
+    name: NAMES[(index + depth) % NAMES.length],
+  };
+  if (depth > 0) {
+    node.children = Array.from({ length: breadth }, (_, i) =>
+      makeChild(i, depth - 1, Math.max(0, breadth - (depth > 2 ? 1 : 0)))
+    );
+  }
+  return node;
+}
+
+function buildLargeDemo(): Person {
+  const root: Person = { id: "root", name: "RANDY PARKER", children: [] };
+  const firstRow = 12;
+  for (let i = 0; i < firstRow; i++) {
+    const child = makeChild(i, 2, i % 3 === 0 ? 3 : 2);
+    child.name = (TOP_NAMES[i % TOP_NAMES.length] || `User ${i + 1}`).toUpperCase();
+    root.children!.push(child);
+  }
+  return root;
+}
+
+const NAMES = [
+  "Christina Mc Bride", "Clyde Morse", "Jeffrey Browning", "Roy Delacruz", "Tracy Moody",
+  "Candy Morales", "Ericka Rush", "Rita Willis", "Karree Perkins", "Stanley Wilson",
+  "Nicolas Tran", "Oliver Rice", "Jose Delacruz", "Ramona Hogan",
+];
+
+const TOP_NAMES = [
+  "Nicolas Tran", "Oliver Rice", "Christi Shields", "Karree Perkins", "Rita Willis",
+  "Candy Morales", "Ericka Rush", "Ramona Hogan", "Stanley Wilson", "Jose Delacruz",
+];
+
+// ---------- Visual Helpers ----------
+const AVATAR_SILHOUETTE = (
+  <path
+    d="M12 13.5c3.59 0 6.5 2.24 6.5 5v.75a.75.75 0 0 1-.75.75H6.25a.75.75 0 0 1-.75-.75V18.5c0-2.76 2.91-5 6.5-5Zm0-1.5a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9Z"
+    fill="currentColor"
+    opacity=".85"
+  />
+);
+
+function linkPath(s: [number, number], t: [number, number]) {
+  const x = d3.interpolateNumber(s[0], t[0])(0.5);
+  return `M${s[0]},${s[1]} C ${s[0]},${(s[1] + t[1]) / 2} ${x},${(s[1] + t[1]) / 2} ${t[0]},${t[1]}`;
+}
+
+// ---------- Component ----------
+export default function TreePage() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const gRef = useRef<SVGGElement>(null);
+
+  const [rootData] = useState<Person>(() => buildLargeDemo());
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const root = useMemo(() => d3.hierarchy<Person>(rootData), [rootData]);
+
+  // Layout
+  const layout = useMemo(() => {
+    const tree = d3
+      .tree<Person>()
+      .nodeSize([80, 140])
+      .separation((a, b) => (a.parent === b.parent ? 1.2 : 1.6));
+    const copy = root.copy();
+    copy.eachBefore((d) => {
+      if (collapsed.has(d.data.id)) d.children = null;
+    });
+    return tree(copy);
+  }, [root, collapsed]);
+
+  // Zoom / pan
+  useEffect(() => {
+    if (!svgRef.current || !gRef.current) return;
+    const svg = d3.select(svgRef.current);
+    const g = d3.select(gRef.current);
+
+    const zoomed = (event: any) => g.attr("transform", event.transform.toString());
+    const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.25, 2.5]).on("zoom", zoomed);
+    svg.call(zoom as any);
+
+    // initial fit
+    const { width, height } = svgRef.current.getBoundingClientRect();
+    const xExtent = d3.extent(layout.descendants(), (d) => d.x) as [number, number];
+    const yExtent = d3.extent(layout.descendants(), (d) => d.y) as [number, number];
+    const contentWidth = xExtent[1] - xExtent[0] + 240;
+    const contentHeight = yExtent[1] - yExtent[0] + 240;
+    const scale = Math.min(width / contentWidth, height / contentHeight);
+    const transform = d3.zoomIdentity
+      .translate(width / 2, 60)
+      .scale(Math.max(0.3, Math.min(1.2, scale)))
+      .translate(-layout.x, 0);
+    svg.call(zoom.transform as any, transform);
+
+    return () => {
+      svg.on("wheel.zoom", null);
+    };
+  }, [layout]);
+
+  // Focus on node
+  const focusOn = (nodeId: string) => {
+    const node = layout.descendants().find((d) => d.data.id === nodeId);
+    if (!node || !svgRef.current) return;
+    const svg = d3.select(svgRef.current);
+    const { width, height } = svgRef.current.getBoundingClientRect();
+    const transform = d3.zoomIdentity
+      .translate(width / 2, height * 0.18)
+      .scale(1.1)
+      .translate(-node.x, -node.y);
+    svg.transition().duration(600).call((d3 as any).zoom().transform, transform);
+  };
+
+  const toggle = (id: string) =>
+    setCollapsed((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+
+  // Expand only one level for this node; keep deeper descendants collapsed
+  const stepToggle = (id: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+        const node = layout.descendants().find((d) => d.data.id === id);
+        if (node && node.children) {
+          const collapseDeep = (d: typeof node) => {
+            if (!d.children) return;
+            for (const c of d.children) {
+              next.add(c.data.id);
+              collapseDeep(c as any);
+            }
+          };
+          collapseDeep(node);
+        }
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  // Expand/collapse all descendants for a node
+  const expandAll = (id: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      const node = layout.descendants().find((d) => d.data.id === id);
+      if (node) {
+        node.descendants().forEach((d) => next.delete(d.data.id));
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+
+  const collapseAll = (id: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+
+  const nodes = layout.descendants();
+  const links = layout.links();
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative w-screen h-screen bg-[#f8fafc]"
+      style={{ fontFamily: "Inter, ui-sans-serif, system-ui" }}
+    >
+      {/* FULL-SCREEN SVG AREA */}
+      <div className="absolute inset-0 bg-white shadow-sm ring-1 ring-gray-200 overflow-hidden">
+        <svg ref={svgRef} className="w-full h-full block select-none" aria-label="Family/Client Tree">
+          <defs>
+            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.15" />
+            </filter>
+          </defs>
+          <g ref={gRef}>
+            {/* Links */}
+            {links.map((l, i) => (
+              <path
+                key={i}
+                d={linkPath([l.source.x, l.source.y + 36], [l.target.x, l.target.y - 48])}
+                stroke="#B8C2CC"
+                strokeWidth={2}
+                fill="none"
+                opacity={0.9}
+              />
+            ))}
+
+            {/* Nodes */}
+            {nodes.map((n) => (
+              <g key={n.data.id} transform={`translate(${n.x},${n.y})`}>
+                <rect
+                  x={-84}
+                  y={-36}
+                  width={168}
+                  height={100}
+                  rx={10}
+                  fill={selected === n.data.id ? "#DBEAFE" : "#ffffff"}
+                  stroke={selected === n.data.id ? "#2B79C2" : "#E5E7EB"}
+                  strokeWidth={selected === n.data.id ? 2 : 1}
+                  filter="url(#shadow)"
+                />
+                <text
+                  x={0}
+                  y={-14}
+                  textAnchor="middle"
+                  fontSize={12}
+                  fontWeight={700}
+                  fill="#6B7280"
+                  style={{ userSelect: "none" }}
+                >
+                  {n.data.name.toUpperCase()}
+                </text>
+
+                <g
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setSelected(n.data.id);
+                    focusOn(n.data.id);
+                  }}
+                >
+                  <circle cx={0} cy={26} r={28} fill="#fff" stroke="#2B79C2" strokeWidth={4} />
+                  <g transform="translate(-12,12)" fill="#111827">
+                    {AVATAR_SILHOUETTE}
+                  </g>
+                </g>
+
+                <g transform={`translate(${0},${68})`}>
+                  {collapsed.has(n.data.id) ? (
+                    <g
+                      className="cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        stepToggle(n.data.id);
+                      }}
+                    >
+                      <circle cx={0} cy={0} r={10} fill="#2B79C2" />
+                      <text x={0} y={4} textAnchor="middle" fontSize={14} fontWeight={700} fill="#fff">
+                        +
+                      </text>
+                    </g>
+                  ) : (
+                    <g
+                      className="cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        collapseAll(n.data.id);
+                      }}
+                    >
+                      <circle cx={0} cy={0} r={10} fill="#EF4444" />
+                      <text x={0} y={4} textAnchor="middle" fontSize={16} fontWeight={800} fill="#fff">
+                        –
+                      </text>
+                    </g>
+                  )}
+                </g>
+              </g>
+            ))}
+          </g>
+        </svg>
+
+        <div className="pointer-events-none absolute left-0 right-0 top-1 h-[2px] bg-gradient-to-r from-transparent via-gray-300 to-transparent opacity-70" />
+      </div>
+
+      {/* RIGHT DRAWER: shows when a node is selected */}
+      {selected && (
+        <aside className="fixed right-4 top-4 bottom-4 w-80 rounded-2xl bg-white ring-1 ring-gray-200 shadow-lg p-4 flex flex-col z-50">
+          <div className="flex items-center gap-3 border-b pb-3">
+            <div className="w-10 h-10 rounded-full bg-gray-100 grid place-items-center text-gray-600">
+              <svg viewBox="0 0 24 24" width="20" height="20">
+                {AVATAR_SILHOUETTE}
+              </svg>
+            </div>
+            <div className="flex-1">
+              <div className="text-sm text-gray-500">Selected</div>
+              <div className="font-semibold text-gray-800 text-base break-words max-w-[220px]">
+                {nodes.find((n) => n.data.id === selected)?.data.name || "None"}
+              </div>
+            </div>
+            <button
+              className="ml-2 text-gray-400 hover:text-gray-600"
+              onClick={() => setSelected(null)}
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-2">
+            <Action label="Focus tree on selected" onClick={() => selected && focusOn(selected)} />
+            <Action label="Expand one level" onClick={() => selected && stepToggle(selected)} />
+            <Action label="Expand all under selected" onClick={() => selected && expandAll(selected)} />
+            <Action label="Collapse selected" onClick={() => selected && collapseAll(selected)} />
+          </div>
+
+          <div className="mt-auto pt-4 text-xs text-gray-400">
+            Zoom: mouse wheel • Pan: drag • Double‑click avatar to focus
+          </div>
+        </aside>
+      )}
+    </div>
+  );
+}
+
+function Action({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center justify-between w-full px-3 py-2 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50/60 text-gray-700"
+    >
+      <span className="text-sm font-medium">{label}</span>
+      <svg viewBox="0 0 20 20" width="18" height="18" className="text-blue-600" aria-hidden>
+        <path d="M7 5l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    </button>
+  );
+}
