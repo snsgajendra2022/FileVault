@@ -85,6 +85,18 @@ export default function TreePage() {
     return tree(copy);
   }, [root, collapsed]);
 
+  // Collapse all nodes on first render
+  useEffect(() => {
+    if (collapsed.size > 0) return; // already initialized
+    const next = new Set<string>();
+    root.each((d) => {
+      if (d.children && d.children.length > 0) {
+        next.add(d.data.id);
+      }
+    });
+    setCollapsed(next);
+  }, [root]);
+
   // Zoom & pan functionality
   useEffect(() => {
     if (!svgRef.current || !gRef.current) return;
