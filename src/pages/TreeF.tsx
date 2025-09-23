@@ -216,19 +216,21 @@ export default function TreePage() {
                   </g>
                 </g>
 
-                <g transform={`translate(${0},${68})`}>
-                  {collapsed.has(n.data.id) ? (
-                    <g className="cursor-pointer" onClick={(e) => { e.stopPropagation(); toggle(n.data.id); }}>
-                      <circle cx={0} cy={0} r={10} fill="#2B79C2" />
-                      <text x={0} y={4} textAnchor="middle" fontSize={14} fontWeight={700} fill="#fff">+</text>
-                    </g>
-                  ) : (
-                    <g className="cursor-pointer" onClick={(e) => { e.stopPropagation(); toggle(n.data.id); }}>
-                      <circle cx={0} cy={0} r={10} fill="#EF4444" />
-                      <text x={0} y={4} textAnchor="middle" fontSize={16} fontWeight={800} fill="#fff">–</text>
-                    </g>
-                  )}
-                </g>
+                {n.data.children && n.data.children.length > 0 && (
+                  <g transform={`translate(${0},${68})`}>
+                    {collapsed.has(n.data.id) ? (
+                      <g className="cursor-pointer" onClick={(e) => { e.stopPropagation(); toggle(n.data.id); }}>
+                        <circle cx={0} cy={0} r={10} fill="#2B79C2" />
+                        <text x={0} y={4} textAnchor="middle" fontSize={14} fontWeight={700} fill="#fff">+</text>
+                      </g>
+                    ) : (
+                      <g className="cursor-pointer" onClick={(e) => { e.stopPropagation(); toggle(n.data.id); }}>
+                        <circle cx={0} cy={0} r={10} fill="#EF4444" />
+                        <text x={0} y={4} textAnchor="middle" fontSize={16} fontWeight={800} fill="#fff">–</text>
+                      </g>
+                    )}
+                  </g>
+                )}
               </g>
             ))}
           </g>
