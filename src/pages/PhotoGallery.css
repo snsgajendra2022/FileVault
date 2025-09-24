@@ -12,9 +12,9 @@
   opacity: 1 !important;
 }
 
-/* Force text visibility */
-input, select, button, span, p, h1, h2, h3, h4, h5, h6 {
-  color: inherit !important;
+/* Force text visibility */ 
+.photo-gallery input, select, button, span, p, h1, h2, h3, h4, h5, h6 {
+  color: inherit ;
   visibility: visible !important;
   opacity: 1 !important;
 }
@@ -303,7 +303,7 @@ ease;
 .selection-actions {
   display: flex;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
 }
 

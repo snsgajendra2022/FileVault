@@ -236,8 +236,16 @@ const PhotoGallery: React.FC = () => {
   const handleDownloadSelected = () => {
     const selectedMedia = mediaItems.filter(item => selectedItems.includes(item.id));
     console.log('Downloading items:', selectedMedia.map(item => item.name));
-    // In a real app, this would trigger actual downloads
-    alert(`Downloading ${selectedItems.length} items...`);
+      
+    var download = selectedMedia.map(item => item.url);
+
+    for (const item of download) {
+      const link = document.createElement('a');
+      link.href = item;
+      link.download = item.split('/').pop() || item;
+      link.click();
+    }
+    // alert(`Downloading ${selectedItems.length} items...`);
   };
 
   const handleShareSelected = () => {
@@ -247,6 +255,14 @@ const PhotoGallery: React.FC = () => {
       return;
     }
     // Open QR modal for the first selected item
+    var share = selectedMedia.map(item => item.url);
+    for (const item of share) {
+      const link = document.createElement('a');
+      link.href = item;
+      link.download = item.split('/').pop() || item;
+      link.target = '_blank';
+      link.click();
+    }
     setQrItem(selectedMedia[0]);
   };
 
@@ -385,7 +401,8 @@ const PhotoGallery: React.FC = () => {
         <div className="header-actions">
           <button 
             className="upload-btn"
-            onClick={() => setShowUploadModal(true)}
+            // onClick={() => setShowUploadModal(true)}
+            onClick={() => window.location.href = '/upload'}
           >
             <FaUpload />
             Upload Media

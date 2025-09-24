@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { RegistrationData } from '../../types/auth';
 import toast from 'react-hot-toast';
 import { FaUser, FaEnvelope, FaPhone, FaBuilding, FaSave, FaEdit, FaShieldAlt, FaArrowRight, FaArrowLeft, FaUsers } from 'react-icons/fa';
+import api from '../../services/api';
 
 const RegisterForm = () => {
   const [step, setStep] = useState(1);
@@ -48,6 +49,14 @@ const RegisterForm = () => {
       const result = await response.text();
       
       if (response.ok) {
+        const newUser = JSON.parse(result);
+      try {
+        await api.put(`/api/auth/admin/users/${newUser.id}/verify`);
+        console.log('User auto-verified after registration');
+      } catch (verifyError: any) {
+        console.warn('Auto-verification failed:', verifyError);
+        // Don't fail registration if verification fails
+      }
         toast.success('Registration successful! Welcome to FileVault.');
         navigate('/dashboard');
       } else {
