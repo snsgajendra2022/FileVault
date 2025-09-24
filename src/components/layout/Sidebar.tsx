@@ -36,13 +36,14 @@ const Sidebar = () => {
     // { name: 'Settings', href: '/settings', icon: FaCog },
   ];
 
-  const studioNavigationItems = [
-    { name: 'Studio Dashboard', href: '/studio/dashboard', icon: FaCamera },
-    { name: 'Studio Clients', href: '/studio/clients', icon: FaUsers },
-    { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages },
-    { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode },
-    { name: 'Studio Settings', href: '/studio/settings', icon: FaCog },
-  ];
+  const studioNavigationItems = [];
+  // const studioNavigationItems = [
+  //   { name: 'Studio Dashboard', href: '/studio/dashboard', icon: FaCamera },
+  //   { name: 'Studio Clients', href: '/studio/clients', icon: FaUsers },
+  //   { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages },
+  //   { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode },
+  //   { name: 'Studio Settings', href: '/studio/settings', icon: FaCog },
+  // ];
 
   const adminNavigationItems = [
     { name: 'Admin Dashboard', href: '/admin?tab=dashboard', icon: FaShieldAlt },
@@ -132,7 +133,7 @@ const Sidebar = () => {
                 </div>
               </div>
               
-              {studioNavigationItems.map((item) => (
+              {studioNavigationItems.length > 0 && studioNavigationItems.map((item) => (
                 <NavLink
                   key={item.name}
                   to={item.href}
