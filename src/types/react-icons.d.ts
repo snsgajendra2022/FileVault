@@ -80,6 +80,8 @@ declare module 'react-icons/fa' {
   export const FaPalette: ComponentType<IconProps>;
   export const FaGlobe: ComponentType<IconProps>;
   export const FaKey: ComponentType<IconProps>;
+  export const FaTree: ComponentType<IconProps>;
+  export const FaSitemap: ComponentType<IconProps>;
 }
 
 declare module 'react-icons/fi' {

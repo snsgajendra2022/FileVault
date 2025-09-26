@@ -45,7 +45,7 @@ const RegisterForm = () => {
         body: raw
       };
 
-      const response = await fetch("http://192.168.1.40:9090/api/auth/register", requestOptions);
+      const response = await fetch(process.env.REACT_APP_API_URL+"/api/auth/register", requestOptions);
       const result = await response.text();
       
       if (response.ok) {

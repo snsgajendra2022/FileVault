@@ -15,8 +15,11 @@ import {
   FaCrown,
   FaCamera,
   FaImages,
-  FaQrcode
+  FaQrcode,
+  FaTree,
+  FaSitemap
 } from 'react-icons/fa';
+
 
 const Sidebar = () => {
   const { user, isAdmin } = useAuth();
@@ -24,20 +27,22 @@ const Sidebar = () => {
   const navigationItems = [
     { name: 'Dashboard', href: '/dashboard', icon: FaHome },
     { name: 'Upload', href: '/upload', icon: FaUpload },
-    { name: 'My Images', href: '/images', icon: FaUpload },
+    { name: 'My Images', href: '/images', icon: FaImages },
     { name: 'Services', href: '/services', icon: FaCloud },
     { name: 'Plans', href: '/plans', icon: FaPlus },
     { name: 'Usage', href: '/usage', icon: FaChartBar },
-    // { name: 'Billing', href: '/billing', icon: FaPlus },
-    // { name: 'Analytics', href: '/analytics', icon: FaPlus },
     { name: 'Invitations', href: '/invitations', icon: FaUsers },
-    { name: 'Family Tree', href: '/treePage', icon: FaUsers },
+    { name: 'Family Tree', href: '/family-tree', icon: FaSitemap },
+    { name: 'Dummy Tree', href: '/treePage', icon: FaUsers },
     { name: 'Profile', href: '/profile', icon: FaUser },
     // { name: 'Settings', href: '/settings', icon: FaCog },
+    // { name: 'Billing', href: '/billing', icon: FaPlus },
+    // { name: 'Analytics', href: '/analytics', icon: FaPlus },
   ];
-
+  
   const studioNavigationItems = [];
   // const studioNavigationItems = [
+    // { name: 'Family Tree', href: '/treePage', icon: FaUsers },
   //   { name: 'Studio Dashboard', href: '/studio/dashboard', icon: FaCamera },
   //   { name: 'Studio Clients', href: '/studio/clients', icon: FaUsers },
   //   { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages },
@@ -124,14 +129,14 @@ const Sidebar = () => {
               ))}
               
               {/* Studio Section */}
-              <div className="pt-6 pb-3">
+              {studioNavigationItems.length > 0 &&  <div className="pt-6 pb-3">
                 <div className="flex items-center px-4 py-2 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-200">
                   <FaCamera className="h-4 w-4 text-pink-600 mr-2" />
                   <h3 className="text-xs font-bold text-pink-700 uppercase tracking-wider">
                     PhotoStudio Pro
                   </h3>
                 </div>
-              </div>
+              </div>}
               
               {studioNavigationItems.length > 0 && studioNavigationItems.map((item) => (
                 <NavLink

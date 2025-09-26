@@ -1,6 +1,8 @@
+"use client";
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
-import api from "../../services/api";
+import api from "../services/api";
 import { toast } from "react-hot-toast";
 
 // Data types
@@ -95,7 +97,7 @@ function linkPath(s: [number, number], t: [number, number]) {
   return `M${s[0]},${s[1]} C ${s[0]},${(s[1] + t[1]) / 2} ${x},${(s[1] + t[1]) / 2} ${t[0]},${t[1]}`;
 }
 
-export default function FamilyTree() {
+export default function ClientTreePage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);

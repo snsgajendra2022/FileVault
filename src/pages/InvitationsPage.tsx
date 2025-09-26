@@ -3,9 +3,10 @@ import { useAuth } from '../context/AuthContext';
 import { FaEnvelope, FaUsers, FaPlus } from 'react-icons/fa';
 import CreateInvitationForm from '../components/invitations/CreateInvitationForm';
 import InvitationHistory from '../components/invitations/InvitationHistory';
-import FamilyTree from '../components/invitations/FamilyTree';
 import SharedImages from '../components/invitations/SharedImages';
 import { toast } from 'react-hot-toast';
+// import FamilyTree from '../components/invitations/FamilyTree';
+// import FamilyTree from '../components/invitations/FamilyTree';
 
 const InvitationsPage = () => {
   const { user } = useAuth();
@@ -16,7 +17,7 @@ const InvitationsPage = () => {
   const tabs = [
     { id: 'create', name: 'Create Invitation', icon: FaPlus, color: 'bg-blue-500' },
     { id: 'history', name: 'Invitation History', icon: FaUsers, color: 'bg-green-500' },
-    { id: 'family', name: 'Family Tree', icon: FaUsers, color: 'bg-purple-500' },
+    //  { id: 'family', name: 'Family Tree', icon: FaUsers, color: 'bg-purple-500' },
     // { id: 'shared', name: 'Shared Images', icon: FaEnvelope, color: 'bg-orange-500' },
   ];
 
@@ -26,8 +27,8 @@ const InvitationsPage = () => {
         return <CreateInvitationForm onInvitationCreated={handleInvitationCreated} />;
       case 'history':
         return <InvitationHistory />;
-      case 'family':
-        return <FamilyTree />;
+      // case 'family':
+      //   return <FamilyTree />;
       case 'shared':
         return <SharedImages />;
       default:
