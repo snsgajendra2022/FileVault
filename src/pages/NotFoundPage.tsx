@@ -18,7 +18,7 @@ const NotFoundPage = () => {
         
         <div className="space-y-4">
           <Link
-            to="/dashboard"
+            to="/studio/dashboard"
             className="btn-primary inline-flex items-center"
           >
             <FaHome className="mr-2" />

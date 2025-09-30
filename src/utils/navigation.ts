@@ -17,10 +17,10 @@ export const handleInvalidRoute = (pathname: string) => {
   
   // Return the correct route to redirect to
   if (pathname.includes('/dashboards/')) {
-    return '/dashboard';
+    return '/studio/dashboard';
   }
   
-  return '/dashboard';
+  return '/studio/dashboard';
 };
 
 export const isValidRoute = (pathname: string) => {
@@ -29,7 +29,7 @@ export const isValidRoute = (pathname: string) => {
     '/login',
     '/register',
     '/accept-invitation',
-    '/dashboard',
+    '/studio/dashboard',
     '/profile',
     '/services',
     '/plans',

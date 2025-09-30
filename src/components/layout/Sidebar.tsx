@@ -49,7 +49,7 @@ const Sidebar = () => {
   }, [isAdmin]);
 
   const navigationItems = {'items':[
-    { name: 'Dashboard', href: '/dashboard', icon: FaHome, enabled: true },
+    { name: 'Dashboard', href: '/studio/dashboard', icon: FaHome, enabled: true },
     { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
     { name: 'My Images', href: '/images', icon: FaImages, enabled: true },
     { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
@@ -59,7 +59,7 @@ const Sidebar = () => {
     { name: 'Family Tree', href: '/family-tree', icon: FaSitemap, enabled: true },
     { name: 'Dummy Tree', href: '/treePage', icon: FaUsers, enabled: true },
     { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
-  ],active:true};
+  ],active:false};
   
   // const studioNavigationItems = [];
   const studioNavigationItems = {'items':[
@@ -68,11 +68,12 @@ const Sidebar = () => {
     { name: 'Create Client', href: '/invitations', icon: FaUsers, enabled: true },
     { name: 'Studio Clients', href: '/studio/clients', icon: FaUserPlus, enabled: true },
     { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
-    { name: 'Clients', href: '/treePage', icon: FaSitemap, enabled: true },
+    { name: 'Clients', href: '/family-tree', icon: FaSitemap, enabled: true },
     { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
+    { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
     { name: 'Studio Settings', href: '/studio/settings', icon: FaCog, enabled: true },
     { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
-  ],active:false};
+  ],active:true};
 
   const adminNavigationItems = {'items':  [
     { name: 'Admin Dashboard', href: '/admin?tab=dashboard', icon: FaShieldAlt, enabled: true },

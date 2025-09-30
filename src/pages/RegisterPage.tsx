@@ -44,7 +44,7 @@ const RegisterPage = () => {
       if (user.accountType === 'ADMIN') {
         navigate('/admin');
       } else {
-        navigate('/dashboard');
+        navigate('/studio/dashboard');
       }
     }
   }, [user, navigate]);

@@ -23,7 +23,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
   const { user, isAdmin } = useAuth();
 
   const navigationItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: FaHome },
+    { name: 'Dashboard', href: '/studio/dashboard', icon: FaHome },
     { name: 'Upload', href: '/upload', icon: FaUpload },
     { name: 'My Images', href: '/images', icon: FaUpload },
     { name: 'Services', href: '/services', icon: FaCloud },

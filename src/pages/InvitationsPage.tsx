@@ -5,6 +5,8 @@ import CreateInvitationForm from '../components/invitations/CreateInvitationForm
 import InvitationHistory from '../components/invitations/InvitationHistory';
 import SharedImages from '../components/invitations/SharedImages';
 import { toast } from 'react-hot-toast';
+import CreateClientInvitationForm from '../components/invitations/CreateClient';
+
 // import FamilyTree from '../components/invitations/FamilyTree';
 // import FamilyTree from '../components/invitations/FamilyTree';
 
@@ -15,8 +17,8 @@ const InvitationsPage = () => {
   const [loading, setLoading] = useState(false);
 
   const tabs = [
-    { id: 'create', name: 'Create Invitation', icon: FaPlus, color: 'bg-blue-500' },
-    { id: 'history', name: 'Invitation History', icon: FaUsers, color: 'bg-green-500' },
+    { id: 'create', name: 'Create Client Invitation', icon: FaPlus, color: 'bg-blue-500' },
+    { id: 'history', name: 'Client Invitation History', icon: FaUsers, color: 'bg-green-500' },
     //  { id: 'family', name: 'Family Tree', icon: FaUsers, color: 'bg-purple-500' },
     // { id: 'shared', name: 'Shared Images', icon: FaEnvelope, color: 'bg-orange-500' },
   ];
@@ -24,7 +26,7 @@ const InvitationsPage = () => {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'create':
-        return <CreateInvitationForm onInvitationCreated={handleInvitationCreated} />;
+        return <CreateClientInvitationForm onInvitationCreated={handleInvitationCreated} />;
       case 'history':
         return <InvitationHistory />;
       // case 'family':
@@ -52,7 +54,7 @@ const InvitationsPage = () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Invitation System</h1>
               <p className="text-gray-600 mt-2">
-                Invite family members to view and share images, build your family tree
+                Invite members to view and share images
               </p>
             </div>
             <div className="flex items-center space-x-3">

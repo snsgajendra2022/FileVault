@@ -99,7 +99,7 @@ const CheckoutPage = () => {
 
       await api.post('/api/plans/subscribe', upgradeData);
       toast.success(`Successfully upgraded to ${plan?.displayName}!`);
-      navigate('/dashboard');
+      navigate('/studio/dashboard');
     } catch (error: any) {
       console.error('Upgrade failed:', error);
       toast.error(error.response?.data?.message || 'Upgrade failed. Please try again.');

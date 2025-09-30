@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { FaEnvelope, FaUser, FaUsers } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
-import api from '../services/api';
+import api from '../../services/api';
 
 interface CreateInvitationFormProps {
   onInvitationCreated: (invitation: any) => void;
@@ -10,7 +10,6 @@ interface CreateInvitationFormProps {
 
 const RELATIONSHIP_TYPES = [
   'CLIENT', 
-  'SUB CLIENT',
 ];
 
 const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInvitationCreated }) => {

@@ -37,10 +37,9 @@ import ClientPortal from './pages/ClientPortal';
 import BarcodeSystem from './pages/BarcodeSystem';
 import StudioSettings from './pages/StudioSettings';
 import ViewImagePage from './pages/ViewImagePage';
-import TreePage from './pages/TreeF';
-import ClientTreePage from './pages/ClientTree';
-import FamilyTree from './pages/FamilyTree';
-import CreateClientInvitationForm from './pages/CreateClient';
+import FamilyTree from './components/invitations/FamilyTree';
+import CreateClientInvitationForm from './components/invitations/CreateClient';
+
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -73,7 +72,7 @@ const ProtectedRoute = ({ children, adminOnly = false }: { children: React.React
   }
   
   if (adminOnly && !isAdmin) {
-    return <Navigate to="/dashboard" />;
+    return <Navigate to="/studio/dashboard" />;
   }
   
   return <>{children}</>;
@@ -88,12 +87,12 @@ const AppRoutes = () => {
       <Route path="/view" element={<ViewImagePage />} />
       <Route path="/login" element={
         !isLoading && isAuthenticated ? 
-          (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />) : 
+          (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />) : 
           <LoginPage />
       } />
       <Route path="/register" element={
         !isLoading && isAuthenticated ? 
-          (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />) : 
+          (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />) : 
           <RegisterPage />
       } />
       
@@ -111,7 +110,7 @@ const AppRoutes = () => {
         </ProtectedRoute>
       }>
         <Route index element={
-          isAdmin ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />
+          isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />
         } />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="profile" element={<ProfilePage />} />
@@ -134,7 +133,7 @@ const AppRoutes = () => {
         <Route path="studio/gallery" element={<PhotoGallery />} />
         <Route path="studio/barcodes" element={<BarcodeSystem />} />
         <Route path="studio/settings" element={<StudioSettings />} />
-        <Route path="treePage" element={<TreePage />} />
+        {/* <Route path="treePage" element={<TreePage />} /> */}
         <Route path="family-tree" element={<FamilyTree />} />
         <Route path="create-client" element={<CreateClientInvitationForm onInvitationCreated={() => {}} />} />
         {/* Admin route with proper protection */}
@@ -145,7 +144,7 @@ const AppRoutes = () => {
         } />
         {/* Catch all unmatched routes and redirect to appropriate dashboard */}
         <Route path="*" element={
-          isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/dashboard" replace />
+          isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/studio/dashboard" replace />
         } />
       </Route>
       

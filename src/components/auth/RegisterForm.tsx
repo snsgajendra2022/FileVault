@@ -58,7 +58,7 @@ const RegisterForm = () => {
         // Don't fail registration if verification fails
       }
         toast.success('Registration successful! Welcome to FileVault.');
-        navigate('/dashboard');
+        navigate('/studio/dashboard');
       } else {
         toast.error('Registration failed: ' + result);
       }

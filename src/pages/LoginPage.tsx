@@ -25,8 +25,8 @@ const LoginPage = () => {
         console.log('LoginPage - Redirecting admin user to /admin');
         navigate('/admin');
       } else {
-        console.log('LoginPage - Redirecting regular user to /dashboard');
-        navigate('/dashboard');
+        console.log('LoginPage - Redirecting regular user to /studio/dashboard');
+        navigate('/studio/dashboard');
       }
     }
   }, [user, isLoading, navigate]);
