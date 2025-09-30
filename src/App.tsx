@@ -40,6 +40,7 @@ import ViewImagePage from './pages/ViewImagePage';
 import TreePage from './pages/TreeF';
 import ClientTreePage from './pages/ClientTree';
 import FamilyTree from './pages/FamilyTree';
+import CreateClientInvitationForm from './pages/CreateClient';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -135,6 +136,7 @@ const AppRoutes = () => {
         <Route path="studio/settings" element={<StudioSettings />} />
         <Route path="treePage" element={<TreePage />} />
         <Route path="family-tree" element={<FamilyTree />} />
+        <Route path="create-client" element={<CreateClientInvitationForm onInvitationCreated={() => {}} />} />
         {/* Admin route with proper protection */}
         <Route path="admin" element={
           <ProtectedRoute adminOnly>

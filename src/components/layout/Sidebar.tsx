@@ -17,47 +17,72 @@ import {
   FaImages,
   FaQrcode,
   FaTree,
-  FaSitemap
+  FaSitemap,
+  FaUserPlus
 } from 'react-icons/fa';
 
 
 const Sidebar = () => {
   const { user, isAdmin } = useAuth();
 
-  const navigationItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: FaHome },
-    { name: 'Upload', href: '/upload', icon: FaUpload },
-    { name: 'My Images', href: '/images', icon: FaImages },
-    { name: 'Services', href: '/services', icon: FaCloud },
-    { name: 'Plans', href: '/plans', icon: FaPlus },
-    { name: 'Usage', href: '/usage', icon: FaChartBar },
-    { name: 'Invitations', href: '/invitations', icon: FaUsers },
-    { name: 'Family Tree', href: '/family-tree', icon: FaSitemap },
-    { name: 'Dummy Tree', href: '/treePage', icon: FaUsers },
-    { name: 'Profile', href: '/profile', icon: FaUser },
-    // { name: 'Settings', href: '/settings', icon: FaCog },
-    // { name: 'Billing', href: '/billing', icon: FaPlus },
-    // { name: 'Analytics', href: '/analytics', icon: FaPlus },
-  ];
-  
-  const studioNavigationItems = [];
-  // const studioNavigationItems = [
-    // { name: 'Family Tree', href: '/treePage', icon: FaUsers },
-  //   { name: 'Studio Dashboard', href: '/studio/dashboard', icon: FaCamera },
-  //   { name: 'Studio Clients', href: '/studio/clients', icon: FaUsers },
-  //   { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages },
-  //   { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode },
-  //   { name: 'Studio Settings', href: '/studio/settings', icon: FaCog },
-  // ];
+  // Runtime menu visibility flags
+  // Priority order: window.__MENU_FLAGS__ > localStorage('MENU_FLAGS') > defaults
+  const menuFlags = React.useMemo(() => {
+    const defaults = { regular: true, studio: true, admin: isAdmin } as {
+      regular: boolean; studio: boolean; admin: boolean;
+    };
+    try {
+      // @ts-ignore - allow external runtime flags
+      const winFlags = typeof window !== 'undefined' ? (window.__MENU_FLAGS__ as any) : undefined;
+      if (winFlags && typeof winFlags === 'object') {
+        return { ...defaults, ...winFlags };
+      }
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('MENU_FLAGS') : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') return { ...defaults, ...parsed };
+      }
+    } catch (_) {
+      // ignore parsing errors and fall back to defaults
+    }
+    return defaults;
+  }, [isAdmin]);
 
-  const adminNavigationItems = [
-    { name: 'Admin Dashboard', href: '/admin?tab=dashboard', icon: FaShieldAlt },
-    { name: 'User Management', href: '/admin?tab=users', icon: FaUsers },
-    { name: 'Service Config', href: '/admin?tab=services', icon: FaCloud },
-    { name: 'Plan Management', href: '/admin?tab=plans', icon: FaPlus },
-    { name: 'Usage Analytics', href: '/admin?tab=analytics', icon: FaChartBar },
-    { name: 'System Health', href: '/admin?tab=health', icon: FaShieldAlt },
-  ];
+  const navigationItems = {'items':[
+    { name: 'Dashboard', href: '/dashboard', icon: FaHome, enabled: true },
+    { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
+    { name: 'My Images', href: '/images', icon: FaImages, enabled: true },
+    { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
+    { name: 'Plans', href: '/plans', icon: FaPlus, enabled: true },
+    { name: 'Usage', href: '/usage', icon: FaChartBar, enabled: true },
+    { name: 'Invitations', href: '/invitations', icon: FaUsers, enabled: true },
+    { name: 'Family Tree', href: '/family-tree', icon: FaSitemap, enabled: true },
+    { name: 'Dummy Tree', href: '/treePage', icon: FaUsers, enabled: true },
+    { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
+  ],active:true};
+  
+  // const studioNavigationItems = [];
+  const studioNavigationItems = {'items':[
+    { name: 'Studio Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
+    { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
+    { name: 'Create Client', href: '/invitations', icon: FaUsers, enabled: true },
+    { name: 'Studio Clients', href: '/studio/clients', icon: FaUserPlus, enabled: true },
+    { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
+    { name: 'Clients', href: '/treePage', icon: FaSitemap, enabled: true },
+    { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
+    { name: 'Studio Settings', href: '/studio/settings', icon: FaCog, enabled: true },
+    { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
+  ],active:false};
+
+  const adminNavigationItems = {'items':  [
+    { name: 'Admin Dashboard', href: '/admin?tab=dashboard', icon: FaShieldAlt, enabled: true },
+    { name: 'User Management', href: '/admin?tab=users', icon: FaUsers, enabled: true },
+    { name: 'Service Config', href: '/admin?tab=services', icon: FaCloud, enabled: true },
+    { name: 'Plan Management', href: '/admin?tab=plans', icon: FaPlus, enabled: true },
+    { name: 'Usage Analytics', href: '/admin?tab=analytics', icon: FaChartBar, enabled: true },
+    { name: 'System Health', href: '/admin?tab=health', icon: FaShieldAlt, enabled: true },
+  ],active:true};
+console.log( studioNavigationItems.active === true && 2 );
 
   return (
     <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:z-50">
@@ -74,14 +99,22 @@ const Sidebar = () => {
               <div className="relative">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-white to-gray-100 flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform duration-300">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-inner">
-                    <span className="text-sm font-bold text-white">IS</span>
+                    <span className="text-sm font-bold text-white">PS</span>
                   </div>
                 </div>
                 {/* Glow effect */}
                 <div className="absolute inset-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 to-purple-500 opacity-20 blur-sm"></div>
               </div>
               <div className="ml-4">
+                {menuFlags.regular === true && navigationItems.active === true && (
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">ImageSecurity</h1>
+                )}
+                {menuFlags.studio === true && studioNavigationItems.active === true && (
+                <h1 className="text-xl font-bold text-white drop-shadow-lg">PhotoStudio Pro</h1>
+                )}
+                {menuFlags.admin === true && adminNavigationItems.active === true && (
+                <h1 className="text-xl font-bold text-white drop-shadow-lg">Admin Panel</h1>
+                )}
                 <div className="flex items-center space-x-1">
                   <FaStar className="w-3 h-3 text-yellow-300" />
                   <p className="text-xs text-blue-100 font-medium">Premium Portal</p>
@@ -94,51 +127,56 @@ const Sidebar = () => {
 
         {/* Enhanced Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          {/* Regular Navigation - Show for all users */}
-          {!isAdmin && (
+          {/* Regular Navigation - Show for non-admin users (controlled by flags) */}
+             {!isAdmin && menuFlags.regular  && (
             <>
-              {navigationItems.map((item) => (
-            <NavLink
-              key={item.name}
-              to={item.href}
-              className={({ isActive }) =>
-                `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
-                  isActive
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-xl border-r-4 border-blue-400'
-                    : 'text-gray-700 hover:text-gray-900 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 border-r-4 border-transparent hover:border-gray-200'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  {/* Active indicator */}
-                  {isActive && (
-                    <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
-                  )}
-                  
-                  <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-gray-900'}`}>
-                    <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
-                  </div>
-                  <span className="font-semibold">{item.name}</span>
-                  
-                  {/* Hover glow effect */}
-                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400 to-purple-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-                </>
-              )}
-            </NavLink>
-              ))}
+              {navigationItems.active === true && navigationItems.items.filter(i=>i.enabled!==false).map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.href}
+                className={({ isActive }) =>
+                  `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
+                    isActive
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-xl border-r-4 border-blue-400'
+                      : 'text-gray-700 hover:text-gray-900 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 border-r-4 border-transparent hover:border-gray-200'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {/* Active indicator */}
+                    {isActive && (
+                      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
+                    )}
+                    
+                    <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                      <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
+                    </div>
+                    <span className="font-semibold">{item.name}</span>
+                    
+                    {/* Hover glow effect */}
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400 to-purple-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
+                  </>
+                )}
+              </NavLink>
+                ))}
               
               {/* Studio Section */}
-              {studioNavigationItems.length > 0 &&  <div className="pt-6 pb-3">
+              {menuFlags.studio === true && studioNavigationItems.active === true
+               &&  
+              <div className="pt-6 pb-3">
                 <div className="flex items-center px-4 py-2 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-200">
                   <FaCamera className="h-4 w-4 text-pink-600 mr-2" />
                   <h3 className="text-xs font-bold text-pink-700 uppercase tracking-wider">
                     PhotoStudio Pro
                   </h3>
                 </div>
-              </div>}
+              </div>
+              }
               
-              {studioNavigationItems.length > 0 && studioNavigationItems.map((item) => (
+              {menuFlags.studio === true && studioNavigationItems.active === true
+               && 
+               studioNavigationItems.items.filter(i=>i.enabled!==false).map((item) => (
                 <NavLink
                   key={item.name}
                   to={item.href}
@@ -171,8 +209,8 @@ const Sidebar = () => {
             </>
           )}
 
-          {/* Admin Navigation - Only show for ADMIN users */}
-          { isAdmin && (
+          {/* Admin Navigation - Only show for ADMIN users (controlled by flags) */}
+          { isAdmin && menuFlags.admin && (
             <>
               <div className="pt-4 pb-3">
                 <div className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
@@ -182,7 +220,7 @@ const Sidebar = () => {
                   </h3>
                 </div>
               </div>
-              {adminNavigationItems.map((item) => (
+              {adminNavigationItems.active === true && adminNavigationItems.items.filter(i=>i.enabled!==false).map((item) => (
                 <NavLink
                   key={item.name}
                   to={item.href}

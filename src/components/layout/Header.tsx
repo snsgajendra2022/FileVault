@@ -136,7 +136,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
             </button>
 
             {userMenuOpen && (
-              <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 transform transition-all duration-300 scale-100 opacity-100">
+              <div className="absolute right-0 mt-3 w-[31rem] bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 transform transition-all duration-300 scale-100 opacity-100">
                 <div className="p-6">
                   <div className="flex items-center space-x-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl mb-4 border border-blue-200">
                     <div className="relative">

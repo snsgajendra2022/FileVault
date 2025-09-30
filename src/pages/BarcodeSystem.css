@@ -364,10 +364,14 @@
 }
 
 .barcode-info h3 {
-  font-size: 1rem;
+  font-size: 12px;
   font-weight: 600;
   margin: 0 0 6px 0;
   color: #2d3748;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .barcode-info p {

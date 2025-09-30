@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaEnvelope, FaUser, FaUsers } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import api from '../../services/api';
-
+import './invitation.css';
 interface Invitation {
   id: number;
   invitationToken: string;
@@ -126,7 +126,7 @@ const InvitationHistory: React.FC = () => {
   const filteredInvitations = getFilteredInvitations();
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6 invitation">
       {/* Header */}
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
@@ -199,21 +199,21 @@ const InvitationHistory: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                     <div>
                       <span className="text-sm font-medium text-gray-500">Invitee</span>
-                      <p className="text-gray-900 font-semibold">
+                      <p className="text-gray-900 size-text-gray-900 font-semibold">
                         {invitation.inviteeFirstName} {invitation.inviteeLastName}
                       </p>
                     </div>
                     <div>
                       <span className="text-sm font-medium text-gray-500">Email</span>
-                      <p className="text-gray-900">{invitation.inviteeEmail}</p>
+                      <p className="text-gray-900 size-text-gray-900">{invitation.inviteeEmail}</p>
                     </div>
                     <div>
                       <span className="text-sm font-medium text-gray-500">Relationship</span>
-                      <p className="text-gray-900">{invitation.relationshipType}</p>
+                      <p className="text-gray-900 size-text-gray-900">{invitation.relationshipType}</p>
                     </div>
                     <div>
                       <span className="text-sm font-medium text-gray-500">Expires</span>
-                      <p className="text-gray-900">
+                      <p className="text-gray-900 size-text-gray-900">
                         {new Date(invitation.expiresAt).toLocaleDateString()}
                       </p>
                     </div>

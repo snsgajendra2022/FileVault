@@ -47,6 +47,8 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isConfiguring, setIsConfiguring] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (serviceId) {
@@ -98,6 +100,16 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     // You could add a toast notification here
+  };
+
+  const openImageModal = (imageSrc: string) => {
+    setSelectedImage(imageSrc);
+    setIsModalOpen(true);
+  };
+
+  const closeImageModal = () => {
+    setSelectedImage(null);
+    setIsModalOpen(false);
   };
 
   const handleSaveConfiguration = async () => {
@@ -274,7 +286,8 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                               <img 
                                 src="/drive-service-connect-images/Click get start.png" 
                                 alt="Google Cloud Console - Get Started"
-                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm"
+                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => openImageModal("/drive-service-connect-images/Click get start.png")}
                               />
                             </div>
                           </div>
@@ -290,7 +303,8 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                             <img 
                               src="/drive-service-connect-images/project configuration complte.png" 
                               alt="Project Configuration Complete"
-                              className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm"
+                              className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => openImageModal("/drive-service-connect-images/project configuration complte.png")}
                             />
                           </div>
                         )}
@@ -301,12 +315,20 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                               <img 
                                 src="/drive-service-connect-images/Drive-library-select.png" 
                                 alt="Select Google Drive API from Library"
-                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm"
+                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => openImageModal("/drive-service-connect-images/Drive-library-select.png")}
+                              />
+                              <img 
+                                src="/drive-service-connect-images/Select Google drive api.png" 
+                                alt="Select Google Drive API"
+                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => openImageModal("/drive-service-connect-images/Select Google drive api.png")}
                               />
                               <img 
                                 src="/drive-service-connect-images/Enable google drive api .png" 
                                 alt="Enable Google Drive API"
-                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm"
+                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => openImageModal("/drive-service-connect-images/Enable google drive api .png")}
                               />
                             </div>
                           </div>
@@ -318,12 +340,20 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                               <img 
                                 src="/drive-service-connect-images/select credentials and create.png" 
                                 alt="Select Credentials and Create"
-                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm"
+                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => openImageModal("/drive-service-connect-images/select credentials and create.png")}
+                              />
+                              <img 
+                                src="/drive-service-connect-images/create Auth clients.png" 
+                                alt="Create Auth Clients"
+                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => openImageModal("/drive-service-connect-images/create Auth clients.png")}
                               />
                               <img 
                                 src="/drive-service-connect-images/Click OAuth client ID.png" 
                                 alt="Click OAuth Client ID"
-                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm"
+                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => openImageModal("/drive-service-connect-images/Click OAuth client ID.png")}
                               />
                             </div>
                           </div>
@@ -331,11 +361,20 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                         
                         {service.id === 'google-drive' && step.step === 5 && (
                           <div className="mt-3">
-                            <img 
-                              src="/drive-service-connect-images/click configure consent screen.png" 
-                              alt="Configure OAuth Consent Screen"
-                              className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm"
-                            />
+                            <div className="space-y-3">
+                              <img 
+                                src="/drive-service-connect-images/click configure consent screen.png" 
+                                alt="Configure OAuth Consent Screen"
+                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => openImageModal("/drive-service-connect-images/click configure consent screen.png")}
+                              />
+                              <img 
+                                src="/drive-service-connect-images/create Audience and added users .png" 
+                                alt="Create Audience and Added Users"
+                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => openImageModal("/drive-service-connect-images/create Audience and added users .png")}
+                              />
+                            </div>
                           </div>
                         )}
                         
@@ -343,13 +382,14 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                           <div className="mt-3">
                             <div className="bg-yellow-50 p-3 rounded-md mb-3">
                               <p className="text-sm text-yellow-700">
-                                <strong>Important:</strong> Make sure to add the exact redirect URI: <code className="bg-yellow-100 px-1 rounded">http://localhost:9090/api/drive/oauth/callback</code>
+                                <strong>Important:</strong> Make sure to add the exact redirect URI: <code className="bg-yellow-100 px-1 rounded">https://filevault.mytiny.us/api/drive/oauth/callback</code>
                               </p>
                             </div>
                             <img 
                               src="/drive-service-connect-images/Create OAuth client ID for Web.png" 
                               alt="Create OAuth Client ID for Web"
-                              className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm"
+                              className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => openImageModal("/drive-service-connect-images/Create OAuth client ID for Web.png")}
                             />
                           </div>
                         )}
@@ -368,7 +408,8 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                               <img 
                                 src="/drive-service-connect-images/OAuth Client Created Successfully Downloadded json file.png" 
                                 alt="OAuth Client Created Successfully"
-                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm"
+                                className="w-full max-w-md rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => openImageModal("/drive-service-connect-images/OAuth Client Created Successfully Downloadded json file.png")}
                               />
                               <div className="bg-blue-50 p-3 rounded-md">
                                 <p className="text-sm text-blue-700 mb-2">
@@ -397,680 +438,145 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
               </div>
             </div>
 
-            {/* Configuration Form */}
+            {/* All Setup Images Gallery */}
             {service.id === 'google-drive' && (
               <div className="bg-white rounded-lg shadow-md mt-6">
                 <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900">Configure Google Drive</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">Need help?</span>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        Check the documentation for setup instructions
-                      </button>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        View Docs
-                      </button>
-                    </div>
-                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Complete Setup Guide - All Images</h3>
+                  <p className="text-sm text-gray-600 mt-1">Click any image to view in full size</p>
                 </div>
-                <div className="p-6 space-y-6">
-                  {/* Required Configuration */}
-                  <div>
-                    <h4 className="text-md font-semibold text-gray-900 mb-4">Required Configuration</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Client ID <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={configData.clientId || ''}
-                          onChange={(e) => handleConfigChange('clientId', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Your Google OAuth client ID from Google Cloud Console"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Your Google OAuth client ID from Google Cloud Console</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Client Secret <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showSecrets.clientSecret ? 'text' : 'password'}
-                            value={configData.clientSecret || ''}
-                            onChange={(e) => handleConfigChange('clientSecret', e.target.value)}
-                            className="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Your Google OAuth client secret from Google Cloud Console"
-                          />
-                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-                            <button
-                              type="button"
-                              className="p-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => toggleSecretVisibility('clientSecret')}
-                            >
-                              {showSecrets.clientSecret ? (
-                                <FaEyeSlash className="h-4 w-4" />
-                              ) : (
-                                <FaEye className="h-4 w-4" />
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              className="p-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => copyToClipboard(configData.clientSecret || '')}
-                            >
-                              <span className="text-sm">📋</span>
-                            </button>
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">Your Google OAuth client secret from Google Cloud Console</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Redirect URI <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={configData.redirectUri || 'http://localhost:9090/api/drive/oauth/callback'}
-                          onChange={(e) => handleConfigChange('redirectUri', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Enter your redirect URI"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">The redirect URI for OAuth callback (e.g., http://localhost:9090/api/drive/oauth/callback)</p>
-                      </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {/* Step 1 */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-gray-900 text-sm">Step 1: Get Started</h4>
+                      <img 
+                        src="/drive-service-connect-images/Click get start.png" 
+                        alt="Google Cloud Console - Get Started"
+                        className="w-full rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageModal("/drive-service-connect-images/Click get start.png")}
+                      />
                     </div>
-                  </div>
 
-                  {/* Optional Configuration */}
-                  <div>
-                    <h4 className="text-md font-semibold text-gray-900 mb-4">Optional Configuration</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Folder Name
-                        </label>
-                        <input
-                          type="text"
-                          value={configData.folderName || 'FileVault'}
-                          onChange={(e) => handleConfigChange('folderName', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Enter folder name (default: FileVault)"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">The folder name in Google Drive</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Share Email
-                        </label>
-                        <input
-                          type="email"
-                          value={configData.shareEmail || ''}
-                          onChange={(e) => handleConfigChange('shareEmail', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Enter email to share with"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Email address to share the folder with (optional)</p>
-                      </div>
+                    {/* Step 2 */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-gray-900 text-sm">Step 2: Project Configuration</h4>
+                      <img 
+                        src="/drive-service-connect-images/project configuration complte.png" 
+                        alt="Project Configuration Complete"
+                        className="w-full rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageModal("/drive-service-connect-images/project configuration complte.png")}
+                      />
                     </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {service.id === 'dropbox' && (
-              <div className="bg-white rounded-lg shadow-md mt-6">
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900">Configure Dropbox</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">Need help?</span>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        Check the documentation for setup instructions
-                      </button>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        View Docs
-                      </button>
+                    {/* Step 3 - Image 1 */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-gray-900 text-sm">Step 3: Select API from Library</h4>
+                      <img 
+                        src="/drive-service-connect-images/Drive-library-select.png" 
+                        alt="Select Google Drive API from Library"
+                        className="w-full rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageModal("/drive-service-connect-images/Drive-library-select.png")}
+                      />
                     </div>
-                  </div>
-                </div>
-                <div className="p-6 space-y-6">
-                  {/* Required Configuration */}
-                  <div>
-                    <h4 className="text-md font-semibold text-gray-900 mb-4">Required Configuration</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Access Token <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showSecrets.accessToken ? 'text' : 'password'}
-                            value={configData.accessToken || ''}
-                            onChange={(e) => handleConfigChange('accessToken', e.target.value)}
-                            className="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Enter your Dropbox access token"
-                          />
-                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-                            <button
-                              type="button"
-                              className="p-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => toggleSecretVisibility('accessToken')}
-                            >
-                              {showSecrets.accessToken ? (
-                                <FaEyeSlash className="h-4 w-4" />
-                              ) : (
-                                <FaEye className="h-4 w-4" />
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              className="p-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => copyToClipboard(configData.accessToken || '')}
-                            >
-                              <span className="text-sm">📋</span>
-                            </button>
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">Your Dropbox app access token from the App Console</p>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Optional Configuration */}
-                  <div>
-                    <h4 className="text-md font-semibold text-gray-900 mb-4">Optional Configuration</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Folder Name
-                        </label>
-                        <input
-                          type="text"
-                          value={configData.folderName || 'FileVault'}
-                          onChange={(e) => handleConfigChange('folderName', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Enter folder name (default: FileVault)"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">The folder name in Dropbox</p>
-                      </div>
+                    {/* Step 3 - Image 2 */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-gray-900 text-sm">Step 3: Select Google Drive API</h4>
+                      <img 
+                        src="/drive-service-connect-images/Select Google drive api.png" 
+                        alt="Select Google Drive API"
+                        className="w-full rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageModal("/drive-service-connect-images/Select Google drive api.png")}
+                      />
                     </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {service.id === 'onedrive' && (
-              <div className="bg-white rounded-lg shadow-md mt-6">
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900">Configure OneDrive</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">Need help?</span>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        Check the documentation for setup instructions
-                      </button>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        View Docs
-                      </button>
+                    {/* Step 3 - Image 3 */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-gray-900 text-sm">Step 3: Enable Google Drive API</h4>
+                      <img 
+                        src="/drive-service-connect-images/Enable google drive api .png" 
+                        alt="Enable Google Drive API"
+                        className="w-full rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageModal("/drive-service-connect-images/Enable google drive api .png")}
+                      />
                     </div>
-                  </div>
-                </div>
-                <div className="p-6 space-y-6">
-                  {/* Required Configuration */}
-                  <div>
-                    <h4 className="text-md font-semibold text-gray-900 mb-4">Required Configuration</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Client ID <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={configData.clientId || ''}
-                          onChange={(e) => handleConfigChange('clientId', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Your Azure app registration Client ID"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Your Azure app registration Client ID</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Client Secret <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showSecrets.clientSecret ? 'text' : 'password'}
-                            value={configData.clientSecret || ''}
-                            onChange={(e) => handleConfigChange('clientSecret', e.target.value)}
-                            className="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Your Azure app registration Client Secret"
-                          />
-                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-                            <button
-                              type="button"
-                              className="p-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => toggleSecretVisibility('clientSecret')}
-                            >
-                              {showSecrets.clientSecret ? (
-                                <FaEyeSlash className="h-4 w-4" />
-                              ) : (
-                                <FaEye className="h-4 w-4" />
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              className="p-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => copyToClipboard(configData.clientSecret || '')}
-                            >
-                              <span className="text-sm">📋</span>
-                            </button>
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">Your Azure app registration Client Secret</p>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Optional Configuration */}
-                  <div>
-                    <h4 className="text-md font-semibold text-gray-900 mb-4">Optional Configuration</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Folder Name
-                        </label>
-                        <input
-                          type="text"
-                          value={configData.folderName || 'FileVault'}
-                          onChange={(e) => handleConfigChange('folderName', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Enter folder name (default: FileVault)"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">The folder name in OneDrive</p>
-                      </div>
+                    {/* Step 4 - Image 1 */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-gray-900 text-sm">Step 4: Select Credentials</h4>
+                      <img 
+                        src="/drive-service-connect-images/select credentials and create.png" 
+                        alt="Select Credentials and Create"
+                        className="w-full rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageModal("/drive-service-connect-images/select credentials and create.png")}
+                      />
                     </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {service.id === 'aws-s3' && (
-              <div className="bg-white rounded-lg shadow-md mt-6">
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900">Configure Amazon S3</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">Need help?</span>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        Check the documentation for setup instructions
-                      </button>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        View Docs
-                      </button>
+                    {/* Step 4 - Image 2 */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-gray-900 text-sm">Step 4: Create Auth Clients</h4>
+                      <img 
+                        src="/drive-service-connect-images/create Auth clients.png" 
+                        alt="Create Auth Clients"
+                        className="w-full rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageModal("/drive-service-connect-images/create Auth clients.png")}
+                      />
                     </div>
-                  </div>
-                </div>
-                <div className="p-6 space-y-6">
-                  {/* Required Configuration */}
-                  <div>
-                    <h4 className="text-md font-semibold text-gray-900 mb-4">Required Configuration</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Access Key ID <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={configData.accessKeyId || ''}
-                          onChange={(e) => handleConfigChange('accessKeyId', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Your AWS Access Key ID"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Your AWS IAM user Access Key ID</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Secret Access Key <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showSecrets.secretAccessKey ? 'text' : 'password'}
-                            value={configData.secretAccessKey || ''}
-                            onChange={(e) => handleConfigChange('secretAccessKey', e.target.value)}
-                            className="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Your AWS Secret Access Key"
-                          />
-                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-                            <button
-                              type="button"
-                              className="p-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => toggleSecretVisibility('secretAccessKey')}
-                            >
-                              {showSecrets.secretAccessKey ? (
-                                <FaEyeSlash className="h-4 w-4" />
-                              ) : (
-                                <FaEye className="h-4 w-4" />
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              className="p-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => copyToClipboard(configData.secretAccessKey || '')}
-                            >
-                              <span className="text-sm">📋</span>
-                            </button>
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">Your AWS IAM user Secret Access Key</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Bucket Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={configData.bucketName || ''}
-                          onChange={(e) => handleConfigChange('bucketName', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Your S3 bucket name"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">The name of your S3 bucket</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Region <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          value={configData.region || 'us-east-1'}
-                          onChange={(e) => handleConfigChange('region', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="us-east-1">US East (N. Virginia)</option>
-                          <option value="us-west-2">US West (Oregon)</option>
-                          <option value="eu-west-1">Europe (Ireland)</option>
-                          <option value="ap-southeast-1">Asia Pacific (Singapore)</option>
-                        </select>
-                        <p className="text-xs text-gray-500 mt-1">The AWS region where your bucket is located</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {service.id === 'github' && (
-              <div className="bg-white rounded-lg shadow-md mt-6">
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900">Configure GitHub</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">Need help?</span>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        Check the documentation for setup instructions
-                      </button>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        View Docs
-                      </button>
+                    {/* Step 4 - Image 3 */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-gray-900 text-sm">Step 4: Click OAuth Client ID</h4>
+                      <img 
+                        src="/drive-service-connect-images/Click OAuth client ID.png" 
+                        alt="Click OAuth Client ID"
+                        className="w-full rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageModal("/drive-service-connect-images/Click OAuth client ID.png")}
+                      />
                     </div>
-                  </div>
-                </div>
-                <div className="p-6 space-y-6">
-                  {/* Required Configuration */}
-                  <div>
-                    <h4 className="text-md font-semibold text-gray-900 mb-4">Required Configuration</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Username <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={configData.username || ''}
-                          onChange={(e) => handleConfigChange('username', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Your GitHub username"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Your GitHub username</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Personal Access Token <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showSecrets.personalAccessToken ? 'text' : 'password'}
-                            value={configData.personalAccessToken || ''}
-                            onChange={(e) => handleConfigChange('personalAccessToken', e.target.value)}
-                            className="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Your GitHub Personal Access Token"
-                          />
-                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-                            <button
-                              type="button"
-                              className="p-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => toggleSecretVisibility('personalAccessToken')}
-                            >
-                              {showSecrets.personalAccessToken ? (
-                                <FaEyeSlash className="h-4 w-4" />
-                              ) : (
-                                <FaEye className="h-4 w-4" />
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              className="p-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => copyToClipboard(configData.personalAccessToken || '')}
-                            >
-                              <span className="text-sm">📋</span>
-                            </button>
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">Your GitHub Personal Access Token with 'repo' scope</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Repository Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={configData.repositoryName || ''}
-                          onChange={(e) => handleConfigChange('repositoryName', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Your GitHub repository name"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">The name of your GitHub repository</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {service.id === 'backblaze-b2' && (
-              <div className="bg-white rounded-lg shadow-md mt-6">
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900">Configure Backblaze B2</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">Need help?</span>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        Check the documentation for setup instructions
-                      </button>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        View Docs
-                      </button>
+                    {/* Step 5 - Image 1 */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-gray-900 text-sm">Step 5: Configure Consent Screen</h4>
+                      <img 
+                        src="/drive-service-connect-images/click configure consent screen.png" 
+                        alt="Configure OAuth Consent Screen"
+                        className="w-full rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageModal("/drive-service-connect-images/click configure consent screen.png")}
+                      />
                     </div>
-                  </div>
-                </div>
-                <div className="p-6 space-y-6">
-                  {/* Required Configuration */}
-                  <div>
-                    <h4 className="text-md font-semibold text-gray-900 mb-4">Required Configuration</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Application Key ID <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={configData.applicationKeyId || ''}
-                          onChange={(e) => handleConfigChange('applicationKeyId', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Your B2 Application Key ID"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Your Backblaze B2 Application Key ID</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Application Key <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showSecrets.applicationKey ? 'text' : 'password'}
-                            value={configData.applicationKey || ''}
-                            onChange={(e) => handleConfigChange('applicationKey', e.target.value)}
-                            className="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Your B2 Application Key"
-                          />
-                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-                            <button
-                              type="button"
-                              className="p-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => toggleSecretVisibility('applicationKey')}
-                            >
-                              {showSecrets.applicationKey ? (
-                                <FaEyeSlash className="h-4 w-4" />
-                              ) : (
-                                <FaEye className="h-4 w-4" />
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              className="p-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => copyToClipboard(configData.applicationKey || '')}
-                            >
-                              <span className="text-sm">📋</span>
-                            </button>
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">Your Backblaze B2 Application Key</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Bucket Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={configData.bucketName || ''}
-                          onChange={(e) => handleConfigChange('bucketName', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Your B2 bucket name"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">The name of your B2 bucket</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {service.id === 'azure-blob' && (
-              <div className="bg-white rounded-lg shadow-md mt-6">
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900">Configure Azure Blob Storage</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">Need help?</span>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        Check the documentation for setup instructions
-                      </button>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        View Docs
-                      </button>
+                    {/* Step 5 - Image 2 */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-gray-900 text-sm">Step 5: Create Audience & Users</h4>
+                      <img 
+                        src="/drive-service-connect-images/create Audience and added users .png" 
+                        alt="Create Audience and Added Users"
+                        className="w-full rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageModal("/drive-service-connect-images/create Audience and added users .png")}
+                      />
                     </div>
-                  </div>
-                </div>
-                <div className="p-6 space-y-6">
-                  {/* Required Configuration */}
-                  <div>
-                    <h4 className="text-md font-semibold text-gray-900 mb-4">Required Configuration</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Account Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={configData.accountName || ''}
-                          onChange={(e) => handleConfigChange('accountName', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Your Azure Storage Account Name"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Your Azure Storage Account Name</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Access Key <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showSecrets.accessKey ? 'text' : 'password'}
-                            value={configData.accessKey || ''}
-                            onChange={(e) => handleConfigChange('accessKey', e.target.value)}
-                            className="w-full px-3 py-2 pr-20 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Your Azure Storage Access Key"
-                          />
-                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-                            <button
-                              type="button"
-                              className="p-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => toggleSecretVisibility('accessKey')}
-                            >
-                              {showSecrets.accessKey ? (
-                                <FaEyeSlash className="h-4 w-4" />
-                              ) : (
-                                <FaEye className="h-4 w-4" />
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              className="p-1 text-gray-500 hover:text-gray-700"
-                              onClick={() => copyToClipboard(configData.accessKey || '')}
-                            >
-                              <span className="text-sm">📋</span>
-                            </button>
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">Your Azure Storage Account Access Key</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Container Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={configData.containerName || ''}
-                          onChange={(e) => handleConfigChange('containerName', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Your Azure Blob Container Name"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">The name of your Azure Blob container</p>
-                      </div>
+
+                    {/* Step 6 */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-gray-900 text-sm">Step 6: Create OAuth Client ID</h4>
+                      <img 
+                        src="/drive-service-connect-images/Create OAuth client ID for Web.png" 
+                        alt="Create OAuth Client ID for Web"
+                        className="w-full rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageModal("/drive-service-connect-images/Create OAuth client ID for Web.png")}
+                      />
+                    </div>
+
+                    {/* Step 7 */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-gray-900 text-sm">Step 7: Download Credentials</h4>
+                      <img 
+                        src="/drive-service-connect-images/OAuth Client Created Successfully Downloadded json file.png" 
+                        alt="OAuth Client Created Successfully"
+                        className="w-full rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => openImageModal("/drive-service-connect-images/OAuth Client Created Successfully Downloadded json file.png")}
+                      />
                     </div>
                   </div>
                 </div>
@@ -1176,17 +682,43 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                 <h3 className="text-lg font-semibold text-gray-900">Troubleshooting</h3>
               </div>
               <div className="p-6">
-                <div className="space-y-3">
-                  {service.troubleshooting.map((item, index) => (
-                    <div key={index} className="p-3 bg-gray-50 rounded-md">
-                      <p className="text-sm font-medium text-gray-700 mb-1">
-                        {item.issue}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {item.solution}
-                      </p>
+                <div className="space-y-4">
+                  {/* API not enabled */}
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-sm">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">API not enabled</h4>
+                    <p className="text-sm text-gray-600">
+                      Make sure Google Drive API is enabled in your Google Cloud Console
+                    </p>
+                  </div>
+
+                  {/* Invalid Client ID or Secret */}
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-sm">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Invalid Client ID or Secret</h4>
+                    <p className="text-sm text-gray-600">
+                      Verify your OAuth 2.0 credentials are correct in Google Cloud Console
+                    </p>
+                  </div>
+
+                  {/* Redirect URI mismatch - Highlighted */}
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 shadow-sm">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Redirect URI mismatch</h4>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Ensure the redirect URI in your OAuth client matches:
+                    </p>
+                    <div className="bg-blue-100 px-3 py-2 rounded-md border border-blue-200">
+                      <code className="text-sm font-mono text-blue-800">
+                        https://filevault.mytiny.us/api/drive/oauth/callback
+                      </code>
                     </div>
-                  ))}
+                  </div>
+
+                  {/* OAuth consent screen not configured */}
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-sm">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">OAuth consent screen not configured</h4>
+                    <p className="text-sm text-gray-600">
+                      Complete the OAuth consent screen setup in Google Cloud Console
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1219,6 +751,28 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
           </div>
         </div>
       </div>
+
+      {/* Image Modal */}
+      {isModalOpen && selectedImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75" onClick={closeImageModal}>
+          <div className="relative max-w-4xl max-h-full p-4">
+            <button
+              onClick={closeImageModal}
+              className="absolute top-2 right-2 z-10 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors"
+            >
+              <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <img
+              src={selectedImage}
+              alt="Full size view"
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

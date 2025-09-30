@@ -318,13 +318,13 @@ const ClientManagement: React.FC = () => {
             <h1>Client Management</h1>
           </div>
         </div>
-        <button 
+        {/* <button 
           className="add-client-btn"
           onClick={() => setShowAddModal(true)}
         >
           <FaPlus />
           Add Client
-        </button>
+        </button> */}
       </header>
 
       {/* Filters */}

@@ -193,7 +193,7 @@ const StudioDashboard: React.FC = () => {
             <p>Here's what's happening with your photo studio today.</p>
           </div>
           <div className="quick-actions">
-            <Link to="/studio/clients/new" className="quick-action-btn primary">
+            <Link to="/create-client" className="quick-action-btn primary">
               <FaPlus />
               Add Client
             </Link>
