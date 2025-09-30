@@ -59,7 +59,7 @@ const Sidebar = () => {
     { name: 'Family Tree', href: '/family-tree', icon: FaSitemap, enabled: true },
     { name: 'Dummy Tree', href: '/treePage', icon: FaUsers, enabled: true },
     { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
-  ],active:true};
+  ],active:false};
   
   // const studioNavigationItems = [];
   const studioNavigationItems = {'items':[
@@ -72,7 +72,7 @@ const Sidebar = () => {
     { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
     { name: 'Studio Settings', href: '/studio/settings', icon: FaCog, enabled: true },
     { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
-  ],active:false};
+  ],active:true};
 
   const adminNavigationItems = {'items':  [
     { name: 'Admin Dashboard', href: '/admin?tab=dashboard', icon: FaShieldAlt, enabled: true },

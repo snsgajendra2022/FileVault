@@ -17,14 +17,15 @@ import {
   FaDollarSign
 } from 'react-icons/fa';
 import './StudioDashboard.css';
+import adminService from '../services/adminService';
 
 interface DashboardStats {
-  totalClients: number;
-  totalPhotos: number;
-  totalVideos: number;
-  totalRevenue: number;
-  recentUploads: number;
-  activeSessions: number;
+  totalClients?: number;
+  totalPhotos?: number;
+  totalVideos?: number;
+  totalRevenue?: number;
+  recentUploads?: number;
+  activeSessions?: number;
 }
 
 interface RecentActivity {
@@ -46,85 +47,61 @@ interface RecentClient {
 }
 
 const StudioDashboard: React.FC = () => {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalClients: 0,
-    totalPhotos: 0,
-    totalVideos: 0,
-    totalRevenue: 0,
-    recentUploads: 0,
-    activeSessions: 0
-  });
+  const [stats, setStats] = useState<DashboardStats>({});
 
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [recentClients, setRecentClients] = useState<RecentClient[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate API call to fetch dashboard data
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        setStats({
-          totalClients: 156,
-          totalPhotos: 2847,
-          totalVideos: 423,
-          totalRevenue: 45680,
-          recentUploads: 23,
-          activeSessions: 8
-        });
-
-        setRecentActivity([
-          {
-            id: '1',
-            type: 'upload',
-            message: 'New photos uploaded for Sarah Johnson',
-            timestamp: '2 hours ago',
-            clientName: 'Sarah Johnson'
-          },
-          {
-            id: '2',
-            type: 'client',
-            message: 'New client registered: Mike Chen',
-            timestamp: '4 hours ago',
-            clientName: 'Mike Chen'
-          },
-          {
-            id: '3',
-            type: 'session',
-            message: 'Photo session completed with Emily Davis',
-            timestamp: '6 hours ago',
-            clientName: 'Emily Davis'
-          }
+        const [systemHealthRes, userStatsRes, usageStatsRes, usersRes] = await Promise.allSettled([
+          adminService.getSystemHealth(),
+          adminService.getUserStatistics(),
+          adminService.getUsageStatistics('month'),
+          adminService.getAllUsers({ page: 0, size: 5 })
         ]);
 
-        setRecentClients([
-          {
-            id: '1',
-            name: 'Sarah Johnson',
-            email: 'sarah.j@email.com',
-            phone: '+1 (555) 123-4567',
-            lastSession: '2 hours ago',
-            totalPhotos: 45
-          },
-          {
-            id: '2',
-            name: 'Mike Chen',
-            email: 'mike.chen@email.com',
-            phone: '+1 (555) 987-6543',
-            lastSession: '1 day ago',
-            totalPhotos: 32
-          },
-          {
-            id: '3',
-            name: 'Emily Davis',
-            email: 'emily.davis@email.com',
-            phone: '+1 (555) 456-7890',
-            lastSession: '2 days ago',
-            totalPhotos: 67
-          }
-        ]);
+        const nextStats: DashboardStats = {};
+
+        if (userStatsRes.status === 'fulfilled') {
+          const totalUsers = userStatsRes.value?.totalUsers;
+          if (typeof totalUsers === 'number') nextStats.totalClients = totalUsers;
+        }
+
+        if (systemHealthRes.status === 'fulfilled') {
+          const totalImages = systemHealthRes.value?.totalImages;
+          if (typeof totalImages === 'number') nextStats.totalPhotos = totalImages;
+        }
+
+        if (usageStatsRes.status === 'fulfilled') {
+          const fileTypeDistribution = usageStatsRes.value?.fileTypeDistribution || {};
+          const videoCount = fileTypeDistribution['video'] || fileTypeDistribution['videos'] || undefined;
+          if (typeof videoCount === 'number') nextStats.totalVideos = videoCount;
+        }
+
+        setStats(nextStats);
+
+        if (usersRes.status === 'fulfilled') {
+          const list = usersRes.value?.users || usersRes.value?.content || usersRes.value?.data || usersRes.value || [];
+          const mapped = (Array.isArray(list) ? list : []).map((u: any) => ({
+            id: String(u.id ?? u.userId ?? Math.random()),
+            name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.username || 'Unknown',
+            email: u.email,
+            phone: u.phone,
+            lastSession: u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : (u.createdAt ? new Date(u.createdAt).toLocaleDateString() : ''),
+            totalPhotos: undefined,
+            avatar: undefined
+          }));
+          setRecentClients(mapped);
+        } else {
+          setRecentClients([]);
+        }
+
+        // No dedicated recent activity API; leave empty to hide section
+        setRecentActivity([]);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -206,75 +183,81 @@ const StudioDashboard: React.FC = () => {
 
         {/* Stats Grid */}
         <section className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon clients">
-              <FaUsers />
+          {typeof stats.totalClients === 'number' && (
+            <div className="stat-card">
+              <div className="stat-icon clients">
+                <FaUsers />
+              </div>
+              <div className="stat-content">
+                <h3>{stats.totalClients}</h3>
+                <p>Total Clients</p>
+              </div>
             </div>
-            <div className="stat-content">
-              <h3>{stats.totalClients}</h3>
-              <p>Total Clients</p>
-              <span className="stat-change positive">+12 this month</span>
-            </div>
-          </div>
+          )}
 
-          <div className="stat-card">
-            <div className="stat-icon photos">
-              <FaImages />
+          {typeof stats.totalPhotos === 'number' && (
+            <div className="stat-card">
+              <div className="stat-icon photos">
+                <FaImages />
+              </div>
+              <div className="stat-content">
+                <h3>{Number(stats.totalPhotos).toLocaleString()}</h3>
+                <p>Total Photos</p>
+              </div>
             </div>
-            <div className="stat-content">
-              <h3>{stats.totalPhotos.toLocaleString()}</h3>
-              <p>Total Photos</p>
-              <span className="stat-change positive">+{stats.recentUploads} today</span>
-            </div>
-          </div>
+          )}
 
-          <div className="stat-card">
-            <div className="stat-icon videos">
-              <FaCamera />
+          {typeof stats.totalVideos === 'number' && (
+            <div className="stat-card">
+              <div className="stat-icon videos">
+                <FaCamera />
+              </div>
+              <div className="stat-content">
+                <h3>{stats.totalVideos}</h3>
+                <p>Total Videos</p>
+              </div>
             </div>
-            <div className="stat-content">
-              <h3>{stats.totalVideos}</h3>
-              <p>Total Videos</p>
-              <span className="stat-change positive">+5 this week</span>
-            </div>
-          </div>
+          )}
 
-          <div className="stat-card">
-            <div className="stat-icon revenue">
-              <FaDollarSign />
+          {typeof stats.totalRevenue === 'number' && (
+            <div className="stat-card">
+              <div className="stat-icon revenue">
+                <FaDollarSign />
+              </div>
+              <div className="stat-content">
+                <h3>{formatCurrency(stats.totalRevenue)}</h3>
+                <p>Total Revenue</p>
+              </div>
             </div>
-            <div className="stat-content">
-              <h3>{formatCurrency(stats.totalRevenue)}</h3>
-              <p>Total Revenue</p>
-              <span className="stat-change positive">+15% this month</span>
-            </div>
-          </div>
+          )}
         </section>
 
         {/* Main Content Grid */}
         <section className="main-grid">
           {/* Recent Activity */}
-          <div className="dashboard-card">
-            <div className="card-header">
-              <h3>Recent Activity</h3>
-              <Link to="/studio/activity" className="view-all-link">
-                View All
-              </Link>
-            </div>
-            <div className="activity-list">
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="activity-item">
-                  <div className="activity-icon-wrapper">
-                    {getActivityIcon(activity.type)}
+          {recentActivity.length > 0 && (
+            <div className="dashboard-card">
+              <div className="card-header">
+                <h3>Recent Activity</h3>
+                <Link to="/studio/activity" className="view-all-link">
+                  View All
+                </Link>
+              </div>
+              <div className="activity-list">
+                {recentActivity.map((activity) => (
+                  <div key={activity.id} className="activity-item">
+                    <div className="activity-icon-wrapper">
+                      {getActivityIcon(activity.type)}
+                    </div>
+                    <div className="activity-content">
+                      <p className="activity-message">{activity.message}</p>
+                      <span className="activity-time">{activity.timestamp}</span>
+                    </div>
                   </div>
-                  <div className="activity-content">
-                    <p className="activity-message">{activity.message}</p>
-                    <span className="activity-time">{activity.timestamp}</span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Recent Clients */}
           <div className="dashboard-card">
@@ -296,9 +279,9 @@ const StudioDashboard: React.FC = () => {
                   </div>
                   <div className="client-info">
                     <h4>{client.name}</h4>
-                    <p>{client.email}</p>
+                    {client.email && <p>{client.email}</p>}
                     <span className="client-meta">
-                      {client.totalPhotos} photos • {client.lastSession}
+                      {[client.totalPhotos ? `${client.totalPhotos} photos` : null, client.lastSession].filter(Boolean).join(' • ')}
                     </span>
                   </div>
                   <div className="client-actions">
@@ -335,12 +318,6 @@ const StudioDashboard: React.FC = () => {
               <FaQrcode className="access-icon" />
               <h4>Barcode System</h4>
               <p>Generate and manage photo barcodes</p>
-            </Link>
-
-            <Link to="/studio/analytics" className="access-card">
-              <FaChartLine className="access-icon" />
-              <h4>Analytics</h4>
-              <p>View detailed reports and insights</p>
             </Link>
           </div>
         </section>
