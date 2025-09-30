@@ -39,6 +39,7 @@ import StudioSettings from './pages/StudioSettings';
 import ViewImagePage from './pages/ViewImagePage';
 import FamilyTree from './components/invitations/FamilyTree';
 import CreateClientInvitationForm from './components/invitations/CreateClient';
+import ClientTreePage from './pages/ClientTree';
 
 
 const queryClient = new QueryClient({
@@ -134,6 +135,7 @@ const AppRoutes = () => {
         <Route path="studio/barcodes" element={<BarcodeSystem />} />
         <Route path="studio/settings" element={<StudioSettings />} />
         {/* <Route path="treePage" element={<TreePage />} /> */}
+        <Route path="client-tree" element={<ClientTreePage />} />
         <Route path="family-tree" element={<FamilyTree />} />
         <Route path="create-client" element={<CreateClientInvitationForm onInvitationCreated={() => {}} />} />
         {/* Admin route with proper protection */}

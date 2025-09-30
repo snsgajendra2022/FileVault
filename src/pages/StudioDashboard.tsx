@@ -67,6 +67,7 @@ const StudioDashboard: React.FC = () => {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
+
         const [systemHealthRes, userStatsRes, usageStatsRes] = await Promise.allSettled([
           adminService.getSystemHealth(),
           adminService.getUserStatistics(),
@@ -93,35 +94,74 @@ const StudioDashboard: React.FC = () => {
 
         setStats(nextStats);
 
-        // Fetch all invited users (invitations) and normalize for UI
-        const invitationsRes = await api.get('/api/simple-invitations/my-invitations');
-        if (invitationsRes.data?.success) {
-          const invitations = invitationsRes.data.invitations || [];
-          const sortedInvitations = (Array.isArray(invitations) ? invitations.slice() : []).sort((a: any, b: any) => {
-            const aTime = new Date(a.updatedAt || a.createdAt || a.sentAt || 0).getTime();
-            const bTime = new Date(b.updatedAt || b.createdAt || b.sentAt || 0).getTime();
-            return bTime - aTime;
-          });
-          const topThree = sortedInvitations.slice(0, 3);
-          const mappedClients: RecentClient[] = topThree.map((inv: any) => {
-            const id = String(inv.id ?? inv.invitationId ?? Math.random());
-            const email = inv.inviteeEmail ?? inv.email ?? '';
-            const nameFromEmail = typeof email === 'string' ? email.split('@')[0] : 'Client';
-            const name = inv.inviteeName || inv.name || nameFromEmail || 'Client';
-            const lastSession = inv.updatedAt || inv.createdAt || inv.sentAt || new Date().toISOString();
-            return {
-              id,
-              name,
-              email,
-              phone: inv.phone || '',
-              lastSession: new Date(lastSession).toLocaleString(),
-              totalPhotos: inv.totalPhotos || 0,
-              avatar: inv.avatarUrl || undefined
-            };
-          });
-          setRecentClients(mappedClients);
-        } else {
-          setRecentClients([]);
+        // Prefer family relationships for client list (only immediate relations)
+        let clientsSet = false;
+        try {
+          const familyRes = await api.get('/api/simple-invitations/family-relationships');
+          const family = familyRes.data?.familyData || familyRes.data || {};
+          const immediate: any[] = [
+            ...(family.parents || []),
+            ...(family.siblings || []),
+            ...(family.children || []),
+            ...(family.spouse ? [family.spouse] : [])
+          ].filter(Boolean);
+
+          if (immediate.length > 0) {
+            const sorted = immediate.slice().sort((a, b) => {
+              // Prefer deterministic ordering: by userId desc, then name
+              const aId = typeof a.userId === 'number' ? a.userId : -1;
+              const bId = typeof b.userId === 'number' ? b.userId : -1;
+              if (aId !== bId) return bId - aId;
+              return String(a.name || '').localeCompare(String(b.name || ''));
+            });
+            const topThree = sorted.slice(0, 3);
+            const mappedClients: RecentClient[] = topThree.map((p: any) => ({
+              id: String(p.userId ?? p.username ?? p.email ?? Math.random()),
+              name: p.name || p.username || (typeof p.email === 'string' ? p.email.split('@')[0] : 'Client'),
+              email: p.email || '',
+              phone: '',
+              lastSession: '',
+              totalPhotos: 0,
+              avatar: undefined
+            }));
+            setRecentClients(mappedClients);
+            clientsSet = true;
+          }
+        } catch {
+          // ignore and fall back to invitations
+        }
+
+        if (!clientsSet) {
+          // Fallback: use invitations, still limit to 3
+          const invitationsRes = await api.get('/api/simple-invitations/my-invitations');
+          if (invitationsRes.data?.success) {
+            const invitations = invitationsRes.data.invitations || [];
+            const sortedInvitations = (Array.isArray(invitations) ? invitations.slice() : []).sort((a: any, b: any) => {
+              const aTime = new Date(a.updatedAt || a.createdAt || a.sentAt || 0).getTime();
+              const bTime = new Date(b.updatedAt || b.createdAt || b.sentAt || 0).getTime();
+              return bTime - aTime;
+            });
+            const topThree = sortedInvitations.slice(0, 3);
+            const mappedClients: RecentClient[] = topThree.map((inv: any) => {
+              const id = String(inv.id ?? inv.invitationId ?? Math.random());
+              const email = inv.inviteeEmail ?? inv.email ?? '';
+              const nameFromEmail = typeof email === 'string' ? email.split('@')[0] : 'Client';
+              const name = inv.inviteeName || inv.name || nameFromEmail || 'Client';
+              const lastSession = inv.updatedAt || inv.createdAt || inv.sentAt || new Date().toISOString();
+              return {
+                id,
+                name,
+                email,
+                phone: inv.phone || '',
+                lastSession: new Date(lastSession).toLocaleString(),
+                totalPhotos: inv.totalPhotos || 0,
+                avatar: inv.avatarUrl || undefined
+              };
+            });
+            setRecentClients(mappedClients);
+          } else {
+            setRecentClients([]);
+          }
         }
 
         // Fetch all user photos (same API pattern as PhotoGallery)
@@ -133,7 +173,6 @@ const StudioDashboard: React.FC = () => {
         } else {
           setAllPhotos([]);
         }
-
         // No dedicated recent activity API; leave empty to hide section
         setRecentActivity([]);
       } catch (error) {
@@ -222,7 +261,7 @@ const StudioDashboard: React.FC = () => {
               <FaUsers />
             </div>
             <div className="stat-content">
-              <h3>{(typeof recentClients.length === 'number' ? recentClients.length : 0).toLocaleString()}</h3>
+              <h3>{(typeof stats.totalClients === 'number' ? stats.totalClients : 0).toLocaleString()}</h3>
               <p>Total Clients</p>
             </div>
           </div>
@@ -246,8 +285,6 @@ const StudioDashboard: React.FC = () => {
               <p>Total Videos</p>
             </div>
           </div>
-
-    
 
           <div className="stat-card">
             <div className="stat-icon photos">

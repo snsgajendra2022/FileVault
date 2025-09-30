@@ -51,7 +51,6 @@ const Sidebar = () => {
   const navigationItems = {'items':[
     { name: 'Dashboard', href: '/studio/dashboard', icon: FaHome, enabled: true },
     { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
-    { name: 'My Images', href: '/images', icon: FaImages, enabled: true },
     { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
     { name: 'Plans', href: '/plans', icon: FaPlus, enabled: true },
     { name: 'Usage', href: '/usage', icon: FaChartBar, enabled: true },
@@ -65,10 +64,11 @@ const Sidebar = () => {
   const studioNavigationItems = {'items':[
     { name: 'Studio Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
     { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
+    { name: 'My Images', href: '/images', icon: FaImages, enabled: true },
     { name: 'Create Client', href: '/invitations', icon: FaUsers, enabled: true },
     { name: 'Studio Clients', href: '/studio/clients', icon: FaUserPlus, enabled: true },
     { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
-    { name: 'Clients', href: '/family-tree', icon: FaSitemap, enabled: true },
+    { name: 'Clients', href: '/client-tree', icon: FaSitemap, enabled: true },
     { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
     { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
     { name: 'Studio Settings', href: '/studio/settings', icon: FaCog, enabled: true },
