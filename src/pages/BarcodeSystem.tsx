@@ -361,7 +361,7 @@ const BarcodeSystem: React.FC = () => {
             <h1>Barcode System</h1>
           </div>
         </div>
-        <div className="header-actions">
+        {/* <div className="header-actions">
           <button 
             className="generate-btn"
             onClick={() => setShowGenerateModal(true)}
@@ -369,7 +369,7 @@ const BarcodeSystem: React.FC = () => {
             <FaPlus />
             Generate Barcodes
           </button>
-        </div>
+        </div> */}
       </header>
 
       {/* Filters */}
@@ -448,13 +448,13 @@ const BarcodeSystem: React.FC = () => {
             <FaQrcode className="empty-icon" />
             <h3>No barcodes found</h3>
             <p>Generate barcodes for your photos and videos to enable easy sharing.</p>
-            <button 
+            {/* <button 
               className="generate-first-btn"
               onClick={() => setShowGenerateModal(true)}
             >
               <FaPlus />
               Generate Your First Barcode
-            </button>
+            </button> */}
           </div>
         ) : (
           filteredItems.map((item) => (

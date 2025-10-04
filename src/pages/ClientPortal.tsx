@@ -20,6 +20,7 @@ import {
   FaLock
 } from 'react-icons/fa';
 import './ClientPortal.css';
+import api from '../services/api';
 
 interface MediaItem {
   id: string;
@@ -84,89 +85,9 @@ const ClientPortal: React.FC = () => {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const mockClient: Client = {
-        id: clientId || '1',
-        name: 'Sarah Johnson',
-        email: 'sarah.j@email.com',
-        studioName: 'Elite Photography Studio',
-        totalPhotos: 45,
-        totalVideos: 8,
-        sessions: [
-          {
-            id: 's1',
-            name: 'Portrait Session',
-            date: '2024-09-10',
-            photos: 25,
-            videos: 3
-          },
-          {
-            id: 's2',
-            name: 'Outdoor Shoot',
-            date: '2024-08-15',
-            photos: 20,
-            videos: 5
-          }
-        ]
-      };
-
-      const mockMediaItems: MediaItem[] = [
-        {
-          id: '1',
-          name: 'portrait_001.jpg',
-          type: 'image',
-          url: '/api/media/1',
-          thumbnail: '/api/thumbnails/1',
-          size: 2048576,
-          uploadDate: '2024-09-10',
-          sessionId: 's1',
-          sessionName: 'Portrait Session',
-          tags: ['portrait', 'professional'],
-          barcode: 'PS001',
-          isFavorite: true
-        },
-        {
-          id: '2',
-          name: 'portrait_002.jpg',
-          type: 'image',
-          url: '/api/media/2',
-          thumbnail: '/api/thumbnails/2',
-          size: 1876543,
-          uploadDate: '2024-09-10',
-          sessionId: 's1',
-          sessionName: 'Portrait Session',
-          tags: ['portrait', 'outdoor'],
-          barcode: 'PS002'
-        },
-        {
-          id: '3',
-          name: 'outdoor_001.jpg',
-          type: 'image',
-          url: '/api/media/3',
-          thumbnail: '/api/thumbnails/3',
-          size: 1654321,
-          uploadDate: '2024-08-15',
-          sessionId: 's2',
-          sessionName: 'Outdoor Shoot',
-          tags: ['outdoor', 'nature'],
-          barcode: 'OS001'
-        },
-        {
-          id: '4',
-          name: 'portrait_video.mp4',
-          type: 'video',
-          url: '/api/media/4',
-          thumbnail: '/api/thumbnails/4',
-          size: 52428800,
-          uploadDate: '2024-09-10',
-          sessionId: 's1',
-          sessionName: 'Portrait Session',
-          tags: ['portrait', 'video'],
-          barcode: 'PV001'
-        }
-      ];
-
-      setClient(mockClient);
-      setMediaItems(mockMediaItems);
+      const response = await api.get('/api/simple-invitations/client-portal');
+      setClient(response.data);
+      setMediaItems(response.data.mediaItems);
     } catch (error) {
       console.error('Error fetching client data:', error);
     } finally {

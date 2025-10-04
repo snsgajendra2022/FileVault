@@ -40,6 +40,8 @@ import ViewImagePage from './pages/ViewImagePage';
 import FamilyTree from './components/invitations/FamilyTree';
 import CreateClientInvitationForm from './components/invitations/CreateClient';
 import ClientTreePage from './pages/ClientTree';
+import ClientImagesPage from './pages/PhotoStudio/ImagesPage';
+import SheetPage from './pages/PhotoStudio/Sheet';
 
 
 const queryClient = new QueryClient({
@@ -125,6 +127,7 @@ const AppRoutes = () => {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="upload" element={<UploadPage />} />
         <Route path="images" element={<ImagesPage />} />
+        <Route path="client-images" element={<ClientImagesPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="invitations" element={<InvitationsPage />} />
         <Route path="services/config/:serviceId" element={<ServiceConfigPage />} />
@@ -137,6 +140,7 @@ const AppRoutes = () => {
         {/* <Route path="treePage" element={<TreePage />} /> */}
         <Route path="client-tree" element={<ClientTreePage />} />
         <Route path="family-tree" element={<FamilyTree />} />
+        <Route path="Sheet" element={<SheetPage />} />
         <Route path="create-client" element={<CreateClientInvitationForm onInvitationCreated={() => {}} />} />
         {/* Admin route with proper protection */}
         <Route path="admin" element={

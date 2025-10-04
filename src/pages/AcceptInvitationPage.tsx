@@ -10,6 +10,7 @@ const AcceptInvitationPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [invitationData, setInvitationData] = useState<any>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [invalidMessage, setInvalidMessage] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     username: '',
@@ -75,7 +76,11 @@ const AcceptInvitationPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error accepting invitation:', error);
-      toast.error(error.response?.data?.message || 'Failed to accept invitation');
+      const message = error.response?.data?.message || 'Failed to accept invitation';
+      toast.error(message);
+      if (error.response?.data?.success === false) {
+        setInvalidMessage(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -92,6 +97,30 @@ const AcceptInvitationPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Invalid Invitation</h1>
             <p className="text-gray-600 mb-6">
               This invitation link is invalid or has expired.
+            </p>
+            <button
+              onClick={() => navigate('/login')}
+              className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Go to Login
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (invalidMessage) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-red-100">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FaEnvelope className="h-8 w-8 text-red-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Invitation Problem</h1>
+            <p className="text-gray-600 mb-6">
+              {invalidMessage}
             </p>
             <button
               onClick={() => navigate('/login')}

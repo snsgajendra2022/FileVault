@@ -16,6 +16,11 @@ interface RegistrationData {
   company?: string;
   role?: string;
   department?: string;
+  canViewImages?: boolean;
+  canUploadImages?: boolean;
+  canDeleteImages?: boolean;
+  canManageAlbums?: boolean;
+  canDownloadImages?: boolean;
 }
 
 interface ValidationErrors {
@@ -60,6 +65,11 @@ const RegisterPage = () => {
     company: '',
     role: '',
     department: 'subscribed',
+    canViewImages : true,
+    canUploadImages : true,
+    canDeleteImages : false,
+    canManageAlbums : true,
+    canDownloadImages : true,
   });
 
   // Validation functions

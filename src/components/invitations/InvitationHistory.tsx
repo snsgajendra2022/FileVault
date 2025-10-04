@@ -33,8 +33,10 @@ const InvitationHistory: React.FC = () => {
     try {
       setLoading(true);
       const response = await api.get('/api/simple-invitations/my-invitations');
-      if (response.data.success) {
-        setInvitations(response.data.invitations || []);
+      console.log('response', response.data);
+      
+      if (response.data.length > 0) {
+        setInvitations(response.data || response.data.invitations || []);
       } else {
         setInvitations([]);
       }

@@ -62,6 +62,7 @@ const StudioDashboard: React.FC = () => {
   const [recentClients, setRecentClients] = useState<RecentClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [allPhotos, setAllPhotos] = useState<UserImageItem[]>([]);
+  const [yourPhotosCount, setYourPhotosCount] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -73,7 +74,9 @@ const StudioDashboard: React.FC = () => {
           adminService.getUserStatistics(),
           adminService.getUsageStatistics('month')
         ]);
-
+        const dashbaordActivities = await api.get('/api/dashboard/summary');
+        console.log('dashboardActivities', dashbaordActivities.data);
+        
         const nextStats: DashboardStats = {};
 
         if (userStatsRes.status === 'fulfilled') {
@@ -92,7 +95,33 @@ const StudioDashboard: React.FC = () => {
           if (typeof videoCount === 'number') nextStats.totalVideos = videoCount;
         }
 
+        // Merge in summary stats from dashboard/summary if present
+        const summary = (dashbaordActivities && dashbaordActivities.data) ? dashbaordActivities.data : {};
+        if (typeof summary.totalClients === 'number') nextStats.totalClients = summary.totalClients;
+        if (typeof summary.totalPhotos === 'number') nextStats.totalPhotos = summary.totalPhotos;
+        if (typeof summary.totalVideos === 'number') nextStats.totalVideos = summary.totalVideos;
         setStats(nextStats);
+
+        // recentActivity from summary
+        if (Array.isArray(summary.recentActivity)) {
+          const mapped: RecentActivity[] = summary.recentActivity.map((item: any, idx: number) => ({
+            id: String(item.id ?? idx ?? Math.random()),
+            type: (item.type === 'client' || item.type === 'session' || item.type === 'upload') ? item.type : 'upload',
+            message: String(item.message ?? ''),
+            timestamp: String(item.timestamp ?? ''),
+            clientName: item.clientName || undefined,
+          }));
+          setRecentActivity(mapped);
+        } else {
+          setRecentActivity([]);
+        }
+
+        // yourPhotos numeric count from summary
+        if (typeof summary.yourPhotos === 'number') {
+          setYourPhotosCount(summary.yourPhotos);
+        } else {
+          setYourPhotosCount(null);
+        }
 
         // Prefer family relationships for client list (only immediate relations)
         let clientsSet = false;
@@ -100,10 +129,7 @@ const StudioDashboard: React.FC = () => {
           const familyRes = await api.get('/api/simple-invitations/family-relationships');
           const family = familyRes.data?.familyData || familyRes.data || {};
           const immediate: any[] = [
-            ...(family.parents || []),
-            ...(family.siblings || []),
-            ...(family.children || []),
-            ...(family.spouse ? [family.spouse] : [])
+            ...(family.clients || []),
           ].filter(Boolean);
 
           if (immediate.length > 0) {
@@ -134,8 +160,8 @@ const StudioDashboard: React.FC = () => {
         if (!clientsSet) {
           // Fallback: use invitations, still limit to 3
           const invitationsRes = await api.get('/api/simple-invitations/my-invitations');
-          if (invitationsRes.data?.success) {
-            const invitations = invitationsRes.data.invitations || [];
+          if (invitationsRes.data?.length > 0) {
+            const invitations = invitationsRes.data || invitationsRes.data.invitations || [];
             const sortedInvitations = (Array.isArray(invitations) ? invitations.slice() : []).sort((a: any, b: any) => {
               const aTime = new Date(a.updatedAt || a.createdAt || a.sentAt || 0).getTime();
               const bTime = new Date(b.updatedAt || b.createdAt || b.sentAt || 0).getTime();
@@ -164,7 +190,7 @@ const StudioDashboard: React.FC = () => {
           }
         }
 
-        // Fetch all user photos (same API pattern as PhotoGallery)
+        // Fetch all user photos (same API pattern as PhotoGallery) as fallback for count
         const token = localStorage.getItem('token');
         if (token) {
           const imagesRes = await api.get(`/api/images/user/all?token=${token}`);
@@ -173,8 +199,7 @@ const StudioDashboard: React.FC = () => {
         } else {
           setAllPhotos([]);
         }
-        // No dedicated recent activity API; leave empty to hide section
-        setRecentActivity([]);
+        // If summary provided activity, keep it; otherwise already set empty above
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -221,10 +246,6 @@ const StudioDashboard: React.FC = () => {
           </div>
         </div>
         <div className="header-right">
-          <button className="notification-btn">
-            <FaBell />
-            <span className="notification-badge">3</span>
-          </button>
           <Link to="/studio/settings" className="settings-btn">
             <FaCog />
           </Link>
@@ -291,7 +312,11 @@ const StudioDashboard: React.FC = () => {
               <FaImages />
             </div>
             <div className="stat-content">
-              <h3>{(Array.isArray(allPhotos) ? allPhotos.length : 0).toLocaleString()}</h3>
+              <h3>{(
+                typeof yourPhotosCount === 'number'
+                  ? yourPhotosCount
+                  : (Array.isArray(allPhotos) ? allPhotos.length : 0)
+              ).toLocaleString()}</h3>
               <p>Your Photos</p>
             </div>
           </div>

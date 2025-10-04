@@ -1,82 +1,106 @@
-# Today's Work Summary - Family Tree (Mobile) & Sidebar Controls (Web)
+# Today's Work - Studio Dashboard (Web) and Routing Updates
 
-## Mobile (React Native) – Family Tree Screen
+## 1) Studio Dashboard (Web)
+- Page: `src/pages/StudioDashboard.tsx`
+- Styles: `src/pages/StudioDashboard.css`
 
-### 1) Built a fully interactive Family Tree screen
-- File: `FileVault/src/screens/Tree.tsx`
-- Fetches data from `/api/simple-invitations/family-relationships` and converts it into a hierarchical tree using `convertFamilyDataToTree()`.
-- Implemented a D3-style layout (custom DFS layout) to position nodes with consistent horizontal/vertical spacing.
+### UI/UX
+- Built a modern, responsive dashboard using glassmorphism cards and a flexible grid.
+- Polished header (logo, notifications, settings, logout) and welcome/quick-actions area.
+- Consistent empty-states and graceful fallbacks to avoid blank cards.
 
-### 2) Zoom, Pan, and Centering
-- Pinch-to-zoom with two fingers (PanResponder-based).
-- One-finger pan for moving the canvas.
-- Auto-fit on load: computes bounds and centers the tree in the viewport.
-- Home button recalculates the same centering and scale.
+### Data Flow & Logic
+- Loaded core statistics concurrently via `adminService`:
+  - System Health: total images, active users, etc.
+  - User Statistics: total users (displayed as Total Clients).
+  - Usage Statistics (monthly): file type distribution (video count).
+- Added safe numeric fallbacks for all stat cards:
+  - Shows 0 for clients/photos/videos when the API doesn’t return a number.
+  - Shows $0.00 for revenue when not available.
+- “Your Photos” count:
+  - Fetched all user images via `/api/images/user/all?token=<token>` and displayed the array length.
+- “Recent Clients” (limit 3):
+  - Primary source: immediate relations from `/api/simple-invitations/family-relationships` (parents, siblings, children, spouse).
+  - Normalized to a compact client shape and sorted deterministically; sliced to top 3.
+  - Fallback source: last 3 invitations from `/api/simple-invitations/my-invitations` (sorted by latest timestamp).
+- “Recent Activity” section shows a friendly placeholder when empty.
 
-### 3) Links and Nodes
-- SVG-based rendering (react-native-svg) with curved link paths.
-- Card-style nodes with name, avatar circle, and a toggle control below each node.
+### Result
+- Dashboard now renders reliably with professional visuals, correct counts, and a meaningful snapshot of clients and content.
 
-### 4) Expand / Collapse Logic
-- Collapsed nodes tracked via a `Set<string>`.
-- New logic ensures toggle appears based on original data, not on pruned view. Result: when a node is collapsed, it shows `+`; when expanded, it shows `−` (including the center/root node).
+## 2) Routing & Navigation (Studio-first)
+- Default destination for non-admin users set to `/studio/dashboard`.
+- Updated redirects/links to ensure consistency across the app:
+  - `src/pages/LoginPage.tsx`: non-admin login → `/studio/dashboard`.
+  - `src/App.tsx`: default/fallback routes for non-admins → `/studio/dashboard`.
+  - `src/pages/RegisterPage.tsx`: post-register → `/studio/dashboard`.
+  - `src/pages/CheckoutPage.tsx`: post-upgrade → `/studio/dashboard`.
+  - `src/components/layout/Sidebar.tsx`: “Dashboard” link → `/studio/dashboard`.
+  - `src/components/layout/Navigation.tsx`: “Dashboard” link → `/studio/dashboard`.
+  - `src/pages/NotFoundPage.tsx`: “Go back” link → `/studio/dashboard`.
+  - `src/utils/navigation.ts`: default/back destination → `/studio/dashboard`.
 
-### 5) Performance & UX Improvements
-- Reduced gesture threshold for more responsive panning.
-- Memoized computations (`useMemo` / `useCallback`) to minimize re-renders.
-- Removed expensive console logs in render paths.
-- Floating action buttons (FABs) updated to a purple theme.
+## 3) APIs Used Today
+- Admin stats:
+  - `/api/admin/system/health`
+  - `/api/admin/users/statistics`
+  - `/api/admin/usage/statistics?period=month`
+- Family relations (recent clients): `/api/simple-invitations/family-relationships`
+- Invitations (fallback clients): `/api/simple-invitations/my-invitations`
+- User images: `/api/images/user/all?token=<token>`
 
-### 6) iOS Compatibility Work
-- Removed SVG filter usage (e.g., FeGaussianBlur) for broader iOS compatibility.
-- Cleaned up Pod configuration to rely on autolinking rather than manual pods.
-- Guidance provided to fix CocoaPods issues if encountered (clean Pods/locks, reinstall `node_modules`, run `pod install` with UTF-8 locale).
+## 4) Dynamic User Permissions & Image Management System
 
-### 7) Files Touched (Mobile)
-- `FileVault/src/screens/Tree.tsx`: core implementation, gesture handling, layout, links, toggles, centering, FABs.
-- `FileVault/ios/Podfile` & `FileVault/ios/FileVault/Info.plist`: iterative fixes/guidance for proper iOS builds (final approach: autolinking with no manual pod entry).
+### Permission System Overhaul
+- **Updated User Type**: Added permission flags to `src/types/user.ts`:
+  - `canViewImages`, `canUploadImages`, `canDeleteImages`, `canManageAlbums`, `canDownloadImages`
+- **Profile API Integration**: Modified `src/pages/UploadPage.tsx` to use dynamic permissions from `/api/auth/profile`
+- **Permission Enforcement**: 
+  - Upload area disabled if `canUploadImages` is false
+  - File validation uses `allowedFileTypes` and `maxFileSizeMB` from profile
+  - Dynamic dropzone accept types based on user's allowed file types
+  - Real-time storage quota checking
 
-## Web (React) – Sidebar Runtime Controls
+### Image Service Implementation
+- **New Service**: Created `src/services/imageService.ts` with comprehensive API methods:
+  - `uploadImage()`, `getUserImages()`, `requestDownload()`, `checkDownloadPermission()`
+  - `getStorageUsage()`, `uploadToFamilyMember()`, `getUploadPermissions()`
+- **API Documentation**: Created `IMAGE_API_ENDPOINTS.md` with complete endpoint specifications
 
-### 1) Runtime-controlled menu visibility (no tabs removed)
-- File: `src/components/layout/Sidebar.tsx`
-- Added `menuFlags` with three switches: `regular`, `studio`, `admin`.
-- Source of truth (priority): `window.__MENU_FLAGS__` → `localStorage('MENU_FLAGS')` → defaults.
-- Every section lists keep their items; items render only when the corresponding section flag is true. Individual items also support an `enabled` flag.
+### Family Invitation Permissions
+- **Enhanced Form**: Updated `src/components/invitations/CreateInvitationForm.tsx`:
+  - Added `📥 Download Images` permission checkbox
+  - Updated note text to mention download capabilities
+  - All 5 permission types now available: View, Upload, Delete, Manage Albums, Download
 
-### 2) How to toggle in runtime (examples)
-- In browser console:
-  ```js
-  window.__MENU_FLAGS__ = { regular: true, studio: false, admin: true };
-  location.reload();
-  ```
-- Or persist via localStorage:
-  ```js
-  localStorage.setItem('MENU_FLAGS', JSON.stringify({ regular: true, studio: true, admin: false }));
-  location.reload();
-  ```
+### UI/UX Improvements
+- **Dynamic Display**: Upload page shows user's actual permissions and limits
+- **Storage Visualization**: Real-time storage usage with percentage indicators
+- **Permission Feedback**: Clear error messages when users lack specific permissions
+- **Loading States**: Comprehensive loading indicators while fetching user data
 
-### 3) Files Touched (Web)
-- `src/components/layout/Sidebar.tsx`: added flags, filtering logic, and kept the existing navigation items intact.
+## 5) APIs Used Today
+- Admin stats:
+  - `/api/admin/system/health`
+  - `/api/admin/users/statistics`
+  - `/api/admin/usage/statistics?period=month`
+- Family relations (recent clients): `/api/simple-invitations/family-relationships`
+- Invitations (fallback clients): `/api/simple-invitations/my-invitations`
+- User images: `/api/images/user/all?token=<token>`
+- **New Permission APIs**:
+  - `/api/auth/profile` - User profile with permission flags
+  - `/api/images/upload-permissions` - Upload permissions (deprecated in favor of profile)
+  - `/api/images/storage-usage` - Storage usage statistics
 
-## Web (React) – Header Enhancements
-
-### 1) Dynamic Header Title & Polished UI
-- File: `src/components/layout/Header.tsx`
-- Improved gradient background and decorative elements for a premium feel.
-- Header title adapts to active section via sidebar flags (ImageSecurity / PhotoStudio Pro / Admin Panel shown contextually in the sidebar header area).
-- Refined notification dropdown and user menu with animated transitions, icons, and accessibility-friendly controls.
-
-### 2) User Menu & Actions
-- Profile and Settings quick links with gradient hover states and icon accents.
-- Sign out button styled with clear affordances and feedback.
-- Displays user initials, email, account type, and admin crown icon when applicable.
-
-### 3) Files Touched (Web – Header)
-- `src/components/layout/Header.tsx`: cohesive visual system (gradients, shadows, hover/press effects), improved menus and badges, and mobile sidebar trigger.
-
-## Summary
-- Delivered a production-ready, interactive Family Tree screen on mobile with smooth pan/zoom, proper centering, curved link paths, and robust expand/collapse behavior (including correct `+`/`−` state for collapsed root).
-- Implemented flexible runtime controls for the web sidebar to show/hide entire menu sections without removing tabs from the codebase.
+## 6) Verification
+- Verified navigation flows after login/register/upgrade go to `/studio/dashboard`.
+- Verified dashboard cards render with data and show 0/$0.00 when unavailable.
+- Confirmed "Recent Clients" shows up to 3 entries from family relations or invitations.
+- **Permission System**: 
+  - Upload page respects `canUploadImages` permission from profile
+  - File validation works with dynamic `allowedFileTypes` and `maxFileSizeMB`
+  - Family invitation form includes all 5 permission types including download
+  - UI adapts based on user's actual permissions and account limits
 
 Last Updated: Today
+

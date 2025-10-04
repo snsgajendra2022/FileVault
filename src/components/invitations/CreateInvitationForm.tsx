@@ -41,7 +41,8 @@ const CreateInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInvitatio
     canViewImages: true,
     canUploadImages: true,
     canDeleteImages: false,
-    canManageAlbums: false
+    canManageAlbums: false,
+    canDownloadImages: true,
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -83,7 +84,8 @@ const CreateInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInvitatio
           canViewImages: true,
           canUploadImages: true,
           canDeleteImages: false,
-          canManageAlbums: false
+          canManageAlbums: false,
+          canDownloadImages: true,
         });
       }
     } catch (error: any) {
@@ -399,12 +401,26 @@ const CreateInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInvitatio
                   ⚙️ Manage Albums & Organization
                 </label>
               </div>
+              
+              <div className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  id="canDownloadImages"
+                  name="canDownloadImages"
+                  checked={formData.canDownloadImages}
+                  onChange={handleCheckboxChange}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="canDownloadImages" className="text-sm font-medium text-gray-700">
+                  📥 Download Images
+                </label>
+              </div>
             </div>
             
             <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-800">
                 💡 <strong>Note:</strong> Images uploaded by family members will be stored under your account, 
-                but they can view and manage them according to the permissions you set above.
+                but they can view, download, and manage them according to the permissions you set above.
               </p>
             </div>
           </div>

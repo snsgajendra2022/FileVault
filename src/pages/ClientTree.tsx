@@ -19,24 +19,22 @@ type FamilyMember = {
   relation: string | null;
   isYou?: boolean;
   isElder?: boolean;
+  userId?: number;
+  username?: string;
+  email?: string;
+  clients?: FamilyMember[] | null;
 };
 
 type FamilyData = {
   you: FamilyMember | null;
-  parents?: FamilyMember[] | null;
-  siblings?: FamilyMember[] | null;
-  children?: FamilyMember[] | null;
-  cousins?: FamilyMember[] | null;
-  grandparents?: FamilyMember[] | null;
-  unclesAunts?: FamilyMember[] | null;
-  spouse?: FamilyMember | null;
-};
+  clients?: FamilyMember[] | null;
+ };
 
-declare global {
-  interface Window {
-    __FAMILY_DATA__?: FamilyData;
-  }
-}
+// declare global {
+//   interface Window {
+//     __FAMILY_DATA__?: FamilyData;
+//   }
+// }
 
 function sanitizeIdPart(value: string): string {
   return value
@@ -47,39 +45,30 @@ function sanitizeIdPart(value: string): string {
 }
 
 function convertFamilyDataToTree(data: FamilyData): Person {
-  const youName = data?.you?.name || "You";
   const root: Person = {
-    id: `you-${sanitizeIdPart(youName)}`,
-    name: youName,
+    id: 'clients-root',
+    name: 'Clients',
     children: [],
   };
 
-  const addGroup = (label: string, list?: FamilyMember[] | null) => {
-    if (!list || list.length === 0) return;
-    root.children!.push({
-      id: `grp-${sanitizeIdPart(label)}`,
-      name: label,
-      children: list.map((m, idx) => ({
-        id: `${sanitizeIdPart(label)}-${idx}-${sanitizeIdPart(m.name || "member")}`,
-        name: m.name || label,
-      })),
-    });
+  const toPerson = (member: FamilyMember, index: number): Person => {
+    const baseId = typeof (member as any).userId === 'number'
+      ? String((member as any).userId)
+      : `${sanitizeIdPart(member.username || member.email || member.name || 'client')}-${index}`;
+    const children = Array.isArray(member.clients) && member.clients.length > 0
+      ? member.clients.map((child, i) => toPerson(child, i))
+      : undefined;
+    return {
+      id: `client-${baseId}`,
+      name: member.name || member.username || (typeof (member as any).email === 'string' ? (member as any).email.split('@')[0] : 'Client'),
+      children,
+    };
   };
 
-  // Add spouse as its own node under root if present
-  if (data?.spouse && data.spouse.name) {
-    root.children!.push({
-      id: `spouse-${sanitizeIdPart(data.spouse.name)}`,
-      name: data.spouse.name,
-    });
+  const topLevelClients = data?.clients || [];
+  if (topLevelClients.length > 0) {
+    root.children = topLevelClients.map((m, idx) => toPerson(m, idx));
   }
-
-  addGroup("Parents", data?.parents);
-  addGroup("Siblings", data?.siblings);
-  addGroup("Children", data?.children);
-  addGroup("Cousins", data?.cousins);
-  addGroup("Grandparents", data?.grandparents);
-  addGroup("Uncles & Aunts", data?.unclesAunts);
 
   return root;
 }
@@ -106,19 +95,14 @@ export default function ClientTreePage() {
     // Default fallback data
     const fallback: FamilyData = {
       you: { name: "You", age: null, gender: null, relation: "You", isYou: true, isElder: false },
-      parents: [],
-      siblings: [],
-      children: [],
-      cousins: [],
-      grandparents: [],
-      unclesAunts: [],
-      spouse: null,
+      clients: [],
     };
     return convertFamilyDataToTree(fallback);
   });
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [myUserId, setMyUserId] = useState<number | null>(null);
 
   const root = useMemo(() => d3.hierarchy<Person>(rootData), [rootData]);
 
@@ -128,13 +112,48 @@ export default function ClientTreePage() {
       setLoading(true);
       console.log('Fetching family data from API...');
       
+      // Fetch profile to detect current user id
+      let currentUserId: number | null = null;
+      try {
+        const profileRes = await api.get('/api/auth/profile');
+        const p = profileRes?.data || {};
+        currentUserId = typeof p?.id === 'number' ? p.id
+          : typeof p?.userId === 'number' ? p.userId
+          : typeof p?.user?.id === 'number' ? p.user.id
+          : null;
+        if (currentUserId !== null) setMyUserId(currentUserId);
+      } catch {
+        // ignore profile errors; proceed without filtering if unknown
+      }
+
       const response = await api.get('/api/simple-invitations/family-relationships');
       console.log('Family data API response:', response.data);
       
       if (response.data.success) {
         // Check if the API response has the expected structure
         if (response.data.familyData) {
-          const newRootData = convertFamilyDataToTree(response.data.familyData);
+          const familyData: FamilyData = response.data.familyData;
+
+          // Recursively filter out current user from clients by userId
+          const filterOutSelf = (list?: FamilyMember[] | null): FamilyMember[] => {
+            const input = Array.isArray(list) ? list : [];
+            return input
+              .filter((m) => {
+                if (currentUserId === null) return true;
+                return typeof m.userId === 'number' ? m.userId !== currentUserId : true;
+              })
+              .map((m) => ({
+                ...m,
+                clients: filterOutSelf(m.clients),
+              }));
+          };
+
+          const sanitized: FamilyData = {
+            ...familyData,
+            clients: filterOutSelf(familyData.clients),
+          };
+
+          const newRootData = convertFamilyDataToTree(sanitized);
           setRootData(newRootData);
           toast.success('Family data loaded successfully');
         } else {
@@ -189,13 +208,18 @@ export default function ClientTreePage() {
     return tree(copy);
   }, [root, collapsed]);
 
-  // Collapse all nodes on first render
+  // Collapse all nodes on first render, but keep first level expanded
   useEffect(() => {
     if (collapsed.size > 0) return; // already initialized
     const next = new Set<string>();
     root.each((d) => {
+      const isRoot = d.depth === 0;
+      const isFirstLevel = d.depth === 1;
       if (d.children && d.children.length > 0) {
-        next.add(d.data.id);
+        // collapse all except the first level under root
+        if (!isRoot && !isFirstLevel) {
+          next.add(d.data.id);
+        }
       }
     });
     setCollapsed(next);
@@ -285,7 +309,7 @@ export default function ClientTreePage() {
   const links = layout.links();
 
   return (
-    <div ref={containerRef} className="relative w-screen h-screen bg-[#f8fafc]">
+    <div ref={containerRef} className="relative w-[100%] h-screen bg-[#f8fafc]">
       {loading && (
         <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
           <div className="flex flex-col items-center gap-4">
@@ -334,7 +358,7 @@ export default function ClientTreePage() {
                   setSelected(n.data.id);
                   focusOn(n.data.id);
                 }}>
-                  <circle cx={0} cy={26} r={28} fill="#fff" stroke="#2B79C2" strokeWidth={4} />
+                  <circle cx={0} cy={26} r={28} fill="#fff" stroke="#513cd2" strokeWidth={4} />
                   <g transform="translate(-12,12)" fill="#111827">
                     {AVATAR_SILHOUETTE}
                   </g>

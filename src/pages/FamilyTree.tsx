@@ -28,13 +28,9 @@ type FamilyData = {
   grandparents?: FamilyMember[] | null;
   unclesAunts?: FamilyMember[] | null;
   spouse?: FamilyMember | null;
+  clients?: FamilyMember[] | null;
 };
 
-declare global {
-  interface Window {
-    __FAMILY_DATA__?: FamilyData;
-  }
-}
 
 function sanitizeIdPart(value: string): string {
   return value
@@ -78,6 +74,7 @@ function convertFamilyDataToTree(data: FamilyData): Person {
   addGroup("Cousins", data?.cousins);
   addGroup("Grandparents", data?.grandparents);
   addGroup("Uncles & Aunts", data?.unclesAunts);
+  addGroup("Clients", data?.clients);
 
   return root;
 }
@@ -111,6 +108,7 @@ export default function FamilyTree() {
       grandparents: [],
       unclesAunts: [],
       spouse: null,
+      clients: [],
     };
     return convertFamilyDataToTree(fallback);
   });

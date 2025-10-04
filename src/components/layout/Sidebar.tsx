@@ -64,15 +64,16 @@ const Sidebar = () => {
   const studioNavigationItems = {'items':[
     { name: 'Studio Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
     { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
-    { name: 'My Images', href: '/images', icon: FaImages, enabled: true },
-    { name: 'Create Client', href: '/invitations', icon: FaUsers, enabled: true },
-    { name: 'Studio Clients', href: '/studio/clients', icon: FaUserPlus, enabled: true },
-    { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
-    { name: 'Clients', href: '/client-tree', icon: FaSitemap, enabled: true },
-    { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
+    { name: 'My Images', href: '/client-images', icon: FaImages, enabled: true },
     { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
-    { name: 'Studio Settings', href: '/studio/settings', icon: FaCog, enabled: true },
-    { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
+    { name: 'Create Client', href: '/invitations', icon: FaUsers, enabled: true },
+    { name: 'Clients', href: '/studio/clients', icon: FaUserPlus, enabled: true },
+    { name: 'Clients Tree', href: '/client-tree', icon: FaSitemap, enabled: true },
+    { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
+    { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
+    // { name: 'Studio Settings', href: '/studio/settings', icon: FaCog, enabled: true },
+    // { name: 'Sheet', href: 'Sheet', icon: FaCog, enabled: true },
+    // { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
   ],active:true};
 
   const adminNavigationItems = {'items':  [
@@ -111,15 +112,13 @@ console.log( studioNavigationItems.active === true && 2 );
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">ImageSecurity</h1>
                 )}
                 {menuFlags.studio === true && studioNavigationItems.active === true && (
-                <h1 className="text-xl font-bold text-white drop-shadow-lg">PhotoStudio Pro</h1>
+                <h1 className="text-xl font-bold text-white drop-shadow-lg">Photo Studio</h1>
                 )}
                 {menuFlags.admin === true && adminNavigationItems.active === true && (
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">Admin Panel</h1>
                 )}
                 <div className="flex items-center space-x-1">
-                  <FaStar className="w-3 h-3 text-yellow-300" />
-                  <p className="text-xs text-blue-100 font-medium">Premium Portal</p>
-                  <FaStar className="w-3 h-3 text-yellow-300" />
+                  <p className="text-xs text-blue-100 font-medium">{user?.firstName} {user?.lastName}</p>
                 </div>
               </div>
             </div>
@@ -165,7 +164,7 @@ console.log( studioNavigationItems.active === true && 2 );
               {/* Studio Section */}
               {menuFlags.studio === true && studioNavigationItems.active === true
                &&  
-              <div className="pt-6 pb-3">
+              <div className=" pb-3">
                 <div className="flex items-center px-4 py-2 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-200">
                   <FaCamera className="h-4 w-4 text-pink-600 mr-2" />
                   <h3 className="text-xs font-bold text-pink-700 uppercase tracking-wider">
@@ -269,9 +268,8 @@ console.log( studioNavigationItems.active === true && 2 );
                 <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
               </div>
               <div className="ml-3 flex-1">
-                <p className="text-sm font-semibold text-gray-900">{user?.username || 'User'}</p>
+                <p className="text-sm font-semibold text-gray-900">{user?.firstName} {user?.lastName || 'User'}</p>
                               <div className="flex items-center space-x-1">
-                <FaStar className="w-3 h-3 text-blue-500" />
                 <p className="text-xs text-blue-600 font-medium">{user?.accountType || 'User'}</p>
               </div>
               </div>

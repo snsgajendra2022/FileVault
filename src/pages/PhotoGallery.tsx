@@ -4,7 +4,7 @@ import QRCode from 'react-qr-code';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   FaImages, 
   FaPlus, 
@@ -73,7 +73,7 @@ const PhotoGallery: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [viewerItem, setViewerItem] = useState<MediaItem | null>(null);
   const [qrItem, setQrItem] = useState<MediaItem | null>(null);
-
+  const navigate = useNavigate();
   // Types reused from ImagesPage API
   interface UserImage {
     previewUrl: string;
@@ -516,7 +516,7 @@ const PhotoGallery: React.FC = () => {
             <p>Try adjusting your filters or upload some photos and videos.</p>
             <button 
               className="upload-first-btn"
-              onClick={() => setShowUploadModal(true)}
+              onClick={() => navigate('/upload')}
             >
               <FaUpload />
               Upload Your First Media

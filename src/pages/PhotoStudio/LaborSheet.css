@@ -1,0 +1,377 @@
+:root{
+  --border:#ccd6e2;
+  --grid:#e5edf5;
+  --head:#e7f3fb;
+  --bg:#f3f6fa;
+  --money:#eef9e9;
+  --text:#0f172a;
+  --muted:#fafafa;
+  --pad-cell:12px 14px;
+  --pad-input:10px 12px;
+  --radius:8px;
+  --font:14px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
+}
+
+*{ box-sizing:border-box; }
+
+/* Outer scroll container for iPad */
+.sheet-outer-container{
+  width: 100%;
+  overflow: auto;
+  background: var(--bg);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  position: relative;
+}
+
+.sheet-outer-container::-webkit-scrollbar{
+  width:12px;
+  height:12px;
+}
+
+.sheet-outer-container::-webkit-scrollbar-track{
+  background:#f1f5f9;
+  border-radius:6px;
+}
+
+.sheet-outer-container::-webkit-scrollbar-thumb{
+  background:#cbd5e1;
+  border-radius:6px;
+  border:2px solid #f1f5f9;
+}
+
+.sheet-outer-container::-webkit-scrollbar-thumb:hover{
+  background:#94a3b8;
+}
+
+.sheet-outer-container::-webkit-scrollbar-corner{
+  background:#f1f5f9;
+}
+
+.sheet-root{
+  min-height:100vh;
+  min-height:calc(var(--vh, 1vh) * 100);
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  background:var(--bg);
+  padding:4px;
+  /* iPad specific optimizations */
+  touch-action:pan-x pan-y;
+  /* Ensure full width usage and all sides accessible */
+  box-sizing:border-box;
+  /* Allow content to extend to all edges */
+  position:relative;
+}
+
+.sheet-scroll{
+  flex:1;
+  overflow:visible;              /* Let outer container handle scrolling */
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:12px;
+  margin:4px;
+  box-shadow:0 6px 28px rgba(0,0,0,.06);
+  /* iPad optimizations */
+  touch-action:manipulation;
+  position:relative;
+  /* Ensure content can extend beyond container width */
+  width:max-content;
+  min-width:100%;
+  box-sizing:border-box;
+  /* No padding to allow full content visibility */
+  padding:0;
+  /* Allow content to scroll to all edges */
+  min-height:calc(100vh - 20px);
+}
+
+/* Grid rows rendered as CSS grid so columns keep exact widths */
+.sheet-row{
+  display:grid;
+  border-bottom:1px solid var(--grid);
+  /* Ensure all sides are accessible - no padding */
+  padding:0;
+  /* Better touch scrolling for iPad */
+  touch-action:manipulation;
+  /* Allow content to extend to all edges */
+  width:max-content;
+  min-width:100%;
+}
+
+.sheet-head{
+  position:sticky;
+  top:0;
+  z-index:5;
+  background:var(--head);
+  border-bottom:1px solid var(--border);
+  /* Ensure header extends to all edges */
+  width:max-content;
+  min-width:100%;
+}
+
+.sheet-body .sheet-row:last-child{
+  border-bottom:none;
+}
+
+/* Cells */
+.cell{
+  display:flex;
+  align-items:center;
+  padding:var(--pad-cell);
+  border-right:1px solid var(--grid);
+  min-height:52px;               /* Increased for better touch targets */
+  background:#fff;
+  /* iPad touch optimizations */
+  touch-action:manipulation;
+  user-select:none;
+}
+
+.cell:last-child{ border-right:none; }
+
+.cell.head{
+  justify-content:center;
+  background:var(--head);
+  font-weight:700;
+  color:var(--text);
+  white-space:nowrap;
+  min-height:56px;               /* Taller header for iPad */
+  font-size:15px;                /* Slightly larger text */
+}
+
+.cell.ro{ 
+  background:var(--muted);
+  user-select:text;              /* Allow text selection in read-only cells */
+}
+
+.cell.money{ 
+  background:var(--money);
+  font-weight:600;               /* Make money cells more prominent */
+}
+
+.in{
+  width:100%;
+  padding:var(--pad-input);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  outline:none;
+  background:#fff;
+  font:var(--font);
+  color:var(--text);
+  /* iPad input optimizations */
+  font-size:16px;                /* Prevent zoom on iOS */
+  -webkit-appearance:none;
+  appearance:none;
+  touch-action:manipulation;
+}
+
+.in:focus{
+  border-color:#77a8e8;
+  box-shadow:0 0 0 3px rgba(119,168,232,.25);
+  /* iPad focus improvements */
+  transform:scale(1.02);
+  transition:transform 0.1s ease;
+}
+
+.in:active{
+  transform:scale(0.98);
+}
+
+.in.left{ text-align:left; }
+.in.center{ text-align:center; }
+.in.right{ text-align:right; }
+
+/* Number input specific styling for iPad */
+.in[type="number"]{
+  -moz-appearance:textfield;
+  appearance:textfield;
+}
+
+.in[type="number"]::-webkit-outer-spin-button,
+.in[type="number"]::-webkit-inner-spin-button{
+  -webkit-appearance:none;
+  margin:0;
+}
+
+/* Bottom action bar */
+.sheet-actions{
+  padding:12px 16px 20px;
+  display:flex;
+  gap:12px;
+  justify-content:flex-end;
+  background:var(--bg);
+  border-top:1px solid var(--border);
+}
+
+.btn{
+  padding:14px 20px;
+  border:1px solid #2563eb;
+  color:#fff;
+  background:#2563eb;
+  border-radius:12px;
+  font-weight:700;
+  font-size:16px;
+  cursor:pointer;
+  /* iPad button optimizations */
+  min-height:48px;               /* Minimum touch target size */
+  min-width:120px;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+  transition:all 0.2s ease;
+}
+
+.btn:hover{ 
+  filter:brightness(0.95);
+  transform:translateY(-1px);
+}
+
+.btn:active{
+  transform:translateY(0);
+  filter:brightness(0.9);
+}
+
+/* iPad specific media queries */
+@media screen and (max-width: 1024px) and (orientation: landscape) {
+  .sheet-outer-container{
+    padding:0;
+    margin:0;
+    /* Enhanced iPad scroll for all sides */
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+  }
+  
+  .sheet-root{
+    padding:2px;
+  }
+  
+  .sheet-scroll{
+    padding:0;
+    /* Ensure all content is accessible including right side */
+    width:max-content;
+    min-height:calc(100vh - 10px);
+  }
+  
+  .cell{
+    min-height:48px;
+    padding:10px 12px;
+  }
+  
+  .cell.head{
+    min-height:52px;
+    font-size:14px;
+  }
+  
+  .sheet-actions{
+    padding:8px 12px 12px;
+  }
+}
+
+@media screen and (max-width: 1024px) and (orientation: portrait) {
+  .sheet-outer-container{
+    padding:0;
+    margin:0;
+    /* Enhanced iPad scroll for all sides */
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+  }
+  
+  .sheet-root{
+    padding:4px;
+  }
+  
+  .sheet-scroll{
+    padding:0;
+    /* Ensure all content is accessible including right side */
+    width:max-content;
+    min-height:calc(100vh - 20px);
+  }
+  
+  .sheet-actions{
+    padding:16px 20px 24px;
+  }
+  
+  .btn{
+    padding:16px 24px;
+    font-size:18px;
+    min-height:56px;
+  }
+  
+  .cell{
+    min-height:56px;
+    padding:12px 14px;
+  }
+  
+  .cell.head{
+    min-height:60px;
+    font-size:16px;
+  }
+}
+
+/* iPad Pro specific optimizations */
+@media screen and (min-width: 1024px) and (max-width: 1366px) {
+  .sheet-outer-container{
+    padding:0;
+    margin:0;
+    /* Enhanced iPad Pro scroll for all sides */
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+  }
+  
+  .sheet-root{
+    padding:6px;
+  }
+  
+  .sheet-scroll{
+    margin:6px;
+    padding:0;
+    /* Ensure all content is accessible including right side */
+    width:max-content;
+    min-height:calc(100vh - 30px);
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .sheet-outer-container{
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    /* Better momentum scrolling */
+    scroll-behavior:smooth;
+  }
+  
+  .sheet-scroll{
+    /* Ensure content is fully scrollable */
+    overflow:visible;
+    touch-action:pan-x pan-y;
+  }
+  
+  .sheet-row{
+    /* Better touch interaction */
+    touch-action:manipulation;
+  }
+  
+  .cell{
+    min-height:56px;
+    /* Better touch targets */
+    touch-action:manipulation;
+  }
+  
+  .btn{
+    min-height:56px;
+    min-width:140px;
+    /* Better touch feedback */
+    touch-action:manipulation;
+  }
+  
+  .in{
+    font-size:16px;
+    padding:12px 14px;
+    /* Prevent zoom on focus */
+    touch-action:manipulation;
+  }
+}

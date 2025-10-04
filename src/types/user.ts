@@ -9,6 +9,7 @@ export interface FamilyRelationship {
   canViewImages: boolean;
   canUploadImages: boolean;
   canDeleteImages: boolean;
+  canDownloadImages: boolean;
   canManageAlbums: boolean;
 }
 
@@ -27,6 +28,13 @@ export interface User {
   storageQuotaMB: number;
   allowedFileTypes: string;
   maxFileSizeMB: number;
+  twoFactorEnabled: boolean;
+  failedLoginAttempts: number;
+  canViewImages?: boolean;
+  canUploadImages?: boolean;
+  canDeleteImages?: boolean;
+  canManageAlbums?: boolean;
+  canDownloadImages?: boolean;
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string;

@@ -26,9 +26,12 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
     relationshipNotes: '',
     expiresInDays: 30,
     canViewImages: true,
-    canUploadImages: true,
+    canUploadImages: false,
     canDeleteImages: false,
-    canManageAlbums: false
+    canManageAlbums: false,
+    canDownloadImages: false,
+    canAllowUserUploadImage: false,
+
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -68,9 +71,11 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
           relationshipNotes: '',
           expiresInDays: 30,
           canViewImages: true,
-          canUploadImages: true,
+          canUploadImages: false,
           canDeleteImages: false,
-          canManageAlbums: false
+          canManageAlbums: false,
+          canDownloadImages: false,
+          canAllowUserUploadImage: false,
         });
       }
     } catch (error: any) {
@@ -150,12 +155,16 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
                   <span>Upload Images: {formData.canUploadImages ? '✅ Allowed' : '❌ Not Allowed'}</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className={`w-3 h-3 rounded-full ${formData.canDeleteImages ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                  <span>Delete Images: {formData.canDeleteImages ? '✅ Allowed' : '❌ Not Allowed'}</span>
+                  <span className={`w-3 h-3 rounded-full ${formData.canDownloadImages ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                  <span>Download Images: {formData.canDownloadImages ? '✅ Allowed' : '❌ Not Allowed'}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className={`w-3 h-3 rounded-full ${formData.canManageAlbums ? 'bg-green-500' : 'bg-red-500'}`}></span>
                   <span>Manage Albums: {formData.canManageAlbums ? '✅ Allowed' : '❌ Not Allowed'}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className={`w-3 h-3 rounded-full ${formData.canAllowUserUploadImage ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                  <span>Allow User Upload Image: {formData.canAllowUserUploadImage ? '✅ Allowed' : '❌ Not Allowed'}</span>
                 </div>
               </div>
             </div>
@@ -386,8 +395,34 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
                   ⚙️ Manage Albums & Organization
                 </label>
               </div>
+              <div className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  id="canAllowUserUploadImage"
+                  name="canAllowUserUploadImage"
+                  checked={formData.canAllowUserUploadImage}
+                  onChange={handleCheckboxChange}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="canAllowUserUploadImage" className="text-sm font-medium text-gray-700">
+                  📤 Allow Uploads in Invitee Account
+                </label>
+              </div>
             </div>
-            
+            <div className="flex items-center space-x-3 mt-3">
+                <input
+                  type="checkbox"
+                  id="canDownloadImages"
+                  name="canDownloadImages"
+                  checked={formData.canDownloadImages}
+                  onChange={handleCheckboxChange}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="canDownloadImages" className="text-sm font-medium text-gray-700">
+                  📥 Download Images
+                </label>
+              </div>
+           
             <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-800">
                 💡 <strong>Note:</strong> Images uploaded by client members will be stored under your account, 

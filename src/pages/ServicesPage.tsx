@@ -337,18 +337,18 @@ const ServicesPage = () => {
   };
 
   const getServiceColor = (serviceType: string) => {
-    switch (serviceType) {
-      case 'S3_BUCKET':
-        return 'bg-gradient-to-r from-orange-500 to-orange-600';
-      case 'B2_SERVICE':
-        return 'bg-gradient-to-r from-blue-500 to-blue-600';
-      case 'GOOGLE_DRIVE':
-        return 'bg-gradient-to-r from-green-500 to-green-600';
-      case 'AZURE_BLOB':
-        return 'bg-gradient-to-r from-blue-600 to-blue-700';
-      default:
-        return 'bg-gradient-to-r from-gray-500 to-gray-600';
-    }
+    // switch (serviceType) {
+      // case 'S3_BUCKET':
+      //   return 'bg-gradient-to-r from-orange-500 to-orange-600';
+      // case 'B2_SERVICE':
+      //   return 'bg-gradient-to-r from-blue-500 to-blue-600';
+      // case 'GOOGLE_DRIVE':
+      //   return 'bg-gradient-to-r from-green-500 to-green-600';
+      // case 'AZURE_BLOB':
+      //   return 'bg-gradient-to-r from-blue-600 to-blue-700';
+      // default:
+        return 'bg-gradient-to-r  from-indigo-600 to-purple-600';
+    // }
   };
 
   const formatDate = (dateString: string) => {

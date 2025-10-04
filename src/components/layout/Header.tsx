@@ -80,7 +80,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                   <div className="space-y-3 max-h-48 overflow-y-auto">
                     <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border-l-4 border-blue-500 shadow-sm">
                       <div className="flex items-start space-x-3">
-                        <FaStar className="h-4 w-4 text-blue-600 mt-0.5" />
+                        {/* <FaStar className="h-4 w-4 text-blue-600 mt-0.5" /> */}
                         <div>
                           <p className="text-sm font-semibold text-blue-900">Welcome to ImageSecurity Portal!</p>
                           <p className="text-xs text-blue-600 mt-1">2 minutes ago</p>
@@ -127,7 +127,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                 </div>
                 <p className="text-xs text-gray-600">{user?.email}</p>
                 <div className="flex items-center space-x-1">
-                  <FaStar className="w-3 h-3 text-blue-500" />
+                  {/* <FaStar className="w-3 h-3 text-blue-500" /> */}
                   <p className="text-xs text-blue-600 font-semibold">{user?.accountType}</p>
                 </div>
               </div>
@@ -154,7 +154,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                       </div>
                       <p className="text-xs text-gray-600 mt-1" style={{ wordBreak: 'break-all' }}>{user?.email}</p>
                       <div className="flex items-center space-x-1 mt-1">
-                        <FaStar className="w-3 h-3 text-blue-500" />
+                        {/* <FaStar className="w-3 h-3 text-blue-500" /> */}
                         <p className="text-xs text-blue-600 font-semibold">{user?.accountType}</p>
                       </div>
                     </div>
@@ -172,7 +172,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                       <span className="font-semibold">Profile</span>
                     </button>
                     
-                    <button
+                    {/* <button
                       onClick={() => {
                         navigate('/settings');
                         setUserMenuOpen(false);
@@ -181,7 +181,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                     >
                       <FaCog className="mr-3 h-4 w-4 text-purple-600 group-hover:scale-110 transition-transform duration-300" />
                       <span className="font-semibold">Settings</span>
-                    </button>
+                    </button> */}
                     
                     <hr className="my-3 border-gray-200" />
                     

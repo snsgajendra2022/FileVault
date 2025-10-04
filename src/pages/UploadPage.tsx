@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import imageService from '../services/imageService';
 import toast from 'react-hot-toast';
-import { FaCloudUploadAlt, FaFileImage, FaTimes, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
+import { FaCloudUploadAlt, FaFileImage, FaTimes, FaCheck, FaExclamationTriangle, FaLock, FaDownload } from 'react-icons/fa';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { useQuery } from '@tanstack/react-query';
 
 interface UploadFile {
   file: File;
@@ -17,15 +19,36 @@ interface UploadFile {
 }
 
 const UploadPage = () => {
-  // const { user } = useAuth();
+  const { user } = useAuth();
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [familyMembers, setFamilyMembers] = useState<any[]>([]);
   const [showUploadOptions, setShowUploadOptions] = useState(false);
   const [selectedFileForOptions, setSelectedFileForOptions] = useState<UploadFile | null>(null);
 
+  // Fetch user profile data dynamically
+  const { data: userProfile, isLoading: userLoading, error: userError } = useQuery({
+    queryKey: ['userProfile'],
+    queryFn: async () => {
+      const response = await api.get('/api/auth/profile');
+      return response.data;
+    },
+    enabled: !!user, // Only fetch if user is authenticated
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  // (Deprecated) Separate upload-permissions endpoint not used anymore; rely on profile flags
+
+  // Fetch storage usage
+  const { data: storageUsage } = useQuery({
+    queryKey: ['storageUsage'],
+    queryFn: () => imageService.getStorageUsage(),
+    enabled: !!user,
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
+
   // Fetch family members on component mount
-  React.useEffect(() => {
+  useEffect(() => {
     fetchFamilyMembers();
   }, []);
 
@@ -40,25 +63,109 @@ const UploadPage = () => {
     }
   };
 
+  // Permission checking functions (source of truth: user profile flags)
+  const canUpload = () => {
+    if (!userProfile) return false;
+    return !!userProfile.canUploadImages && !!userProfile.allowedFileTypes && userProfile.maxFileSizeMB > 0;
+  };
+
+  const canViewImages = () => {
+    if (!userProfile) return false;
+    return !!userProfile.canViewImages;
+  };
+
+  const canDownloadImages = () => {
+    if (!userProfile) return false;
+    return !!userProfile.canDownloadImages;
+  };
+
+  const isFileTypeAllowed = (file: File) => {
+    if (!userProfile?.allowedFileTypes) return false;
+    const allowedTypes = userProfile.allowedFileTypes.split(',').map(t => t.trim().toLowerCase());
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    return allowedTypes.includes(fileExtension || '');
+  };
+
+  const isFileSizeAllowed = (file: File) => {
+    if (!userProfile?.maxFileSizeMB) return false;
+    const maxSizeBytes = userProfile.maxFileSizeMB * 1024 * 1024;
+    return file.size <= maxSizeBytes;
+  };
+
+  const hasStorageSpace = (fileSize: number) => {
+    if (!storageUsage) return true; // Assume true if we can't check
+    const fileSizeMB = fileSize / (1024 * 1024);
+    return (storageUsage.used + fileSizeMB) <= storageUsage.total;
+  };
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles: UploadFile[] = acceptedFiles.map(file => ({
-      file,
-      id: Math.random().toString(36).substr(2, 9),
-      progress: 0,
-      status: 'pending',
-      uploadDestination: 'my-account' // Default to my account
-    }));
-    
-    setUploadFiles(prev => [...prev, ...newFiles]);
-  }, []);
+    if (!canUpload()) {
+      toast.error('You do not have permission to upload files');
+      return;
+    }
+
+    const validFiles: UploadFile[] = [];
+    const invalidFiles: string[] = [];
+
+    acceptedFiles.forEach(file => {
+      if (!isFileTypeAllowed(file)) {
+        invalidFiles.push(`${file.name} - File type not allowed`);
+        return;
+      }
+      
+      if (!isFileSizeAllowed(file)) {
+        invalidFiles.push(`${file.name} - File size exceeds ${userProfile?.maxFileSizeMB || 0}MB limit`);
+        return;
+      }
+
+      if (!hasStorageSpace(file.size)) {
+        invalidFiles.push(`${file.name} - Insufficient storage space`);
+        return;
+      }
+
+      validFiles.push({
+        file,
+        id: Math.random().toString(36).substr(2, 9),
+        progress: 0,
+        status: 'pending',
+        uploadDestination: 'my-account' // Default to my account
+      });
+    });
+
+    if (invalidFiles.length > 0) {
+      toast.error(`Some files were rejected:\n${invalidFiles.join('\n')}`);
+    }
+
+    if (validFiles.length > 0) {
+      setUploadFiles(prev => [...prev, ...validFiles]);
+      toast.success(`${validFiles.length} file(s) added to upload queue`);
+    }
+  }, [userProfile, canUpload, isFileTypeAllowed, isFileSizeAllowed, hasStorageSpace]);
+
+  // Dynamic accept types based on profile allowedFileTypes
+  const getAcceptTypes = () => {
+    if (!userProfile?.allowedFileTypes) return {};
+    const acceptTypes: any = {};
+    const allowedTypes = userProfile.allowedFileTypes.split(',').map(t => t.trim().toLowerCase());
+
+    if (allowedTypes.some(type => ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(type))) {
+      acceptTypes['image/*'] = ['.jpeg', '.jpg', '.png', '.gif', '.bmp', '.webp'];
+    }
+    if (allowedTypes.includes('pdf')) {
+      acceptTypes['application/pdf'] = ['.pdf'];
+    }
+    if (allowedTypes.some(type => ['doc', 'docx'].includes(type))) {
+      acceptTypes['application/msword'] = ['.doc'];
+      acceptTypes['application/vnd.openxmlformats-officedocument.wordprocessingml.document'] = ['.docx'];
+    }
+    return acceptTypes;
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.bmp', '.webp'],
-      'application/pdf': ['.pdf']
-    },
-    multiple: true
+    accept: getAcceptTypes(),
+    multiple: true,
+    disabled: !canUpload()
   });
 
   const removeFile = (id: string) => {
@@ -90,91 +197,42 @@ const UploadPage = () => {
       );
 
       if (uploadFile.uploadDestination === 'family-account' && uploadFile.targetFamilyMember) {
-        // Upload to family member's account using inviterApiToken
-        const userData = JSON.parse(localStorage.getItem('userData') || '{}');
-        // console.log('UserData:', userData);
-        // console.log('Target Family Member:', uploadFile.targetFamilyMember);
-        
-        const familyRelationship = userData.familyRelationships?.find(
-          (rel: any) => rel.inviterId === uploadFile.targetFamilyMember.otherUserId
+        // Upload to family member's account
+        const response = await imageService.uploadToFamilyMember(
+          uploadFile.file, 
+          uploadFile.targetFamilyMember.otherUserId
         );
-        
-        // console.log('Found Family Relationship:', familyRelationship);
-        
-        if (!familyRelationship || !familyRelationship.inviterApiToken) {
-          console.error('Family relationship or inviter token not found');
-          throw new Error('Family relationship or inviter token not found');
+
+        if (response.success) {
+          setUploadFiles(prev => 
+            prev.map(f => 
+              f.id === uploadFile.id 
+                ? { ...f, status: 'completed' as const, progress: 100 }
+                : f
+            )
+          );
+
+          toast.success(`${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`);
+        } else {
+          throw new Error(response.message || 'Upload failed');
         }
-
-        const formData = new FormData();
-        formData.append('file', uploadFile.file);
-
-        // console.log('Using inviter token:', familyRelationship.inviterApiToken);
-
-        await api.post('/api/images/upload', formData, {
-          headers: {
-            'Authorization': `Bearer ${familyRelationship.inviterApiToken}`
-          },
-          onUploadProgress: (progressEvent) => {
-            const progress = Math.round(
-              (progressEvent.loaded * 100) / (progressEvent.total || 1)
-            );
-            
-            setUploadFiles(prev => 
-              prev.map(f => 
-                f.id === uploadFile.id 
-                  ? { ...f, progress }
-                  : f
-              )
-            );
-          }
-        });
-
-        setUploadFiles(prev => 
-          prev.map(f => 
-            f.id === uploadFile.id 
-              ? { ...f, status: 'completed' as const, progress: 100 }
-              : f
-          )
-        );
-
-        toast.success(`${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`);
       } else {
-        // Upload to my account using my own token
-        const myToken = localStorage.getItem('token');
-        // console.log('Using my token:', myToken);
-        
-        const formData = new FormData();
-        formData.append('file', uploadFile.file);
+        // Upload to my account
+        const response = await imageService.uploadImage(uploadFile.file);
 
-        await api.post('/api/images/upload', formData, {
-          headers: {
-            'Authorization': `Bearer ${myToken}`
-          },
-          onUploadProgress: (progressEvent) => {
-            const progress = Math.round(
-              (progressEvent.loaded * 100) / (progressEvent.total || 1)
-            );
-            
-            setUploadFiles(prev => 
-              prev.map(f => 
-                f.id === uploadFile.id 
-                  ? { ...f, progress }
-                  : f
-              )
-            );
-          }
-        });
+        if (response.success) {
+          setUploadFiles(prev => 
+            prev.map(f => 
+              f.id === uploadFile.id 
+                ? { ...f, status: 'completed' as const, progress: 100 }
+                : f
+            )
+          );
 
-        setUploadFiles(prev => 
-          prev.map(f => 
-            f.id === uploadFile.id 
-              ? { ...f, status: 'completed' as const, progress: 100 }
-              : f
-          )
-        );
-
-        toast.success(`${uploadFile.file.name} uploaded to your account successfully!`);
+          toast.success(`${uploadFile.file.name} uploaded to your account successfully!`);
+        } else {
+          throw new Error(response.message || 'Upload failed');
+        }
       }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || error?.message || 'Upload failed');
@@ -286,6 +344,52 @@ const UploadPage = () => {
     return '🏠 My Account';
   };
 
+  // Show loading state while fetching user profile
+  if (userLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <LoadingSpinner size="lg" text="Loading your profile..." />
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if user profile fetch failed
+  if (userError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Profile Loading Failed</h1>
+          <p className="text-gray-600 mb-4">Unable to load your profile information</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show permission denied if user cannot upload
+  if (!canUpload()) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center max-w-md mx-auto">
+          <div className="text-red-500 text-6xl mb-4">🔒</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Upload Not Available</h1>
+          <p className="text-gray-600 mb-4">
+            You don't have permission to upload files. Please contact your administrator or upgrade your account.
+          </p>
+
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -296,6 +400,55 @@ const UploadPage = () => {
         <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
           Upload and secure your images and documents with advanced cloud storage
         </p>
+        
+        {/* User Info and Permissions */}
+        {userProfile && (
+          <div className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 max-w-4xl mx-auto border border-blue-100">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <span className="text-white font-bold text-lg">
+                    {userProfile.accountType?.charAt(0) || 'U'}
+                  </span>
+                </div>
+                <h3 className="font-semibold text-gray-800">Account Type</h3>
+                <p className="text-sm text-gray-600">{userProfile.accountType || 'Unknown'}</p>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <span className="text-white font-bold text-lg">
+                    {userProfile.maxFileSizeMB || 0}MB
+                  </span>
+                </div>
+                <h3 className="font-semibold text-gray-800">Max File Size</h3>
+                <p className="text-sm text-gray-600">Per file limit</p>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <span className="text-white font-bold text-lg">
+                    {userProfile.allowedFileTypes?.split(',').length || 0}
+                  </span>
+                </div>
+                <h3 className="font-semibold text-gray-800">Allowed Types</h3>
+                <p className="text-sm text-gray-600">{userProfile.allowedFileTypes?.toUpperCase() || 'None'}</p>
+              </div>
+
+              {/* <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <span className="text-white font-bold text-lg">
+                    {storageUsage ? `${Math.round((storageUsage.used / storageUsage.total) * 100)}%` : '0%'}
+                  </span>
+                </div>
+                <h3 className="font-semibold text-gray-800">Storage Used</h3>
+                <p className="text-sm text-gray-600">
+                  {storageUsage ? `${storageUsage.used}MB / ${storageUsage.total}MB` : '0MB / 0MB'}
+                </p>
+              </div>*/}
+            </div> 
+          </div>
+        )}
       </div>
 
       {/* Upload Area */}
@@ -324,18 +477,26 @@ const UploadPage = () => {
             <p className="mt-3 text-lg text-gray-600">
               or click to select files
             </p>
-            <div className="mt-6 flex items-center justify-center space-x-6 text-sm">
+            <div className="mt-6 flex items-center justify-center space-x-6 text-sm flex-wrap gap-4">
+              {userProfile?.allowedFileTypes && (
+                <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
+                  <span className="w-3 h-3 bg-green-400 rounded-full mr-3 animate-pulse"></span>
+                  <span className="font-medium text-gray-700">
+                    {userProfile.allowedFileTypes.toUpperCase()}
+                  </span>
+                </span>
+              )}
               <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
-                <span className="w-3 h-3 bg-green-400 rounded-full mr-3 animate-pulse"></span>
-                <span className="font-medium text-gray-700">JPG, PNG, GIF</span>
+                <span className="w-3 h-3 bg-purple-400 rounded-full mr-3 animate-pulse"></span>
+                <span className="font-medium text-gray-700">
+                  Max {userProfile?.maxFileSizeMB || 0}MB
+                </span>
               </span>
               <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
                 <span className="w-3 h-3 bg-blue-400 rounded-full mr-3 animate-pulse"></span>
-                <span className="font-medium text-gray-700">PDF Documents</span>
-              </span>
-              <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
-                <span className="w-3 h-3 bg-purple-400 rounded-full mr-3 animate-pulse"></span>
-                <span className="font-medium text-gray-700">Max 10MB</span>
+                <span className="font-medium text-gray-700">
+                  {storageUsage ? `${storageUsage.total - storageUsage.used}MB Available` : '0MB Available'}
+                </span>
               </span>
             </div>
           </div>
@@ -592,7 +753,7 @@ const UploadPage = () => {
                             }}
                             className="w-full p-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           >
-                            <option value="">Select a family member...</option>
+                            <option value="">Select a member...</option>
                             {familyMembers.map((member) => (
                               <option key={member.id} value={member.id}>
                                 {member.otherUserFirstName} {member.otherUserLastName} ({member.relationshipType})
@@ -604,7 +765,7 @@ const UploadPage = () => {
                           {selectedFileForOptions.uploadDestination === 'family-account' && !selectedFileForOptions.targetFamilyMember && (
                             <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
                               <p className="text-sm text-orange-700">
-                                ⚠️ Please select a family member to complete the upload destination.
+                                ⚠️ Please select a member to complete the upload destination.
                               </p>
                             </div>
                           )}
@@ -622,13 +783,13 @@ const UploadPage = () => {
                       <div>
                         <h5 className="font-semibold text-yellow-800">Important Notice</h5>
                         <p className="text-sm text-yellow-700">
-                          <strong>This image will be stored under your family member's account, not yours.</strong>
+                          <strong>This image will be stored under your member's account, not yours.</strong>
                         </p>
                         <ul className="text-sm text-yellow-700 mt-2 space-y-1">
                           <li>✅ You can view the image anytime</li>
-                          <li>✅ Your family member will see it in their account</li>
+                          <li>✅ Your member will see it in their account</li>
                           <li>❌ You cannot move it to your account later</li>
-                          <li>❌ Your family member can delete it if they choose</li>
+                          <li>❌ Your member can delete it if they choose</li>
                         </ul>
                       </div>
                     </div>
