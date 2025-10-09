@@ -12,7 +12,7 @@ import {
 } from 'react-icons/fa';
 import './ClientManagement.css';
 import toast from 'react-hot-toast';
-import api from '../services/api';
+import api from '../../services/api';
 
 interface Invitation {
   id: number;

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import QRCode from 'react-qr-code';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   FaImages, 

@@ -162,7 +162,7 @@ const ServicesPage = () => {
       refetch();
       
       // Only for Google Drive service
-      if (data.serviceType === 'GOOGLE_DRIVE') {
+      // if (data.serviceType === 'GOOGLE_DRIVE') {
         try {
           // Enable the service first
           await handleToggleService(data.serviceType, true);
@@ -190,7 +190,7 @@ const ServicesPage = () => {
           console.error('Error enabling Google Drive service:', error);
           toast.error('Failed to enable Google Drive service');
         }
-      }
+      // }
     },
     onError: (error, variables) => {
       toast.error(`Failed to configure `);

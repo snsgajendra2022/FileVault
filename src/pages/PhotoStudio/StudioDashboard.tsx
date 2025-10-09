@@ -17,8 +17,8 @@ import {
   FaDollarSign
 } from 'react-icons/fa';
 import './StudioDashboard.css';
-import adminService from '../services/adminService';
-import api from '../services/api';
+import adminService from '../../services/adminService';
+import api from '../../services/api';
 
 interface DashboardStats {
   totalClients?: number;
@@ -238,7 +238,7 @@ const StudioDashboard: React.FC = () => {
   return (
     <div className="studio-dashboard">
       {/* Header */}
-      <header className="dashboard-header">
+      {/* <header className="dashboard-header">
         <div className="header-left">
           <div className="logo">
             <FaCamera className="logo-icon" />
@@ -253,7 +253,7 @@ const StudioDashboard: React.FC = () => {
             <FaSignOutAlt />
           </button>
         </div>
-      </header>
+      </header> */}
 
       {/* Main Content */}
       <main className="dashboard-main">

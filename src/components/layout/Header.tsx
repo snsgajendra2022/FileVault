@@ -82,7 +82,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                       <div className="flex items-start space-x-3">
                         {/* <FaStar className="h-4 w-4 text-blue-600 mt-0.5" /> */}
                         <div>
-                          <p className="text-sm font-semibold text-blue-900">Welcome to ImageSecurity Portal!</p>
+                          <p className="text-sm font-semibold text-blue-900">Welcome to Portal!</p>
                           <p className="text-xs text-blue-600 mt-1">2 minutes ago</p>
                         </div>
                       </div>

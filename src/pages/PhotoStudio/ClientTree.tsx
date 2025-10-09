@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
-import api from "../services/api";
+import api from "../../services/api";
 import { toast } from "react-hot-toast";
 
 // Data types

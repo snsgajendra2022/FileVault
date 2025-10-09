@@ -104,7 +104,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit, is
         }
         } catch (upgradeError: any) {
           console.error('Plan upgrade failed:', upgradeError);
-          console.log('User created successfully! Welcome to ImageSecurity Portal.');
+          console.log('User created successfully! Welcome to Portal.');
           // Don't fail the user creation if plan upgrade fails
         }
       } catch (error: any) {

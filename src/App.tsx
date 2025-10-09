@@ -28,20 +28,21 @@ import AcceptInvitationPage from './pages/AcceptInvitationPage';
 import InvitationsPage from './pages/InvitationsPage';
 import ServiceConfigPage from './pages/ServiceConfigPage';
 // PhotoStudio Pro imports
-import StudioLanding from './pages/StudioLanding';
-import StudioAuthPage from './pages/StudioAuthPage';
-import StudioDashboard from './pages/StudioDashboard';
-import ClientManagement from './pages/ClientManagement';
-import PhotoGallery from './pages/PhotoGallery';
-import ClientPortal from './pages/ClientPortal';
-import BarcodeSystem from './pages/BarcodeSystem';
-import StudioSettings from './pages/StudioSettings';
+import StudioLanding from './pages/PhotoStudio/StudioLanding';
+import StudioAuthPage from './pages/PhotoStudio/StudioAuthPage';
+import StudioDashboard from './pages/PhotoStudio/StudioDashboard';
+import ClientManagement from './pages/PhotoStudio/ClientManagement';
+import PhotoGallery from './pages/PhotoStudio/PhotoGallery';
+import ClientPortal from './pages/PhotoStudio/ClientPortal';
+import BarcodeSystem from './pages/PhotoStudio/BarcodeSystem';
+import StudioSettings from './pages/PhotoStudio/StudioSettings';
 import ViewImagePage from './pages/ViewImagePage';
 import FamilyTree from './components/invitations/FamilyTree';
 import CreateClientInvitationForm from './components/invitations/CreateClient';
-import ClientTreePage from './pages/ClientTree';
+import ClientTreePage from './pages/PhotoStudio/ClientTree';
 import ClientImagesPage from './pages/PhotoStudio/ImagesPage';
-import SheetPage from './pages/PhotoStudio/Sheet';
+import SheetPage from './pages/PhotoStudio/JsFile/Sheet';
+import Tree from './pages/PhotoStudio/JsFile/Tree';
 
 
 const queryClient = new QueryClient({

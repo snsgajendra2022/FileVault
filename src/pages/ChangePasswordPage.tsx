@@ -310,14 +310,14 @@ const ChangePasswordPage = () => {
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-6">
-              <button
+              {/* <button
                 type="button"
                 onClick={() => navigate('/profile')}
                 className="flex-1 px-6 py-4 border border-gray-300 text-gray-700 rounded-2xl font-semibold hover:bg-gray-50 transition-all duration-300"
                 disabled={changePasswordMutation.isPending}
               >
                 Cancel
-              </button>
+              </button> */}
               <button
                 type="submit"
                 className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"

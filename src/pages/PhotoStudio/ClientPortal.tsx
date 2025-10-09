@@ -20,7 +20,7 @@ import {
   FaLock
 } from 'react-icons/fa';
 import './ClientPortal.css';
-import api from '../services/api';
+import api from '../../services/api';
 
 interface MediaItem {
   id: string;

@@ -71,8 +71,8 @@ const Sidebar = () => {
     { name: 'Clients Tree', href: '/client-tree', icon: FaSitemap, enabled: true },
     { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
     { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
+    { name: 'Sheet', href: 'Sheet', icon: FaCog, enabled: true },
     // { name: 'Studio Settings', href: '/studio/settings', icon: FaCog, enabled: true },
-    // { name: 'Sheet', href: 'Sheet', icon: FaCog, enabled: true },
     // { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
   ],active:true};
 
@@ -96,7 +96,7 @@ console.log( studioNavigationItems.active === true && 2 );
           <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -translate-y-16 translate-x-16"></div>
           <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-5 rounded-full translate-y-12 -translate-x-12"></div>
           
-          <div className="relative z-10 flex items-center h-full">
+          <div className=" relative z-10 flex items-center h-full">
             <div className="flex items-center">
               <div className="relative">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-white to-gray-100 flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform duration-300">
@@ -111,10 +111,10 @@ console.log( studioNavigationItems.active === true && 2 );
                 {menuFlags.regular === true && navigationItems.active === true && (
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">ImageSecurity</h1>
                 )}
-                {menuFlags.studio === true && studioNavigationItems.active === true && (
+                {user?.accountType == 'FREE' && menuFlags.studio === true && studioNavigationItems.active === true && (
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">Photo Studio</h1>
                 )}
-                {menuFlags.admin === true && adminNavigationItems.active === true && (
+                {user.accountType == 'ADMIN' && menuFlags.admin === true && adminNavigationItems.active === true && (
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">Admin Panel</h1>
                 )}
                 <div className="flex items-center space-x-1">
@@ -131,17 +131,17 @@ console.log( studioNavigationItems.active === true && 2 );
              {!isAdmin && menuFlags.regular  && (
             <>
               {navigationItems.active === true && navigationItems.items.filter(i=>i.enabled!==false).map((item) => (
-              <NavLink
+                <NavLink
                 key={item.name}
                 to={item.href}
                 className={({ isActive }) =>
                   `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
                     isActive
-                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-xl border-r-4 border-blue-400'
-                      : 'text-gray-700 hover:text-gray-900 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 border-r-4 border-transparent hover:border-gray-200'
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-xl border-r-4 border-blue-400'
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 border-r-4 border-transparent hover:border-gray-200'
                   }`
                 }
-              >
+                >
                 {({ isActive }) => (
                   <>
                     {/* Active indicator */}
@@ -149,6 +149,7 @@ console.log( studioNavigationItems.active === true && 2 );
                       <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
                     )}
                     
+                    fgnfgbdfklbhcfklbndfklbndflbndfkb-----------------------
                     <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-gray-900'}`}>
                       <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
                     </div>

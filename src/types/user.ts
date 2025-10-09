@@ -20,7 +20,7 @@ export interface User {
   firstName: string;
   lastName: string;
   phone: string;
-  accountType: 'FREE' | 'BASIC' | 'PREMIUM' | 'ENTERPRISE' | 'ADMIN';
+  accountType: 'FREE' | 'BASIC' | 'PREMIUM' | 'ENTERPRISE' | 'ADMIN' | 'CLIENT' | 'FREE';
   status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'VERIFIED';
   company?: string;
   role?: string;
