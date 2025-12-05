@@ -83,6 +83,7 @@ declare module 'react-icons/fa' {
   export const FaTree: ComponentType<IconProps>;
   export const FaSitemap: ComponentType<IconProps>;
   export const FaUserPlus: ComponentType<IconProps>;
+  export const FaCheckCircle: ComponentType<IconProps>;
 }
 
 declare module 'react-icons/fi' {

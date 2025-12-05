@@ -14,6 +14,7 @@ interface UploadFile {
   progress: number;
   status: 'pending' | 'uploading' | 'completed' | 'error';
   error?: string;
+  successMessage?: string;
   uploadDestination?: 'my-account' | 'family-account';
   targetFamilyMember?: any;
 }
@@ -203,16 +204,35 @@ const UploadPage = () => {
           uploadFile.targetFamilyMember.otherUserId
         );
 
-        if (response.success) {
+        // Handle new cloudUploads response format
+        if (response.cloudUploads?.s3) {
+          const cloudResponse = response.cloudUploads.s3;
+          if (cloudResponse.status === 'success') {
+            const successMsg = cloudResponse.message || `${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`;
+            setUploadFiles(prev => 
+              prev.map(f => 
+                f.id === uploadFile.id 
+                  ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg }
+                  : f
+              )
+            );
+            toast.success(successMsg);
+          } else {
+            throw new Error(cloudResponse.message || 'Upload failed');
+          }
+        } 
+        // Handle old response format
+        else if (response.success) {
+          const successMsg = response.message || `${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`;
           setUploadFiles(prev => 
             prev.map(f => 
               f.id === uploadFile.id 
-                ? { ...f, status: 'completed' as const, progress: 100 }
+                ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg }
                 : f
             )
           );
 
-          toast.success(`${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`);
+          toast.success(successMsg);
         } else {
           throw new Error(response.message || 'Upload failed');
         }
@@ -220,16 +240,35 @@ const UploadPage = () => {
         // Upload to my account
         const response = await imageService.uploadImage(uploadFile.file);
 
-        if (response.success) {
+        // Handle new cloudUploads response format
+        if (response.cloudUploads?.s3) {
+          const cloudResponse = response.cloudUploads.s3;
+          if (cloudResponse.status === 'success') {
+            const successMsg = cloudResponse.message || `${uploadFile.file.name} uploaded to your account successfully!`;
+            setUploadFiles(prev => 
+              prev.map(f => 
+                f.id === uploadFile.id 
+                  ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg }
+                  : f
+              )
+            );
+            toast.success(successMsg);
+          } else {
+            throw new Error(cloudResponse.message || 'Upload failed');
+          }
+        } 
+        // Handle old response format
+        else if (response.success) {
+          const successMsg = response.message || `${uploadFile.file.name} uploaded to your account successfully!`;
           setUploadFiles(prev => 
             prev.map(f => 
               f.id === uploadFile.id 
-                ? { ...f, status: 'completed' as const, progress: 100 }
+                ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg }
                 : f
             )
           );
 
-          toast.success(`${uploadFile.file.name} uploaded to your account successfully!`);
+          toast.success(successMsg);
         } else {
           throw new Error(response.message || 'Upload failed');
         }
@@ -606,6 +645,15 @@ const UploadPage = () => {
                       </button>
                     </div>
                   </div>
+                  
+                  {uploadFile.successMessage && uploadFile.status === 'completed' && (
+                    <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl shadow-sm">
+                      <p className="text-sm text-green-700 flex items-center font-medium">
+                        <FaCheck className="h-5 w-5 mr-3 text-green-500" />
+                        {uploadFile.successMessage}
+                      </p>
+                    </div>
+                  )}
                   
                   {uploadFile.error && (
                     <div className="mt-6 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-2xl shadow-sm">

@@ -18,7 +18,8 @@ import {
   FaQrcode,
   FaTree,
   FaSitemap,
-  FaUserPlus
+  FaUserPlus,
+  FaShare
 } from 'react-icons/fa';
 
 
@@ -65,13 +66,16 @@ const Sidebar = () => {
     { name: 'Studio Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
     { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
     { name: 'My Images', href: '/client-images', icon: FaImages, enabled: true },
+    { name: 'Select & Pay', href: '/studio/payments', icon: FaQrcode, enabled: true },
+    { name: 'Public Selection', href: '/studio/image-selection', icon: FaShare, enabled: true },
     { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
-    { name: 'Create Client', href: '/invitations', icon: FaUsers, enabled: true },
-    { name: 'Clients', href: '/studio/clients', icon: FaUserPlus, enabled: true },
-    { name: 'Clients Tree', href: '/client-tree', icon: FaSitemap, enabled: true },
-    { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
-    { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
-    { name: 'Sheet', href: 'Sheet', icon: FaCog, enabled: true },
+    
+    // { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
+    // { name: 'Create Client', href: '/invitations', icon: FaUsers, enabled: true },
+    // { name: 'Clients', href: '/studio/clients', icon: FaUserPlus, enabled: true },
+    // { name: 'Clients Tree', href: '/client-tree', icon: FaSitemap, enabled: true },
+    // { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
+    // { name: 'Sheet', href: 'Sheet', icon: FaCog, enabled: true },
     // { name: 'Studio Settings', href: '/studio/settings', icon: FaCog, enabled: true },
     // { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
   ],active:true};
@@ -166,9 +170,9 @@ console.log( studioNavigationItems.active === true && 2 );
               {menuFlags.studio === true && studioNavigationItems.active === true
                &&  
               <div className=" pb-3">
-                <div className="flex items-center px-4 py-2 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-200">
-                  <FaCamera className="h-4 w-4 text-pink-600 mr-2" />
-                  <h3 className="text-xs font-bold text-pink-700 uppercase tracking-wider">
+                <div className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border border-[#2731db]">
+                  <FaCamera className="h-4 w-4 text-[#2731db] mr-2" />
+                  <h3 className="text-xs font-bold text-[#2731db] uppercase tracking-wider">
                     PhotoStudio Pro
                   </h3>
                 </div>
@@ -184,8 +188,8 @@ console.log( studioNavigationItems.active === true && 2 );
                   className={({ isActive }) =>
                     `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
                       isActive
-                        ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-xl border-r-4 border-pink-400'
-                        : 'text-gray-700 hover:text-gray-900 hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 border-r-4 border-transparent hover:border-pink-200'
+                        ? 'bg-gradient-to-r from-[#2731db] to-[#2731db] text-white shadow-xl border-r-4 border-[#2731db]'
+                        : 'text-gray-700 hover:text-gray-900 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 border-r-4 border-transparent hover:border-[#2731db]'
                     }`
                   }
                 >
@@ -196,7 +200,7 @@ console.log( studioNavigationItems.active === true && 2 );
                         <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
                       )}
                       
-                      <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-pink-700'}`}>
+                      <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-[#2731db]'}`}>
                         <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
                       </div>
                       <span className="font-semibold">{item.name}</span>

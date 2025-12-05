@@ -36,6 +36,10 @@ import PhotoGallery from './pages/PhotoStudio/PhotoGallery';
 import ClientPortal from './pages/PhotoStudio/ClientPortal';
 import BarcodeSystem from './pages/PhotoStudio/BarcodeSystem';
 import StudioSettings from './pages/PhotoStudio/StudioSettings';
+import StudioCheckout from './pages/PhotoStudio/StudioCheckout';
+import StudioImageSelection from './pages/PhotoStudio/StudioImageSelection';
+import PublicSelectionPage from './pages/PhotoStudio/PublicSelectionPage';
+import PublicCheckoutPage from './pages/PhotoStudio/PublicCheckoutPage';
 import ViewImagePage from './pages/ViewImagePage';
 import FamilyTree from './components/invitations/FamilyTree';
 import CreateClientInvitationForm from './components/invitations/CreateClient';
@@ -89,6 +93,10 @@ const AppRoutes = () => {
     <Routes>
       {/* Public image view route */}
       <Route path="/view" element={<ViewImagePage />} />
+      {/* Public checkout route */}
+      <Route path="/public/checkout" element={<PublicCheckoutPage />} />
+      {/* Public selected images (PhotoStudio) */}
+      <Route path="/public/selection" element={<PublicSelectionPage />} />
       <Route path="/login" element={
         !isLoading && isAuthenticated ? 
           (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />) : 
@@ -137,6 +145,8 @@ const AppRoutes = () => {
         <Route path="studio/clients" element={<ClientManagement />} />
         <Route path="studio/gallery" element={<PhotoGallery />} />
         <Route path="studio/barcodes" element={<BarcodeSystem />} />
+        <Route path="studio/image-selection" element={<StudioImageSelection />} />
+        <Route path="studio/payments" element={<StudioCheckout />} />
         <Route path="studio/settings" element={<StudioSettings />} />
         {/* <Route path="treePage" element={<TreePage />} /> */}
         <Route path="client-tree" element={<ClientTreePage />} />

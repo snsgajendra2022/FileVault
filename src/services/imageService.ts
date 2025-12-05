@@ -21,10 +21,27 @@ export interface ImageInfo {
   thumbnailUrl?: string;
 }
 
-export interface UploadResponse {
-  success: boolean;
-  image: ImageInfo;
+export interface CloudUploadS3Response {
+  filename: string;
+  fileId: string;
+  size: number;
+  status: string;
+  url: string;
+  deduplicated: boolean;
+  directUrl: string;
+  downloadUrl: string;
+  fileType: string;
+  id: number;
   message: string;
+}
+
+export interface UploadResponse {
+  success?: boolean;
+  image?: ImageInfo;
+  message?: string;
+  cloudUploads?: {
+    s3?: CloudUploadS3Response;
+  };
 }
 
 export interface DownloadResponse {

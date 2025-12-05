@@ -155,10 +155,10 @@ input:-internal-autofill-selected {
   color: inherit !important;
 }
 .to-purple-600 {
-    --tw-gradient-to: #c5327e var(--tw-gradient-to-position) !important;
+    --tw-gradient-to: #2730db var(--tw-gradient-to-position) !important;
 }
 .to-blue-600 {
-    --tw-gradient-to: #c5327e var(--tw-gradient-to-position) !important;
+    --tw-gradient-to: #2730db var(--tw-gradient-to-position) !important;
 }
 
 .from-blue-600 {

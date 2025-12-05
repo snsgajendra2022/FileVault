@@ -328,7 +328,7 @@ const StudioDashboard: React.FC = () => {
           <div className="dashboard-card">
             <div className="card-header">
               <h3>Recent Activity</h3>
-              <Link to="/studio/activity" className="view-all-link">
+              <Link to="/client-images" className="view-all-link">
                 View All
               </Link>
             </div>
@@ -346,7 +346,7 @@ const StudioDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="activity-list">
-                {recentActivity.map((activity) => (
+                {recentActivity.slice(0, 5).map((activity) => (
                   <div key={activity.id} className="activity-item">
                     <div className="activity-icon-wrapper">
                       {getActivityIcon(activity.type)}
@@ -387,7 +387,7 @@ const StudioDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="clients-list">
-                {recentClients.map((client) => (
+                {recentClients.slice(0, 5).map((client) => (
                   <div key={client.id} className="client-item">
                     <div className="client-avatar">
                       {client.avatar ? (
@@ -428,7 +428,7 @@ const StudioDashboard: React.FC = () => {
               <p>Add, edit, and organize your clients</p>
             </Link>
 
-            <Link to="/studio/gallery" className="access-card">
+            <Link to="/client-images" className="access-card">
               <FaImages className="access-icon" />
               <h4>Photo Gallery</h4>
               <p>Upload and organize photos & videos</p>
