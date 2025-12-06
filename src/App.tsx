@@ -45,6 +45,8 @@ import ClientImagesPage from './pages/PhotoStudio/ImagesPage';
 import SheetPage from './pages/PhotoStudio/JsFile/Sheet';
 import Tree from './pages/PhotoStudio/JsFile/Tree';
 import PhotoStudioAlbum from './pages/PhotoStudio/PhotoStudioAlbum';
+import PublicSelectionPage from './pages/PhotoStudio/PublicSelectionPage';
+import PublicCheckoutPage from './pages/PhotoStudio/PublicCheckoutPage';
 
 
 const queryClient = new QueryClient({
@@ -104,6 +106,10 @@ const AppRoutes = () => {
       
       {/* Public invitation acceptance route */}
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+      
+      {/* Public PhotoStudio routes - accessible without authentication */}
+      <Route path="/public/selection" element={<PublicSelectionPage />} />
+      <Route path="/public/checkout" element={<PublicCheckoutPage />} />
       
       {/* PhotoStudio Pro Routes */}
       <Route path="/studio" element={<StudioLanding />} />

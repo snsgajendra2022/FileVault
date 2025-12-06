@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { 
   FaFolder, 
@@ -69,7 +69,7 @@ const PhotoStudioAlbum: React.FC = () => {
   const [expandedAlbums, setExpandedAlbums] = useState<Set<number>>(new Set());
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddImagesModal, setShowAddImagesModal] = useState<number | null>(null);
-  const [selectedImages, setSelectedImages] = useState<Set<number | string>>(new Set());
+  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [newAlbumName, setNewAlbumName] = useState('');
   const [newAlbumDescription, setNewAlbumDescription] = useState('');
   const [searchImageId, setSearchImageId] = useState('');
@@ -249,23 +249,30 @@ const PhotoStudioAlbum: React.FC = () => {
       toast.error('Please select at least one image');
       return;
     }
+    // Convert string IDs back to numbers if needed for API
+    const imageIds = Array.from(selectedImages).map(id => {
+      const numId = Number(id);
+      return isNaN(numId) ? id : numId;
+    });
     addImagesMutation.mutate({
       albumId,
-      imageIds: Array.from(selectedImages),
+      imageIds,
     });
   };
 
-  const toggleImageSelection = (imageId: number | string) => {
+  const toggleImageSelection = useCallback((imageId: number | string) => {
+    const normalizedId = String(imageId);
+    
     setSelectedImages((prev) => {
-      const next = new Set(prev);
-      if (next.has(imageId)) {
-        next.delete(imageId);
+      const next = new Set<string>(prev);
+      if (next.has(normalizedId)) {
+        next.delete(normalizedId);
       } else {
-        next.add(imageId);
+        next.add(normalizedId);
       }
       return next;
     });
-  };
+  }, []);
 
   // Extract images from album data
   // Note: API doesn't support GET /api/albums/{id}/images
@@ -296,6 +303,8 @@ const PhotoStudioAlbum: React.FC = () => {
     return extension || image.fileType || 'unknown';
   };
 
+
+  console.log(userImages);
   const toggleAlbum = (albumId: number) => {
     setExpandedAlbums((prev) => {
       const next = new Set(prev);
@@ -504,6 +513,7 @@ const PhotoStudioAlbum: React.FC = () => {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        setSelectedImages(new Set()); // Reset selection when opening modal
                         setShowAddImagesModal(album.id);
                       }}
                       className="flex ml-4 px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors text-sm"
@@ -711,12 +721,20 @@ const PhotoStudioAlbum: React.FC = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {userImages.map((image) => {
-                    const isSelected = selectedImages.has(image.id);
+                  {userImages.map((image, index) => {
+                    // Normalize ID to string for consistent comparison
+                    const imageId = String(image.id);
+                    const isSelected = selectedImages.has(imageId);
+                    
                     return (
                       <div
                         key={image.id}
-                        onClick={() => toggleImageSelection(image.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          toggleImageSelection(image.id);
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
                         className={`relative rounded-xl overflow-hidden border cursor-pointer transition-all ${
                           isSelected
                             ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50'
@@ -728,7 +746,7 @@ const PhotoStudioAlbum: React.FC = () => {
                             <img
                               src={image.previewUrl}
                               alt={image.filename}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-cover pointer-events-none"
                             />
                           ) : (
                             <div className="flex items-center justify-center h-full text-gray-500 text-xs">
@@ -736,7 +754,7 @@ const PhotoStudioAlbum: React.FC = () => {
                             </div>
                           )}
                         </div>
-                        <div className="absolute top-2 right-2">
+                        <div className="absolute top-2 right-2 pointer-events-none">
                           <div
                             className={`w-6 h-6 rounded-full flex items-center justify-center ${
                               isSelected
@@ -747,7 +765,7 @@ const PhotoStudioAlbum: React.FC = () => {
                             {isSelected && <FaCheck className="text-xs" />}
                           </div>
                         </div>
-                        <div className="p-2 bg-white">
+                        <div className="p-2 bg-white pointer-events-none">
                           <p className="text-xs text-gray-900 truncate" title={image.filename}>
                             {image.filename}
                           </p>

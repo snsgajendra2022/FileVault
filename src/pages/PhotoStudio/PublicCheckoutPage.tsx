@@ -53,6 +53,7 @@ const PublicCheckoutPage: React.FC = () => {
   const [transactionId, setTransactionId] = useState<string>('');
 
   const token = searchParams.get('token') || '';
+  const filesParam = searchParams.get('files') || '';
 
   // Fetch albums
   const { data: albumsData, isLoading, isError } = useQuery({
@@ -71,6 +72,63 @@ const PublicCheckoutPage: React.FC = () => {
     if (albumsData.albums) return albumsData.albums;
     return [];
   }, [albumsData]);
+
+  // Parse filenames from URL parameter
+  const targetFilenames = useMemo(() => {
+    if (!filesParam) return [];
+    return filesParam.split(',').map(f => decodeURIComponent(f.trim())).filter(f => f);
+  }, [filesParam]);
+
+  // Helper function to get image filename
+  const getImageFilename = (image: AlbumImage): string => {
+    return image.originalFilename || image.filename || 'Unknown';
+  };
+
+  // Auto-select albums and images based on filenames from URL
+  useEffect(() => {
+    if (albums.length === 0 || targetFilenames.length === 0) return;
+
+    const matchedAlbums = new Set<number>();
+    const matchedImages = new Map<number, Set<number>>();
+
+    albums.forEach(album => {
+      if (!album.images || album.images.length === 0) return;
+
+      const albumImageIds = new Set<number>();
+      let hasMatch = false;
+
+      album.images.forEach(image => {
+        const imageFilename = getImageFilename(image);
+        // Check if this image's filename matches any target filename
+        const isMatch = targetFilenames.some(targetFilename => {
+          // Exact match or filename contains target (for partial matches)
+          return imageFilename === targetFilename || 
+                 imageFilename.includes(targetFilename) ||
+                 targetFilename.includes(imageFilename);
+        });
+
+        if (isMatch) {
+          albumImageIds.add(image.id);
+          hasMatch = true;
+        }
+      });
+
+      if (hasMatch) {
+        matchedAlbums.add(album.id);
+        matchedImages.set(album.id, albumImageIds);
+        // Auto-expand albums with matches
+        setExpandedAlbums(prev => new Set(prev).add(album.id));
+      }
+    });
+
+    if (matchedAlbums.size > 0) {
+      setSelectedAlbums(matchedAlbums);
+      setSelectedImages(matchedImages);
+      // Auto-generate QR code if images are found
+      setShowQr(true);
+      toast.success(`Found ${matchedAlbums.size} album(s) with matching images`);
+    }
+  }, [albums, targetFilenames]);
 
   // Get all selected images from all selected albums
   const allSelectedImages = useMemo(() => {
@@ -163,10 +221,6 @@ const PublicCheckoutPage: React.FC = () => {
     if (image.previewUrl) return image.previewUrl;
     if (image.downloadUrl) return image.downloadUrl;
     return null;
-  };
-
-  const getImageFilename = (image: AlbumImage): string => {
-    return image.originalFilename || image.filename || 'Unknown';
   };
 
   const getFileType = (image: AlbumImage): string => {

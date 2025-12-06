@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheckCircle, FaCheck, FaCopy, FaShare } from 'react-icons/fa';
@@ -47,6 +47,7 @@ const PublicSelectionPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const token = searchParams.get('token') || '';
+  const filesParam = searchParams.get('files') || '';
 
   // Fetch albums
   const { data: albumsData, isLoading, isError } = useQuery({
@@ -66,19 +67,78 @@ const PublicSelectionPage: React.FC = () => {
     return [];
   }, [albumsData]);
 
+  const getImageFilename = (image: AlbumImage): string => {
+    return image.originalFilename || image.filename || 'Unknown';
+  };
+
+  // Parse filenames from URL parameter
+  const targetFilenames = useMemo(() => {
+    if (!filesParam) return [];
+    return filesParam.split(',').map(f => decodeURIComponent(f.trim())).filter(f => f);
+  }, [filesParam]);
+
+  // Auto-select albums and images based on filenames from URL
+  useEffect(() => {
+    if (albums.length === 0 || targetFilenames.length === 0) return;
+
+    const matchedAlbums = new Set<number>();
+    const matchedImages = new Map<number, Set<number>>();
+
+    albums.forEach(album => {
+      if (!album.images || album.images.length === 0) return;
+
+      const albumImageIds = new Set<number>();
+      let hasMatch = false;
+
+      album.images.forEach(image => {
+        const imageFilename = image.originalFilename || image.filename || 'Unknown';
+        // Check if this image's filename matches any target filename
+        const isMatch = targetFilenames.some(targetFilename => {
+          // Exact match or filename contains target (for partial matches)
+          return imageFilename === targetFilename || 
+                 imageFilename.includes(targetFilename) ||
+                 targetFilename.includes(imageFilename);
+        });
+
+        if (isMatch) {
+          albumImageIds.add(image.id);
+          hasMatch = true;
+        }
+      });
+
+      if (hasMatch) {
+        matchedAlbums.add(album.id);
+        matchedImages.set(album.id, albumImageIds);
+        // Auto-expand albums with matches
+        setExpandedAlbums(prev => new Set(prev).add(album.id));
+      }
+    });
+
+    if (matchedAlbums.size > 0) {
+      setSelectedAlbums(matchedAlbums);
+      setUserSelectedImages(matchedImages);
+      toast.success(`Found ${matchedAlbums.size} album(s) with matching images`);
+    }
+  }, [albums, targetFilenames]);
+
   // Get all selected images
   const allSelectedImages = useMemo(() => {
     const images: AlbumImage[] = [];
     selectedAlbums.forEach(albumId => {
-       setSelectedAlbumId(albumId);
+      setSelectedAlbumId(albumId);
       const album = albums.find(a => a.id === albumId);
       if (album && album.images) {
-        const imageIds = userSelectedImages.get(albumId) || new Set<number>();
-        album.images.forEach(img => {
-          if (imageIds.has(img.id) || imageIds.size === 0) {
-            images.push(img);
-          }
-        });
+        const imageIds = userSelectedImages.get(albumId);
+        // Only include images that are explicitly in the selected images set
+        if (imageIds && imageIds.size > 0) {
+          album.images.forEach(img => {
+            if (imageIds.has(img.id)) {
+              images.push(img);
+            }
+          });
+        }
+        // If album is selected but no images in userSelectedImages, 
+        // it means all images were deselected, so don't include any
       }
     });
     return images;
@@ -87,7 +147,10 @@ const PublicSelectionPage: React.FC = () => {
   const toggleAlbum = (albumId: number) => {
     setSelectedAlbums(prev => {
       const next = new Set(prev);
+      const album = albums.find(a => a.id === albumId);
+      
       if (next.has(albumId)) {
+        // Deselect album
         next.delete(albumId);
         setUserSelectedImages(prevImgs => {
           const nextImgs = new Map(prevImgs);
@@ -95,7 +158,16 @@ const PublicSelectionPage: React.FC = () => {
           return nextImgs;
         });
       } else {
+        // Select album - automatically select all images in the album
         next.add(albumId);
+        if (album && album.images) {
+          setUserSelectedImages(prevImgs => {
+            const nextImgs = new Map(prevImgs);
+            const allImageIds = new Set(album.images!.map(img => img.id));
+            nextImgs.set(albumId, allImageIds);
+            return nextImgs;
+          });
+        }
       }
       return next;
     });
@@ -151,10 +223,6 @@ const PublicSelectionPage: React.FC = () => {
     if (image.previewUrl) return image.previewUrl;
     if (image.downloadUrl) return image.downloadUrl;
     return null;
-  };
-
-  const getImageFilename = (image: AlbumImage): string => {
-    return image.originalFilename || image.filename || 'Unknown';
   };
 
   const getFileType = (image: AlbumImage): string => {
@@ -462,7 +530,9 @@ const PublicSelectionPage: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
                           {albumImages.map((image) => {
-                            const isImageSelected = isSelected && (albumImageIds.has(image.id) || albumImageIds.size === 0);
+                            // Image is selected if: album is selected AND image is in the selected images set
+                            // When album is selected, all images should be in albumImageIds (set by toggleAlbum)
+                            const isImageSelected = isSelected && albumImageIds.has(image.id);
                             const imageUrl = getImageUrl(image);
                             const filename = getImageFilename(image);
                             const fileType = getFileType(image);
