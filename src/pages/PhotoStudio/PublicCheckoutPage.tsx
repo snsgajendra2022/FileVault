@@ -1,147 +1,214 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaExclamationTriangle } from 'react-icons/fa';
+import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheck } from 'react-icons/fa';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 
-interface UserImage {
-  previewUrl: string;
-  filename: string;
-  downloadUrl: string;
+interface Album {
+  id: number;
+  name: string;
+  description?: string;
+  imageCount?: number;
+  coverImageId?: number | null;
+  coverImageUrl?: string | null;
+  thumbnailUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  images?: AlbumImage[];
+  imageIds?: number[];
+  [key: string]: any;
+}
+
+interface AlbumImage {
+  id: number;
+  originalFilename: string;
+  storedFilename?: string;
+  s3PublicUrl?: string | null;
+  b2PublicUrl?: string | null;
+  googleDriveViewUrl?: string | null;
   uploadTime?: string;
-  fileType: string;
+  isPublic?: boolean;
+  filename?: string;
+  previewUrl?: string;
+  downloadUrl?: string;
+  fileType?: string;
+  [key: string]: any;
 }
 
-interface UserImagesResponse {
-  totalImages: number;
-  images: UserImage[];
-}
-
-const PRICE_PER_IMAGE = 1; // base price per photo
+const PRICE_PER_IMAGE = 1;
 
 const PublicCheckoutPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [selectedAlbums, setSelectedAlbums] = useState<Set<number>>(new Set());
+  const [expandedAlbums, setExpandedAlbums] = useState<Set<number>>(new Set());
+  const [selectedImages, setSelectedImages] = useState<Map<number, Set<number>>>(new Map());
   const [showQr, setShowQr] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [paymentChecking, setPaymentChecking] = useState(false);
   const [transactionId, setTransactionId] = useState<string>('');
 
   const token = searchParams.get('token') || '';
-  const selectedParam = searchParams.get('files') || searchParams.get('images') || '';
 
-  const selectedKeys = useMemo(() => {
-    if (!selectedParam) return new Set<string>();
-    return new Set(
-      selectedParam
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    );
-  }, [selectedParam]);
-
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['publicCheckoutImages', token],
+  // Fetch albums
+  const { data: albumsData, isLoading, isError } = useQuery({
+    queryKey: ['publicCheckoutAlbums', token],
     enabled: !!token,
     queryFn: async () => {
-      const response = await api.get(`/api/images/user/all?token=${token}`);
-      return response.data as UserImagesResponse;
+      const response = await api.get('/api/albums');
+      return response.data as Album[] | { albums: Album[] };
     },
     retry: 1,
   });
 
-  const allImages = data?.images ?? [];
+  const albums = useMemo(() => {
+    if (!albumsData) return [];
+    if (Array.isArray(albumsData)) return albumsData;
+    if (albumsData.albums) return albumsData.albums;
+    return [];
+  }, [albumsData]);
 
-  // Filter images based on selected keys
-  const availableImages = useMemo(() => {
-    if (selectedKeys.size === 0) {
-      return allImages;
-    }
-    return allImages.filter((img) => {
-      if (selectedKeys.has(img.filename)) return true;
-      if (img.downloadUrl && selectedKeys.has(img.downloadUrl)) return true;
-      const keysArray = Array.from(selectedKeys);
-      for (const key of keysArray) {
-        if (img.filename.includes(key) || (img.downloadUrl && img.downloadUrl.includes(key))) {
-          return true;
-        }
+  // Get all selected images from all selected albums
+  const allSelectedImages = useMemo(() => {
+    const images: AlbumImage[] = [];
+    selectedAlbums.forEach(albumId => {
+      const album = albums.find(a => a.id === albumId);
+      if (album && album.images) {
+        const imageIds = selectedImages.get(albumId) || new Set<number>();
+        album.images.forEach(img => {
+          if (imageIds.has(img.id) || imageIds.size === 0) {
+            images.push(img);
+          }
+        });
       }
-      return false;
     });
-  }, [allImages, selectedKeys]);
+    return images;
+  }, [selectedAlbums, selectedImages, albums]);
 
-  // Initialize selected files from URL params
-  useEffect(() => {
-    if (selectedParam) {
-      const selectedArray = selectedParam.split(',').map(s => s.trim()).filter(Boolean);
-      setSelectedFiles(new Set(selectedArray));
-    }
-  }, [selectedParam]);
+  const totalAmount = useMemo(
+    () => allSelectedImages.length * PRICE_PER_IMAGE,
+    [allSelectedImages.length]
+  );
 
-  const toggleSelect = (filename: string) => {
+  const toggleAlbum = (albumId: number) => {
     setIsPaid(false);
-    setSelectedFiles(prev => {
+    setSelectedAlbums(prev => {
       const next = new Set(prev);
-      if (next.has(filename)) {
-        next.delete(filename);
+      if (next.has(albumId)) {
+        next.delete(albumId);
+        setSelectedImages(prevImgs => {
+          const nextImgs = new Map(prevImgs);
+          nextImgs.delete(albumId);
+          return nextImgs;
+        });
       } else {
-        next.add(filename);
+        next.add(albumId);
       }
       return next;
     });
   };
 
-  const selectedImages = useMemo(
-    () => availableImages.filter(img => selectedFiles.has(img.filename)),
-    [availableImages, selectedFiles]
-  );
+  const toggleAlbumExpand = (albumId: number) => {
+    setExpandedAlbums(prev => {
+      const next = new Set(prev);
+      if (next.has(albumId)) {
+        next.delete(albumId);
+      } else {
+        next.add(albumId);
+      }
+      return next;
+    });
+  };
 
-  const totalAmount = useMemo(
-    () => selectedImages.length * PRICE_PER_IMAGE,
-    [selectedImages.length]
-  );
+  const toggleImageSelection = (albumId: number, imageId: number) => {
+    setIsPaid(false);
+    setSelectedImages(prev => {
+      const next = new Map(prev);
+      const imageSet = next.get(albumId) || new Set<number>();
+      const newImageSet = new Set(imageSet);
+      
+      if (newImageSet.has(imageId)) {
+        newImageSet.delete(imageId);
+      } else {
+        newImageSet.add(imageId);
+      }
+      
+      if (newImageSet.size === 0) {
+        next.delete(albumId);
+      } else {
+        next.set(albumId, newImageSet);
+      }
+      
+      return next;
+    });
+  };
+
+  const selectAllImagesInAlbum = (albumId: number) => {
+    const album = albums.find(a => a.id === albumId);
+    if (!album || !album.images) return;
+    
+    setSelectedImages(prev => {
+      const next = new Map(prev);
+      const allImageIds = new Set(album.images!.map(img => img.id));
+      next.set(albumId, allImageIds);
+      return next;
+    });
+  };
+
+  const getImageUrl = (image: AlbumImage): string | null => {
+    if (image.previewUrl) return image.previewUrl;
+    if (image.downloadUrl) return image.downloadUrl;
+    return null;
+  };
+
+  const getImageFilename = (image: AlbumImage): string => {
+    return image.originalFilename || image.filename || 'Unknown';
+  };
+
+  const getFileType = (image: AlbumImage): string => {
+    const filename = getImageFilename(image);
+    const extension = filename.split('.').pop()?.toLowerCase() || '';
+    return extension || image.fileType || 'unknown';
+  };
 
   const qrData = useMemo(() => {
-    if (!totalAmount || selectedImages.length === 0) return '';
+    if (!totalAmount || allSelectedImages.length === 0) return '';
     const params = new URLSearchParams({
       pa: 'rohitrawat9009@ybl',
       pn: 'PhotoStudio',
       am: String(totalAmount),
       cu: 'INR',
-      tn: `PhotoStudio payment for ${selectedImages.length} photo(s)`,
+      tn: `PhotoStudio payment for ${allSelectedImages.length} photo(s)`,
     });
     const upiUrl = `upi://pay?${params.toString()}`;
     return encodeURIComponent(upiUrl);
-  }, [selectedImages.length, totalAmount]);
+  }, [allSelectedImages.length, totalAmount]);
 
   // Generate transaction ID when QR is shown
   useEffect(() => {
-    if (selectedImages.length > 0 && totalAmount > 0 && !transactionId) {
+    if (allSelectedImages.length > 0 && totalAmount > 0 && !transactionId) {
       const txId = `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       setTransactionId(txId);
       
-      // Store transaction details in localStorage for verification
       const transactionData = {
         transactionId: txId,
         amount: totalAmount,
-        imageCount: selectedImages.length,
-        selectedFiles: Array.from(selectedFiles),
+        imageCount: allSelectedImages.length,
         token,
         timestamp: Date.now(),
         status: 'pending'
       };
       localStorage.setItem(`payment_${txId}`, JSON.stringify(transactionData));
     }
-  }, [selectedImages.length, totalAmount, transactionId, selectedFiles, token]);
+  }, [allSelectedImages.length, totalAmount, transactionId, token]);
 
   // Auto-show QR when images are selected
   useEffect(() => {
-    if (selectedImages.length > 0 && totalAmount > 0) {
+    if (allSelectedImages.length > 0 && totalAmount > 0) {
       setShowQr(true);
       setIsPaid(false);
     } else {
@@ -149,26 +216,21 @@ const PublicCheckoutPage: React.FC = () => {
       setIsPaid(false);
       setTransactionId('');
     }
-  }, [selectedImages.length, totalAmount]);
+  }, [allSelectedImages.length, totalAmount]);
 
-  // Function to verify payment
   const checkPaymentStatus = async (amount: number, imageCount: number): Promise<boolean> => {
     try {
       if (!transactionId) return false;
 
-      // Try to verify via backend API first
       try {
         const response = await api.post('/api/payment/verify', {
           amount,
           imageCount,
           token,
-          selectedFiles: Array.from(selectedFiles),
           transactionId
         });
-        console.log('response', response);
         
         if (response.data && response.data.paid === true) {
-          // Update localStorage
           const storedData = localStorage.getItem(`payment_${transactionId}`);
           if (storedData) {
             const transactionData = JSON.parse(storedData);
@@ -179,14 +241,11 @@ const PublicCheckoutPage: React.FC = () => {
           return true;
         }
       } catch (apiError: any) {
-        // If API endpoint doesn't exist, fall back to localStorage check
         if (apiError.response?.status !== 404) {
           console.error('Payment verification API error:', apiError);
         }
       }
 
-      // Fallback: Check localStorage for manual payment confirmation
-      // This allows manual marking of payment (for testing or manual verification)
       const storedData = localStorage.getItem(`payment_${transactionId}`);
       if (storedData) {
         const transactionData = JSON.parse(storedData);
@@ -195,11 +254,9 @@ const PublicCheckoutPage: React.FC = () => {
         }
       }
 
-      // Check if payment was manually confirmed via URL parameter
       const urlParams = new URLSearchParams(window.location.search);
       const paymentConfirmed = urlParams.get('payment_confirmed');
       if (paymentConfirmed === 'true' && urlParams.get('txn_id') === transactionId) {
-        // Mark as paid in localStorage
         const storedData = localStorage.getItem(`payment_${transactionId}`);
         if (storedData) {
           const transactionData = JSON.parse(storedData);
@@ -217,15 +274,14 @@ const PublicCheckoutPage: React.FC = () => {
     }
   };
 
-  // Auto-detect payment success - Polling mechanism
+  // Auto-detect payment success
   useEffect(() => {
-    if (showQr && qrData && !isPaid && selectedImages.length > 0 && totalAmount > 0 && transactionId) {
+    if (showQr && qrData && !isPaid && allSelectedImages.length > 0 && totalAmount > 0 && transactionId) {
       setPaymentChecking(true);
       
-      // Poll for payment status every 2 seconds (more frequent for better UX)
       const paymentCheckInterval = setInterval(async () => {
         try {
-          const paymentConfirmed = await checkPaymentStatus(totalAmount, selectedImages.length);
+          const paymentConfirmed = await checkPaymentStatus(totalAmount, allSelectedImages.length);
           
           if (paymentConfirmed) {
             setIsPaid(true);
@@ -236,16 +292,15 @@ const PublicCheckoutPage: React.FC = () => {
         } catch (error) {
           console.error('Payment check error:', error);
         }
-      }, 2000); // Check every 2 seconds
+      }, 2000);
 
-      // Auto-stop checking after 15 minutes
       const timeout = setTimeout(() => {
         clearInterval(paymentCheckInterval);
         setPaymentChecking(false);
         if (!isPaid) {
           toast.error('Payment verification timeout. Please refresh and try again.');
         }
-      }, 900000); // 15 minutes
+      }, 900000);
 
       return () => {
         clearInterval(paymentCheckInterval);
@@ -253,39 +308,47 @@ const PublicCheckoutPage: React.FC = () => {
         setPaymentChecking(false);
       };
     }
-  }, [showQr, qrData, isPaid, selectedImages.length, totalAmount, transactionId]);
+  }, [showQr, qrData, isPaid, allSelectedImages.length, totalAmount, transactionId]);
 
   // Auto-unlock downloads when payment is confirmed
   useEffect(() => {
-    if (isPaid && selectedImages.length > 0) {
+    if (isPaid && allSelectedImages.length > 0) {
       toast.success('Payment confirmed! Downloads unlocked.');
       
-      // Automatically download all selected images after a short delay
       setTimeout(() => {
-        selectedImages.forEach((image, index) => {
+        allSelectedImages.forEach((image, index) => {
           setTimeout(() => {
-            const link = document.createElement('a');
-            link.href = image.downloadUrl;
-            link.download = image.filename;
-            link.target = '_blank';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          }, index * 500); // Stagger downloads by 500ms
+            const imageUrl = getImageUrl(image);
+            if (imageUrl) {
+              const link = document.createElement('a');
+              link.href = imageUrl;
+              link.download = getImageFilename(image);
+              link.target = '_blank';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }
+          }, index * 500);
         });
       }, 1000);
     }
-  }, [isPaid, selectedImages]);
+  }, [isPaid, allSelectedImages]);
 
-  const handleDownload = (image: UserImage) => {
+  const handleDownload = (image: AlbumImage) => {
     if (!isPaid) {
       toast.error('Please complete payment before downloading');
       return;
     }
 
+    const imageUrl = getImageUrl(image);
+    if (!imageUrl) {
+      toast.error('Download URL not available');
+      return;
+    }
+
     const link = document.createElement('a');
-    link.href = image.downloadUrl;
-    link.download = image.filename;
+    link.href = imageUrl;
+    link.download = getImageFilename(image);
     link.target = '_blank';
     document.body.appendChild(link);
     link.click();
@@ -309,7 +372,7 @@ const PublicCheckoutPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <LoadingSpinner size="lg" text="Loading images..." />
+        <LoadingSpinner size="lg" text="Loading albums..." />
       </div>
     );
   }
@@ -319,7 +382,7 @@ const PublicCheckoutPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Unable to load images</h1>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Unable to load albums</h1>
           <p className="text-gray-600 text-sm">Please check the link or try again later.</p>
         </div>
       </div>
@@ -336,7 +399,7 @@ const PublicCheckoutPage: React.FC = () => {
             Photo Checkout
           </h1>
           <p className="text-gray-600 mt-2">
-            Select photos, make payment, and download your selected images.
+            Select albums and images, make payment, and download your selected photos.
           </p>
         </header>
 
@@ -345,10 +408,9 @@ const PublicCheckoutPage: React.FC = () => {
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg border border-gray-100 p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Selected photos</p>
+                <p className="text-sm text-gray-500">Selected images</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {selectedImages.length}{' '}
-                  <span className="text-sm text-gray-500">/ {availableImages.length}</span>
+                  {allSelectedImages.length}
                 </p>
               </div>
               <div>
@@ -363,9 +425,9 @@ const PublicCheckoutPage: React.FC = () => {
               </div>
             </div>
 
-            {selectedImages.length === 0 && (
+            {allSelectedImages.length === 0 && (
               <div className="text-center py-4 text-gray-500">
-                <p className="text-sm">Select photos to see payment QR code</p>
+                <p className="text-sm">Select albums and images to see payment QR code</p>
               </div>
             )}
           </div>
@@ -375,7 +437,7 @@ const PublicCheckoutPage: React.FC = () => {
             {!showQr || !qrData ? (
               <div className="text-center text-gray-500">
                 <FaQrcode className="mx-auto mb-3 text-4xl" />
-                <p className="text-sm">Select photos to see payment QR code.</p>
+                <p className="text-sm">Select albums and images to see payment QR code.</p>
               </div>
             ) : (
               <>
@@ -392,8 +454,8 @@ const PublicCheckoutPage: React.FC = () => {
                 </div>
                 <p className="text-sm text-gray-600 text-center mb-3">
                   Amount: <span className="font-semibold text-green-600">₹{totalAmount}</span> for{' '}
-                  <span className="font-semibold">{selectedImages.length}</span> photo
-                  {selectedImages.length !== 1 ? 's' : ''}.
+                  <span className="font-semibold">{allSelectedImages.length}</span> photo
+                  {allSelectedImages.length !== 1 ? 's' : ''}.
                 </p>
                 {paymentChecking && !isPaid && (
                   <div className="w-full mt-3 space-y-2">
@@ -403,28 +465,6 @@ const PublicCheckoutPage: React.FC = () => {
                         Waiting for payment confirmation...
                       </p>
                     </div>
-                    {/* <button
-                      onClick={() => {
-                        // Manual payment confirmation
-                        if (transactionId) {
-                          const storedData = localStorage.getItem(`payment_${transactionId}`);
-                          if (storedData) {
-                            const transactionData = JSON.parse(storedData);
-                            transactionData.status = 'paid';
-                            transactionData.paidAt = Date.now();
-                            transactionData.manualConfirmation = true;
-                            localStorage.setItem(`payment_${transactionId}`, JSON.stringify(transactionData));
-                            setIsPaid(true);
-                            setPaymentChecking(false);
-                            toast.success('Payment confirmed manually!');
-                          }
-                        }
-                      }}
-                      className="w-full px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 font-semibold transition-colors flex items-center justify-center text-sm"
-                    >
-                      <FaCheckCircle className="mr-2" />
-                      I've Paid - Confirm Payment
-                    </button> */}
                   </div>
                 )}
                 {isPaid && (
@@ -439,81 +479,175 @@ const PublicCheckoutPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Images Grid */}
+        {/* Albums List */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Select Photos</h2>
+            <h2 className="text-xl font-semibold text-gray-900">Select Albums & Images</h2>
             <p className="text-sm text-gray-500">
-              Click on images to select/deselect for payment.
+              Click albums to select, expand to see images inside.
             </p>
           </div>
 
-          {availableImages.length === 0 ? (
+          {albums.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <FaImages className="mx-auto mb-3 text-4xl" />
-              <p className="text-lg font-medium mb-2">No images available</p>
+              <p className="text-lg font-medium mb-2">No albums available</p>
               <p className="text-sm">Please check the link or contact the photographer.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
-              {availableImages.map((image, index) => {
-                const isSelected = selectedFiles.has(image.filename);
-                const uniqueKey = image.downloadUrl || `${image.filename}-${index}`;
+            <div className="space-y-3">
+              {albums.map((album) => {
+                const isSelected = selectedAlbums.has(album.id);
+                const isExpanded = expandedAlbums.has(album.id);
+                const albumImageIds = selectedImages.get(album.id) || new Set<number>();
+                const albumImages = album.images || [];
+                const allSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
+
                 return (
                   <div
-                    key={uniqueKey}
-                    className={`relative rounded-xl overflow-hidden border cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md ${
+                    key={album.id}
+                    className={`border rounded-xl overflow-hidden transition-all ${
                       isSelected ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50' : 'border-gray-200'
                     }`}
-                    onClick={() => toggleSelect(image.filename)}
                   >
-                    <div className="h-48 bg-gray-100 overflow-hidden">
-                      {image.fileType.toLowerCase().match(/^(png|jpg|jpeg|gif|webp)$/) ? (
-                        <img
-                          src={image.previewUrl}
-                          alt={image.filename}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-                          {image.fileType.toUpperCase()}
+                    {/* Album Header */}
+                    <div className="flex items-center justify-between p-4 bg-white">
+                      <div className="flex items-center space-x-4 flex-1">
+                        <button
+                          onClick={() => toggleAlbum(album.id)}
+                          className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
+                            isSelected ? 'bg-[#2731db] border-[#2731db]' : 'border-gray-300'
+                          }`}
+                        >
+                          {isSelected && <FaCheck className="text-white text-xs" />}
+                        </button>
+                        
+                        <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {album.coverImageUrl ? (
+                            <img
+                              src={album.coverImageUrl}
+                              alt={album.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <FaFolder className="text-2xl text-gray-400" />
+                          )}
                         </div>
-                      )}
-                    </div>
 
-                    <div className="absolute top-2 left-2">
-                      <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                          isSelected
-                            ? 'bg-[#2731db] text-white'
-                            : 'bg-white bg-opacity-80 border-2 border-gray-300'
-                        }`}
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-900">{album.name}</h3>
+                          {album.description && (
+                            <p className="text-sm text-gray-500">{album.description}</p>
+                          )}
+                          <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
+                            <span>{albumImages.length} images</span>
+                            {albumImageIds.size > 0 && (
+                              <span className="text-[#2731db] font-medium">
+                                {albumImageIds.size} selected
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => toggleAlbumExpand(album.id)}
+                        className="ml-4 px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-50"
                       >
-                        {isSelected && <FaCheckCircle className="text-xs" />}
-                      </div>
+                        <FaChevronRight
+                          className={`text-gray-400 transition-transform duration-200 ${
+                            isExpanded ? 'transform rotate-90' : ''
+                          }`}
+                        />
+                      </button>
                     </div>
 
-                    <div className="p-3 bg-white">
-                      <p className="text-sm font-medium text-gray-900 truncate" title={image.filename}>
-                        {image.filename.split('/').pop() || image.filename}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">{image.fileType.toUpperCase()}</p>
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="text-xs text-gray-500">₹{PRICE_PER_IMAGE}</span>
-                        {isPaid && isSelected && (
+                    {/* Album Images (shown when expanded) */}
+                    {isExpanded && isSelected && albumImages.length > 0 && (
+                      <div className="border-t border-gray-200 p-4 bg-gray-50">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-semibold text-gray-900">Select Images</h4>
                           <button
-                            type="button"
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleDownload(image);
-                            }}
-                            className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-green-600 text-white hover:bg-green-700"
+                            onClick={() => selectAllImagesInAlbum(album.id)}
+                            className="text-xs text-[#2731db] hover:underline"
                           >
-                            <FaDownload className="mr-1" /> Download
+                            {allSelected ? 'Deselect All' : 'Select All'}
                           </button>
-                        )}
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
+                          {albumImages.map((image) => {
+                            const isImageSelected = albumImageIds.has(image.id) || albumImageIds.size === 0;
+                            const imageUrl = getImageUrl(image);
+                            const filename = getImageFilename(image);
+                            const fileType = getFileType(image);
+                            const canView = imageUrl && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+
+                            return (
+                              <div
+                                key={image.id}
+                                className={`relative rounded-lg overflow-hidden border cursor-pointer transition-all ${
+                                  isImageSelected
+                                    ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50'
+                                    : 'border-gray-200'
+                                }`}
+                                onClick={() => toggleImageSelection(album.id, image.id)}
+                              >
+                                <div className="aspect-square bg-gray-100 overflow-hidden relative">
+                                  {canView ? (
+                                    <>
+                                      <img
+                                        src={imageUrl!}
+                                        alt={filename}
+                                        className="w-full h-full object-cover"
+                                      />
+                                      <div className="absolute top-2 right-2">
+                                        <div
+                                          className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                                            isImageSelected
+                                              ? 'bg-[#2731db] text-white'
+                                              : 'bg-white bg-opacity-80 border-2 border-gray-300'
+                                          }`}
+                                        >
+                                          {isImageSelected && <FaCheck className="text-xs" />}
+                                        </div>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="flex items-center justify-center h-full text-gray-500 text-xs">
+                                      {fileType.toUpperCase()}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="p-2 bg-white">
+                                  <p className="text-xs text-gray-900 truncate" title={filename}>
+                                    {filename}
+                                  </p>
+                                  <p className="text-xs text-gray-500 mt-1">{fileType.toUpperCase()}</p>
+                                  <div className="mt-2 flex items-center justify-between">
+                                    <span className="text-xs text-gray-500">₹{PRICE_PER_IMAGE}</span>
+                                    {isPaid && isImageSelected && (
+                                      <button
+                                        type="button"
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          handleDownload(image);
+                                        }}
+                                        className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-green-600 text-white hover:bg-green-700"
+                                      >
+                                        <FaDownload className="mr-1" /> Download
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 );
               })}
@@ -526,4 +660,3 @@ const PublicCheckoutPage: React.FC = () => {
 };
 
 export default PublicCheckoutPage;
-

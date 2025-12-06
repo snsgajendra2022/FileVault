@@ -19,7 +19,8 @@ import {
   FaTree,
   FaSitemap,
   FaUserPlus,
-  FaShare
+  FaShare,
+  FaFolder
 } from 'react-icons/fa';
 
 
@@ -67,7 +68,7 @@ const Sidebar = () => {
     { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
     { name: 'My Images', href: '/client-images', icon: FaImages, enabled: true },
     { name: 'Select & Pay', href: '/studio/payments', icon: FaQrcode, enabled: true },
-    { name: 'Public Selection', href: '/studio/image-selection', icon: FaShare, enabled: true },
+    { name: 'Album', href: '/studio/albums', icon: FaFolder, enabled: true },
     { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
     
     // { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
