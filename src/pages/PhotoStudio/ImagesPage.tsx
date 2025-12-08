@@ -243,11 +243,11 @@ const ClientImagesPage = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {viewMode === 'my' ? 'My Files' : `${selectedUser?.inviterFirstName} ${selectedUser?.inviterLastName}'s Files`}
+              {viewMode === 'my' ? 'My Images' : `${selectedUser?.inviterFirstName} ${selectedUser?.inviterLastName}'s Files`}
             </h1>
-            <p className="text-gray-600">
+            {/* <p className="text-gray-600">
               {viewMode === 'my' ? 'Manage and view your uploaded files' : 'View shared files from family member'}
-            </p>
+            </p> */}
           </div>
           {viewMode === 'invited' && (
             <button
@@ -262,7 +262,7 @@ const ClientImagesPage = () => {
       </div>
 
       {/* User Selection for Invited Users */}
-      {viewMode === 'my' && (
+      {/* {viewMode === 'my' && (
         <div className="mb-6">
           <div className="bg-white rounded-lg shadow p-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -329,7 +329,7 @@ const ClientImagesPage = () => {
             )}
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
