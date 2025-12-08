@@ -5,6 +5,7 @@ import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, Fa
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { decryptImageIds } from '../../utils/encryption';
 
 interface Album {
   id: number;
@@ -45,9 +46,18 @@ const PublicSelectionPage: React.FC = () => {
   const [selectedAlbumId, setSelectedAlbumId] = useState<number | null>(null);
   const [userSelectedImages, setUserSelectedImages] = useState<Map<number, Set<number>>>(new Map()); // albumId -> Set of imageIds
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showOnlySelected, setShowOnlySelected] = useState(false);
 
   const token = searchParams.get('token') || '';
-  const filesParam = searchParams.get('files') || '';
+  const filesParam = searchParams.get('files') || ''; // Legacy support
+  const imageIdsParam = searchParams.get('imageIds') || '';
+
+  // Auto-enable "show only selected" when imageIds or files are provided in URL
+  useEffect(() => {
+    if ((imageIdsParam && imageIdsParam.trim().length > 0) || (filesParam && filesParam.trim().length > 0)) {
+      setShowOnlySelected(true);
+    }
+  }, [imageIdsParam, filesParam]);
 
   // Fetch albums
   const { data: albumsData, isLoading, isError } = useQuery({
@@ -71,55 +81,104 @@ const PublicSelectionPage: React.FC = () => {
     return image.originalFilename || image.filename || 'Unknown';
   };
 
-  // Parse filenames from URL parameter
+  // Parse image IDs from URL parameter (preferred method)
+  const targetImageIds = useMemo(() => {
+    if (imageIdsParam) {
+      // Try to decrypt first (new encrypted format)
+      try {
+        const decrypted = decryptImageIds(imageIdsParam);
+        if (decrypted.length > 0) {
+          return decrypted;
+        }
+      } catch (error) {
+        // If decryption fails, try plain format (backward compatibility)
+        console.log('Trying plain format for imageIds');
+      }
+      // Fallback to plain comma-separated format (backward compatibility)
+      return imageIdsParam.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
+    }
+    return [];
+  }, [imageIdsParam]);
+
+  // Parse filenames from URL parameter (legacy support)
   const targetFilenames = useMemo(() => {
     if (!filesParam) return [];
     return filesParam.split(',').map(f => decodeURIComponent(f.trim())).filter(f => f);
   }, [filesParam]);
 
-  // Auto-select albums and images based on filenames from URL
+  // Auto-select albums and images based on image IDs or filenames from URL
   useEffect(() => {
-    if (albums.length === 0 || targetFilenames.length === 0) return;
+    if (albums.length === 0) return;
 
     const matchedAlbums = new Set<number>();
     const matchedImages = new Map<number, Set<number>>();
 
-    albums.forEach(album => {
-      if (!album.images || album.images.length === 0) return;
+    // Method 1: Use image IDs if provided (preferred - shorter URLs)
+    if (targetImageIds.length > 0) {
+      albums.forEach(album => {
+        if (!album.images || album.images.length === 0) return;
 
-      const albumImageIds = new Set<number>();
-      let hasMatch = false;
+        const albumImageIds = new Set<number>();
+        let hasMatch = false;
 
-      album.images.forEach(image => {
-        const imageFilename = image.originalFilename || image.filename || 'Unknown';
-        // Check if this image's filename matches any target filename
-        const isMatch = targetFilenames.some(targetFilename => {
-          // Exact match or filename contains target (for partial matches)
-          return imageFilename === targetFilename || 
-                 imageFilename.includes(targetFilename) ||
-                 targetFilename.includes(imageFilename);
+        album.images.forEach(image => {
+          if (targetImageIds.includes(image.id)) {
+            albumImageIds.add(image.id);
+            hasMatch = true;
+          }
         });
 
-        if (isMatch) {
-          albumImageIds.add(image.id);
-          hasMatch = true;
+        if (hasMatch) {
+          matchedAlbums.add(album.id);
+          matchedImages.set(album.id, albumImageIds);
+          // Auto-expand albums with matches
+          setExpandedAlbums(prev => new Set(prev).add(album.id));
         }
       });
+    }
+    // Method 2: Fallback to filename matching (legacy support)
+    else if (targetFilenames.length > 0) {
+      albums.forEach(album => {
+        if (!album.images || album.images.length === 0) return;
 
-      if (hasMatch) {
-        matchedAlbums.add(album.id);
-        matchedImages.set(album.id, albumImageIds);
-        // Auto-expand albums with matches
-        setExpandedAlbums(prev => new Set(prev).add(album.id));
-      }
-    });
+        const albumImageIds = new Set<number>();
+        let hasMatch = false;
+
+        album.images.forEach(image => {
+          const imageFilename = image.originalFilename || image.filename || 'Unknown';
+          // Check if this image's filename matches any target filename
+          const isMatch = targetFilenames.some(targetFilename => {
+            // Exact match or filename contains target (for partial matches)
+            return imageFilename === targetFilename || 
+                   imageFilename.includes(targetFilename) ||
+                   targetFilename.includes(imageFilename);
+          });
+
+          if (isMatch) {
+            albumImageIds.add(image.id);
+            hasMatch = true;
+          }
+        });
+
+        if (hasMatch) {
+          matchedAlbums.add(album.id);
+          matchedImages.set(album.id, albumImageIds);
+          // Auto-expand albums with matches
+          setExpandedAlbums(prev => new Set(prev).add(album.id));
+        }
+      });
+    } else {
+      return; // No parameters provided
+    }
 
     if (matchedAlbums.size > 0) {
       setSelectedAlbums(matchedAlbums);
       setUserSelectedImages(matchedImages);
+      // Automatically show only selected albums when imageIds or files are provided
+      setShowOnlySelected(true);
       toast.success(`Found ${matchedAlbums.size} album(s) with matching images`);
     }
-  }, [albums, targetFilenames]);
+  }, [albums, targetImageIds, targetFilenames]);
 
   // Get all selected images
   const allSelectedImages = useMemo(() => {
@@ -356,7 +415,7 @@ const PublicSelectionPage: React.FC = () => {
         </header>
 
         {/* Public URL Display */}
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+        {/* <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-2">
               <FaShare className="text-blue-600" />
@@ -376,7 +435,7 @@ const PublicSelectionPage: React.FC = () => {
           <p className="text-xs text-gray-500 mt-2">
             Share this URL with others to view and select from these albums
           </p>
-        </div>
+        </div> */}
 
         {/* Selection Summary Bar */}
         {allSelectedImages.length > 0 ? (
@@ -439,8 +498,33 @@ const PublicSelectionPage: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {albums.map((album) => {
+            <>
+              {/* Filter Toggle */}
+              {selectedAlbums.size > 0 && (
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setShowOnlySelected(!showOnlySelected)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        showOnlySelected
+                          ? 'bg-[#2731db] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {showOnlySelected ? 'Show All Albums' : 'Show Only Selected'}
+                    </button>
+                    {showOnlySelected && (
+                      <span className="text-sm text-gray-600">
+                        Showing {selectedAlbums.size} of {albums.length} albums
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className="space-y-4">
+                {albums
+                  .filter((album) => !showOnlySelected || selectedAlbums.has(album.id))
+                  .map((album) => {
                 const isSelected = selectedAlbums.has(album.id);
                 const isExpanded = expandedAlbums.has(album.id);
                 const albumImageIds = userSelectedImages.get(album.id) || new Set<number>();
@@ -529,7 +613,16 @@ const PublicSelectionPage: React.FC = () => {
                           )}
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                          {albumImages.map((image) => {
+                          {albumImages
+                            .filter((image) => {
+                              // Only show selected images when album is selected
+                              if (isSelected) {
+                                return albumImageIds.has(image.id);
+                              }
+                              // If album is not selected, show all images for selection
+                              return true;
+                            })
+                            .map((image) => {
                             // Image is selected if: album is selected AND image is in the selected images set
                             // When album is selected, all images should be in albumImageIds (set by toggleAlbum)
                             const isImageSelected = isSelected && albumImageIds.has(image.id);
@@ -611,7 +704,8 @@ const PublicSelectionPage: React.FC = () => {
                   </div>
                 );
               })}
-            </div>
+              </div>
+            </>
           )}
         </main>
       </div>

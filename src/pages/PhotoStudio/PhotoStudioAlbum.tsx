@@ -10,7 +10,8 @@ import {
   FaPlus,
   FaCheck,
   FaTimes,
-  FaSearch
+  FaSearch,
+  FaEdit
 } from 'react-icons/fa';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
@@ -69,9 +70,12 @@ const PhotoStudioAlbum: React.FC = () => {
   const [expandedAlbums, setExpandedAlbums] = useState<Set<number>>(new Set());
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddImagesModal, setShowAddImagesModal] = useState<number | null>(null);
+  const [showEditModal, setShowEditModal] = useState<number | null>(null);
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
   const [newAlbumName, setNewAlbumName] = useState('');
   const [newAlbumDescription, setNewAlbumDescription] = useState('');
+  const [editAlbumName, setEditAlbumName] = useState('');
+  const [editAlbumDescription, setEditAlbumDescription] = useState('');
   const [searchImageId, setSearchImageId] = useState('');
   const [searchResults, setSearchResults] = useState<Album[]>([]);
   const [albumImages, setAlbumImages] = useState<Map<number, AlbumImage[]>>(new Map());
@@ -214,6 +218,24 @@ const PhotoStudioAlbum: React.FC = () => {
     },
   });
 
+  // Update album mutation
+  const updateAlbumMutation = useMutation({
+    mutationFn: async ({ albumId, name, description }: { albumId: number; name: string; description?: string }) => {
+      const response = await api.put(`/api/albums/${albumId}`, { name, description });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['albums'] });
+      toast.success('Album updated successfully!');
+      setShowEditModal(null);
+      setEditAlbumName('');
+      setEditAlbumDescription('');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update album');
+    },
+  });
+
   // Find albums for an image
   const findAlbumsForImage = async (imageId: number | string) => {
     try {
@@ -241,6 +263,25 @@ const PhotoStudioAlbum: React.FC = () => {
     createAlbumMutation.mutate({
       name: newAlbumName.trim(),
       description: newAlbumDescription.trim() || undefined,
+    });
+  };
+
+  const handleEditAlbum = (album: Album) => {
+    setEditAlbumName(album.name);
+    setEditAlbumDescription(album.description || '');
+    setShowEditModal(album.id);
+  };
+
+  const handleUpdateAlbum = () => {
+    if (!showEditModal) return;
+    if (!editAlbumName.trim()) {
+      toast.error('Please enter an album name');
+      return;
+    }
+    updateAlbumMutation.mutate({
+      albumId: showEditModal,
+      name: editAlbumName.trim(),
+      description: editAlbumDescription.trim() || undefined,
     });
   };
 
@@ -484,7 +525,7 @@ const PhotoStudioAlbum: React.FC = () => {
                         )}
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                        <h3 style={{ textTransform: 'capitalize' }} className=" text-lg font-semibold text-gray-900 mb-1">
                           {album.name}
                         </h3>
                         {album.description && (
@@ -510,17 +551,29 @@ const PhotoStudioAlbum: React.FC = () => {
                         }`}
                       />
                     </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedImages(new Set()); // Reset selection when opening modal
-                        setShowAddImagesModal(album.id);
-                      }}
-                      className="flex ml-4 px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors text-sm"
-                    >
-                      <FaPlus className="mr-1" />
-                      Add Images
-                    </button>
+                    <div className="flex items-center space-x-2 ml-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditAlbum(album);
+                        }}
+                        className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm"
+                        title="Edit Album"
+                      >
+                        <FaEdit />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedImages(new Set()); // Reset selection when opening modal
+                          setShowAddImagesModal(album.id);
+                        }}
+                        className=" flex px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors text-sm"
+                      >
+                        <FaPlus className="mr-1" />
+                        Add Images
+                      </button>
+                    </div>
                   </div>
 
                   {/* Album Details (shown when expanded) */}
@@ -628,6 +681,80 @@ const PhotoStudioAlbum: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Edit Album Modal */}
+      {showEditModal !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                <FaEdit className="mr-2 text-[#2731db]" />
+                Edit Album
+              </h2>
+              <button
+                onClick={() => {
+                  setShowEditModal(null);
+                  setEditAlbumName('');
+                  setEditAlbumDescription('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Album Name *
+                </label>
+                <input
+                  type="text"
+                  value={editAlbumName}
+                  onChange={(e) => setEditAlbumName(e.target.value)}
+                  placeholder="Enter album name"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && editAlbumName.trim()) {
+                      handleUpdateAlbum();
+                    }
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description (optional)
+                </label>
+                <textarea
+                  value={editAlbumDescription}
+                  onChange={(e) => setEditAlbumDescription(e.target.value)}
+                  placeholder="Enter album description"
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+                />
+              </div>
+              <div className="flex items-center space-x-3 pt-4">
+                <button
+                  onClick={handleUpdateAlbum}
+                  disabled={updateAlbumMutation.isPending || !editAlbumName.trim()}
+                  className="flex-1 px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {updateAlbumMutation.isPending ? 'Updating...' : 'Update Album'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowEditModal(null);
+                    setEditAlbumName('');
+                    setEditAlbumDescription('');
+                  }}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Album Modal */}
       {showCreateModal && (

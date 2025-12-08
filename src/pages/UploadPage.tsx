@@ -1,10 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import imageService from '../services/imageService';
 import toast from 'react-hot-toast';
-import { FaCloudUploadAlt, FaFileImage, FaTimes, FaCheck, FaExclamationTriangle, FaLock, FaDownload } from 'react-icons/fa';
+import { FaCloudUploadAlt, FaFileImage, FaTimes, FaCheck, FaExclamationTriangle, FaLock, FaDownload, FaPlus, FaFolder } from 'react-icons/fa';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { useQuery } from '@tanstack/react-query';
 
@@ -17,6 +17,15 @@ interface UploadFile {
   successMessage?: string;
   uploadDestination?: 'my-account' | 'family-account';
   targetFamilyMember?: any;
+  imageId?: number | string; // Store the uploaded image ID
+}
+
+interface Album {
+  id: number;
+  name: string;
+  description?: string;
+  imageCount?: number;
+  [key: string]: any;
 }
 
 const UploadPage = () => {
@@ -26,6 +35,12 @@ const UploadPage = () => {
   const [familyMembers, setFamilyMembers] = useState<any[]>([]);
   const [showUploadOptions, setShowUploadOptions] = useState(false);
   const [selectedFileForOptions, setSelectedFileForOptions] = useState<UploadFile | null>(null);
+  const [selectedAlbumId, setSelectedAlbumId] = useState<number | null>(null);
+  const [uploadedImageIds, setUploadedImageIds] = useState<(number | string)[]>([]);
+  const [showCreateAlbumModal, setShowCreateAlbumModal] = useState(false);
+  const [newAlbumName, setNewAlbumName] = useState('');
+  const [newAlbumDescription, setNewAlbumDescription] = useState('');
+  const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
 
   // Fetch user profile data dynamically
   const { data: userProfile, isLoading: userLoading, error: userError } = useQuery({
@@ -47,6 +62,24 @@ const UploadPage = () => {
     enabled: !!user,
     staleTime: 1 * 60 * 1000, // 1 minute
   });
+
+  // Fetch albums
+  const { data: albumsData, refetch: refetchAlbums } = useQuery({
+    queryKey: ['albums'],
+    queryFn: async () => {
+      const response = await api.get('/api/albums');
+      return response.data as Album[] | { albums: Album[] };
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const albums = useMemo(() => {
+    if (!albumsData) return [];
+    if (Array.isArray(albumsData)) return albumsData;
+    if (albumsData.albums) return albumsData.albums;
+    return [];
+  }, [albumsData]);
 
   // Fetch family members on component mount
   useEffect(() => {
@@ -187,7 +220,7 @@ const UploadPage = () => {
     });
   };
 
-  const uploadSingleFile = async (uploadFile: UploadFile) => {
+  const uploadSingleFile = async (uploadFile: UploadFile): Promise<number | string | undefined> => {
     try {
       setUploadFiles(prev => 
         prev.map(f => 
@@ -197,81 +230,104 @@ const UploadPage = () => {
         )
       );
 
+      let uploadResponse: any;
+      let imageId: number | string | undefined;
+
       if (uploadFile.uploadDestination === 'family-account' && uploadFile.targetFamilyMember) {
         // Upload to family member's account
-        const response = await imageService.uploadToFamilyMember(
+        uploadResponse = await imageService.uploadToFamilyMember(
           uploadFile.file, 
           uploadFile.targetFamilyMember.otherUserId
         );
 
-        // Handle new cloudUploads response format
-        if (response.cloudUploads?.s3) {
-          const cloudResponse = response.cloudUploads.s3;
-          if (cloudResponse.status === 'success') {
-            const successMsg = cloudResponse.message || `${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`;
+        // Extract image ID directly from response - check multiple possible locations
+        // Priority: 1) response.id (direct), 2) response.image.id, 3) cloudUploads service
+        if (uploadResponse?.id) {
+          imageId = uploadResponse.id;
+          console.log(`[Upload] Extracted image ID directly from response.id:`, imageId);
+          const successMsg = uploadResponse.message || `${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`;
+          setUploadFiles(prev => 
+            prev.map(f => 
+              f.id === uploadFile.id 
+                ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg, imageId }
+                : f
+            )
+          );
+          toast.success(successMsg);
+          return imageId;
+        } else if (uploadResponse?.image?.id) {
+          imageId = uploadResponse.image.id;
+          console.log(`[Upload] Extracted image ID from response.image.id:`, imageId);
+          const successMsg = uploadResponse.message || `${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`;
+          setUploadFiles(prev => 
+            prev.map(f => 
+              f.id === uploadFile.id 
+                ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg, imageId }
+                : f
+            )
+          );
+          toast.success(successMsg);
+          return imageId;
+        } else if (uploadResponse?.cloudUploads) {
+          // Fallback: support multiple dynamic services (s3, b2, googleDrive, etc.)
+          const serviceKeys = Object.keys(uploadResponse.cloudUploads);
+          const firstService = serviceKeys.length > 0 ? uploadResponse.cloudUploads[serviceKeys[0]] : null;
+          if (firstService && firstService.id) {
+            imageId = firstService.id;
+            console.log(`[Upload] Extracted image ID from cloudUploads.${serviceKeys[0]}.id:`, imageId);
+            const successMsg = firstService.message || `${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`;
             setUploadFiles(prev => 
               prev.map(f => 
                 f.id === uploadFile.id 
-                  ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg }
+                  ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg, imageId }
                   : f
               )
             );
             toast.success(successMsg);
-          } else {
-            throw new Error(cloudResponse.message || 'Upload failed');
+            return imageId;
           }
-        } 
-        // Handle old response format
-        else if (response.success) {
-          const successMsg = response.message || `${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`;
-          setUploadFiles(prev => 
-            prev.map(f => 
-              f.id === uploadFile.id 
-                ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg }
-                : f
-            )
-          );
-
-          toast.success(successMsg);
-        } else {
-          throw new Error(response.message || 'Upload failed');
         }
+        
+        throw new Error('Image ID not found in upload response');
       } else {
-        // Upload to my account
-        const response = await imageService.uploadImage(uploadFile.file);
+        // Upload to my account - Step 1: Call /api/images/upload
+        console.log(`[Upload] Step 1: Uploading file "${uploadFile.file.name}" to /api/images/upload`);
+        uploadResponse = await imageService.uploadImage(uploadFile.file);
+        console.log(`[Upload] Upload response:`, uploadResponse);
 
-        // Handle new cloudUploads response format
-        if (response.cloudUploads?.s3) {
-          const cloudResponse = response.cloudUploads.s3;
-          if (cloudResponse.status === 'success') {
-            const successMsg = cloudResponse.message || `${uploadFile.file.name} uploaded to your account successfully!`;
-            setUploadFiles(prev => 
-              prev.map(f => 
-                f.id === uploadFile.id 
-                  ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg }
-                  : f
-              )
-            );
-            toast.success(successMsg);
-          } else {
-            throw new Error(cloudResponse.message || 'Upload failed');
-          }
-        } 
-        // Handle old response format
-        else if (response.success) {
-          const successMsg = response.message || `${uploadFile.file.name} uploaded to your account successfully!`;
+        // Extract image ID directly from response - priority: response.id (direct)
+        if (uploadResponse?.id) {
+          imageId = uploadResponse.id;
+          console.log(`[Upload] Extracted image ID directly from response.id:`, imageId);
+          const successMsg = uploadResponse.message || `${uploadFile.file.name} uploaded to your account successfully!`;
           setUploadFiles(prev => 
             prev.map(f => 
               f.id === uploadFile.id 
-                ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg }
+                ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg, imageId }
                 : f
             )
           );
-
           toast.success(successMsg);
-        } else {
-          throw new Error(response.message || 'Upload failed');
+          return imageId;
         }
+        
+        // Fallback: Check response.image.id
+        if (uploadResponse?.image?.id) {
+          imageId = uploadResponse.image.id;
+          console.log(`[Upload] Extracted image ID from response.image.id:`, imageId);
+          const successMsg = uploadResponse.message || `${uploadFile.file.name} uploaded to your account successfully!`;
+          setUploadFiles(prev => 
+            prev.map(f => 
+              f.id === uploadFile.id 
+                ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg, imageId }
+                : f
+            )
+          );
+          toast.success(successMsg);
+          return imageId;
+        }
+        
+        throw new Error('Image ID not found in upload response');
       }
     } catch (error: any) {
       toast.error(error?.response?.data?.message || error?.message || 'Upload failed');
@@ -286,6 +342,7 @@ const UploadPage = () => {
             : f
         )
       );
+      return undefined; // Return undefined on error
     }
   };
 
@@ -294,9 +351,50 @@ const UploadPage = () => {
     if (pendingFiles.length === 0) return;
 
     setUploading(true);
+    setUploadedImageIds([]); // Reset image IDs array
     
-    for (const file of pendingFiles) {
-      await uploadSingleFile(file);
+    const imageIds: (number | string)[] = [];
+    
+    // Step 1: Upload all files and collect image IDs (limit to 10 images)
+    const filesToUpload = pendingFiles;
+    console.log(`[Upload All] Step 1: Starting upload of ${filesToUpload.length} files to /api/images/upload`);
+    
+    for (const file of filesToUpload) {
+      const imageId = await uploadSingleFile(file);
+      if (imageId) {
+        imageIds.push(imageId);
+        console.log(`[Upload All] Collected image ID: ${imageId} (Total: ${imageIds.length})`);
+      }
+    }
+    
+    console.log(`[Upload All] Step 1 Complete: All uploads finished. Collected ${imageIds.length} image IDs:`, imageIds);
+    
+    // Update state with collected image IDs
+    setUploadedImageIds(imageIds);
+    
+    // Step 2: If album is selected and we have image IDs, add all images to album at once
+    if (selectedAlbumId && imageIds.length > 0) {
+      try {
+        console.log(`[Upload All] Step 2: Adding ${imageIds.length} images to album ${selectedAlbumId} via POST /api/albums/${selectedAlbumId}/images`);
+        console.log(`[Upload All] Request payload:`, { imageIds });
+        
+        const response = await api.post(`/api/albums/${selectedAlbumId}/images`, { 
+          imageIds: imageIds 
+        });
+        
+        console.log(`[Upload All] Album API response:`, response.data);
+        const albumName = albums.find(a => a.id === selectedAlbumId)?.name || 'album';
+        toast.success(`${imageIds.length} image${imageIds.length !== 1 ? 's' : ''} added to album "${albumName}"`);
+      } catch (albumError: any) {
+        console.error('[Upload All] Error adding images to album:', albumError);
+        console.error('[Upload All] Error response:', albumError.response?.data);
+        toast.error(albumError.response?.data?.message || 'Images uploaded but failed to add to album');
+      }
+    } else if (selectedAlbumId && imageIds.length === 0) {
+      console.warn('[Upload All] Album selected but no image IDs collected');
+      toast.error('Images uploaded but no image IDs were collected to add to album');
+    } else if (!selectedAlbumId) {
+      console.log('[Upload All] No album selected, skipping album addition');
     }
     
     setUploading(false);
@@ -381,6 +479,39 @@ const UploadPage = () => {
       }
     }
     return '🏠 My Account';
+  };
+
+  const handleCreateAlbum = async () => {
+    if (!newAlbumName.trim()) {
+      toast.error('Please enter an album name');
+      return;
+    }
+
+    setIsCreatingAlbum(true);
+    try {
+      const response = await api.post('/api/albums', {
+        name: newAlbumName.trim(),
+        description: newAlbumDescription.trim() || undefined,
+      });
+
+      toast.success('Album created successfully!');
+      setShowCreateAlbumModal(false);
+      setNewAlbumName('');
+      setNewAlbumDescription('');
+      
+      // Refresh albums list
+      await refetchAlbums();
+      
+      // Optionally select the newly created album
+      if (response.data?.id) {
+        setSelectedAlbumId(response.data.id);
+      }
+    } catch (error: any) {
+      console.error('Error creating album:', error);
+      toast.error(error.response?.data?.message || 'Failed to create album');
+    } finally {
+      setIsCreatingAlbum(false);
+    }
   };
 
   // Show loading state while fetching user profile
@@ -486,6 +617,55 @@ const UploadPage = () => {
                 </p>
               </div>*/}
             </div> 
+          </div>
+        )}
+      </div>
+
+      {/* Album Selection */}
+      <div className="max-w-full mx-auto bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-100">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <FaFileImage className="text-[#2731db] text-xl" />
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Select Album (Optional)</h3>
+              <p className="text-sm text-gray-600">Uploaded images will be automatically added to the selected album</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowCreateAlbumModal(true)}
+              className="flex items-center px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors text-sm font-semibold"
+            >
+              <FaPlus className="mr-2" />
+              Create Album
+            </button>
+            {albums.length > 0 && (
+              <select
+                value={selectedAlbumId || ''}
+                onChange={(e) => setSelectedAlbumId(e.target.value ? Number(e.target.value) : null)}
+                className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2731db] min-w-[200px]"
+              >
+                <option value="">No Album (Upload Only)</option>
+                {albums.map((album) => (
+                  <option key={album.id} value={album.id}>
+                    {album.name} {album.imageCount !== undefined ? `(${album.imageCount} images)` : ''}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+        {selectedAlbumId && (
+          <div className="mt-3 p-3 bg-blue-100 rounded-lg border border-blue-200">
+            <p className="text-sm text-blue-800">
+              ✓ Images will be added to: <strong>{albums.find(a => a.id === selectedAlbumId)?.name}</strong>
+            </p>
+          </div>
+        )}
+        {albums.length === 0 && (
+          <div className="text-center py-4 text-gray-600">
+            <FaFolder className="mx-auto mb-2 text-3xl text-gray-400" />
+            <p className="text-sm">No albums available. Create your first album to organize your uploads.</p>
           </div>
         )}
       </div>
@@ -865,6 +1045,80 @@ const UploadPage = () => {
                     Done
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Album Modal */}
+      {showCreateAlbumModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                <FaFolder className="mr-2 text-[#2731db]" />
+                Create New Album
+              </h2>
+              <button
+                onClick={() => {
+                  setShowCreateAlbumModal(false);
+                  setNewAlbumName('');
+                  setNewAlbumDescription('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Album Name *
+                </label>
+                <input
+                  type="text"
+                  value={newAlbumName}
+                  onChange={(e) => setNewAlbumName(e.target.value)}
+                  placeholder="Enter album name"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newAlbumName.trim()) {
+                      handleCreateAlbum();
+                    }
+                  }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description (optional)
+                </label>
+                <textarea
+                  value={newAlbumDescription}
+                  onChange={(e) => setNewAlbumDescription(e.target.value)}
+                  placeholder="Enter album description"
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+                />
+              </div>
+              <div className="flex items-center space-x-3 pt-4">
+                <button
+                  onClick={handleCreateAlbum}
+                  disabled={isCreatingAlbum || !newAlbumName.trim()}
+                  className="flex-1 px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isCreatingAlbum ? 'Creating...' : 'Create Album'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCreateAlbumModal(false);
+                    setNewAlbumName('');
+                    setNewAlbumDescription('');
+                  }}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
