@@ -5,6 +5,7 @@ import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, Fa
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { decryptImageIds } from '../../utils/encryption';
 
 interface Album {
   id: number;
@@ -48,14 +49,15 @@ const PublicSelectionPage: React.FC = () => {
   const [showOnlySelected, setShowOnlySelected] = useState(false);
 
   const token = searchParams.get('token') || '';
-  const filesParam = searchParams.get('files') || '';
+  const filesParam = searchParams.get('files') || ''; // Legacy support
+  const imageIdsParam = searchParams.get('imageIds') || '';
 
-  // Auto-enable "show only selected" when files are provided in URL
+  // Auto-enable "show only selected" when imageIds or files are provided in URL
   useEffect(() => {
-    if (filesParam && filesParam.trim().length > 0) {
+    if ((imageIdsParam && imageIdsParam.trim().length > 0) || (filesParam && filesParam.trim().length > 0)) {
       setShowOnlySelected(true);
     }
-  }, [filesParam]);
+  }, [imageIdsParam, filesParam]);
 
   // Fetch albums
   const { data: albumsData, isLoading, isError } = useQuery({
@@ -79,57 +81,104 @@ const PublicSelectionPage: React.FC = () => {
     return image.originalFilename || image.filename || 'Unknown';
   };
 
-  // Parse filenames from URL parameter
+  // Parse image IDs from URL parameter (preferred method)
+  const targetImageIds = useMemo(() => {
+    if (imageIdsParam) {
+      // Try to decrypt first (new encrypted format)
+      try {
+        const decrypted = decryptImageIds(imageIdsParam);
+        if (decrypted.length > 0) {
+          return decrypted;
+        }
+      } catch (error) {
+        // If decryption fails, try plain format (backward compatibility)
+        console.log('Trying plain format for imageIds');
+      }
+      // Fallback to plain comma-separated format (backward compatibility)
+      return imageIdsParam.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
+    }
+    return [];
+  }, [imageIdsParam]);
+
+  // Parse filenames from URL parameter (legacy support)
   const targetFilenames = useMemo(() => {
     if (!filesParam) return [];
     return filesParam.split(',').map(f => decodeURIComponent(f.trim())).filter(f => f);
   }, [filesParam]);
 
-  // Auto-select albums and images based on filenames from URL
+  // Auto-select albums and images based on image IDs or filenames from URL
   useEffect(() => {
-    if (albums.length === 0 || targetFilenames.length === 0) return;
+    if (albums.length === 0) return;
 
     const matchedAlbums = new Set<number>();
     const matchedImages = new Map<number, Set<number>>();
 
-    albums.forEach(album => {
-      if (!album.images || album.images.length === 0) return;
+    // Method 1: Use image IDs if provided (preferred - shorter URLs)
+    if (targetImageIds.length > 0) {
+      albums.forEach(album => {
+        if (!album.images || album.images.length === 0) return;
 
-      const albumImageIds = new Set<number>();
-      let hasMatch = false;
+        const albumImageIds = new Set<number>();
+        let hasMatch = false;
 
-      album.images.forEach(image => {
-        const imageFilename = image.originalFilename || image.filename || 'Unknown';
-        // Check if this image's filename matches any target filename
-        const isMatch = targetFilenames.some(targetFilename => {
-          // Exact match or filename contains target (for partial matches)
-          return imageFilename === targetFilename || 
-                 imageFilename.includes(targetFilename) ||
-                 targetFilename.includes(imageFilename);
+        album.images.forEach(image => {
+          if (targetImageIds.includes(image.id)) {
+            albumImageIds.add(image.id);
+            hasMatch = true;
+          }
         });
 
-        if (isMatch) {
-          albumImageIds.add(image.id);
-          hasMatch = true;
+        if (hasMatch) {
+          matchedAlbums.add(album.id);
+          matchedImages.set(album.id, albumImageIds);
+          // Auto-expand albums with matches
+          setExpandedAlbums(prev => new Set(prev).add(album.id));
         }
       });
+    }
+    // Method 2: Fallback to filename matching (legacy support)
+    else if (targetFilenames.length > 0) {
+      albums.forEach(album => {
+        if (!album.images || album.images.length === 0) return;
 
-      if (hasMatch) {
-        matchedAlbums.add(album.id);
-        matchedImages.set(album.id, albumImageIds);
-        // Auto-expand albums with matches
-        setExpandedAlbums(prev => new Set(prev).add(album.id));
-      }
-    });
+        const albumImageIds = new Set<number>();
+        let hasMatch = false;
+
+        album.images.forEach(image => {
+          const imageFilename = image.originalFilename || image.filename || 'Unknown';
+          // Check if this image's filename matches any target filename
+          const isMatch = targetFilenames.some(targetFilename => {
+            // Exact match or filename contains target (for partial matches)
+            return imageFilename === targetFilename || 
+                   imageFilename.includes(targetFilename) ||
+                   targetFilename.includes(imageFilename);
+          });
+
+          if (isMatch) {
+            albumImageIds.add(image.id);
+            hasMatch = true;
+          }
+        });
+
+        if (hasMatch) {
+          matchedAlbums.add(album.id);
+          matchedImages.set(album.id, albumImageIds);
+          // Auto-expand albums with matches
+          setExpandedAlbums(prev => new Set(prev).add(album.id));
+        }
+      });
+    } else {
+      return; // No parameters provided
+    }
 
     if (matchedAlbums.size > 0) {
       setSelectedAlbums(matchedAlbums);
       setUserSelectedImages(matchedImages);
-      // Automatically show only selected albums when files are provided
+      // Automatically show only selected albums when imageIds or files are provided
       setShowOnlySelected(true);
       toast.success(`Found ${matchedAlbums.size} album(s) with matching images`);
     }
-  }, [albums, targetFilenames]);
+  }, [albums, targetImageIds, targetFilenames]);
 
   // Get all selected images
   const allSelectedImages = useMemo(() => {

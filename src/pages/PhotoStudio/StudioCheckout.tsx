@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { encryptImageIds } from '../../utils/encryption';
 
 interface Album {
   id: number;
@@ -198,17 +199,19 @@ const StudioCheckout: React.FC = () => {
   const publicCheckoutUrl = useMemo(() => {
     if (allSelectedImages.length === 0) return '';
     const token = localStorage.getItem('token') || '';
-    const selectedFilenames = allSelectedImages.map(img => getImageFilename(img)).join(',');
+    const selectedImageIds = allSelectedImages.map(img => img.id);
+    const encryptedIds = encryptImageIds(selectedImageIds);
     const baseUrl = window.location.origin;
-    return `${baseUrl}/public/checkout?token=${encodeURIComponent(token)}&files=${encodeURIComponent(selectedFilenames)}`;
+    return `${baseUrl}/public/checkout?token=${encodeURIComponent(token)}&imageIds=${encryptedIds}`;
   }, [allSelectedImages]);
 
   const publicSelectionUrl = useMemo(() => {
     if (allSelectedImages.length === 0) return '';
     const token = localStorage.getItem('token') || '';
-    const selectedFilenames = allSelectedImages.map(img => getImageFilename(img)).join(',');
+    const selectedImageIds = allSelectedImages.map(img => img.id);
+    const encryptedIds = encryptImageIds(selectedImageIds);
     const baseUrl = window.location.origin;
-    return `${baseUrl}/public/selection?token=${encodeURIComponent(token)}&files=${encodeURIComponent(selectedFilenames)}`;
+    return `${baseUrl}/public/selection?token=${encodeURIComponent(token)}&imageIds=${encryptedIds}`;
   }, [allSelectedImages]);
 
   const handleCopyCheckoutUrl = () => {
