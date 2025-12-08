@@ -45,9 +45,17 @@ const PublicSelectionPage: React.FC = () => {
   const [selectedAlbumId, setSelectedAlbumId] = useState<number | null>(null);
   const [userSelectedImages, setUserSelectedImages] = useState<Map<number, Set<number>>>(new Map()); // albumId -> Set of imageIds
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showOnlySelected, setShowOnlySelected] = useState(false);
 
   const token = searchParams.get('token') || '';
   const filesParam = searchParams.get('files') || '';
+
+  // Auto-enable "show only selected" when files are provided in URL
+  useEffect(() => {
+    if (filesParam && filesParam.trim().length > 0) {
+      setShowOnlySelected(true);
+    }
+  }, [filesParam]);
 
   // Fetch albums
   const { data: albumsData, isLoading, isError } = useQuery({
@@ -117,6 +125,8 @@ const PublicSelectionPage: React.FC = () => {
     if (matchedAlbums.size > 0) {
       setSelectedAlbums(matchedAlbums);
       setUserSelectedImages(matchedImages);
+      // Automatically show only selected albums when files are provided
+      setShowOnlySelected(true);
       toast.success(`Found ${matchedAlbums.size} album(s) with matching images`);
     }
   }, [albums, targetFilenames]);
@@ -439,8 +449,33 @@ const PublicSelectionPage: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {albums.map((album) => {
+            <>
+              {/* Filter Toggle */}
+              {selectedAlbums.size > 0 && (
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setShowOnlySelected(!showOnlySelected)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        showOnlySelected
+                          ? 'bg-[#2731db] text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {showOnlySelected ? 'Show All Albums' : 'Show Only Selected'}
+                    </button>
+                    {showOnlySelected && (
+                      <span className="text-sm text-gray-600">
+                        Showing {selectedAlbums.size} of {albums.length} albums
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className="space-y-4">
+                {albums
+                  .filter((album) => !showOnlySelected || selectedAlbums.has(album.id))
+                  .map((album) => {
                 const isSelected = selectedAlbums.has(album.id);
                 const isExpanded = expandedAlbums.has(album.id);
                 const albumImageIds = userSelectedImages.get(album.id) || new Set<number>();
@@ -529,7 +564,16 @@ const PublicSelectionPage: React.FC = () => {
                           )}
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                          {albumImages.map((image) => {
+                          {albumImages
+                            .filter((image) => {
+                              // Only show selected images when album is selected
+                              if (isSelected) {
+                                return albumImageIds.has(image.id);
+                              }
+                              // If album is not selected, show all images for selection
+                              return true;
+                            })
+                            .map((image) => {
                             // Image is selected if: album is selected AND image is in the selected images set
                             // When album is selected, all images should be in albumImageIds (set by toggleAlbum)
                             const isImageSelected = isSelected && albumImageIds.has(image.id);
@@ -611,7 +655,8 @@ const PublicSelectionPage: React.FC = () => {
                   </div>
                 );
               })}
-            </div>
+              </div>
+            </>
           )}
         </main>
       </div>

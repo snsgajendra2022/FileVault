@@ -622,7 +622,7 @@ const UploadPage = () => {
       </div>
 
       {/* Album Selection */}
-      <div className="max-w-4xl mx-auto bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-100">
+      <div className="max-w-full mx-auto bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-100">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
             <FaFileImage className="text-[#2731db] text-xl" />
