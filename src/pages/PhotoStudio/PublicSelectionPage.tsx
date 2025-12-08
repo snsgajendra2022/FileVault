@@ -356,7 +356,7 @@ const PublicSelectionPage: React.FC = () => {
         </header>
 
         {/* Public URL Display */}
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+        {/* <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center space-x-2">
               <FaShare className="text-blue-600" />
@@ -376,7 +376,7 @@ const PublicSelectionPage: React.FC = () => {
           <p className="text-xs text-gray-500 mt-2">
             Share this URL with others to view and select from these albums
           </p>
-        </div>
+        </div> */}
 
         {/* Selection Summary Bar */}
         {allSelectedImages.length > 0 ? (
