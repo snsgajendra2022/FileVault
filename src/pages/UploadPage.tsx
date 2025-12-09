@@ -3,6 +3,8 @@ import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import imageService from '../services/imageService';
+import chunkedUploadService from '../services/chunkedUploadService';
+import parallelUploadManager from '../services/parallelUploadManager';
 import toast from 'react-hot-toast';
 import { FaCloudUploadAlt, FaFileImage, FaTimes, FaCheck, FaExclamationTriangle, FaLock, FaDownload, FaPlus, FaFolder } from 'react-icons/fa';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -41,6 +43,10 @@ const UploadPage = () => {
   const [newAlbumName, setNewAlbumName] = useState('');
   const [newAlbumDescription, setNewAlbumDescription] = useState('');
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
+  const [useChunkedUpload, setUseChunkedUpload] = useState(true);
+  const [maxConcurrentUploads, setMaxConcurrentUploads] = useState(5);
+  const [isPaused, setIsPaused] = useState(false);
+  const [failedUploads, setFailedUploads] = useState<UploadFile[]>([]);
 
   // Fetch user profile data dynamically
   const { data: userProfile, isLoading: userLoading, error: userError } = useQuery({
@@ -89,18 +95,94 @@ const UploadPage = () => {
   const fetchFamilyMembers = async () => {
     try {
       const response = await api.get('/api/simple-invitations/family-relationships');
-      if (response.data.success && response.data.relationships.length > 0) {
-        setFamilyMembers(response.data.relationships);
+      // console.log('Family relationships full response:', response);
+      // console.log('Family relationships response.data:', response.data);
+      
+      // Flatten nested clients structure and filter only clients
+      const allClients: any[] = [];
+      
+      const flattenClients = (clients: any[]) => {
+        if (!Array.isArray(clients)) return;
+        
+        clients.forEach((client: any) => {
+          // Only add if relation is "Client"  familyData clients
+          if (client && client.relation === "Client") {
+            const clientData = {
+              id: client.userId,
+              otherUserId: client.userId,
+              otherUserFirstName: client.name?.split(' ')[0] || client.name || '',
+              otherUserLastName: client.name?.split(' ').slice(1).join(' ') || '',
+              relationshipType: client.relation || 'Client',
+              email: client.email,
+              username: client.username
+            };
+            allClients.push(clientData);
+            console.log('Added client:', clientData);
+          }
+          
+          // Recursively process nested clients
+          if (client && client.clients && Array.isArray(client.clients) && client.clients.length > 0) {
+            console.log('Found nested clients in:', client.name, client.clients.length);
+            flattenClients(client.clients);
+          }
+        });
+      };
+      
+      // Handle different response structures
+      if (response && response.data) {
+        // Check if response.data.familyData.clients exists (main structure)
+        if (response.data.familyData && response.data.familyData.clients && Array.isArray(response.data.familyData.clients)) {
+          // console.log('Found clients array in response.data.familyData.clients:', response.data.familyData.clients.length);
+          flattenClients(response.data.familyData.clients);
+        }
+        // Check if response.data has clients array directly (fallback)
+        else if (response.data.clients && Array.isArray(response.data.clients)) {
+          // console.log('Found clients array in response.data.clients:', response.data.clients.length);
+          flattenClients(response.data.clients);
+        }
+        // Check if response.data itself is an array (fallback)
+        else if (Array.isArray(response.data)) {
+          // console.log('Response.data is an array:', response.data.length);
+          flattenClients(response.data);
+        }
+        // Check if response.data has a data property with clients (fallback)
+        else if (response.data.data && Array.isArray(response.data.data)) {
+          // console.log('Found clients in response.data.data:', response.data.data.length);
+          flattenClients(response.data.data);
+        }
+      }
+      
+      // console.log('Total clients found after flattening:', allClients.length);
+      // console.log('All clients (before deduplication):', allClients);
+      
+      // Deduplicate clients by userId to avoid showing the same client multiple times
+      const uniqueClients = allClients.filter((client, index, self) => 
+        index === self.findIndex((c) => c.id === client.id)
+      );
+      
+      // console.log('Unique clients after deduplication:', uniqueClients.length);
+      // console.log('Unique clients:', uniqueClients);
+      
+      if (uniqueClients.length > 0) {
+        setFamilyMembers(uniqueClients);
+        // console.log('✅ Family members set successfully:', uniqueClients.length, 'clients');
+      } else {
+        console.warn('⚠️ No clients found in response');
+        setFamilyMembers([]);
       }
     } catch (error: any) {
-      console.error('Error fetching family members:', error);
+      console.error('❌ Error fetching family members:', error);
+      console.error('Error response:', error.response?.data);
+      setFamilyMembers([]);
     }
   };
 
   // Permission checking functions (source of truth: user profile flags)
   const canUpload = () => {
     if (!userProfile) return false;
-    return !!userProfile.canUploadImages && !!userProfile.allowedFileTypes && userProfile.maxFileSizeMB > 0;
+    // Allow uploads if user has upload permission and allowed file types
+    // Removed maxFileSizeMB check to allow unlimited bulk uploads (25GB+)
+    return !!userProfile.canUploadImages && !!userProfile.allowedFileTypes;
   };
 
   const canViewImages = () => {
@@ -121,15 +203,15 @@ const UploadPage = () => {
   };
 
   const isFileSizeAllowed = (file: File) => {
-    if (!userProfile?.maxFileSizeMB) return false;
-    const maxSizeBytes = userProfile.maxFileSizeMB * 1024 * 1024;
-    return file.size <= maxSizeBytes;
+    // Remove file size limits - allow unlimited file sizes for bulk uploads
+    // Chunked upload will handle large files automatically
+    return true; // Always allow, no size restrictions
   };
 
   const hasStorageSpace = (fileSize: number) => {
-    if (!storageUsage) return true; // Assume true if we can't check
-    const fileSizeMB = fileSize / (1024 * 1024);
-    return (storageUsage.used + fileSizeMB) <= storageUsage.total;
+    // Remove storage quota checks - allow unlimited bulk uploads
+    // Backend will handle storage management
+    return true; // Always allow, no storage restrictions
   };
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -147,15 +229,8 @@ const UploadPage = () => {
         return;
       }
       
-      if (!isFileSizeAllowed(file)) {
-        invalidFiles.push(`${file.name} - File size exceeds ${userProfile?.maxFileSizeMB || 0}MB limit`);
-        return;
-      }
-
-      if (!hasStorageSpace(file.size)) {
-        invalidFiles.push(`${file.name} - Insufficient storage space`);
-        return;
-      }
+      // File size and storage checks removed - allow unlimited bulk uploads
+      // Chunked upload system will handle large files automatically
 
       validFiles.push({
         file,
@@ -291,14 +366,14 @@ const UploadPage = () => {
         throw new Error('Image ID not found in upload response');
       } else {
         // Upload to my account - Step 1: Call /api/images/upload
-        console.log(`[Upload] Step 1: Uploading file "${uploadFile.file.name}" to /api/images/upload`);
+        // console.log(`[Upload] Step 1: Uploading file "${uploadFile.file.name}" to /api/images/upload`);
         uploadResponse = await imageService.uploadImage(uploadFile.file);
-        console.log(`[Upload] Upload response:`, uploadResponse);
+        // console.log(`[Upload] Upload response:`, uploadResponse);
 
         // Extract image ID directly from response - priority: response.id (direct)
         if (uploadResponse?.id) {
           imageId = uploadResponse.id;
-          console.log(`[Upload] Extracted image ID directly from response.id:`, imageId);
+          // console.log(`[Upload] Extracted image ID directly from response.id:`, imageId);
           const successMsg = uploadResponse.message || `${uploadFile.file.name} uploaded to your account successfully!`;
           setUploadFiles(prev => 
             prev.map(f => 
@@ -314,7 +389,7 @@ const UploadPage = () => {
         // Fallback: Check response.image.id
         if (uploadResponse?.image?.id) {
           imageId = uploadResponse.image.id;
-          console.log(`[Upload] Extracted image ID from response.image.id:`, imageId);
+          // console.log(`[Upload] Extracted image ID from response.image.id:`, imageId);
           const successMsg = uploadResponse.message || `${uploadFile.file.name} uploaded to your account successfully!`;
           setUploadFiles(prev => 
             prev.map(f => 
@@ -355,7 +430,7 @@ const UploadPage = () => {
     
     const imageIds: (number | string)[] = [];
     
-    // Step 1: Upload all files and collect image IDs (limit to 10 images)
+    // Step 1: Upload all files and collect image IDs (no limit - supports bulk uploads of 25GB+)
     const filesToUpload = pendingFiles;
     console.log(`[Upload All] Step 1: Starting upload of ${filesToUpload.length} files to /api/images/upload`);
     
@@ -587,12 +662,12 @@ const UploadPage = () => {
               
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-lg">
-                    {userProfile.maxFileSizeMB || 0}MB
+                  <span className="text-white font-bold text-xl">
+                    ∞
                   </span>
                 </div>
                 <h3 className="font-semibold text-gray-800">Max File Size</h3>
-                <p className="text-sm text-gray-600">Per file limit</p>
+                <p className="text-sm text-gray-600">Unlimited - Bulk uploads supported</p>
               </div>
               
               <div className="text-center">
@@ -625,7 +700,7 @@ const UploadPage = () => {
       <div className="max-w-full mx-auto bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-100">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <FaFileImage className="text-[#2731db] text-xl" />
+          <FaFolder  className="mr-3 font-medium text-[#2731db]" />
             <div>
               <h3 className="text-lg font-semibold text-gray-800">Select Album (Optional)</h3>
               <p className="text-sm text-gray-600">Uploaded images will be automatically added to the selected album</p>
@@ -708,7 +783,7 @@ const UploadPage = () => {
               <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
                 <span className="w-3 h-3 bg-purple-400 rounded-full mr-3 animate-pulse"></span>
                 <span className="font-medium text-gray-700">
-                  Max {userProfile?.maxFileSizeMB || 0}MB
+                  Unlimited (Bulk uploads supported)
                 </span>
               </span>
               <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
@@ -952,6 +1027,16 @@ const UploadPage = () => {
                     </div>
                   </div>
 
+                  {/* Debug: Show clients count */}
+                  <div className="bg-gray-100 rounded-lg p-2 text-xs text-gray-600">
+                    Debug: {familyMembers.length} client(s) loaded
+                    {familyMembers.length > 0 && (
+                      <div className="mt-1 text-xs">
+                        Clients: {familyMembers.map(c => c.otherUserFirstName).join(', ')}
+                      </div>
+                    )}
+                  </div>
+
                   {familyMembers.length > 0 && (
                     <div className="bg-purple-50 rounded-lg p-4 border-2 border-purple-200">
                       <div className="flex items-center justify-between mb-3">
@@ -965,8 +1050,8 @@ const UploadPage = () => {
                             className="text-purple-600"
                           />
                           <div>
-                            <label className="font-medium text-purple-900">👥 Upload to Family Member's Account</label>
-                            <p className="text-sm text-purple-700">Store in family member's account</p>
+                            <label className="font-medium text-purple-900">👥 Upload to Client's Account</label>
+                            <p className="text-sm text-purple-700">Store in client's account</p>
                           </div>
                         </div>
                       </div>
@@ -981,7 +1066,7 @@ const UploadPage = () => {
                             }}
                             className="w-full p-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           >
-                            <option value="">Select a member...</option>
+                            <option value="">Select a client...</option>
                             {familyMembers.map((member) => (
                               <option key={member.id} value={member.id}>
                                 {member.otherUserFirstName} {member.otherUserLastName} ({member.relationshipType})
@@ -989,11 +1074,11 @@ const UploadPage = () => {
                             ))}
                           </select>
                           
-                          {/* Show status when family-account is selected but no member chosen */}
+                          {/* Show status when family-account is selected but no client chosen */}
                           {selectedFileForOptions.uploadDestination === 'family-account' && !selectedFileForOptions.targetFamilyMember && (
                             <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
                               <p className="text-sm text-orange-700">
-                                ⚠️ Please select a member to complete the upload destination.
+                                ⚠️ Please select a client to complete the upload destination.
                               </p>
                             </div>
                           )}
@@ -1011,13 +1096,13 @@ const UploadPage = () => {
                       <div>
                         <h5 className="font-semibold text-yellow-800">Important Notice</h5>
                         <p className="text-sm text-yellow-700">
-                          <strong>This image will be stored under your member's account, not yours.</strong>
+                          <strong>This image will be stored under your client's account, not yours.</strong>
                         </p>
                         <ul className="text-sm text-yellow-700 mt-2 space-y-1">
                           <li>✅ You can view the image anytime</li>
-                          <li>✅ Your member will see it in their account</li>
+                          <li>✅ Your client will see it in their account</li>
                           <li>❌ You cannot move it to your account later</li>
-                          <li>❌ Your member can delete it if they choose</li>
+                          <li>❌ Your client can delete it if they choose</li>
                         </ul>
                       </div>
                     </div>

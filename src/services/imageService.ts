@@ -131,8 +131,13 @@ class ImageService {
     percentage: number;
     imagesCount: number;
   }> {
-    const response = await api.get('/api/images/storage-usage');
-    return response.data;
+    // const response = await api.get('/api/images/storage-usage');
+    return {
+      used: 0,
+      total: 0,
+      percentage: 0,
+      imagesCount: 0
+    };
   }
 
   /**

@@ -72,8 +72,8 @@ const Sidebar = () => {
     { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
     
     // { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
-    // { name: 'Create Client', href: '/invitations', icon: FaUsers, enabled: true },
-    // { name: 'Clients', href: '/studio/clients', icon: FaUserPlus, enabled: true },
+    { name: 'Create Client', href: '/invitations', icon: FaUsers, enabled: true },
+    { name: 'Clients', href: '/studio/clients', icon: FaUserPlus, enabled: true },
     // { name: 'Clients Tree', href: '/client-tree', icon: FaSitemap, enabled: true },
     // { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
     // { name: 'Sheet', href: 'Sheet', icon: FaCog, enabled: true },
