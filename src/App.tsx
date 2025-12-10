@@ -47,6 +47,7 @@ import Tree from './pages/PhotoStudio/JsFile/Tree';
 import PhotoStudioAlbum from './pages/PhotoStudio/PhotoStudioAlbum';
 import PublicSelectionPage from './pages/PhotoStudio/PublicSelectionPage';
 import PublicCheckoutPage from './pages/PhotoStudio/PublicCheckoutPage';
+import SharedAlbums from './pages/PhotoStudio/SharedAlbums';
 
 
 const queryClient = new QueryClient({
@@ -149,6 +150,7 @@ const AppRoutes = () => {
         <Route path="studio/settings" element={<StudioSettings />} />
         {/* <Route path="treePage" element={<TreePage />} /> */}
         <Route path="studio/albums" element={<PhotoStudioAlbum />} />
+        <Route path="studio/shared-albums" element={<SharedAlbums />} />
         <Route path="client-tree" element={<ClientTreePage />} />
         <Route path="family-tree" element={<FamilyTree />} />
         <Route path="Sheet" element={<SheetPage />} />

@@ -8,11 +8,25 @@ import {
   FaEnvelope, 
   FaCalendarAlt,
   FaArrowLeft,
-  FaUser
+  FaUser,
+  FaFolder,
+  FaImages
 } from 'react-icons/fa';
 import './ClientManagement.css';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import DashboardLoading from '../../components/common/DashboardLoading';
+
+interface Client {
+  id: number;
+  userId: number;
+  name: string;
+  email: string;
+  username: string;
+  relation: string;
+  firstName?: string;
+  lastName?: string;
+}
 
 interface Invitation {
   id: number;
@@ -37,146 +51,98 @@ interface Invitation {
 }
 
 const ClientManagement: React.FC = () => {
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
-  const [filteredInvitations, setFilteredInvitations] = useState<Invitation[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ACCEPTED' | 'PENDING' | 'REJECTED' | 'EXPIRED'>('all');
-  const [selectedInvitation, setSelectedInvitation] = useState<Invitation | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchInvitations();
+    fetchClients();
   }, []);
 
   useEffect(() => {
-    filterInvitations();
-  }, [invitations, searchTerm, statusFilter]);
+    filterClients();
+  }, [clients, searchTerm, statusFilter]);
 
-
-
-  const fetchInvitations = async () => {
+  const fetchClients = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/simple-invitations/my-invitations');
-      if (response.data.length > 0) {
-        setInvitations(response.data || response.data.invitations || []);
-      } else {
-        setInvitations([]);
+      const response = await api.get('/api/simple-invitations/family-relationships');
+      
+      const allClients: Client[] = [];
+      
+      const flattenClients = (clientsArray: any[]) => {
+        if (!Array.isArray(clientsArray)) return;
+        
+        clientsArray.forEach((client: any) => {
+          if (client && client.relation === "Client") {
+            const nameParts = (client.name || '').split(' ');
+            allClients.push({
+              id: client.userId,
+              userId: client.userId,
+              name: client.name || '',
+              firstName: nameParts[0] || '',
+              lastName: nameParts.slice(1).join(' ') || '',
+              email: client.email || '',
+              username: client.username || '',
+              relation: client.relation || 'Client'
+            });
+          }
+          
+          // Recursively process nested clients
+          if (client && client.clients && Array.isArray(client.clients) && client.clients.length > 0) {
+            flattenClients(client.clients);
+          }
+        });
+      };
+      
+      if (response && response.data) {
+        if (response.data.familyData && response.data.familyData.clients && Array.isArray(response.data.familyData.clients)) {
+          flattenClients(response.data.familyData.clients);
+        } else if (response.data.clients && Array.isArray(response.data.clients)) {
+          flattenClients(response.data.clients);
+        }
       }
+      
+      // Deduplicate clients by userId
+      const uniqueClients = allClients.filter((client, index, self) => 
+        index === self.findIndex((c) => c.userId === client.userId)
+      );
+      
+      setClients(uniqueClients);
     } catch (error: any) {
-      console.error('Error fetching invitations:', error);
-      toast.error('Failed to load invitations');
+      console.error('Error fetching clients:', error);
+      toast.error('Failed to load clients');
+      setClients([]);
     } finally {
       setLoading(false);
     }
   };
-  // const fetchClients = async () => {
-  //   setLoading(true);
-  //   try {
-  //     // Simulate API call
-  //     await new Promise(resolve => setTimeout(resolve, 1000));
-      
-  //     const mockClients: Client[] = [
-  //       {
-  //         id: '1',
-  //         name: 'Sarah Johnson',
-  //         email: 'sarah.j@email.com',
-  //         phone: '+1 (555) 123-4567',
-  //         address: '123 Main St, New York, NY 10001',
-  //         dateJoined: '2024-01-15',
-  //         lastSession: '2024-09-10',
-  //         totalPhotos: 45,
-  //         totalVideos: 8,
-  //         status: 'active',
-  //         notes: 'Prefers natural lighting, very particular about editing',
-  //         sessions: [
-  //           {
-  //             id: 's1',
-  //             date: '2024-09-10',
-  //             type: 'Portrait Session',
-  //             photos: 25,
-  //             videos: 3,
-  //             status: 'completed'
-  //           }
-  //         ]
-  //       },
-  //       {
-  //         id: '2',
-  //         name: 'Mike Chen',
-  //         email: 'mike.chen@email.com',
-  //         phone: '+1 (555) 987-6543',
-  //         address: '456 Oak Ave, Los Angeles, CA 90210',
-  //         dateJoined: '2024-02-20',
-  //         lastSession: '2024-09-08',
-  //         totalPhotos: 32,
-  //         totalVideos: 5,
-  //         status: 'active',
-  //         notes: 'Corporate headshots, quick turnaround needed',
-  //         sessions: [
-  //           {
-  //             id: 's2',
-  //             date: '2024-09-08',
-  //             type: 'Corporate Headshots',
-  //             photos: 15,
-  //             videos: 2,
-  //             status: 'completed'
-  //           }
-  //         ]
-  //       },
-  //       {
-  //         id: '3',
-  //         name: 'Emily Davis',
-  //         email: 'emily.davis@email.com',
-  //         phone: '+1 (555) 456-7890',
-  //         address: '789 Pine St, Chicago, IL 60601',
-  //         dateJoined: '2024-03-10',
-  //         lastSession: '2024-08-25',
-  //         totalPhotos: 67,
-  //         totalVideos: 12,
-  //         status: 'inactive',
-  //         notes: 'Wedding photographer, seasonal work',
-  //         sessions: [
-  //           {
-  //             id: 's3',
-  //             date: '2024-08-25',
-  //             type: 'Wedding Photography',
-  //             photos: 40,
-  //             videos: 8,
-  //             status: 'completed'
-  //           }
-  //         ]
-  //       }
-  //     ];
-      
-  //     setClients(mockClients);
-  //   } catch (error) {
-  //     console.error('Error fetching clients:', error);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
 
-  const filterInvitations = () => {
-    let filtered = invitations;
+  const filterClients = () => {
+    let filtered = clients;
 
     if (searchTerm) {
       const query = searchTerm.toLowerCase();
-      filtered = filtered.filter((inv) => {
-        const fullName = `${inv.inviteeFirstName || ''} ${inv.inviteeLastName || ''}`.trim();
+      filtered = filtered.filter((client) => {
+        const fullName = `${client.firstName || ''} ${client.lastName || ''}`.trim() || client.name;
         return (
           fullName.toLowerCase().includes(query) ||
-          (inv.inviteeEmail || '').toLowerCase().includes(query) ||
-          (inv.relationshipType || '').toLowerCase().includes(query) ||
-          (inv.invitedByUsername || '').toLowerCase().includes(query)
+          (client.email || '').toLowerCase().includes(query) ||
+          (client.username || '').toLowerCase().includes(query) ||
+          (client.name || '').toLowerCase().includes(query)
         );
       });
     }
 
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter((inv) => inv.status === statusFilter);
-    }
+    // Status filter doesn't apply to clients, but keeping for compatibility
+    // if (statusFilter !== 'all') {
+    //   filtered = filtered.filter((client) => client.status === statusFilter);
+    // }
 
-    setFilteredInvitations(filtered);
+    setFilteredClients(filtered);
   };
 
   const formatDate = (dateString: string | null | undefined) => {
@@ -192,45 +158,51 @@ const ClientManagement: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="clients-loading">
-        <div className="loading-spinner"></div>
-        <p>Loading invitations...</p>
-      </div>
+      <DashboardLoading 
+        title="Loading Clients"
+        subtitle="Retrieving client information..."
+        icon={FaUsers}
+        features={[
+          { icon: FaUsers, label: 'Clients' },
+          { icon: FaFolder, label: 'Albums' },
+          { icon: FaImages, label: 'Photos' }
+        ]}
+      />
     );
   }
 
-  if (selectedInvitation) {
+  if (selectedClient) {
     return (
       <div className="client-detail">
         <div className="detail-header">
           <button 
             className="back-btn"
-            onClick={() => setSelectedInvitation(null)}
+            onClick={() => setSelectedClient(null)}
           >
             <FaArrowLeft />
-            Back to Invitations
+            Back to Clients
           </button>
         </div>
 
         <div className="client-profile">
           <div className="profile-header">
             <div className="client-avatar-large">
-              <span>{(selectedInvitation.inviteeFirstName || selectedInvitation.inviteeEmail || '?').charAt(0).toUpperCase()}</span>
+              <span>{(selectedClient.firstName || selectedClient.name || selectedClient.email || '?').charAt(0).toUpperCase()}</span>
             </div>
             <div className="profile-info">
               <h1>
-                {`${selectedInvitation.inviteeFirstName || ''} ${selectedInvitation.inviteeLastName || ''}`.trim() || selectedInvitation.inviteeEmail}
+                {selectedClient.name || `${selectedClient.firstName} ${selectedClient.lastName}`.trim() || selectedClient.email}
               </h1>
               <p className="client-status">
-                <span className={`status-badge ${selectedInvitation.status}`}>
-                  {selectedInvitation.status}
+                <span className="status-badge ACCEPTED">
+                  Client
                 </span>
               </p>
-              {selectedInvitation.inviteeEmail && (
+              {selectedClient.email && (
                 <div className="contact-info">
                   <div className="contact-item">
                     <FaEnvelope />
-                    <span>{selectedInvitation.inviteeEmail}</span>
+                    <span>{selectedClient.email}</span>
                   </div>
                 </div>
               )}
@@ -238,39 +210,21 @@ const ClientManagement: React.FC = () => {
           </div>
 
           <div className="profile-stats">
-            {selectedInvitation.invitedByUsername && (
+            {selectedClient.username && (
               <div className="stat-item">
                 <FaUser />
                 <div>
-                  <h3 style={{fontSize: '1rem',color:'#000'}}>{selectedInvitation.invitedByUsername}</h3>
-                  <p style={{color:'#000'}}>Invited By</p>
+                  <h3 style={{fontSize: '1rem',color:'#000'}}>{selectedClient.username}</h3>
+                  <p style={{color:'#000'}}>Username</p>
                 </div>
               </div>
             )}
-            {selectedInvitation.createdAt && (
+            {selectedClient.userId && (
               <div className="stat-item">
-                <FaCalendarAlt />
+                <FaUser />
                 <div>
-                  <h3 style={{fontSize: '1rem',color:'#000'}}>{formatDate(selectedInvitation.createdAt)}</h3>
-                  <p style={{color:'#000'}}>Created</p>
-                </div>
-              </div>
-            )}
-            {selectedInvitation.acceptedAt && (
-              <div className="stat-item">
-                <FaCalendarAlt />
-                <div>
-                  <h3 style={{fontSize: '1rem',color:'#000'}}>{formatDate(selectedInvitation.acceptedAt)}</h3>
-                  <p style={{color:'#000'}}>Accepted</p>
-                </div>
-              </div>
-            )}
-            {selectedInvitation.expiresAt && (
-              <div className="stat-item">
-                <FaCalendarAlt />
-                <div>
-                  <h3 style={{fontSize: '1rem',color:'#000'}}>{formatDate(selectedInvitation.expiresAt)}</h3>
-                  <p style={{color:'#000'}}>Expires</p>
+                  <h3 style={{fontSize: '1rem',color:'#000'}}>ID: {selectedClient.userId}</h3>
+                  <p style={{color:'#000'}}>User ID</p>
                 </div>
               </div>
             )}
@@ -278,34 +232,32 @@ const ClientManagement: React.FC = () => {
 
           <div className="profile-sections">
             <div className="section">
-              <h3>Notes</h3>
-              <p>{selectedInvitation.relationshipNotes || '—'}</p>
-            </div>
-
-            <div className="section">
-              <h3>Details</h3>
+              <h3>Client Information</h3>
               <div className="sessions-list">
-                {selectedInvitation.relationshipType && (
+                {selectedClient.relation && (
                   <div className="session-item" style={{justifyContent: 'flex-start', gap: 12}}>
                     <div className="session-info">
-                      <h4>Relationship</h4>
-                      <p  style={{color:'#000'}}>{selectedInvitation.relationshipType}</p>
+                      <h4>Relationship Type</h4>
+                      <p style={{color:'#000'}}>{selectedClient.relation}</p>
                     </div>
                   </div>
                 )}
-                <div className="session-item" style={{justifyContent: 'flex-start', gap: 12}}>
-                  <div className="session-info">
-                    <h4>Permissions</h4>
-                    <p  style={{color:'#000'}}>
-                      {[
-                        selectedInvitation.canViewImages ? 'View' : null,
-                        selectedInvitation.canUploadImages ? 'Upload' : null,
-                        selectedInvitation.canDeleteImages ? 'Delete' : null,
-                        selectedInvitation.canManageAlbums ? 'Manage Albums' : null,
-                      ].filter(Boolean).join(', ') || '—'}
-                    </p>
+                {selectedClient.email && (
+                  <div className="session-item" style={{justifyContent: 'flex-start', gap: 12}}>
+                    <div className="session-info">
+                      <h4>Email</h4>
+                      <p style={{color:'#000'}}>{selectedClient.email}</p>
+                    </div>
                   </div>
-                </div>
+                )}
+                {selectedClient.username && (
+                  <div className="session-item" style={{justifyContent: 'flex-start', gap: 12}}>
+                    <div className="session-info">
+                      <h4>Username</h4>
+                      <p style={{color:'#000'}}>{selectedClient.username}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -325,7 +277,7 @@ const ClientManagement: React.FC = () => {
           </Link>
           <div className="page-title">
             <FaUsers className="title-icon" />
-            <h1>Invitations</h1>
+            <h1>Clients</h1>
           </div>
         </div>
       </header>
@@ -336,75 +288,50 @@ const ClientManagement: React.FC = () => {
           <FaSearch className="search-icon" />
           <input
             type="text"
-            placeholder="Search by name, email, relationship, inviter..."
+            placeholder="Search by name, email, username..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-        </div>
-        <div className="filter-dropdown">
-          <FaFilter className="filter-icon" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-          >
-            <option value="all">All</option>
-            <option value="PENDING">Pending</option>
-            <option value="ACCEPTED">Accepted</option>
-            <option value="REJECTED">Rejected</option>
-            <option value="EXPIRED">Expired</option>
-          </select>
         </div>
       </div>
 
       {/* Clients Grid */}
       <div className="clients-grid">
-        {filteredInvitations.map((invitation) => (
-          <div key={invitation.id} className="client-card">
+        {filteredClients.map((client) => (
+          <div key={client.userId} className="client-card">
             <div className="card-header">
               <div className="client-avatar">
-                <span>{(invitation.inviteeFirstName || invitation.inviteeEmail || '?').charAt(0).toUpperCase()}</span>
+                <span>{(client.firstName || client.name || client.email || '?').charAt(0).toUpperCase()}</span>
               </div>
               <div className="client-basic-info">
                 <h3>
-                  {`${invitation.inviteeFirstName || ''} ${invitation.inviteeLastName || ''}`.trim() || invitation.inviteeEmail}
+                  {client.name || `${client.firstName} ${client.lastName}`.trim() || client.email}
                 </h3>
-                {invitation.inviteeEmail && <p>{invitation.inviteeEmail}</p>}
-                <span className={`status-badge ${invitation.status}`}>
-                  {invitation.status}
+                {client.email && <p>{client.email}</p>}
+                <span className="status-badge ACCEPTED">
+                  Client
                 </span>
               </div>
             </div>
 
             <div className="card-content">
               <div className="client-stats">
-                {invitation.relationshipType && (
+                {client.username && (
                   <div className="stat">
                     <FaUser />
-                    <span>{invitation.relationshipType}</span>
+                    <span>@{client.username}</span>
                   </div>
                 )}
-                {invitation.invitedByUsername && (
+                {client.email && (
+                  <div className="stat">
+                    <FaEnvelope />
+                    <span>{client.email}</span>
+                  </div>
+                )}
+                {client.relation && (
                   <div className="stat">
                     <FaUser />
-                    <span>By {invitation.invitedByUsername}</span>
-                  </div>
-                )}
-                {invitation.createdAt && (
-                  <div className="stat">
-                    <FaCalendarAlt />
-                    <span>Created {formatDate(invitation.createdAt)}</span>
-                  </div>
-                )}
-                {invitation.acceptedAt && (
-                  <div className="stat">
-                    <FaCalendarAlt />
-                    <span>Accepted {formatDate(invitation.acceptedAt)}</span>
-                  </div>
-                )}
-                {invitation.expiresAt && (
-                  <div className="stat">
-                    <FaCalendarAlt />
-                    <span>Expires {formatDate(invitation.expiresAt)}</span>
+                    <span>{client.relation}</span>
                   </div>
                 )}
               </div>
@@ -413,7 +340,7 @@ const ClientManagement: React.FC = () => {
             <div className="card-actions">
               <button 
                 className="action-btn view"
-                onClick={() => setSelectedInvitation(invitation)}
+                onClick={() => setSelectedClient(client)}
               >
                 <FaEye />
                 View
@@ -423,11 +350,11 @@ const ClientManagement: React.FC = () => {
         ))}
       </div>
 
-      {filteredInvitations.length === 0 && (
+      {filteredClients.length === 0 && !loading && (
         <div className="empty-state">
           <FaUsers className="empty-icon" />
-          <h3>No invitations found</h3>
-          <p>Try adjusting your search or filters.</p>
+          <h3>No clients found</h3>
+          <p>{searchTerm ? 'Try adjusting your search.' : 'You don\'t have any clients yet.'}</p>
         </div>
       )}
     </div>

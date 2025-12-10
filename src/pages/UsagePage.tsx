@@ -4,6 +4,7 @@ import api from '../services/api';
 import { FaChartBar, FaUpload, FaCloud, FaExclamationTriangle } from 'react-icons/fa';
 import { FiDownload } from 'react-icons/fi';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import DashboardLoading from '../components/common/DashboardLoading';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -29,7 +30,18 @@ const UsagePage = () => {
   // console.log('UsagePage state:', { usage, isLoading, error });
 
   if (isLoading) {
-    return <LoadingSpinner />;
+    return (
+      <DashboardLoading 
+        title="Loading Usage Statistics"
+        subtitle="Calculating your storage and upload usage..."
+        icon={FaChartBar}
+        features={[
+          { icon: FaUpload, label: 'Uploads' },
+          { icon: FaCloud, label: 'Storage' },
+          { icon: FaChartBar, label: 'Statistics' }
+        ]}
+      />
+    );
   }
 
   if (error) {

@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { FaCheck, FaTimes, FaCrown, FaShieldAlt, FaCloud, FaUpload, FaUsers, FaStar } from 'react-icons/fa';
+import { FaCheck, FaTimes, FaCrown, FaShieldAlt, FaCloud, FaUpload, FaUsers, FaStar, FaDollarSign } from 'react-icons/fa';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import DashboardLoading from '../components/common/DashboardLoading';
 
 // API Response Interfaces
 interface Plan {
@@ -302,7 +303,18 @@ const PlansPage = () => {
   };
 
   if (plansLoading || userPlanLoading || usageLoading) {
-    return <LoadingSpinner />;
+    return (
+      <DashboardLoading 
+        title="Loading Plans"
+        subtitle="Fetching available subscription plans..."
+        icon={FaDollarSign}
+        features={[
+          { icon: FaDollarSign, label: 'Plans' },
+          { icon: FaCloud, label: 'Storage' },
+          { icon: FaUpload, label: 'Uploads' }
+        ]}
+      />
+    );
   }
 
   const plans = plansData?.plans || [];

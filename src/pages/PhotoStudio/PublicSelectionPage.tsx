@@ -247,18 +247,24 @@ const PublicSelectionPage: React.FC = () => {
   const toggleImageSelection = (albumId: number, imageId: number) => {
     setUserSelectedImages(prev => {
       const next = new Map(prev);
+      // Get current image set for this album, or create empty set if doesn't exist
       const imageSet = next.get(albumId) || new Set<number>();
       const newImageSet = new Set(imageSet);
       
+      // Toggle the image selection
       if (newImageSet.has(imageId)) {
+        // Remove image from selection
         newImageSet.delete(imageId);
       } else {
+        // Add image to selection
         newImageSet.add(imageId);
       }
       
+      // If no images are selected, remove the album entry (empty set means no images selected)
       if (newImageSet.size === 0) {
         next.delete(albumId);
       } else {
+        // Update with the new set
         next.set(albumId, newImageSet);
       }
       
@@ -529,7 +535,10 @@ const PublicSelectionPage: React.FC = () => {
                 const isExpanded = expandedAlbums.has(album.id);
                 const albumImageIds = userSelectedImages.get(album.id) || new Set<number>();
                 const albumImages = album.images || [];
+                // Album is fully selected only if all images are in the selected set
                 const allSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
+                // If album is marked as selected but has no images selected, it means user deselected all images
+                // In this case, we should keep the album selected but show no images as selected
 
                 return (
                   <div
@@ -602,7 +611,14 @@ const PublicSelectionPage: React.FC = () => {
                     {isExpanded && albumImages.length > 0 && (
                       <div className="border-t border-gray-200 p-4 bg-gray-50">
                         <div className="flex items-center justify-between mb-3">
-                          <h4 className="text-sm font-semibold text-gray-900">Select Images</h4>
+                          <h4 className="text-sm font-semibold text-gray-900">
+                            Select Images
+                            {isSelected && albumImageIds.size > 0 && (
+                              <span className="ml-2 text-[#2731db] font-medium">
+                                ({albumImageIds.size} of {albumImages.length} selected)
+                              </span>
+                            )}
+                          </h4>
                           {isSelected && (
                             <button
                               onClick={() => selectAllImagesInAlbum(album.id)}
@@ -613,18 +629,11 @@ const PublicSelectionPage: React.FC = () => {
                           )}
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                          {albumImages
-                            .filter((image) => {
-                              // Only show selected images when album is selected
-                              if (isSelected) {
-                                return albumImageIds.has(image.id);
-                              }
-                              // If album is not selected, show all images for selection
-                              return true;
-                            })
-                            .map((image) => {
-                            // Image is selected if: album is selected AND image is in the selected images set
-                            // When album is selected, all images should be in albumImageIds (set by toggleAlbum)
+                          {albumImages.map((image) => {
+                            // Image is selected ONLY if:
+                            // 1. Album is selected AND
+                            // 2. The image ID exists in the userSelectedImages set for this album
+                            // Important: If albumImageIds is empty or doesn't contain the image, it's NOT selected
                             const isImageSelected = isSelected && albumImageIds.has(image.id);
                             const imageUrl = getImageUrl(image);
                             const filename = getImageFilename(image);
@@ -634,27 +643,41 @@ const PublicSelectionPage: React.FC = () => {
                             return (
                               <div
                                 key={image.id}
-                                onClick={() => isSelected && toggleImageSelection(album.id, image.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // If album is not selected, select it first (which selects all images)
+                                  if (!isSelected) {
+                                    toggleAlbum(album.id);
+                                    // After album is selected, deselect this specific image
+                                    // Use requestAnimationFrame to ensure state update completes
+                                    requestAnimationFrame(() => {
+                                      toggleImageSelection(album.id, image.id);
+                                    });
+                                  } else {
+                                    // If album is already selected, just toggle this image
+                                    toggleImageSelection(album.id, image.id);
+                                  }
+                                }}
                                 className={`group relative rounded-xl overflow-hidden border cursor-pointer transition-all duration-200 ${
                                   isImageSelected
                                     ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50 shadow-lg'
                                     : 'border-gray-200 bg-white shadow-sm hover:shadow-md'
-                                } ${!isSelected ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                }`}
                               >
-                                {/* Selection Checkbox */}
-                                {isSelected && (
-                                  <div className="absolute top-2 left-2 z-10">
-                                    <div
-                                      className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
-                                        isImageSelected
-                                          ? 'bg-[#2731db] text-white'
-                                          : 'bg-white bg-opacity-80 border-2 border-gray-300'
-                                      }`}
-                                    >
-                                      {isImageSelected && <FaCheck className="text-xs" />}
-                                    </div>
+                                {/* Selection Checkbox - Always show when album is expanded */}
+                                <div className="absolute top-2 left-2 z-10">
+                                  <div
+                                    className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                                      isImageSelected
+                                        ? 'bg-[#2731db] text-white'
+                                        : isSelected
+                                        ? 'bg-white bg-opacity-80 border-2 border-gray-300'
+                                        : 'bg-white bg-opacity-60 border-2 border-gray-200'
+                                    }`}
+                                  >
+                                    {isImageSelected && <FaCheck className="text-xs" />}
                                   </div>
-                                )}
+                                </div>
 
                                 <div className="h-48 bg-gray-100 overflow-hidden">
                                   {canView ? (

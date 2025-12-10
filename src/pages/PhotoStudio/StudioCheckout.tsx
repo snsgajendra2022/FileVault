@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
-import { encryptImageIds } from '../../utils/encryption';
 
 interface Album {
   id: number;
@@ -71,17 +70,12 @@ const StudioCheckout: React.FC = () => {
     selectedAlbums.forEach(albumId => {
       const album = albums.find(a => a.id === albumId);
       if (album && album.images) {
-        const imageIds = selectedImages.get(albumId);
-        // Only include images that are explicitly in the selected images set
-        if (imageIds && imageIds.size > 0) {
-          album.images.forEach(img => {
-            if (imageIds.has(img.id)) {
-              images.push(img);
-            }
-          });
-        }
-        // If album is selected but no images in selectedImages, 
-        // it means no images were explicitly selected, so don't include any
+        const imageIds = selectedImages.get(albumId) || new Set<number>();
+        album.images.forEach(img => {
+          if (imageIds.has(img.id) || imageIds.size === 0) {
+            images.push(img);
+          }
+        });
       }
     });
     return images;
@@ -95,10 +89,7 @@ const StudioCheckout: React.FC = () => {
   const toggleAlbum = (albumId: number) => {
     setSelectedAlbums(prev => {
       const next = new Set(prev);
-      const album = albums.find(a => a.id === albumId);
-      
       if (next.has(albumId)) {
-        // Deselect album
         next.delete(albumId);
         setSelectedImages(prevImgs => {
           const nextImgs = new Map(prevImgs);
@@ -106,16 +97,7 @@ const StudioCheckout: React.FC = () => {
           return nextImgs;
         });
       } else {
-        // Select album - automatically select all images in the album
         next.add(albumId);
-        if (album && album.images) {
-          setSelectedImages(prevImgs => {
-            const nextImgs = new Map(prevImgs);
-            const allImageIds = new Set(album.images!.map(img => img.id));
-            nextImgs.set(albumId, allImageIds);
-            return nextImgs;
-          });
-        }
       }
       return next;
     });
@@ -199,19 +181,17 @@ const StudioCheckout: React.FC = () => {
   const publicCheckoutUrl = useMemo(() => {
     if (allSelectedImages.length === 0) return '';
     const token = localStorage.getItem('token') || '';
-    const selectedImageIds = allSelectedImages.map(img => img.id);
-    const encryptedIds = encryptImageIds(selectedImageIds);
+    const selectedFilenames = allSelectedImages.map(img => getImageFilename(img)).join(',');
     const baseUrl = window.location.origin;
-    return `${baseUrl}/public/checkout?token=${encodeURIComponent(token)}&imageIds=${encryptedIds}`;
+    return `${baseUrl}/public/checkout?token=${encodeURIComponent(token)}&files=${encodeURIComponent(selectedFilenames)}`;
   }, [allSelectedImages]);
 
   const publicSelectionUrl = useMemo(() => {
     if (allSelectedImages.length === 0) return '';
     const token = localStorage.getItem('token') || '';
-    const selectedImageIds = allSelectedImages.map(img => img.id);
-    const encryptedIds = encryptImageIds(selectedImageIds);
+    const selectedFilenames = allSelectedImages.map(img => getImageFilename(img)).join(',');
     const baseUrl = window.location.origin;
-    return `${baseUrl}/public/selection?token=${encodeURIComponent(token)}&imageIds=${encryptedIds}`;
+    return `${baseUrl}/public/selection?token=${encodeURIComponent(token)}&files=${encodeURIComponent(selectedFilenames)}`;
   }, [allSelectedImages]);
 
   const handleCopyCheckoutUrl = () => {
@@ -554,17 +534,8 @@ const StudioCheckout: React.FC = () => {
                         </button>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                        {albumImages
-                          .filter((image) => {
-                            // Only show selected images when album is selected
-                            if (isSelected) {
-                              return albumImageIds.has(image.id);
-                            }
-                            // If album is not selected, show all images for selection
-                            return true;
-                          })
-                          .map((image) => {
-                          const isImageSelected = albumImageIds.has(image.id);
+                        {albumImages.map((image) => {
+                          const isImageSelected = albumImageIds.has(image.id) || albumImageIds.size === 0;
                           const imageUrl = getImageUrl(image);
                           const filename = getImageFilename(image);
                           const fileType = getFileType(image);

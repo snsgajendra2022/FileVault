@@ -135,7 +135,6 @@ class ChunkedUploadService {
           // If backend doesn't support chunked uploads, fall back to regular upload
           if (chunkError.response?.status === 404 || chunkError.response?.status === 501) {
             console.log('Chunked upload not supported, falling back to regular upload');
-            // Adapt onProgress callback signature for fallback
             const adaptedProgress = onProgress ? (progress: number) => {
               onProgress(progress, chunkNumber + 1, totalChunks);
             } : undefined;
@@ -164,7 +163,6 @@ class ChunkedUploadService {
       } catch (completeError: any) {
         // If complete endpoint doesn't exist, try to reconstruct file and upload normally
         console.log('Complete endpoint not available, using fallback');
-        // Adapt onProgress callback signature for fallback
         const adaptedProgress = onProgress ? (progress: number) => {
           onProgress(progress, totalChunks, totalChunks);
         } : undefined;

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { FaUser, FaEnvelope, FaPhone, FaBuilding, FaSave, FaEdit, FaShieldAlt, FaUpload, FaLock } from 'react-icons/fa';
+import DashboardLoading from '../components/common/DashboardLoading';
 import { useNavigate } from 'react-router-dom';
 
 interface ProfileData {
@@ -103,12 +104,12 @@ const ProfilePage = () => {
 
   if (profileLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/20 border-t-white"></div>
-          <div className="absolute inset-0 animate-ping rounded-full h-16 w-16 border-4 border-white/10"></div>
-        </div>
-      </div>
+      <DashboardLoading 
+        title="Loading Profile"
+        subtitle="Fetching your profile information..."
+        icon={FaUser}
+        showFeatures={false}
+      />
     );
   }
 

@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import imageService from '../services/imageService';
 import chunkedUploadService from '../services/chunkedUploadService';
-import parallelUploadManager from '../services/parallelUploadManager';
 import toast from 'react-hot-toast';
 import { FaCloudUploadAlt, FaFileImage, FaTimes, FaCheck, FaExclamationTriangle, FaLock, FaDownload, FaPlus, FaFolder } from 'react-icons/fa';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -117,12 +116,10 @@ const UploadPage = () => {
               username: client.username
             };
             allClients.push(clientData);
-            console.log('Added client:', clientData);
           }
           
           // Recursively process nested clients
           if (client && client.clients && Array.isArray(client.clients) && client.clients.length > 0) {
-            console.log('Found nested clients in:', client.name, client.clients.length);
             flattenClients(client.clients);
           }
         });
@@ -314,9 +311,7 @@ const UploadPage = () => {
           uploadFile.file, 
           uploadFile.targetFamilyMember.otherUserId
         );
-
-        // Extract image ID directly from response - check multiple possible locations
-        // Priority: 1) response.id (direct), 2) response.image.id, 3) cloudUploads service
+        alert('uploadResponse: ' + uploadResponse);
         if (uploadResponse?.id) {
           imageId = uploadResponse.id;
           console.log(`[Upload] Extracted image ID directly from response.id:`, imageId);
@@ -332,7 +327,6 @@ const UploadPage = () => {
           return imageId;
         } else if (uploadResponse?.image?.id) {
           imageId = uploadResponse.image.id;
-          console.log(`[Upload] Extracted image ID from response.image.id:`, imageId);
           const successMsg = uploadResponse.message || `${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`;
           setUploadFiles(prev => 
             prev.map(f => 
@@ -362,14 +356,13 @@ const UploadPage = () => {
             return imageId;
           }
         }
-        
         throw new Error('Image ID not found in upload response');
       } else {
-        // Upload to my account - Step 1: Call /api/images/upload
-        // console.log(`[Upload] Step 1: Uploading file "${uploadFile.file.name}" to /api/images/upload`);
-        uploadResponse = await imageService.uploadImage(uploadFile.file);
-        // console.log(`[Upload] Upload response:`, uploadResponse);
-
+        // /api/images/upload
+   
+         uploadResponse = await imageService.uploadImage(uploadFile.file);
+       alert('uploadResponse: ' + uploadResponse);
+ 
         // Extract image ID directly from response - priority: response.id (direct)
         if (uploadResponse?.id) {
           imageId = uploadResponse.id;
@@ -456,7 +449,6 @@ const UploadPage = () => {
         const response = await api.post(`/api/albums/${selectedAlbumId}/images`, { 
           imageIds: imageIds 
         });
-        
         console.log(`[Upload All] Album API response:`, response.data);
         const albumName = albums.find(a => a.id === selectedAlbumId)?.name || 'album';
         toast.success(`${imageIds.length} image${imageIds.length !== 1 ? 's' : ''} added to album "${albumName}"`);

@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
-import { decryptImageIds } from '../../utils/encryption';
 
 interface Album {
   id: number;
@@ -52,18 +51,8 @@ const PublicCheckoutPage: React.FC = () => {
   const [isPaid, setIsPaid] = useState(false);
   const [paymentChecking, setPaymentChecking] = useState(false);
   const [transactionId, setTransactionId] = useState<string>('');
-  const [showOnlySelected, setShowOnlySelected] = useState(false);
 
   const token = searchParams.get('token') || '';
-  const filesParam = searchParams.get('files') || ''; // Legacy support
-  const imageIdsParam = searchParams.get('imageIds') || '';
-
-  // Auto-enable "show only selected" when imageIds or files are provided in URL
-  useEffect(() => {
-    if ((imageIdsParam && imageIdsParam.trim().length > 0) || (filesParam && filesParam.trim().length > 0)) {
-      setShowOnlySelected(true);
-    }
-  }, [imageIdsParam, filesParam]);
 
   // Fetch albums
   const { data: albumsData, isLoading, isError } = useQuery({
@@ -82,112 +71,6 @@ const PublicCheckoutPage: React.FC = () => {
     if (albumsData.albums) return albumsData.albums;
     return [];
   }, [albumsData]);
-
-  // Parse image IDs from URL parameter (preferred method)
-  const targetImageIds = useMemo(() => {
-    if (imageIdsParam) {
-      // Try to decrypt first (new encrypted format)
-      try {
-        const decrypted = decryptImageIds(imageIdsParam);
-        if (decrypted.length > 0) {
-          return decrypted;
-        }
-      } catch (error) {
-        // If decryption fails, try plain format (backward compatibility)
-        console.log('Trying plain format for imageIds');
-      }
-      // Fallback to plain comma-separated format (backward compatibility)
-      return imageIdsParam.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
-    }
-    return [];
-  }, [imageIdsParam]);
-
-  // Parse filenames from URL parameter (legacy support)
-  const targetFilenames = useMemo(() => {
-    if (!filesParam) return [];
-    return filesParam.split(',').map(f => decodeURIComponent(f.trim())).filter(f => f);
-  }, [filesParam]);
-
-  // Helper function to get image filename
-  const getImageFilename = (image: AlbumImage): string => {
-    return image.originalFilename || image.filename || 'Unknown';
-  };
-
-  // Auto-select albums and images based on image IDs or filenames from URL
-  useEffect(() => {
-    if (albums.length === 0) return;
-
-    const matchedAlbums = new Set<number>();
-    const matchedImages = new Map<number, Set<number>>();
-
-    // Method 1: Use image IDs if provided (preferred - shorter URLs)
-    if (targetImageIds.length > 0) {
-      albums.forEach(album => {
-        if (!album.images || album.images.length === 0) return;
-
-        const albumImageIds = new Set<number>();
-        let hasMatch = false;
-
-        album.images.forEach(image => {
-          if (targetImageIds.includes(image.id)) {
-            albumImageIds.add(image.id);
-            hasMatch = true;
-          }
-        });
-
-        if (hasMatch) {
-          matchedAlbums.add(album.id);
-          matchedImages.set(album.id, albumImageIds);
-          // Auto-expand albums with matches
-          setExpandedAlbums(prev => new Set(prev).add(album.id));
-        }
-      });
-    }
-    // Method 2: Fallback to filename matching (legacy support)
-    else if (targetFilenames.length > 0) {
-      albums.forEach(album => {
-        if (!album.images || album.images.length === 0) return;
-
-        const albumImageIds = new Set<number>();
-        let hasMatch = false;
-
-        album.images.forEach(image => {
-          const imageFilename = getImageFilename(image);
-          // Check if this image's filename matches any target filename
-          const isMatch = targetFilenames.some(targetFilename => {
-            // Exact match or filename contains target (for partial matches)
-            return imageFilename === targetFilename || 
-                   imageFilename.includes(targetFilename) ||
-                   targetFilename.includes(imageFilename);
-          });
-
-          if (isMatch) {
-            albumImageIds.add(image.id);
-            hasMatch = true;
-          }
-        });
-
-        if (hasMatch) {
-          matchedAlbums.add(album.id);
-          matchedImages.set(album.id, albumImageIds);
-          // Auto-expand albums with matches
-          setExpandedAlbums(prev => new Set(prev).add(album.id));
-        }
-      });
-    } else {
-      return; // No parameters provided
-    }
-
-    if (matchedAlbums.size > 0) {
-      setSelectedAlbums(matchedAlbums);
-      setSelectedImages(matchedImages);
-      // Automatically show only selected albums when imageIds or files are provided
-      setShowOnlySelected(true);
-      // Auto-generate QR code if images are found
-      setShowQr(true);
-      toast.success(`Found ${matchedAlbums.size} album(s) with matching images`);
-    }
-  }, [albums, targetImageIds, targetFilenames]);
 
   // Get all selected images from all selected albums
   const allSelectedImages = useMemo(() => {
@@ -215,10 +98,7 @@ const PublicCheckoutPage: React.FC = () => {
     setIsPaid(false);
     setSelectedAlbums(prev => {
       const next = new Set(prev);
-      const album = albums.find(a => a.id === albumId);
-      
       if (next.has(albumId)) {
-        // Deselect album
         next.delete(albumId);
         setSelectedImages(prevImgs => {
           const nextImgs = new Map(prevImgs);
@@ -226,16 +106,7 @@ const PublicCheckoutPage: React.FC = () => {
           return nextImgs;
         });
       } else {
-        // Select album - automatically select all images in the album
         next.add(albumId);
-        if (album && album.images) {
-          setSelectedImages(prevImgs => {
-            const nextImgs = new Map(prevImgs);
-            const allImageIds = new Set(album.images!.map(img => img.id));
-            nextImgs.set(albumId, allImageIds);
-            return nextImgs;
-          });
-        }
       }
       return next;
     });
@@ -292,6 +163,10 @@ const PublicCheckoutPage: React.FC = () => {
     if (image.previewUrl) return image.previewUrl;
     if (image.downloadUrl) return image.downloadUrl;
     return null;
+  };
+
+  const getImageFilename = (image: AlbumImage): string => {
+    return image.originalFilename || image.filename || 'Unknown';
   };
 
   const getFileType = (image: AlbumImage): string => {
@@ -620,33 +495,8 @@ const PublicCheckoutPage: React.FC = () => {
               <p className="text-sm">Please check the link or contact the photographer.</p>
             </div>
           ) : (
-            <>
-              {/* Filter Toggle */}
-              {selectedAlbums.size > 0 && (
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => setShowOnlySelected(!showOnlySelected)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        showOnlySelected
-                          ? 'bg-[#2731db] text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {showOnlySelected ? 'Show All Albums' : 'Show Only Selected'}
-                    </button>
-                    {showOnlySelected && (
-                      <span className="text-sm text-gray-600">
-                        Showing {selectedAlbums.size} of {albums.length} albums
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-              <div className="space-y-3">
-                {albums
-                  .filter((album) => !showOnlySelected || selectedAlbums.has(album.id))
-                  .map((album) => {
+            <div className="space-y-3">
+              {albums.map((album) => {
                 const isSelected = selectedAlbums.has(album.id);
                 const isExpanded = expandedAlbums.has(album.id);
                 const albumImageIds = selectedImages.get(album.id) || new Set<number>();
@@ -728,17 +578,8 @@ const PublicCheckoutPage: React.FC = () => {
                           </button>
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
-                          {albumImages
-                            .filter((image) => {
-                              // Only show selected images when album is selected
-                              if (isSelected) {
-                                return albumImageIds.has(image.id);
-                              }
-                              // If album is not selected, show all images for selection
-                              return true;
-                            })
-                            .map((image) => {
-                            const isImageSelected = albumImageIds.has(image.id);
+                          {albumImages.map((image) => {
+                            const isImageSelected = albumImageIds.has(image.id) || albumImageIds.size === 0;
                             const imageUrl = getImageUrl(image);
                             const filename = getImageFilename(image);
                             const fileType = getFileType(image);
@@ -810,8 +651,7 @@ const PublicCheckoutPage: React.FC = () => {
                   </div>
                 );
               })}
-              </div>
-            </>
+            </div>
           )}
         </div>
       </div>
