@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheckCircle, FaCheck, FaCopy, FaShare } from 'react-icons/fa';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -41,6 +41,7 @@ interface AlbumImage {
 const PublicSelectionPage: React.FC = () => {
   const location = useLocation();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const queryClient = useQueryClient();
   const [expandedAlbums, setExpandedAlbums] = useState<Set<number>>(new Set());
   const [selectedAlbums, setSelectedAlbums] = useState<Set<number>>(new Set());
   const [selectedAlbumId, setSelectedAlbumId] = useState<number | null>(null);
@@ -343,7 +344,7 @@ const PublicSelectionPage: React.FC = () => {
       console.log('Submitting selected images:', payload);
 
       // Call PUT API to submit selected images
-      const response = await api.put(`/api/albums/${selectedAlbumId}`, payload, {
+      const response = await api.put(`/api/albums/${selectedAlbumId}/images`, payload, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -351,10 +352,14 @@ const PublicSelectionPage: React.FC = () => {
 
       console.log('Submission response:', response.data);
 
+      // Invalidate and refetch albums data after successful update
+      await queryClient.invalidateQueries({ queryKey: ['publicSelectionAlbums', token] });
+
       toast.success(
         `Successfully submitted ${allSelectedImages.length} photo${allSelectedImages.length !== 1 ? 's' : ''} for selection!`,
         { duration: 5000 }
       );
+      
     } catch (error: any) {
       console.error('Submission error:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to submit selection. Please try again.';

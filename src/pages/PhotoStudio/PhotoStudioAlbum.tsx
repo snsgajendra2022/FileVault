@@ -228,7 +228,7 @@ const PhotoStudioAlbum: React.FC = () => {
   // Update album mutation
   const updateAlbumMutation = useMutation({
     mutationFn: async ({ albumId, name, description }: { albumId: number; name: string; description?: string }) => {
-      const response = await api.put(`/api/albums/${albumId}`, { name, description });
+      const response = await api.put(`/api/albums/${albumId}/images`, { name, description });
       return response.data;
     },
     onSuccess: () => {

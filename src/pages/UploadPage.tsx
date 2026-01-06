@@ -254,8 +254,8 @@ const UploadPage = () => {
     const acceptTypes: any = {};
     const allowedTypes = userProfile.allowedFileTypes.split(',').map(t => t.trim().toLowerCase());
 
-    if (allowedTypes.some(type => ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(type))) {
-      acceptTypes['image/*'] = ['.jpeg', '.jpg', '.png', '.gif', '.bmp', '.webp'];
+    if (allowedTypes.some(type => ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'heic'].includes(type))) {
+      acceptTypes['image/*'] = ['.jpeg', '.jpg', '.png', '.gif', '.bmp', '.webp', '.heic'];
     }
     if (allowedTypes.includes('pdf')) {
       acceptTypes['application/pdf'] = ['.pdf'];
@@ -311,7 +311,7 @@ const UploadPage = () => {
           uploadFile.file, 
           uploadFile.targetFamilyMember.otherUserId
         );
-        alert('uploadResponse: ' + uploadResponse);
+        // alert('uploadResponse: ' + uploadResponse);
         if (uploadResponse?.id) {
           imageId = uploadResponse.id;
           console.log(`[Upload] Extracted image ID directly from response.id:`, imageId);
@@ -361,7 +361,7 @@ const UploadPage = () => {
         // /api/images/upload
    
          uploadResponse = await imageService.uploadImage(uploadFile.file);
-       alert('uploadResponse: ' + uploadResponse);
+      //  alert('uploadResponse: ' + uploadResponse);
  
         // Extract image ID directly from response - priority: response.id (direct)
         if (uploadResponse?.id) {

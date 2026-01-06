@@ -102,12 +102,6 @@ const ClientImagesPage = () => {
   };
 
   const handleDownload = (image: UserImage) => {
-    // Check if user has access to download
-    if (user?.accountType === 'FREE') {
-      setShowUpgradeModal(true);
-      return;
-    }
-    
     // Download using the API URL
     toast.success(`Downloading ${image.filename}...`);
     const link = document.createElement('a');
@@ -450,12 +444,6 @@ const ClientImagesPage = () => {
                     {getEnabledServicesCount(image.enabledServices)}
                   </span>
                 </div>
-
-                {user?.accountType === 'FREE' && (
-                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                    <FaLock className="h-8 w-8 text-white" />
-                  </div>
-                )}
               </div>
 
               {/* File Info */}
