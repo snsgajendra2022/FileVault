@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FaUsers, FaCloud, FaChartBar, FaCog, FaPlus, FaUser, FaShieldAlt } from 'react-icons/fa';
+import { FaUsers, FaCloud, FaChartBar, FaCog, FaPlus, FaUser, FaShieldAlt, FaRupeeSign } from 'react-icons/fa';
 import UserManagement from '../components/admin/UserManagement';
 import ServiceManagement from '../components/admin/ServiceManagement';
 import PlanManagement from '../components/admin/PlanManagement';
 import UsageAnalytics from '../components/admin/UsageAnalytics';
 import SystemHealth from '../components/admin/SystemHealth';
+import PaymentManagement from '../components/admin/PaymentManagement';
 import adminService from '../services/adminService';
 import { toast } from 'react-hot-toast';
 
@@ -20,6 +21,7 @@ const AdminPage = () => {
     { id: 'users', name: 'User Management', icon: FaUsers },
     { id: 'services', name: 'Service Config', icon: FaCloud },
     { id: 'plans', name: 'Plan Management', icon: FaPlus },
+    { id: 'payments', name: 'Payment Management', icon: FaRupeeSign },
     { id: 'analytics', name: 'Usage Analytics', icon: FaChartBar },
     { id: 'health', name: 'System Health', icon: FaShieldAlt },
     { id: 'settings', name: 'Admin Settings', icon: FaCog }
@@ -48,6 +50,8 @@ const AdminPage = () => {
         return <ServiceManagement />;
       case 'plans':
         return <PlanManagement />;
+      case 'payments':
+        return <PaymentManagement />;
       case 'analytics':
         return <UsageAnalytics />;
       case 'health':
@@ -149,6 +153,7 @@ const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void 
     { name: 'User Management', tab: 'users', icon: FaUser, color: 'bg-blue-500' },
     { name: 'Service Config', tab: 'services', icon: FaCloud, color: 'bg-green-500' },
     { name: 'Plan Management', tab: 'plans', icon: FaPlus, color: 'bg-purple-500' },
+    { name: 'Payment Management', tab: 'payments', icon: FaRupeeSign, color: 'bg-yellow-500' },
     { name: 'Usage Analytics', tab: 'analytics', icon: FaChartBar, color: 'bg-orange-500' },
     { name: 'System Health', tab: 'health', icon: FaShieldAlt, color: 'bg-red-500' },
   ];

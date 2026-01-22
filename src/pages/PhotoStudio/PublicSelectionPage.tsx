@@ -207,7 +207,6 @@ const PublicSelectionPage: React.FC = () => {
   const toggleAlbum = (albumId: number) => {
     setSelectedAlbums(prev => {
       const next = new Set(prev);
-      const album = albums.find(a => a.id === albumId);
       
       if (next.has(albumId)) {
         // Deselect album
@@ -218,16 +217,8 @@ const PublicSelectionPage: React.FC = () => {
           return nextImgs;
         });
       } else {
-        // Select album - automatically select all images in the album
+        // Select album - but don't auto-select images, user must explicitly select them
         next.add(albumId);
-        if (album && album.images) {
-          setUserSelectedImages(prevImgs => {
-            const nextImgs = new Map(prevImgs);
-            const allImageIds = new Set(album.images!.map(img => img.id));
-            nextImgs.set(albumId, allImageIds);
-            return nextImgs;
-          });
-        }
       }
       return next;
     });
@@ -613,14 +604,14 @@ const PublicSelectionPage: React.FC = () => {
                     </div>
 
                     {/* Album Images (shown when expanded) */}
-                    {isExpanded && albumImages.length > 0 && (
+                    {isExpanded && albumImages.length > 0 && (!isSelected || albumImageIds.size > 0) && (
                       <div className="border-t border-gray-200 p-4 bg-gray-50">
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="text-sm font-semibold text-gray-900">
-                            Select Images
+                            {isSelected ? 'Selected Images' : 'Select Images'}
                             {isSelected && albumImageIds.size > 0 && (
                               <span className="ml-2 text-[#2731db] font-medium">
-                                ({albumImageIds.size} of {albumImages.length} selected)
+                                ({albumImageIds.size} of {albumImages.length})
                               </span>
                             )}
                           </h4>
@@ -634,12 +625,12 @@ const PublicSelectionPage: React.FC = () => {
                           )}
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                          {albumImages.map((image) => {
-                            // Image is selected ONLY if:
-                            // 1. Album is selected AND
-                            // 2. The image ID exists in the userSelectedImages set for this album
-                            // Important: If albumImageIds is empty or doesn't contain the image, it's NOT selected
-                            const isImageSelected = isSelected && albumImageIds.has(image.id);
+                          {(isSelected ? albumImages.filter(image => albumImageIds.has(image.id)) : albumImages).map((image) => {
+                              // Image is selected ONLY if:
+                              // 1. Album is selected AND
+                              // 2. The image ID exists in the userSelectedImages set for this album
+                              // Important: If albumImageIds is empty or doesn't contain the image, it's NOT selected
+                              const isImageSelected = isSelected && albumImageIds.has(image.id);
                             const imageUrl = getImageUrl(image);
                             const filename = getImageFilename(image);
                             const fileType = getFileType(image);
@@ -650,18 +641,12 @@ const PublicSelectionPage: React.FC = () => {
                                 key={image.id}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // If album is not selected, select it first (which selects all images)
+                                  // If album is not selected, select it first
                                   if (!isSelected) {
                                     toggleAlbum(album.id);
-                                    // After album is selected, deselect this specific image
-                                    // Use requestAnimationFrame to ensure state update completes
-                                    requestAnimationFrame(() => {
-                                      toggleImageSelection(album.id, image.id);
-                                    });
-                                  } else {
-                                    // If album is already selected, just toggle this image
-                                    toggleImageSelection(album.id, image.id);
                                   }
+                                  // Toggle this image selection
+                                  toggleImageSelection(album.id, image.id);
                                 }}
                                 className={`group relative rounded-xl overflow-hidden border cursor-pointer transition-all duration-200 ${
                                   isImageSelected

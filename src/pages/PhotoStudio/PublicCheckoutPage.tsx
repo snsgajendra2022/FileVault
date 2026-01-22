@@ -1,6 +1,6 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheck } from 'react-icons/fa';
+import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheck, FaRedoAlt, FaTimes, FaUpload, FaFileImage } from 'react-icons/fa';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -18,6 +18,9 @@ interface Album {
   updatedAt?: string;
   images?: AlbumImage[];
   imageIds?: number[];
+  perAlbumPrice?: number | null;
+  perPhotoPrice?: number | null;
+  isPublic?: boolean;
   [key: string]: any;
 }
 
@@ -37,7 +40,7 @@ interface AlbumImage {
   [key: string]: any;
 }
 
-const PRICE_PER_IMAGE = 1;
+const PRICE_PER_IMAGE = 0;
 
 const PublicCheckoutPage: React.FC = () => {
   const location = useLocation();
@@ -51,11 +54,28 @@ const PublicCheckoutPage: React.FC = () => {
   const [isPaid, setIsPaid] = useState(false);
   const [paymentChecking, setPaymentChecking] = useState(false);
   const [transactionId, setTransactionId] = useState<string>('');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [utrNumber, setUtrNumber] = useState('');
+  const [email, setEmail] = useState('');
+  const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [downloadCodeData, setDownloadCodeData] = useState<any>(null);
+  const [loadingDownloadCode, setLoadingDownloadCode] = useState(false);
+  const autoSelectedRef = useRef(false);
 
   const token = searchParams.get('token') || '';
+  const filesParam = searchParams.get('files') || '';
+  const downloadCode = searchParams.get('code') || '';
+
+  // Parse filenames from URL parameter
+  const targetFilenames = useMemo(() => {
+    if (!filesParam) return [];
+    return filesParam.split(',').map(f => decodeURIComponent(f.trim())).filter(f => f);
+  }, [filesParam]);
 
   // Fetch albums
-  const { data: albumsData, isLoading, isError } = useQuery({
+  const { data: albumsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['publicCheckoutAlbums', token],
     enabled: !!token,
     queryFn: async () => {
@@ -65,40 +85,89 @@ const PublicCheckoutPage: React.FC = () => {
     retry: 1,
   });
 
-  const albums = useMemo(() => {
+  const albums:any = useMemo(() => {
     if (!albumsData) return [];
     if (Array.isArray(albumsData)) return albumsData;
     if (albumsData.albums) return albumsData.albums;
     return [];
   }, [albumsData]);
 
-  // Get all selected images from all selected albums
+  // Get all explicitly selected images from all selected albums
   const allSelectedImages = useMemo(() => {
     const images: AlbumImage[] = [];
     selectedAlbums.forEach(albumId => {
       const album = albums.find(a => a.id === albumId);
       if (album && album.images) {
-        const imageIds = selectedImages.get(albumId) || new Set<number>();
-        album.images.forEach(img => {
-          if (imageIds.has(img.id) || imageIds.size === 0) {
-            images.push(img);
-          }
-        });
+        const imageIds = selectedImages.get(albumId);
+        // Only include explicitly selected images
+        if (imageIds && imageIds.size > 0) {
+          album.images.forEach(img => {
+            if (imageIds.has(img.id)) {
+              images.push(img);
+            }
+          });
+        }
       }
     });
     return images;
   }, [selectedAlbums, selectedImages, albums]);
 
-  const totalAmount = useMemo(
-    () => allSelectedImages.length * PRICE_PER_IMAGE,
-    [allSelectedImages.length]
-  );
+  // Fetch UPI settings for default perPhotoPrice
+  const { data: upiSettings } = useQuery({
+    queryKey: ['upiSettings'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/api/upi');
+        return response.data as { upiId: string; perPhotoPrice: number };
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          return null;
+        }
+        throw error;
+      }
+    },
+    retry: 1,
+  });
+
+  const defaultPerPhotoPrice = upiSettings?.perPhotoPrice || PRICE_PER_IMAGE;
+
+  // Calculate total amount considering perAlbumPrice and perPhotoPrice
+  const totalAmount = useMemo(() => {
+    let total = 0;
+    
+    selectedAlbums.forEach(albumId => {
+      const album = albums.find(a => a.id === albumId);
+      if (!album) return;
+      
+      const albumImageIds = selectedImages.get(albumId) || new Set<number>();
+      const albumImages = album.images || [];
+      
+      if (albumImageIds.size === 0) return;
+      
+      // Check if all images in album are selected
+      const allImagesSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
+      
+      // Priority 1: If all images selected and album has perAlbumPrice, use it
+      if (allImagesSelected && album.perAlbumPrice && album.perAlbumPrice > 0) {
+        total += album.perAlbumPrice;
+      } else if (albumImageIds.size > 0) {
+        // Individual images selected - use perPhotoPrice from album, or fallback to UPI settings, or default
+        const imagePrice = album.perPhotoPrice && album.perPhotoPrice > 0 
+          ? album.perPhotoPrice 
+          : (defaultPerPhotoPrice > 0 ? defaultPerPhotoPrice : PRICE_PER_IMAGE);
+        total += albumImageIds.size * imagePrice;
+      }
+    });
+    
+    return total;
+  }, [selectedAlbums, selectedImages, albums, defaultPerPhotoPrice]);
 
   const toggleAlbum = (albumId: number) => {
     setIsPaid(false);
     setSelectedAlbums(prev => {
       const next = new Set(prev);
       if (next.has(albumId)) {
+        // Unselect album - remove album and all its images
         next.delete(albumId);
         setSelectedImages(prevImgs => {
           const nextImgs = new Map(prevImgs);
@@ -106,7 +175,17 @@ const PublicCheckoutPage: React.FC = () => {
           return nextImgs;
         });
       } else {
+        // Select album - automatically select ALL images in the album
         next.add(albumId);
+        const album = albums.find(a => a.id === albumId);
+        if (album && album.images && album.images.length > 0) {
+          setSelectedImages(prevImgs => {
+            const nextImgs = new Map(prevImgs);
+            const allImageIds = new Set<number>(album.images!.map(img => img.id));
+            nextImgs.set(albumId, allImageIds);
+            return nextImgs;
+          });
+        }
       }
       return next;
     });
@@ -154,7 +233,7 @@ const PublicCheckoutPage: React.FC = () => {
     setSelectedImages(prev => {
       const next = new Map(prev);
       const allImageIds = new Set(album.images!.map(img => img.id));
-      next.set(albumId, allImageIds);
+      next.set(albumId, allImageIds as Set<number>);
       return next;
     });
   };
@@ -175,6 +254,121 @@ const PublicCheckoutPage: React.FC = () => {
     return extension || image.fileType || 'unknown';
   };
 
+  // Fetch download code data if code is present in URL
+  const fetchDownloadCode = async () => {
+    if (downloadCode && !downloadCodeData && !loadingDownloadCode) {
+      setLoadingDownloadCode(true);
+      setShowQr(false); // Hide QR immediately when download code is detected
+      try {
+        const response = await api.get(`/api/payments/download/${downloadCode}`);
+        console.log('Download code data:', response);
+        setDownloadCodeData(response.data);
+        setIsPaid(true);
+        setShowQr(false); // Ensure QR is hidden when download code is verified
+        toast.success('Download code verified! You can now download your images.');
+      } catch (error: any) {
+        console.error('Error fetching download code:', error);
+        const errorMessage = error.response?.data?.message || 'Invalid or expired download code';
+        toast.error(errorMessage);
+        setDownloadCodeData(null);
+        setIsPaid(false);
+        // Don't show QR even if download code fails
+        setShowQr(false);
+      } finally {
+        setLoadingDownloadCode(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (downloadCode) {
+      fetchDownloadCode();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [downloadCode]);
+
+  // Auto-select images from download code after albums are loaded
+  useEffect(() => {
+    if (downloadCodeData && albums.length > 0) {
+      const imageIds = downloadCodeData.imageIds || downloadCodeData.images?.map((img: any) => img.id) || [];
+      if (imageIds.length > 0) {
+        const albumIds = new Set<number>();
+        const selectedImagesMap = new Map<number, Set<number>>();
+        
+        // Find which albums contain these images
+        albums.forEach(album => {
+          if (album.images) {
+            const albumImageIds = new Set<number>();
+            album.images.forEach(image => {
+              if (imageIds.includes(image.id)) {
+                albumImageIds.add(image.id);
+                albumIds.add(album.id);
+              }
+            });
+            if (albumImageIds.size > 0) {
+              selectedImagesMap.set(album.id, albumImageIds);
+              setExpandedAlbums(prev => new Set(prev).add(album.id));
+            }
+          }
+        });
+        
+        if (albumIds.size > 0) {
+          setSelectedAlbums(albumIds);
+          setSelectedImages(selectedImagesMap);
+        }
+      }
+    }
+  }, [downloadCodeData, albums]);
+
+  // Auto-select albums and images based on filenames from URL (only once when albums load)
+  useEffect(() => {
+    if (albums.length === 0 || targetFilenames.length === 0) return;
+    // Only auto-select once (prevents overriding user selections)
+    if (autoSelectedRef.current) return;
+    // Don't auto-select if download code is being processed
+    if (downloadCode && loadingDownloadCode) return;
+
+    const matchedAlbums = new Set<number>();
+    const matchedImages = new Map<number, Set<number>>();
+
+    albums.forEach(album => {
+      if (!album.images || album.images.length === 0) return;
+
+      const albumImageIds = new Set<number>();
+      let hasMatch = false;
+
+      album.images.forEach(image => {
+        const imageFilename = getImageFilename(image);
+        // Check if this image's filename matches any target filename
+        const isMatch = targetFilenames.some(targetFilename => {
+          // Exact match or filename contains target (for partial matches)
+          return imageFilename === targetFilename || 
+                 imageFilename.includes(targetFilename) ||
+                 targetFilename.includes(imageFilename);
+        });
+
+        if (isMatch) {
+          albumImageIds.add(image.id);
+          hasMatch = true;
+        }
+      });
+
+      if (hasMatch) {
+        matchedAlbums.add(album.id);
+        matchedImages.set(album.id, albumImageIds);
+        // Auto-expand albums with matches
+        setExpandedAlbums(prev => new Set(prev).add(album.id));
+      }
+    });
+
+    if (matchedAlbums.size > 0) {
+      setSelectedAlbums(matchedAlbums);
+      setSelectedImages(matchedImages);
+      autoSelectedRef.current = true;
+      toast.success(`Found ${matchedAlbums.size} album(s) with matching images`);
+    }
+  }, [albums, targetFilenames]);
+
   const qrData = useMemo(() => {
     if (!totalAmount || allSelectedImages.length === 0) return '';
     const params = new URLSearchParams({
@@ -183,31 +377,63 @@ const PublicCheckoutPage: React.FC = () => {
       am: String(totalAmount),
       cu: 'INR',
       tn: `PhotoStudio payment for ${allSelectedImages.length} photo(s)`,
-    });
+    }).toString();
     const upiUrl = `upi://pay?${params.toString()}`;
     return encodeURIComponent(upiUrl);
   }, [allSelectedImages.length, totalAmount]);
 
-  // Generate transaction ID when QR is shown
+  // Register payment and generate transaction ID when QR is created/shown
   useEffect(() => {
-    if (allSelectedImages.length > 0 && totalAmount > 0 && !transactionId) {
-      const txId = `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      setTransactionId(txId);
-      
-      const transactionData = {
-        transactionId: txId,
-        amount: totalAmount,
-        imageCount: allSelectedImages.length,
-        token,
-        timestamp: Date.now(),
-        status: 'pending'
-      };
-      localStorage.setItem(`payment_${txId}`, JSON.stringify(transactionData));
-    }
-  }, [allSelectedImages.length, totalAmount, transactionId, token]);
+    if (showQr && qrData && allSelectedImages.length > 0 && totalAmount > 0 && !transactionId) {
+      const registerPayment = async () => {
+        try {
+          const txId = `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          setTransactionId(txId);
+          
+          const transactionData = {
+            transactionId: txId,
+            amount: totalAmount,
+            imageCount: allSelectedImages.length,
+            token,
+            timestamp: Date.now(),
+            status: 'pending'
+          };
+          localStorage.setItem(`payment_${txId}`, JSON.stringify(transactionData));
 
-  // Auto-show QR when images are selected
+          // Send API call to register/create payment transaction when QR is created
+          try {
+            console.log('Calling /api/payment/create with:', {
+              transactionId: txId,
+              amount: totalAmount,
+              imageCount: allSelectedImages.length,
+              imageIds: allSelectedImages.map(img => img.id),
+              token,
+              timestamp: Date.now()
+            });
+
+          } catch (error: any) {
+            console.error('Error registering payment:', error);
+            console.error('Error details:', error.response?.data || error.message);
+            toast.error('Failed to register payment. Please try again.');
+          }
+        } catch (error) {
+          console.error('Error creating transaction:', error);
+        }
+      };
+
+      registerPayment();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showQr, qrData, allSelectedImages.length, totalAmount, transactionId]);
+
+  // Auto-show QR when images are selected (but not if download code is present)
   useEffect(() => {
+    // Don't show QR if download code is present or being processed
+    if (downloadCode || loadingDownloadCode || downloadCodeData) {
+      setShowQr(false);
+      return;
+    }
+    
     if (allSelectedImages.length > 0 && totalAmount > 0) {
       setShowQr(true);
       setIsPaid(false);
@@ -216,97 +442,71 @@ const PublicCheckoutPage: React.FC = () => {
       setIsPaid(false);
       setTransactionId('');
     }
-  }, [allSelectedImages.length, totalAmount]);
+  }, [allSelectedImages.length, totalAmount, downloadCode, loadingDownloadCode, downloadCodeData]);
 
-  const checkPaymentStatus = async (amount: number, imageCount: number): Promise<boolean> => {
-    try {
-      if (!transactionId) return false;
+  // const checkPaymentStatus = async (amount: number, imageCount: number): Promise<boolean> => {
+  //   try {
+  //     if (!transactionId) return false;
 
-      try {
-        const response = await api.post('/api/payment/verify', {
-          amount,
-          imageCount,
-          token,
-          transactionId
-        });
+  //     try {
+  //       const verifyResponse = await api.post('/api/payment/verify', {
+  //         amount,
+  //         imageCount,
+  //         token,
+  //         transactionId
+  //       });
         
-        if (response.data && response.data.paid === true) {
-          const storedData = localStorage.getItem(`payment_${transactionId}`);
-          if (storedData) {
-            const transactionData = JSON.parse(storedData);
-            transactionData.status = 'paid';
-            transactionData.paidAt = Date.now();
-            localStorage.setItem(`payment_${transactionId}`, JSON.stringify(transactionData));
-          }
-          return true;
-        }
-      } catch (apiError: any) {
-        if (apiError.response?.status !== 404) {
-          console.error('Payment verification API error:', apiError);
-        }
-      }
+  //       console.log('Payment verify response:', verifyResponse.data);
+        
+  //       if (verifyResponse.data && verifyResponse.data.paid === true) {
+  //         const storedData = localStorage.getItem(`payment_${transactionId}`);
+  //         if (storedData) {
+  //           const transactionData = JSON.parse(storedData);
+  //           transactionData.status = 'paid';
+  //           transactionData.paidAt = Date.now();
+  //           localStorage.setItem(`payment_${transactionId}`, JSON.stringify(transactionData));
+  //         }
+  //         return true;
+  //       }
+  //     } catch (apiError: any) {
+  //       if (apiError.response?.status !== 404) {
+  //         console.error('Payment verification API error:', apiError);
+  //         console.error('Error details:', apiError.response?.data || apiError.message);
+  //       }
+  //     }
 
-      const storedData = localStorage.getItem(`payment_${transactionId}`);
-      if (storedData) {
-        const transactionData = JSON.parse(storedData);
-        if (transactionData.status === 'paid') {
-          return true;
-        }
-      }
+  //     const storedData = localStorage.getItem(`payment_${transactionId}`);
+  //     if (storedData) {
+  //       const transactionData = JSON.parse(storedData);
+  //       if (transactionData.status === 'paid') {
+  //         return true;
+  //       }
+  //     }
 
-      const urlParams = new URLSearchParams(window.location.search);
-      const paymentConfirmed = urlParams.get('payment_confirmed');
-      if (paymentConfirmed === 'true' && urlParams.get('txn_id') === transactionId) {
-        const storedData = localStorage.getItem(`payment_${transactionId}`);
-        if (storedData) {
-          const transactionData = JSON.parse(storedData);
-          transactionData.status = 'paid';
-          transactionData.paidAt = Date.now();
-          localStorage.setItem(`payment_${transactionId}`, JSON.stringify(transactionData));
-        }
-        return true;
-      }
+  //     const urlParams = new URLSearchParams(window.location.search);
+  //     const paymentConfirmed = urlParams.get('payment_confirmed');
+  //     if (paymentConfirmed === 'true' && urlParams.get('txn_id') === transactionId) {
+  //       const storedData = localStorage.getItem(`payment_${transactionId}`);
+  //       if (storedData) {
+  //         const transactionData = JSON.parse(storedData);
+  //         transactionData.status = 'paid';
+  //         transactionData.paidAt = Date.now();
+  //         localStorage.setItem(`payment_${transactionId}`, JSON.stringify(transactionData));
+  //       }
+  //       return true;
+  //     }
 
-      return false;
-    } catch (error) {
-      console.error('Payment verification error:', error);
-      return false;
-    }
-  };
+  //     return false;
+  //   } catch (error) {
+  //     console.error('Payment verification error:', error);
+  //     return false;
+  //   }
+  // };
 
   // Auto-detect payment success
   useEffect(() => {
     if (showQr && qrData && !isPaid && allSelectedImages.length > 0 && totalAmount > 0 && transactionId) {
       setPaymentChecking(true);
-      
-      const paymentCheckInterval = setInterval(async () => {
-        try {
-          const paymentConfirmed = await checkPaymentStatus(totalAmount, allSelectedImages.length);
-          
-          if (paymentConfirmed) {
-            setIsPaid(true);
-            setPaymentChecking(false);
-            clearInterval(paymentCheckInterval);
-            toast.success('Payment detected! Unlocking downloads...');
-          }
-        } catch (error) {
-          console.error('Payment check error:', error);
-        }
-      }, 2000);
-
-      const timeout = setTimeout(() => {
-        clearInterval(paymentCheckInterval);
-        setPaymentChecking(false);
-        if (!isPaid) {
-          toast.error('Payment verification timeout. Please refresh and try again.');
-        }
-      }, 900000);
-
-      return () => {
-        clearInterval(paymentCheckInterval);
-        clearTimeout(timeout);
-        setPaymentChecking(false);
-      };
     }
   }, [showQr, qrData, isPaid, allSelectedImages.length, totalAmount, transactionId]);
 
@@ -353,6 +553,194 @@ const PublicCheckoutPage: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please upload an image file');
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      setPaymentScreenshot(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScreenshotPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmitPayment = async () => {
+    if (!utrNumber.trim()) {
+      toast.error('Please enter UTR number');
+      return;
+    }
+
+    if (!email) {
+      toast.error('Please enter email address');
+      return;
+    }
+
+    if (allSelectedImages.length === 0) {
+      toast.error('Please select at least one image');
+      return;
+    }
+
+    setSubmittingPayment(true);
+
+    try {
+      // Determine purchase type
+      let purchaseType = 'INDIVIDUAL_IMAGES';
+      let albumId: string | undefined;
+      let imageIds: string | undefined;
+      
+      // Check if all images from one album are selected
+      if (selectedAlbums.size === 1) {
+        const albumIdNum = Array.from(selectedAlbums)[0];
+        const album = albums.find(a => a.id === albumIdNum);
+        if (album) {
+          albumId = String(albumIdNum); // Always set albumId for single album selection
+          const albumImageIds = selectedImages.get(albumIdNum) || new Set();
+          
+          // If all images in album are selected, use FULL_ALBUM
+          if (album.images && albumImageIds.size === album.images.length) {
+            purchaseType = 'FULL_ALBUM';
+            console.log('FULL_ALBUM purchase - albumId:', albumId);
+          } else {
+            // Individual images from one album - send both albumId and imageIds
+            purchaseType = 'INDIVIDUAL_IMAGES';
+            imageIds = Array.from(albumImageIds).join(',');
+            console.log('INDIVIDUAL_IMAGES purchase - albumId:', albumId, 'imageIds:', imageIds);
+          }
+        }
+      } else if (selectedAlbums.size > 1) {
+        // Multiple albums - collect all image IDs
+        const allImageIds: number[] = [];
+        selectedAlbums.forEach(albumIdNum => {
+          const albumImageIds = selectedImages.get(albumIdNum) || new Set();
+          allImageIds.push(...Array.from(albumImageIds));
+        });
+        imageIds = allImageIds.join(',');
+        console.log('Multiple albums - imageIds:', imageIds);
+        // For multiple albums, we could send the first albumId or leave it undefined
+        // If you want to send the first album's ID:
+        const firstAlbumId = Array.from(selectedAlbums)[0];
+        albumId = String(firstAlbumId);
+        console.log('Multiple albums - first albumId:', albumId);
+      }
+
+      // Create FormData for multipart/form-data
+      const formData = new FormData();
+      if (paymentScreenshot) {
+        formData.append('paymentScreenshot', paymentScreenshot);
+      }
+      formData.append('utrNumber', utrNumber.trim());
+      formData.append('purchaseType', purchaseType);
+      formData.append('otpEmail', email.trim());
+      
+      // Always append albumId if it exists (send both albumId and imageIds when available)
+      if (albumId) {
+        formData.append('albumId', albumId);
+        console.log('✅ albumId appended:', albumId);
+      } else {
+        // Fallback: try to get albumId from selectedAlbums
+        if (selectedAlbums.size > 0) {
+          const selectedAlbumId = Array.from(selectedAlbums)[0];
+          if (selectedAlbumId) {
+            albumId = String(selectedAlbumId);
+            formData.append('albumId', albumId);
+            console.log('✅ albumId appended (from selectedAlbums fallback):', albumId);
+          }
+        }
+      }
+      
+      // Always append imageIds if they exist (send both for better tracking)
+      if (imageIds) {
+        formData.append('imageIds', imageIds);
+        console.log('✅ imageIds appended:', imageIds);
+      } else if (purchaseType === 'FULL_ALBUM' && albumId) {
+        // For FULL_ALBUM, also include imageIds for reference
+        const albumIdNum = parseInt(albumId);
+        const album = albums.find(a => a.id === albumIdNum);
+        if (album && album.images) {
+          const allImageIds = album.images.map(img => img.id).join(',');
+          formData.append('imageIds', allImageIds);
+          console.log('✅ imageIds appended (all album images for FULL_ALBUM):', allImageIds);
+        }
+      }
+      
+      // Validation: FULL_ALBUM must have albumId
+      if (purchaseType === 'FULL_ALBUM' && !albumId) {
+        console.error('❌ FULL_ALBUM purchase but albumId is missing!');
+        toast.error('Error: Album ID is required for full album purchase');
+        setSubmittingPayment(false);
+        return;
+      }
+      
+      // Validation: INDIVIDUAL_IMAGES should have imageIds
+      if (purchaseType === 'INDIVIDUAL_IMAGES' && !imageIds) {
+        console.error('❌ INDIVIDUAL_IMAGES purchase but imageIds is missing!');
+        toast.error('Error: Image IDs are required for individual image purchase');
+        setSubmittingPayment(false);
+        return;
+      }
+      
+      formData.append('totalAmount', String(totalAmount));
+      formData.append('callbackUrl', window.location.href);
+      
+      // Debug: Log payment submission details
+      console.log('📤 Payment submission details:', {
+        purchaseType,
+        albumId: albumId || 'none',
+        imageIds: purchaseType === 'FULL_ALBUM' ? 'not sent (using albumId)' : (imageIds || 'none'),
+        totalAmount,
+        utrNumber: utrNumber.trim(),
+        otpEmail: email.trim()
+      });
+
+      // Get auth token from localStorage or use token from URL
+      const authToken = localStorage.getItem('token') || token;
+      
+      const response = await api.post('/api/payments', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+      });
+
+      console.log('Payment submitted for approval:', response.data);
+      toast.success('Payment details submitted for approval! We will review and confirm your payment shortly.');
+      
+      // Close modal and reset form
+      setShowPaymentModal(false);
+      setUtrNumber('');
+      setPaymentScreenshot(null);
+      setScreenshotPreview(null);
+      
+    } catch (error: any) {
+      console.error('Error submitting payment:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to submit payment';
+      toast.error(errorMessage);
+    } finally {
+      setSubmittingPayment(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    if (!submittingPayment) {
+      setShowPaymentModal(false);
+      setUtrNumber('');
+      setPaymentScreenshot(null);
+      setScreenshotPreview(null);
+    }
   };
 
   if (!token) {
@@ -420,8 +808,48 @@ const PublicCheckoutPage: React.FC = () => {
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Price per photo</p>
-                <p className="text-xl font-bold text-[#2731db]">₹{PRICE_PER_IMAGE}</p>
+                <p className="text-sm text-gray-500">Pricing</p>
+                <p className="text-sm font-medium text-[#2731db]">
+                  {(() => {
+                    // Check if any album has all images selected with perAlbumPrice
+                    let hasFullAlbum = false;
+                    let albumPrice = 0;
+                    
+                    selectedAlbums.forEach(albumId => {
+                      const album = albums.find(a => a.id === albumId);
+                      if (album) {
+                        const albumImageIds = selectedImages.get(albumId) || new Set();
+                        const albumImages = album.images || [];
+                        const allSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
+                        if (allSelected && album.perAlbumPrice && album.perAlbumPrice > 0) {
+                          hasFullAlbum = true;
+                          albumPrice = album.perAlbumPrice;
+                        }
+                      }
+                    });
+                    
+                    if (hasFullAlbum) {
+                      return `₹${albumPrice} per album`;
+                    }
+                    
+                    // Check for perPhotoPrice from albums
+                    let photoPrice = 0;
+                    selectedAlbums.forEach(albumId => {
+                      const album = albums.find(a => a.id === albumId);
+                      if (album && album.perPhotoPrice && album.perPhotoPrice > 0) {
+                        photoPrice = album.perPhotoPrice;
+                      }
+                    });
+                    
+                    if (photoPrice > 0) {
+                      return `₹${photoPrice} per image`;
+                    }
+                    
+                    // Fallback to UPI settings or default
+                    const priceToShow = defaultPerPhotoPrice > 0 ? defaultPerPhotoPrice : PRICE_PER_IMAGE;
+                    return priceToShow > 0 ? `₹${priceToShow} per image` : 'Free';
+                  })()}
+                </p>
               </div>
             </div>
 
@@ -434,7 +862,39 @@ const PublicCheckoutPage: React.FC = () => {
 
           {/* QR / Payment Panel */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 flex flex-col items-center justify-center">
-            {!showQr || !qrData ? (
+            {downloadCode || loadingDownloadCode || downloadCodeData ? (
+              // Don't show QR when download code is present
+              loadingDownloadCode ? (
+                <div className="text-center text-gray-500">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#2731db] border-t-transparent mx-auto mb-3"></div>
+                  <p className="text-sm">Verifying download code...</p>
+                </div>
+              ) : downloadCodeData && isPaid ? (
+              <div className="text-center w-full">
+                <FaCheckCircle className="mx-auto mb-3 text-5xl text-green-600" />
+                <h3 className="text-lg font-semibold mb-2 text-gray-900">Payment Confirmed!</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Your download code has been verified. You can now download your images.
+                </p>
+                {downloadCodeData.downloadCode && (
+                  <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                    <p className="text-xs text-gray-500 mb-1">Download Code</p>
+                    <p className="text-sm font-mono font-semibold text-gray-900">{downloadCodeData.downloadCode}</p>
+                  </div>
+                )}
+                <div className="w-full mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-700 flex items-center justify-center">
+                    <FaCheckCircle className="mr-2" /> Downloads unlocked - Click images to download
+                  </p>
+                </div>
+              </div>
+              ) : (
+                <div className="text-center text-gray-500">
+                  <FaQrcode className="mx-auto mb-3 text-4xl" />
+                  <p className="text-sm">Processing download code...</p>
+                </div>
+              )
+            ) : !showQr || !qrData ? (
               <div className="text-center text-gray-500">
                 <FaQrcode className="mx-auto mb-3 text-4xl" />
                 <p className="text-sm">Select albums and images to see payment QR code.</p>
@@ -474,6 +934,14 @@ const PublicCheckoutPage: React.FC = () => {
                     </p>
                   </div>
                 )}
+                {!isPaid && allSelectedImages.length > 0 && (
+                  <button
+                    onClick={() => setShowPaymentModal(true)}
+                    className="w-full mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                  >
+                    Submit Payment for Approval
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -482,10 +950,22 @@ const PublicCheckoutPage: React.FC = () => {
         {/* Albums List */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">Select Albums & Images</h2>
-            <p className="text-sm text-gray-500">
-              Click albums to select, expand to see images inside.
-            </p>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Select Albums & Images</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Click albums to select, expand to see images inside.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                window.location.reload();
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors"
+              title="Reload page"
+            >
+              <FaRedoAlt className="text-sm" />
+              <span className="text-sm font-medium">Reload</span>
+            </button>
           </div>
 
           {albums.length === 0 ? (
@@ -504,14 +984,14 @@ const PublicCheckoutPage: React.FC = () => {
                 const allSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
 
                 return (
-                  <div
+                  isSelected && <div
                     key={album.id}
                     className={`border rounded-xl overflow-hidden transition-all ${
                       isSelected ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50' : 'border-gray-200'
                     }`}
                   >
                     {/* Album Header */}
-                    <div className="flex items-center justify-between p-4 bg-white">
+                     <div className="flex items-center justify-between p-4 bg-white">
                       <div className="flex items-center space-x-4 flex-1">
                         <button
                           onClick={() => toggleAlbum(album.id)}
@@ -522,7 +1002,7 @@ const PublicCheckoutPage: React.FC = () => {
                           {isSelected && <FaCheck className="text-white text-xs" />}
                         </button>
                         
-                        <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                         <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
                           {album.coverImageUrl ? (
                             <img
                               src={album.coverImageUrl}
@@ -549,6 +1029,11 @@ const PublicCheckoutPage: React.FC = () => {
                                 {albumImageIds.size} selected
                               </span>
                             )}
+                            {album.perAlbumPrice && album.perAlbumPrice > 0 && (
+                              <span className="text-green-600 font-semibold">
+                                ₹{album.perAlbumPrice} per album
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -565,37 +1050,67 @@ const PublicCheckoutPage: React.FC = () => {
                       </button>
                     </div>
 
-                    {/* Album Images (shown when expanded) */}
-                    {isExpanded && isSelected && albumImages.length > 0 && (
+                    {/* Album Images (shown when expanded) - Show all images for selection */}
+                    {isExpanded && albumImages.length > 0 && (
                       <div className="border-t border-gray-200 p-4 bg-gray-50">
                         <div className="flex items-center justify-between mb-3">
-                          <h4 className="text-sm font-semibold text-gray-900">Select Images</h4>
-                          <button
-                            onClick={() => selectAllImagesInAlbum(album.id)}
-                            className="text-xs text-[#2731db] hover:underline"
-                          >
-                            {allSelected ? 'Deselect All' : 'Select All'}
-                          </button>
+                          <h4 className="text-sm font-semibold text-gray-900">
+                            {isSelected ? 'Selected Images (Full Album)' : 'Album Images'}
+                            {isSelected && albumImageIds.size > 0 && (
+                              <span className="ml-2 text-[#2731db] font-medium">
+                                ({albumImageIds.size} of {albumImages.length} selected)
+                              </span>
+                            )}
+                          </h4>
+                          {  !isPaid && isSelected && !allSelected && (
+                            <button
+                              onClick={() => selectAllImagesInAlbum(album.id)}
+                              className="text-xs text-[#2731db] hover:underline"
+                            >
+                              Select All
+                            </button>
+                          )}
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
                           {albumImages.map((image) => {
-                            const isImageSelected = albumImageIds.has(image.id) || albumImageIds.size === 0;
-                            const imageUrl = getImageUrl(image);
-                            const filename = getImageFilename(image);
-                            const fileType = getFileType(image);
-                            const canView = imageUrl && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                              const isImageSelected = albumImageIds.has(image.id);
+                              const imageUrl = getImageUrl(image);
+                              const filename = getImageFilename(image);
+                              const fileType = getFileType(image);
+                              const canView = imageUrl && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                              
+                              // Calculate price for this image
+                              const imagePrice = album.perPhotoPrice && album.perPhotoPrice > 0
+                                ? album.perPhotoPrice
+                                : (defaultPerPhotoPrice > 0 ? defaultPerPhotoPrice : PRICE_PER_IMAGE);
+                              
+                              // Check if all images in album are selected
+                              const allImagesSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
 
                             return (
-                              <div
+                              <>
+                             {isImageSelected && <div
                                 key={image.id}
                                 className={`relative rounded-lg overflow-hidden border cursor-pointer transition-all ${
                                   isImageSelected
                                     ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50'
-                                    : 'border-gray-200'
+                                    : 'border-gray-200 hover:border-gray-300'
                                 }`}
-                                onClick={() => toggleImageSelection(album.id, image.id)}
+                                onClick={() => {
+                                  // Always toggle image selection, album checkbox is independent
+                                  if (!isSelected) {
+                                    // Select album first if not selected
+                                    toggleAlbum(album.id);
+                                    // Use setTimeout to ensure state updates before toggling image
+                                    setTimeout(() => {
+                                      toggleImageSelection(album.id, image.id);
+                                    }, 0);
+                                  } else {
+                                    toggleImageSelection(album.id, image.id);
+                                  }
+                                }}
                               >
-                                <div className="aspect-square bg-gray-100 overflow-hidden relative">
+                            { isImageSelected && <div className="aspect-square bg-gray-100 overflow-hidden relative">
                                   {canView ? (
                                     <>
                                       <img
@@ -620,15 +1135,20 @@ const PublicCheckoutPage: React.FC = () => {
                                       {fileType.toUpperCase()}
                                     </div>
                                   )}
-                                </div>
+                                </div>}
+
                                 <div className="p-2 bg-white">
                                   <p className="text-xs text-gray-900 truncate" title={filename}>
                                     {filename}
                                   </p>
                                   <p className="text-xs text-gray-500 mt-1">{fileType.toUpperCase()}</p>
                                   <div className="mt-2 flex items-center justify-between">
-                                    <span className="text-xs text-gray-500">₹{PRICE_PER_IMAGE}</span>
-                                    {isPaid && isImageSelected && (
+                                    <span className="text-xs text-gray-500">
+                                      {allImagesSelected && album.perAlbumPrice && album.perAlbumPrice > 0
+                                        ? `₹${album.perAlbumPrice} (album)`
+                                        : imagePrice > 0 ? `₹${imagePrice}` : 'Free'}
+                                    </span>
+                                    {(isPaid || downloadCodeData) && (
                                       <button
                                         type="button"
                                         onClick={e => {
@@ -642,7 +1162,8 @@ const PublicCheckoutPage: React.FC = () => {
                                     )}
                                   </div>
                                 </div>
-                              </div>
+                              </div>}
+                              </>
                             );
                           })}
                         </div>
@@ -654,6 +1175,160 @@ const PublicCheckoutPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Payment Verification Modal */}
+        {showPaymentModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <FaQrcode className="mr-2 text-[#2731db]" />
+                  Submit Payment for Approval
+                </h2>
+                <button
+                  onClick={handleCloseModal}
+                  disabled={submittingPayment}
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                >
+                  <FaTimes className="text-xl" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 space-y-4">
+                {/* Payment Summary */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 mb-2">Payment Summary</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-900 font-medium">
+                      {allSelectedImages.length} photo{allSelectedImages.length !== 1 ? 's' : ''}
+                    </span>
+                    <span className="text-lg font-bold text-green-600">₹{totalAmount}</span>
+                  </div>
+                </div>
+
+                {/* UTR Number Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    UTR Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={utrNumber}
+                    onChange={(e) => setUtrNumber(e.target.value)}
+                    placeholder="Enter UTR/Transaction ID"
+                    disabled={submittingPayment}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2731db] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Enter the UTR number from your payment receipt
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address<span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter Email Address"
+                    disabled={submittingPayment}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2731db] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Enter your email address to receive the download code after payment approval
+                  </p>
+                </div>
+
+                {/* Payment Screenshot Upload */}
+                {/* <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Payment Screenshot
+                  </label>
+                  <div className="space-y-3">
+                    {screenshotPreview ? (
+                      <div className="relative">
+                        <img
+                          src={screenshotPreview}
+                          alt="Payment screenshot preview"
+                          className="w-full h-48 object-contain border border-gray-300 rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPaymentScreenshot(null);
+                            setScreenshotPreview(null);
+                          }}
+                          disabled={submittingPayment}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 disabled:opacity-50"
+                        >
+                          <FaTimes className="text-xs" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <FaUpload className="text-3xl text-gray-400 mb-2" />
+                          <p className="mb-2 text-sm text-gray-500">
+                            <span className="font-semibold">Click to upload</span> or drag and drop
+                          </p>
+                          <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleScreenshotChange}
+                          disabled={submittingPayment}
+                          className="hidden"
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div> */}
+
+                {/* Instructions */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-xs text-blue-700 mb-2">
+                    <strong>Note:</strong> Please ensure the email address is correct and the payment approval email is received.
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    <strong>Approval Process:</strong> Your payment details will be reviewed and approved. You will be notified once the payment is confirmed.
+                  </p>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+                <button
+                  onClick={handleCloseModal}
+                  disabled={submittingPayment}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmitPayment}
+                  // disabled={submittingPayment || !utrNumber.trim() || !paymentScreenshot}
+                  className="px-4 py-2 bg-[#2731db] text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {submittingPayment ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Submitting for Approval...
+                    </>
+                  ) : (
+                    <>
+                      <FaCheckCircle className="mr-1" />
+                      Submit for Approval
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

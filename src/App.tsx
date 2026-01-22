@@ -8,6 +8,7 @@ import ImagesPage from './pages/ImagesPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { clearNavigationState } from './utils/navigation';
+import { enableInspectBlock } from './utils/blockInspect';
 import './index.css';
 import AdminPage from './pages/AdminPage';
 import AnalyticsPage from './pages/AnalyticsPage';
@@ -48,6 +49,7 @@ import PhotoStudioAlbum from './pages/PhotoStudio/PhotoStudioAlbum';
 import PublicSelectionPage from './pages/PhotoStudio/PublicSelectionPage';
 import PublicCheckoutPage from './pages/PhotoStudio/PublicCheckoutPage';
 import SharedAlbums from './pages/PhotoStudio/SharedAlbums';
+import PaymentManagement from './components/admin/PaymentManagement';
 
 
 const queryClient = new QueryClient({
@@ -147,6 +149,7 @@ const AppRoutes = () => {
         <Route path="studio/gallery" element={<PhotoGallery />} />
         <Route path="studio/barcodes" element={<BarcodeSystem />} />
         <Route path="studio/payments" element={<StudioCheckout />} />
+        <Route path="studio/payment-management" element={<PaymentManagement />} />
         <Route path="studio/settings" element={<StudioSettings />} />
         {/* <Route path="treePage" element={<TreePage />} /> */}
         <Route path="studio/albums" element={<PhotoStudioAlbum />} />
@@ -177,6 +180,11 @@ function App() {
   // Clear any problematic navigation state on app start
   React.useEffect(() => {
     clearNavigationState();
+  }, []);
+
+  // Enable inspect blocking (controlled by REACT_APP_BLOCK_INSPECT env variable)
+  React.useEffect(() => {
+    enableInspectBlock();
   }, []);
 
   return (

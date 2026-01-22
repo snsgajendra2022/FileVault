@@ -41,6 +41,10 @@ const UploadPage = () => {
   const [showCreateAlbumModal, setShowCreateAlbumModal] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState('');
   const [newAlbumDescription, setNewAlbumDescription] = useState('');
+  const [newAlbumPrice, setNewAlbumPrice] = useState<string>('');
+  const [newPerPhotoPrice, setNewPerPhotoPrice] = useState<string>('');
+  const [perPhotoPrice, setPerPhotoPrice] = useState<string>('');
+  const [newAlbumIsPublic, setNewAlbumIsPublic] = useState(false);
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
   const [useChunkedUpload, setUseChunkedUpload] = useState(true);
   const [maxConcurrentUploads, setMaxConcurrentUploads] = useState(5);
@@ -556,15 +560,41 @@ const UploadPage = () => {
 
     setIsCreatingAlbum(true);
     try {
-      const response = await api.post('/api/albums', {
+      const albumData: any = {
         name: newAlbumName.trim(),
-        description: newAlbumDescription.trim() || undefined,
-      });
+      };
+      
+      // Add optional fields only if they have values
+      if (newAlbumDescription.trim()) {
+        albumData.description = newAlbumDescription.trim();
+      }
+      
+      // Add perAlbumPrice if provided
+      if (newAlbumPrice.trim()) {
+        const price = parseFloat(newAlbumPrice.trim());
+        if (!isNaN(price) && price > 0) {
+          albumData.perAlbumPrice = price;
+        }
+      }
+      
+      if (perPhotoPrice.trim()) {
+        const price = parseFloat(perPhotoPrice.trim());
+        if (!isNaN(price) && price > 0) {
+          albumData.perPhotoPrice = price;
+        }
+      }
+      
+      // Add isPublic flag
+      albumData.isPublic = newAlbumIsPublic;
+      
+      const response = await api.post('/api/albums', albumData);
 
       toast.success('Album created successfully!');
       setShowCreateAlbumModal(false);
       setNewAlbumName('');
       setNewAlbumDescription('');
+      setNewAlbumPrice('');
+      setNewAlbumIsPublic(false);
       
       // Refresh albums list
       await refetchAlbums();
@@ -1142,6 +1172,8 @@ const UploadPage = () => {
                   setShowCreateAlbumModal(false);
                   setNewAlbumName('');
                   setNewAlbumDescription('');
+                  setNewAlbumPrice('');
+                  setNewAlbumIsPublic(false);
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -1177,6 +1209,52 @@ const UploadPage = () => {
                   rows={3}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Album Price (₹) (optional)
+                </label>
+                <input
+                  type="number"
+                  value={newAlbumPrice}
+                  onChange={(e) => setNewAlbumPrice(e.target.value)}
+                  placeholder="Enter price per album"
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Set a price for purchasing this entire album
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Price Per Photo (₹) (optional)
+                </label>
+                <input
+                  type="number"
+                  value={perPhotoPrice}
+                  onChange={(e) => setPerPhotoPrice(e.target.value)}
+                  placeholder="Enter price per album"
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Set a price for purchasing each photo
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isPublic"
+                  checked={newAlbumIsPublic}
+                  onChange={(e) => setNewAlbumIsPublic(e.target.checked)}
+                  className="w-4 h-4 text-[#2731db] border-gray-300 rounded focus:ring-[#2731db]"
+                />
+                <label htmlFor="isPublic" className="text-sm font-medium text-gray-700">
+                  Make album public
+                </label>
               </div>
               <div className="flex items-center space-x-3 pt-4">
                 <button

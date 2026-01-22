@@ -20,7 +20,8 @@ import {
   FaSitemap,
   FaUserPlus,
   FaShare,
-  FaFolder
+  FaFolder,
+  FaRupeeSign
 } from 'react-icons/fa';
 
 
@@ -73,7 +74,10 @@ const Sidebar = () => {
     { name: 'Clients Tree', href: '/client-tree', icon: FaSitemap, enabled: true },
     { name: 'Create Client', href: '/invitations', icon:FaUserPlus , enabled: true },
     { name: 'Clients', href: '/studio/clients', icon: FaUsers, enabled: true },
-    { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
+    
+    { name: 'Services', href: '/services', icon: FaCloud, enabled: true },    //Services
+
+    { name: 'Payment Management', href: '/studio/payment-management', icon: FaRupeeSign, enabled: true },
 
     
     // { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
@@ -91,6 +95,7 @@ const Sidebar = () => {
     { name: 'Plan Management', href: '/admin?tab=plans', icon: FaPlus, enabled: true },
     { name: 'Usage Analytics', href: '/admin?tab=analytics', icon: FaChartBar, enabled: true },
     { name: 'System Health', href: '/admin?tab=health', icon: FaShieldAlt, enabled: true },
+    { name: 'Payment Management', href: '/admin?tab=payments', icon: FaRupeeSign, enabled: true },
   ],active:true};
 console.log( studioNavigationItems.active === true && 2 );
 

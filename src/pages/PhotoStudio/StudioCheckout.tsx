@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaCopy, FaShare, FaFolder, FaFolderOpen, FaChevronRight, FaCheck } from 'react-icons/fa';
-import { useQuery } from '@tanstack/react-query';
+import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaCopy, FaShare, FaFolder, FaFolderOpen, FaChevronRight, FaCheck, FaCog, FaTrash, FaSave } from 'react-icons/fa';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -18,6 +18,9 @@ interface Album {
   updatedAt?: string;
   images?: AlbumImage[];
   imageIds?: number[];
+  perAlbumPrice?: number | null;
+  perPhotoPrice?: number | null;
+  isPublic?: boolean;
   [key: string]: any;
 }
 
@@ -37,15 +40,50 @@ interface AlbumImage {
   [key: string]: any;
 }
 
-const PRICE_PER_IMAGE = 1;
+interface UpiSettings {
+  upiId: string;
+  perPhotoPrice: number;
+}
+
+const PRICE_PER_IMAGE = 0; // Fallback price
 
 const StudioCheckout: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const [selectedAlbums, setSelectedAlbums] = useState<Set<number>>(new Set());
   const [expandedAlbums, setExpandedAlbums] = useState<Set<number>>(new Set());
   const [selectedImages, setSelectedImages] = useState<Map<number, Set<number>>>(new Map()); // albumId -> Set of imageIds
+  const [albumImagesMap, setAlbumImagesMap] = useState<Map<number, AlbumImage[]>>(new Map()); // albumId -> AlbumImage[]
   const [showQr, setShowQr] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
+  const [showUpiSettings, setShowUpiSettings] = useState(false);
+  const [upiId, setUpiId] = useState('');
+  const [perPhotoPrice, setPerPhotoPrice] = useState(0);
+
+  // Fetch UPI settings
+  const { data: upiSettings, isLoading: isLoadingUpi } = useQuery({
+    queryKey: ['upiSettings'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/api/upi');
+        return response.data as UpiSettings;
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          return null; // No UPI settings found
+        }
+        throw error;
+      }
+    },
+    retry: 1,
+  });
+
+  // Update local state when UPI settings are loaded
+  useEffect(() => {
+    if (upiSettings) {
+      setUpiId(upiSettings.upiId || '');
+      setPerPhotoPrice(upiSettings.perPhotoPrice || 0);
+    }
+  }, [upiSettings]);
 
   // Fetch albums
   const { data: albumsData, isLoading, isError, refetch } = useQuery({
@@ -64,32 +102,168 @@ const StudioCheckout: React.FC = () => {
     return [];
   }, [albumsData]);
 
-  // Get all selected images from all selected albums
+  // Populate album images from album data when albums are loaded
+  useEffect(() => {
+    if (albums.length > 0) {
+      albums.forEach((album: Album) => {
+        if (album.images && Array.isArray(album.images) && album.images.length > 0) {
+          setAlbumImagesMap((prev) => {
+            if (!prev.has(album.id)) {
+              const next = new Map(prev);
+              next.set(album.id, album.images || []);
+              return next;
+            }
+            return prev;
+          });
+        }
+      });
+    }
+  }, [albums]);
+
+  // Fetch album images when album is expanded
+  const fetchAlbumImages = async (albumId: number) => {
+    // Check if images are already loaded
+    if (albumImagesMap.has(albumId)) {
+      return;
+    }
+
+    try {
+      // Try different endpoints
+      let images: AlbumImage[] = [];
+      
+      try {
+        const response = await api.get(`/api/albums/${albumId}/images`);
+        images = Array.isArray(response.data) ? response.data : (response.data?.images || []);
+      } catch (error1) {
+        try {
+          const response = await api.get(`/api/simple-invitations/albums/${albumId}/images`);
+          images = Array.isArray(response.data) ? response.data : (response.data?.images || []);
+        } catch (error2) {
+          console.error('Error fetching album images:', error2);
+          toast.error('Failed to load album images');
+        }
+      }
+      
+      if (images.length > 0) {
+        setAlbumImagesMap((prev) => {
+          const next = new Map(prev);
+          next.set(albumId, images);
+          return next;
+        });
+      } else {
+        // Set empty array to prevent retrying
+        setAlbumImagesMap((prev) => {
+          const next = new Map(prev);
+          next.set(albumId, []);
+          return next;
+        });
+      }
+    } catch (error: any) {
+      console.error('Error fetching album images:', error);
+      toast.error('Failed to load album images');
+      // Set empty array to prevent retrying
+      setAlbumImagesMap((prev) => {
+        const next = new Map(prev);
+        next.set(albumId, []);
+        return next;
+      });
+    }
+  };
+
+  // Fetch album images when album is expanded
+  useEffect(() => {
+    expandedAlbums.forEach((albumId) => {
+      if (!albumImagesMap.has(albumId)) {
+        fetchAlbumImages(albumId);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedAlbums]);
+
+  // Get all explicitly selected images from all selected albums (for display and total calculation)
   const allSelectedImages = useMemo(() => {
     const images: AlbumImage[] = [];
     selectedAlbums.forEach(albumId => {
+      // Use images from map if available, otherwise from album data
+      const albumImages = albumImagesMap.get(albumId);
       const album = albums.find(a => a.id === albumId);
-      if (album && album.images) {
-        const imageIds = selectedImages.get(albumId) || new Set<number>();
-        album.images.forEach(img => {
-          if (imageIds.has(img.id) || imageIds.size === 0) {
-            images.push(img);
-          }
-        });
+      const imagesToUse = albumImages || album?.images || [];
+      
+      if (imagesToUse.length > 0) {
+        const imageIds = selectedImages.get(albumId);
+        // Only include explicitly selected images
+        if (imageIds && imageIds.size > 0) {
+          imagesToUse.forEach(img => {
+            if (imageIds.has(img.id)) {
+              images.push(img);
+            }
+          });
+        }
       }
     });
     return images;
-  }, [selectedAlbums, selectedImages, albums]);
+  }, [selectedAlbums, selectedImages, albums, albumImagesMap]);
 
-  const totalAmount = useMemo(
-    () => allSelectedImages.length * PRICE_PER_IMAGE,
-    [allSelectedImages.length]
-  );
+  // Get only explicitly selected images for URLs
+  const explicitlySelectedImages = useMemo(() => {
+    const images: AlbumImage[] = [];
+    selectedAlbums.forEach(albumId => {
+      // Use images from map if available, otherwise from album data
+      const albumImages = albumImagesMap.get(albumId);
+      const album = albums.find(a => a.id === albumId);
+      const imagesToUse = albumImages || album?.images || [];
+      
+      if (imagesToUse.length > 0) {
+        const imageIds = selectedImages.get(albumId);
+        // Only include explicitly selected images
+        if (imageIds && imageIds.size > 0) {
+          imagesToUse.forEach(img => {
+            if (imageIds.has(img.id)) {
+              images.push(img);
+            }
+          });
+        }
+      }
+    });
+    return images;
+  }, [selectedAlbums, selectedImages, albums, albumImagesMap]);
+
+  // Calculate total amount considering perAlbumPrice and perPhotoPrice
+  const totalAmount = useMemo(() => {
+    let total = 0;
+    
+    selectedAlbums.forEach(albumId => {
+      const album = albums.find(a => a.id === albumId);
+      if (!album) return;
+      
+      const albumImageIds = selectedImages.get(albumId) || new Set<number>();
+      const albumImages = album.images || [];
+      
+      if (albumImageIds.size === 0) return;
+      
+      // Check if all images in album are selected
+      const allImagesSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
+      
+      // Priority 1: If all images selected and album has perAlbumPrice, use it
+      if (allImagesSelected && album.perAlbumPrice && album.perAlbumPrice > 0) {
+        total += album.perAlbumPrice;
+      } else if (albumImageIds.size > 0) {
+        // Individual images selected - use perPhotoPrice from album, or fallback to UPI settings, or default
+        const imagePrice = album.perPhotoPrice && album.perPhotoPrice > 0 
+          ? album.perPhotoPrice 
+          : (perPhotoPrice > 0 ? perPhotoPrice : PRICE_PER_IMAGE);
+        total += albumImageIds.size * imagePrice;
+      }
+    });
+    
+    return total;
+  }, [selectedAlbums, selectedImages, albums, perPhotoPrice]);
 
   const toggleAlbum = (albumId: number) => {
     setSelectedAlbums(prev => {
       const next = new Set(prev);
       if (next.has(albumId)) {
+        // Unselect album - remove album and all its images
         next.delete(albumId);
         setSelectedImages(prevImgs => {
           const nextImgs = new Map(prevImgs);
@@ -97,7 +271,21 @@ const StudioCheckout: React.FC = () => {
           return nextImgs;
         });
       } else {
+        // Select album - automatically select ALL images in the album
         next.add(albumId);
+        const album = albums.find(a => a.id === albumId);
+        if (album) {
+          // Use images from map if available, otherwise from album data
+          const albumImages = albumImagesMap.get(albumId) || album.images || [];
+          if (albumImages.length > 0) {
+            setSelectedImages(prevImgs => {
+              const nextImgs = new Map(prevImgs);
+              const allImageIds = new Set(albumImages.map(img => img.id));
+              nextImgs.set(albumId, allImageIds);
+              return nextImgs;
+            });
+          }
+        }
       }
       return next;
     });
@@ -138,12 +326,16 @@ const StudioCheckout: React.FC = () => {
   };
 
   const selectAllImagesInAlbum = (albumId: number) => {
+    // Use images from map if available, otherwise from album data
+    const albumImages = albumImagesMap.get(albumId);
     const album = albums.find(a => a.id === albumId);
-    if (!album || !album.images) return;
+    const imagesToUse = albumImages || album?.images || [];
+    
+    if (imagesToUse.length === 0) return;
     
     setSelectedImages(prev => {
       const next = new Map(prev);
-      const allImageIds = new Set(album.images!.map(img => img.id));
+      const allImageIds = new Set(imagesToUse.map(img => img.id));
       next.set(albumId, allImageIds);
       return next;
     });
@@ -167,8 +359,11 @@ const StudioCheckout: React.FC = () => {
 
   const qrData = useMemo(() => {
     if (!totalAmount || allSelectedImages.length === 0) return '';
+    const upiIdToUse = upiId || 'rohitrawat9009@ybl'; // Fallback to default if not set
+    if (!upiIdToUse) return '';
+    
     const params = new URLSearchParams({
-      pa: 'rohitrawat9009@ybl',
+      pa: upiIdToUse,
       pn: 'PhotoStudio',
       am: String(totalAmount),
       cu: 'INR',
@@ -176,23 +371,23 @@ const StudioCheckout: React.FC = () => {
     });
     const upiUrl = `upi://pay?${params.toString()}`;
     return encodeURIComponent(upiUrl);
-  }, [allSelectedImages.length, totalAmount]);
+  }, [allSelectedImages.length, totalAmount, upiId]);
 
   const publicCheckoutUrl = useMemo(() => {
-    if (allSelectedImages.length === 0) return '';
+    if (explicitlySelectedImages.length === 0) return '';
     const token = localStorage.getItem('token') || '';
-    const selectedFilenames = allSelectedImages.map(img => getImageFilename(img)).join(',');
+    const selectedFilenames = explicitlySelectedImages.map(img => getImageFilename(img)).join(',');
     const baseUrl = window.location.origin;
     return `${baseUrl}/public/checkout?token=${encodeURIComponent(token)}&files=${encodeURIComponent(selectedFilenames)}`;
-  }, [allSelectedImages]);
+  }, [explicitlySelectedImages]);
 
   const publicSelectionUrl = useMemo(() => {
-    if (allSelectedImages.length === 0) return '';
+    if (explicitlySelectedImages.length === 0) return '';
     const token = localStorage.getItem('token') || '';
-    const selectedFilenames = allSelectedImages.map(img => getImageFilename(img)).join(',');
+    const selectedFilenames = explicitlySelectedImages.map(img => getImageFilename(img)).join(',');
     const baseUrl = window.location.origin;
     return `${baseUrl}/public/selection?token=${encodeURIComponent(token)}&files=${encodeURIComponent(selectedFilenames)}`;
-  }, [allSelectedImages]);
+  }, [explicitlySelectedImages]);
 
   const handleCopyCheckoutUrl = () => {
     if (!publicCheckoutUrl) {
@@ -274,6 +469,86 @@ const StudioCheckout: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  // UPI Settings Mutations
+  const createUpiMutation = useMutation({
+    mutationFn: async (data: UpiSettings) => {
+      const response = await api.post('/api/upi', data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['upiSettings'] });
+      toast.success('UPI settings created successfully');
+      setShowUpiSettings(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to create UPI settings');
+    },
+  });
+
+  const updateUpiMutation = useMutation({
+    mutationFn: async (data: UpiSettings) => {
+      const response = await api.put('/api/upi', data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['upiSettings'] });
+      toast.success('UPI settings updated successfully');
+      setShowUpiSettings(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update UPI settings');
+    },
+  });
+
+  const deleteUpiMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.delete('/api/upi');
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['upiSettings'] });
+      toast.success('UPI settings deleted successfully');
+      setUpiId('');
+      setPerPhotoPrice(0);
+      setShowUpiSettings(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete UPI settings');
+    },
+  });
+
+  const handleSaveUpiSettings = () => {
+    if (!upiId.trim()) {
+      toast.error('Please enter UPI ID');
+      return;
+    }
+    if (perPhotoPrice < 0) {
+      toast.error('Price per photo must be 0 or greater');
+      return;
+    }
+
+    const data: UpiSettings = {
+      upiId: upiId.trim(),
+      perPhotoPrice: perPhotoPrice,
+    };
+
+    if (upiSettings) {
+      updateUpiMutation.mutate(data);
+    } else {
+      createUpiMutation.mutate(data);
+    }
+  };
+
+  const handleDeleteUpiSettings = () => {
+    if (!upiSettings) {
+      toast.error('No UPI settings to delete');
+      return;
+    }
+    if (window.confirm('Are you sure you want to delete UPI settings?')) {
+      deleteUpiMutation.mutate();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -315,10 +590,104 @@ const StudioCheckout: React.FC = () => {
         <div className="flex items-center space-x-4">
           <div className="text-right">
             <p className="text-sm text-gray-500">Price per photo</p>
-            <p className="text-2xl font-bold text-[#2731db]">₹{PRICE_PER_IMAGE}</p>
+            <p className="text-2xl font-bold text-[#2731db]">
+              ₹{perPhotoPrice > 0 ? perPhotoPrice : PRICE_PER_IMAGE}
+            </p>
           </div>
+          <button
+            onClick={() => setShowUpiSettings(!showUpiSettings)}
+            className="flex items-center px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+            title="Manage UPI Settings"
+          >
+            <FaCog className="mr-2" />
+            UPI Settings
+          </button>
         </div>
       </div>
+
+      {/* UPI Settings Panel */}
+      {showUpiSettings && (
+        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+              <FaCog className="mr-2 text-[#2731db]" />
+              UPI Payment Settings
+            </h2>
+            <button
+              onClick={() => setShowUpiSettings(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ×
+            </button>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                UPI ID
+              </label>
+              <input
+                type="text"
+                value={upiId}
+                onChange={(e) => setUpiId(e.target.value)}
+                placeholder="e.g., yourname@ybl, yourname@paytm"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2731db] focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Enter your UPI ID for receiving payments (e.g., rohitrawat9009@ybl)
+              </p>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Price Per Photo (₹)
+              </label>
+              <input
+                type="number"
+                value={perPhotoPrice}
+                onChange={(e) => setPerPhotoPrice(parseFloat(e.target.value) || 0)}
+                min="0"
+                step="0.01"
+                placeholder="0"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2731db] focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Default price per photo. Albums with perAlbumPrice will use their own pricing.
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-3 pt-2">
+              <button
+                onClick={handleSaveUpiSettings}
+                disabled={createUpiMutation.isPending || updateUpiMutation.isPending}
+                className="flex items-center px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FaSave className="mr-2" />
+                {upiSettings ? 'Update Settings' : 'Save Settings'}
+              </button>
+              
+              {upiSettings && (
+                <button
+                  onClick={handleDeleteUpiSettings}
+                  disabled={deleteUpiMutation.isPending}
+                  className="flex items-center px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FaTrash className="mr-2" />
+                  Delete Settings
+                </button>
+              )}
+            </div>
+
+            {/* {upiSettings && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  <strong>Current Settings:</strong> UPI ID: {upiSettings.upiId}, Price: ₹{upiSettings.perPhotoPrice}
+                </p>
+              </div>
+            )} */}
+          </div>
+        </div>
+      )}
 
       {/* Summary / Controls */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -427,6 +796,11 @@ const StudioCheckout: React.FC = () => {
                 <span className="font-semibold">{allSelectedImages.length}</span> photo
                 {allSelectedImages.length !== 1 ? 's' : ''}.
               </p>
+              {upiId && (
+                <p className="text-xs text-gray-500 text-center mt-1">
+                  UPI: {upiId}
+                </p>
+              )}
               {isPaid && (
                 <p className="mt-2 text-xs text-green-600 flex items-center">
                   <FaCheckCircle className="mr-1" /> Payment marked as completed.
@@ -456,7 +830,8 @@ const StudioCheckout: React.FC = () => {
               const isSelected = selectedAlbums.has(album.id);
               const isExpanded = expandedAlbums.has(album.id);
               const albumImageIds = selectedImages.get(album.id) || new Set<number>();
-              const albumImages = album.images || [];
+              // Use images from map if available, otherwise from album data
+              const albumImages = albumImagesMap.get(album.id) || album.images || [];
               const allSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
 
               return (
@@ -521,70 +896,107 @@ const StudioCheckout: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* Album Images (shown when expanded) */}
-                  {isExpanded && isSelected && albumImages.length > 0 && (
+                  {/* Album Images (shown when expanded) - Show all images for selection */}
+                  {isExpanded && albumImages.length > 0 && (
                     <div className="border-t border-gray-200 p-4 bg-gray-50">
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-sm font-semibold text-gray-900">Select Images</h4>
-                        <button
-                          onClick={() => selectAllImagesInAlbum(album.id)}
-                          className="text-xs text-[#2731db] hover:underline"
-                        >
-                          {allSelected ? 'Deselect All' : 'Select All'}
-                        </button>
+                        <h4 className="text-sm font-semibold text-gray-900">
+                          {isSelected ? 'Select Images' : 'Album Images'}
+                          {isSelected && albumImageIds.size > 0 && (
+                            <span className="ml-2 text-[#2731db] font-medium">
+                              ({albumImageIds.size} of {albumImages.length} selected)
+                            </span>
+                          )}
+                        </h4>
+                        {isSelected && (
+                          <button
+                            onClick={() => selectAllImagesInAlbum(album.id)}
+                            className="text-xs text-[#2731db] hover:underline"
+                          >
+                            {allSelected ? 'Deselect All' : 'Select All'}
+                          </button>
+                        )}
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                         {albumImages.map((image) => {
-                          const isImageSelected = albumImageIds.has(image.id) || albumImageIds.size === 0;
-                          const imageUrl = getImageUrl(image);
-                          const filename = getImageFilename(image);
-                          const fileType = getFileType(image);
-                          const canView = imageUrl && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                            const isImageSelected = albumImageIds.has(image.id);
+                            const imageUrl = getImageUrl(image);
+                            const filename = getImageFilename(image);
+                            const fileType = getFileType(image);
+                            const canView = imageUrl && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                            
+                            // Calculate price for this image
+                            const imagePrice = album.perPhotoPrice && album.perPhotoPrice > 0
+                              ? album.perPhotoPrice
+                              : (perPhotoPrice > 0 ? perPhotoPrice : PRICE_PER_IMAGE);
+                            
+                            // Check if all images in album are selected
+                            const allImagesSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
 
-                          return (
-                            <div
-                              key={image.id}
-                              className={`relative rounded-lg overflow-hidden border cursor-pointer transition-all ${
-                                isImageSelected
-                                  ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50'
-                                  : 'border-gray-200'
-                              }`}
-                              onClick={() => toggleImageSelection(album.id, image.id)}
-                            >
-                              <div className="aspect-square bg-gray-100 overflow-hidden relative">
-                                {canView ? (
-                                  <>
-                                    <img
-                                      src={imageUrl!}
-                                      alt={filename}
-                                      className="w-full h-full object-cover"
-                                    />
-                                    <div className="absolute top-2 right-2">
-                                      <div
-                                        className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                                          isImageSelected
-                                            ? 'bg-[#2731db] text-white'
-                                            : 'bg-white bg-opacity-80 border-2 border-gray-300'
-                                        }`}
-                                      >
-                                        {isImageSelected && <FaCheck className="text-xs" />}
+                            return (
+                              <div
+                                key={image.id}
+                                className={`relative rounded-lg overflow-hidden border cursor-pointer transition-all ${
+                                  isImageSelected
+                                    ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50'
+                                    : 'border-gray-200'
+                                }`}
+                                onClick={() => {
+                                  if (!isSelected) {
+                                    // Select album first if not selected, then select the image
+                                    toggleAlbum(album.id);
+                                    // Use setTimeout to ensure state updates before toggling image
+                                    setTimeout(() => {
+                                      toggleImageSelection(album.id, image.id);
+                                    }, 0);
+                                  } else {
+                                    toggleImageSelection(album.id, image.id);
+                                  }
+                                }}
+                              >
+                                <div className="aspect-square bg-gray-100 overflow-hidden relative">
+                                  {canView ? (
+                                    <>
+                                      <img
+                                        src={imageUrl!}
+                                        alt={filename}
+                                        className="w-full h-full object-cover"
+                                      />
+                                      <div className="absolute top-2 right-2">
+                                        <div
+                                          className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                                            isImageSelected
+                                              ? 'bg-[#2731db] text-white'
+                                              : 'bg-white bg-opacity-80 border-2 border-gray-300'
+                                          }`}
+                                        >
+                                          {isImageSelected && <FaCheck className="text-xs" />}
+                                        </div>
                                       </div>
+                                    </>
+                                  ) : (
+                                    <div className="flex items-center justify-center h-full text-gray-500 text-xs">
+                                      {fileType.toUpperCase()}
                                     </div>
-                                  </>
-                                ) : (
-                                  <div className="flex items-center justify-center h-full text-gray-500 text-xs">
-                                    {fileType.toUpperCase()}
-                                  </div>
-                                )}
+                                  )}
+                                </div>
+                                <div className="p-2 bg-white">
+                                  <p className="text-xs text-gray-900 truncate" title={filename}>
+                                    {filename}
+                                  </p>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {(() => {
+                                      const allImagesSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
+                                      if (allImagesSelected && album.perAlbumPrice && album.perAlbumPrice > 0) {
+                                        return `₹${album.perAlbumPrice} (album)`;
+                                      }
+                                      return imagePrice > 0 ? `₹${imagePrice}` : 'Free';
+                                    })()}
+                                  </p>
+                                </div>
                               </div>
-                              <div className="p-2 bg-white">
-                                <p className="text-xs text-gray-900 truncate" title={filename}>
-                                  {filename}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
                       </div>
                     </div>
                   )}

@@ -85,6 +85,10 @@ declare module 'react-icons/fa' {
   export const FaUserPlus: ComponentType<IconProps>;
   export const FaCheckCircle: ComponentType<IconProps>;
   export const FaUserFriends: ComponentType<IconProps>;
+  export const FaRupeeSign: ComponentType<IconProps>;
+  export const FaClock: ComponentType<IconProps>;
+  export const FaUserTag: ComponentType<IconProps>;
+  export const FaImage: ComponentType<IconProps>;
 }
 
 declare module 'react-icons/fi' {
