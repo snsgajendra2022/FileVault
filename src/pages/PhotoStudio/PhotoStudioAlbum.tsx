@@ -33,6 +33,8 @@ interface Album {
   updatedAt?: string;
   images?: AlbumImage[];
   imageIds?: number[];
+  perAlbumPrice?: number | null;
+  isPublic?: boolean;
   [key: string]: any;
 }
 
@@ -81,8 +83,14 @@ const PhotoStudioAlbum: React.FC = () => {
   const [isLoadingClients, setIsLoadingClients] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState('');
   const [newAlbumDescription, setNewAlbumDescription] = useState('');
+  const [newAlbumPrice, setNewAlbumPrice] = useState('');
+  const [newPerPhotoPrice, setNewPerPhotoPrice] = useState('');
+  const [newAlbumIsPublic, setNewAlbumIsPublic] = useState(false);
   const [editAlbumName, setEditAlbumName] = useState('');
   const [editAlbumDescription, setEditAlbumDescription] = useState('');
+  const [editAlbumPrice, setEditAlbumPrice] = useState('');
+  const [editPerPhotoPrice, setEditPerPhotoPrice] = useState('');
+  const [editAlbumIsPublic, setEditAlbumIsPublic] = useState(false);
   const [searchImageId, setSearchImageId] = useState('');
   const [searchResults, setSearchResults] = useState<Album[]>([]);
   const [albumImages, setAlbumImages] = useState<Map<number, AlbumImage[]>>(new Map());
@@ -185,7 +193,7 @@ const PhotoStudioAlbum: React.FC = () => {
 
   // Create album mutation
   const createAlbumMutation = useMutation({
-    mutationFn: async (data: { name: string; description?: string; imageIds?: (number | string)[] }) => {
+    mutationFn: async (data: { name: string; description?: string; perAlbumPrice?: number; perPhotoPrice?: number; isPublic?: boolean; imageIds?: (number | string)[] }) => {
       const response = await api.post('/api/albums', data);
       return response.data;
     },
@@ -195,6 +203,9 @@ const PhotoStudioAlbum: React.FC = () => {
       setShowCreateModal(false);
       setNewAlbumName('');
       setNewAlbumDescription('');
+      setNewAlbumPrice('');
+      setNewPerPhotoPrice('');
+      setNewAlbumIsPublic(false);
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to create album');
@@ -227,8 +238,8 @@ const PhotoStudioAlbum: React.FC = () => {
 
   // Update album mutation
   const updateAlbumMutation = useMutation({
-    mutationFn: async ({ albumId, name, description }: { albumId: number; name: string; description?: string }) => {
-      const response = await api.put(`/api/albums/${albumId}/images`, { name, description });
+    mutationFn: async ({ albumId, name, description, perAlbumPrice, perPhotoPrice, isPublic }: { albumId: number; name: string; description?: string; perAlbumPrice?: number; perPhotoPrice?: number; isPublic?: boolean }) => {
+      const response = await api.put(`/api/albums/${albumId}/images`, { name, description, perAlbumPrice, perPhotoPrice, isPublic });
       return response.data;
     },
     onSuccess: () => {
@@ -237,6 +248,9 @@ const PhotoStudioAlbum: React.FC = () => {
       setShowEditModal(null);
       setEditAlbumName('');
       setEditAlbumDescription('');
+      setEditAlbumPrice('');
+      setEditPerPhotoPrice('');
+      setEditAlbumIsPublic(false);
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to update album');
@@ -400,15 +414,23 @@ const PhotoStudioAlbum: React.FC = () => {
       return;
     }
     // Note: imageIds can be included when creating album, but we'll add images separately
+    const perAlbumPrice = newAlbumPrice.trim() ? parseFloat(newAlbumPrice.trim()) : undefined;
+    const perPhotoPrice = newPerPhotoPrice.trim() ? parseFloat(newPerPhotoPrice.trim()) : undefined;
     createAlbumMutation.mutate({
       name: newAlbumName.trim(),
       description: newAlbumDescription.trim() || undefined,
+      perAlbumPrice: perAlbumPrice && !isNaN(perAlbumPrice) && perAlbumPrice > 0 ? perAlbumPrice : undefined,
+      perPhotoPrice: perPhotoPrice && !isNaN(perPhotoPrice) && perPhotoPrice > 0 ? perPhotoPrice : undefined,
+      isPublic: newAlbumIsPublic,
     });
   };
 
   const handleEditAlbum = (album: Album) => {
     setEditAlbumName(album.name);
     setEditAlbumDescription(album.description || '');
+    setEditAlbumPrice(album.perAlbumPrice ? String(album.perAlbumPrice) : '');
+    setEditPerPhotoPrice(album.perPhotoPrice ? String(album.perPhotoPrice) : '');
+    setEditAlbumIsPublic(album.isPublic || false);
     setShowEditModal(album.id);
   };
 
@@ -418,10 +440,15 @@ const PhotoStudioAlbum: React.FC = () => {
       toast.error('Please enter an album name');
       return;
     }
+    const perAlbumPrice = editAlbumPrice.trim() ? parseFloat(editAlbumPrice.trim()) : undefined;
+    const perPhotoPrice = editPerPhotoPrice.trim() ? parseFloat(editPerPhotoPrice.trim()) : undefined;
     updateAlbumMutation.mutate({
       albumId: showEditModal,
       name: editAlbumName.trim(),
       description: editAlbumDescription.trim() || undefined,
+      perAlbumPrice: perAlbumPrice && !isNaN(perAlbumPrice) && perAlbumPrice > 0 ? perAlbumPrice : undefined,
+      perPhotoPrice: perPhotoPrice && !isNaN(perPhotoPrice) && perPhotoPrice > 0 ? perPhotoPrice : undefined,
+      isPublic: editAlbumIsPublic,
     });
   };
 
@@ -855,6 +882,8 @@ const PhotoStudioAlbum: React.FC = () => {
                   setShowEditModal(null);
                   setEditAlbumName('');
                   setEditAlbumDescription('');
+                  setEditAlbumPrice('');
+                  setEditAlbumIsPublic(false);
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -891,6 +920,55 @@ const PhotoStudioAlbum: React.FC = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Album Price (₹) (optional)
+                </label>
+                <input
+                  type="number"
+                  value={editAlbumPrice}
+                  onChange={(e) => setEditAlbumPrice(e.target.value)}
+                  placeholder="Enter album price"
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Set a price for the entire album. If set, customers can purchase the full album at this price.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Price Per Photo (₹) (optional)
+                </label>
+                <input
+                  type="number"
+                  value={editPerPhotoPrice}
+                  onChange={(e) => setEditPerPhotoPrice(e.target.value)}
+                  placeholder="Enter price per photo"
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Set a price for purchasing each photo individually
+                </p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  id="editAlbumIsPublic"
+                  checked={editAlbumIsPublic}
+                  onChange={(e) => setEditAlbumIsPublic(e.target.checked)}
+                  className="w-4 h-4 text-[#2731db] border-gray-300 rounded focus:ring-[#2731db]"
+                />
+                <label htmlFor="editAlbumIsPublic" className="text-sm font-medium text-gray-700">
+                  Make album public
+                </label>
+              </div>
+              <p className="text-xs text-gray-500">
+                Public albums can be accessed by anyone with the link.
+              </p>
               <div className="flex items-center space-x-3 pt-4">
                 <button
                   onClick={handleUpdateAlbum}
@@ -904,6 +982,9 @@ const PhotoStudioAlbum: React.FC = () => {
                     setShowEditModal(null);
                     setEditAlbumName('');
                     setEditAlbumDescription('');
+                    setEditAlbumPrice('');
+                    setEditPerPhotoPrice('');
+                    setEditAlbumIsPublic(false);
                   }}
                   className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                 >
@@ -926,6 +1007,9 @@ const PhotoStudioAlbum: React.FC = () => {
                   setShowCreateModal(false);
                   setNewAlbumName('');
                   setNewAlbumDescription('');
+                  setNewAlbumPrice('');
+                  setNewPerPhotoPrice('');
+                  setNewAlbumIsPublic(false);
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -957,6 +1041,55 @@ const PhotoStudioAlbum: React.FC = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Album Price (₹) (optional)
+                </label>
+                <input
+                  type="number"
+                  value={newAlbumPrice}
+                  onChange={(e) => setNewAlbumPrice(e.target.value)}
+                  placeholder="Enter album price"
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Set a price for the entire album. If set, customers can purchase the full album at this price.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Price Per Photo (₹) (optional)
+                </label>
+                <input
+                  type="number"
+                  value={newPerPhotoPrice}
+                  onChange={(e) => setNewPerPhotoPrice(e.target.value)}
+                  placeholder="Enter price per photo"
+                  min="0"
+                  step="0.01"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Set a price for purchasing each photo individually
+                </p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  id="newAlbumIsPublic"
+                  checked={newAlbumIsPublic}
+                  onChange={(e) => setNewAlbumIsPublic(e.target.checked)}
+                  className="w-4 h-4 text-[#2731db] border-gray-300 rounded focus:ring-[#2731db]"
+                />
+                <label htmlFor="newAlbumIsPublic" className="text-sm font-medium text-gray-700">
+                  Make album public
+                </label>
+              </div>
+              <p className="text-xs text-gray-500">
+                Public albums can be accessed by anyone with the link.
+              </p>
               <div className="flex items-center space-x-3 pt-4">
                 <button
                   onClick={handleCreateAlbum}
@@ -970,6 +1103,9 @@ const PhotoStudioAlbum: React.FC = () => {
                     setShowCreateModal(false);
                     setNewAlbumName('');
                     setNewAlbumDescription('');
+                    setNewAlbumPrice('');
+                    setNewPerPhotoPrice('');
+                    setNewAlbumIsPublic(false);
                   }}
                   className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                 >

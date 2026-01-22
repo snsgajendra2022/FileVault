@@ -271,7 +271,18 @@ const StudioCheckout: React.FC = () => {
           return nextImgs;
         });
       } else {
-        // Select album - automatically select ALL images in the album
+        // Select album - clear previous selection and select only this album
+        // Clear all previous selections
+        const previousAlbumId = Array.from(next)[0];
+        if (previousAlbumId) {
+          setSelectedImages(prevImgs => {
+            const nextImgs = new Map(prevImgs);
+            nextImgs.delete(previousAlbumId);
+            return nextImgs;
+          });
+        }
+        // Select only this album
+        next.clear();
         next.add(albumId);
         const album = albums.find(a => a.id === albumId);
         if (album) {
@@ -317,8 +328,20 @@ const StudioCheckout: React.FC = () => {
       
       if (newImageSet.size === 0) {
         next.delete(albumId);
+        // If no images selected, also unselect the album
+        setSelectedAlbums(prevAlbums => {
+          const nextAlbums = new Set(prevAlbums);
+          nextAlbums.delete(albumId);
+          return nextAlbums;
+        });
       } else {
         next.set(albumId, newImageSet);
+        // Ensure album is selected if images are selected
+        setSelectedAlbums(prevAlbums => {
+          const nextAlbums = new Set(prevAlbums);
+          nextAlbums.add(albumId);
+          return nextAlbums;
+        });
       }
       
       return next;
@@ -638,7 +661,7 @@ const StudioCheckout: React.FC = () => {
               </p>
             </div>
             
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Price Per Photo (₹)
               </label>
@@ -654,7 +677,7 @@ const StudioCheckout: React.FC = () => {
               <p className="text-xs text-gray-500 mt-1">
                 Default price per photo. Albums with perAlbumPrice will use their own pricing.
               </p>
-            </div>
+            </div> */}
 
             <div className="flex items-center space-x-3 pt-2">
               <button
@@ -833,21 +856,29 @@ const StudioCheckout: React.FC = () => {
               // Use images from map if available, otherwise from album data
               const albumImages = albumImagesMap.get(album.id) || album.images || [];
               const allSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
+              // Check if another album is selected (disable this checkbox if another album is selected and this one is not)
+              const hasOtherSelection = selectedAlbums.size > 0 && !isSelected;
+              const isDisabled = hasOtherSelection;
 
               return (
                 <div
                   key={album.id}
                   className={`border rounded-xl overflow-hidden transition-all ${
                     isSelected ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50' : 'border-gray-200'
-                  }`}
+                  } ${isDisabled ? 'opacity-50' : ''}`}
                 >
                   {/* Album Header */}
                   <div className="flex items-center justify-between p-4 bg-white">
                     <div className="flex items-center space-x-4 flex-1">
                       <button
                         onClick={() => toggleAlbum(album.id)}
-                        className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
-                          isSelected ? 'bg-[#2731db] border-[#2731db]' : 'border-gray-300'
+                        disabled={isDisabled}
+                        className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+                          isSelected 
+                            ? 'bg-[#2731db] border-[#2731db]' 
+                            : isDisabled
+                            ? 'border-gray-200 bg-gray-100 cursor-not-allowed'
+                            : 'border-gray-300 hover:border-gray-400 cursor-pointer'
                         }`}
                       >
                         {isSelected && <FaCheck className="text-white text-xs" />}
@@ -943,12 +974,20 @@ const StudioCheckout: React.FC = () => {
                                 }`}
                                 onClick={() => {
                                   if (!isSelected) {
-                                    // Select album first if not selected, then select the image
-                                    toggleAlbum(album.id);
-                                    // Use setTimeout to ensure state updates before toggling image
-                                    setTimeout(() => {
-                                      toggleImageSelection(album.id, image.id);
-                                    }, 0);
+                                    // Select album first if not selected, then select only this image
+                                    setSelectedAlbums(prev => {
+                                      const next = new Set(prev);
+                                      next.add(album.id);
+                                      return next;
+                                    });
+                                    // Select only this specific image (not all images)
+                                    setSelectedImages(prev => {
+                                      const next = new Map(prev);
+                                      const imageSet = new Set<number>();
+                                      imageSet.add(image.id);
+                                      next.set(album.id, imageSet);
+                                      return next;
+                                    });
                                   } else {
                                     toggleImageSelection(album.id, image.id);
                                   }
