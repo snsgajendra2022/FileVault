@@ -256,7 +256,7 @@ const ClientImagesPage = () => {
       </div>
 
       {/* User Selection for Invited Users */}
-      {/* {viewMode === 'my' && (
+      {viewMode === 'my' && (
         <div className="mb-6">
           <div className="bg-white rounded-lg shadow p-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -323,7 +323,7 @@ const ClientImagesPage = () => {
             )}
           </div>
         </div>
-      )} */}
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
