@@ -184,13 +184,13 @@ const CreateInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInvitatio
               <FaEnvelope className="h-4 w-4 mr-2" />
               Copy Invitation Link
             </button>
-            <button
+            {/* <button
               onClick={sendInvitationEmail}
               className="flex items-center justify-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
               <FaEnvelope className="h-4 w-4 mr-2" />
               Send Email
-            </button>
+            </button> */}
             <button
               onClick={() => setShowSuccess(false)}
               className="flex items-center justify-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"

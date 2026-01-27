@@ -275,13 +275,13 @@ const InvitationHistory: React.FC = () => {
                         <FaEnvelope className="h-4 w-4 mr-2" />
                         Copy Link
                       </button>
-                      <button
+                      {/* <button
                         onClick={() => resendInvitation(invitation)}
                         className="flex items-center px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
                       >
                         <FaEnvelope className="h-4 w-4 mr-2" />
                         Resend
-                      </button>
+                      </button> */}
                     </>
                   )}
 

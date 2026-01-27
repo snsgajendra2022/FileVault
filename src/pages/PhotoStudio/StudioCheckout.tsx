@@ -411,17 +411,39 @@ const StudioCheckout: React.FC = () => {
     const baseUrl = window.location.origin;
     return `${baseUrl}/public/selection?token=${encodeURIComponent(token)}&files=${encodeURIComponent(selectedFilenames)}`;
   }, [explicitlySelectedImages]);
-
-  const handleCopyCheckoutUrl = () => {
+  async function copyToClipboard(text) {
+    // Modern API (works on HTTPS + supported browsers)
+    if (navigator?.clipboard?.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+  
+    // Fallback for HTTP / older browsers / WebView
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.top = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+  
+    try {
+      document.execCommand("copy");
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  }
+  
+  const handleCopyCheckoutUrl = async () => {
     if (!publicCheckoutUrl) {
       toast.error('No URL to copy. Please select images first.');
       return;
     }
-    navigator.clipboard.writeText(publicCheckoutUrl).then(() => {
-      toast.success('Public checkout URL copied to clipboard!');
-    }).catch(() => {
-      toast.error('Failed to copy URL');
-    });
+    await copyToClipboard(publicCheckoutUrl);
+    toast.success('Public checkout URL copied to clipboard!');
+    // navigator.clipboard.writeText(publicCheckoutUrl).then(() => {
+    // }).catch(() => {
+    //   toast.error('Failed to copy URL');
+    // });
   };
 
   const handleCopySelectionUrl = () => {

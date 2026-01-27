@@ -86,10 +86,32 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
     }
   };
 
-  const copyInvitationLink = () => {
+  async function copyToClipboard(text) {
+    // Modern API (works on HTTPS + supported browsers)
+    if (navigator?.clipboard?.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+  
+    // Fallback for HTTP / older browsers / WebView
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.top = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+  
+    try {
+      document.execCommand("copy");
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  }
+  
+  const copyInvitationLink = async () => {
     if (createdInvitation) {
       const link = `${window.location.origin}/accept-invitation?token=${createdInvitation.invitationToken}`;
-      navigator.clipboard.writeText(link);
+      await copyToClipboard(link);
       toast.success('Invitation link copied to clipboard!');
     }
   };
@@ -178,13 +200,13 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
               <FaEnvelope className="h-4 w-4 mr-2" />
               Copy Invitation Link
             </button>
-            <button
+            {/* <button
               onClick={sendInvitationEmail}
               className="flex items-center justify-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
             >
               <FaEnvelope className="h-4 w-4 mr-2" />
               Send Email
-            </button>
+            </button> */}
             <button
               onClick={() => setShowSuccess(false)}
               className="flex items-center justify-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
