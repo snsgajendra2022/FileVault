@@ -50,6 +50,7 @@ import PublicSelectionPage from './pages/PhotoStudio/PublicSelectionPage';
 import PublicCheckoutPage from './pages/PhotoStudio/PublicCheckoutPage';
 import SharedAlbums from './pages/PhotoStudio/SharedAlbums';
 import PaymentManagement from './components/admin/PaymentManagement';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 
 
 const queryClient = new QueryClient({
@@ -96,6 +97,7 @@ const AppRoutes = () => {
     <Routes>
       {/* Public image view route */}
       <Route path="/view" element={<ViewImagePage />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
       <Route path="/login" element={
         !isLoading && isAuthenticated ? 
           (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />) : 
