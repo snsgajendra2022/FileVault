@@ -21,7 +21,8 @@ import {
   FaUserPlus,
   FaShare,
   FaFolder,
-  FaRupeeSign
+  FaFolderOpen,
+  FaRupeeSign,
 } from 'react-icons/fa';
 
 
@@ -60,6 +61,7 @@ const Sidebar = () => {
     { name: 'Invitations', href: '/invitations', icon: FaUsers, enabled: true },
     { name: 'Family Tree', href: '/family-tree', icon: FaSitemap, enabled: true },
     { name: 'Dummy Tree', href: '/treePage', icon: FaUsers, enabled: true },
+    { name: 'PhotoBook', href: '/photobook', icon: FaFolderOpen, enabled: true },
     { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
   ],active:false};
   
@@ -70,6 +72,7 @@ const Sidebar = () => {
     { name: 'My Images', href: '/client-images', icon: FaImages, enabled: true },
     { name: 'Album', href: '/studio/albums', icon: FaFolder, enabled: true },
     { name: 'Shared Albums', href: '/studio/shared-albums', icon: FaShare, enabled: true },
+    { name: 'PhotoBook', href: '/photobook', icon: FaFolderOpen, enabled: true },
     { name: 'Select & Pay', href: '/studio/payments', icon: FaQrcode, enabled: true },
     { name: 'Clients Tree', href: '/client-tree', icon: FaSitemap, enabled: true },
     { name: 'Create Client', href: '/invitations', icon:FaUserPlus , enabled: true },
@@ -96,6 +99,7 @@ const Sidebar = () => {
     { name: 'Usage Analytics', href: '/admin?tab=analytics', icon: FaChartBar, enabled: true },
     { name: 'System Health', href: '/admin?tab=health', icon: FaShieldAlt, enabled: true },
     { name: 'Payment Management', href: '/admin?tab=payments', icon: FaRupeeSign, enabled: true },
+    { name: 'PhotoBook', href: '/photobook', icon: FaFolderOpen, enabled: true },
   ],active:true};
 console.log( studioNavigationItems.active === true && 2 );
 

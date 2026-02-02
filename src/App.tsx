@@ -50,6 +50,12 @@ import PublicSelectionPage from './pages/PhotoStudio/PublicSelectionPage';
 import PublicCheckoutPage from './pages/PhotoStudio/PublicCheckoutPage';
 import SharedAlbums from './pages/PhotoStudio/SharedAlbums';
 import PaymentManagement from './components/admin/PaymentManagement';
+// PhotoBook imports
+import { PhotoBookLayout } from './pages/PhotoBook/PhotoBookLayout';
+import { PhotoBookTemplateGalleryPage } from './pages/PhotoBook/TemplateGalleryPage';
+import { PhotoBookEditorPage } from './pages/PhotoBook/EditorPage';
+import { PhotoBookPreviewPage } from './pages/PhotoBook/PreviewPage';
+import { PhotoBookNotFoundPage } from './pages/PhotoBook/NotFoundPage';
 
 
 const queryClient = new QueryClient({
@@ -158,6 +164,13 @@ const AppRoutes = () => {
         <Route path="family-tree" element={<FamilyTree />} />
         <Route path="Sheet" element={<SheetPage />} />
         <Route path="create-client" element={<CreateClientInvitationForm onInvitationCreated={() => {}} />} />
+        {/* PhotoBook Routes */}
+        <Route path="photobook" element={<PhotoBookLayout />}>
+          <Route index element={<PhotoBookTemplateGalleryPage />} />
+          <Route path="editor" element={<PhotoBookEditorPage />} />
+          <Route path="preview" element={<PhotoBookPreviewPage />} />
+          <Route path="*" element={<PhotoBookNotFoundPage />} />
+        </Route>
         {/* Admin route with proper protection */}
         <Route path="admin" element={
           <ProtectedRoute adminOnly>

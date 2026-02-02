@@ -15,11 +15,14 @@ import {
   FaShare,
   FaUserFriends
 } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import DashboardLoading from '../../components/common/DashboardLoading';
 import toast from 'react-hot-toast';
+import { usePhotoBookStore } from '../../store/photobookStore';
+import { photobookTemplates } from '../../templates/photobookTemplates';
 
 interface Album {
   id: number;
@@ -72,7 +75,9 @@ interface UserImage {
 const PhotoStudioAlbum: React.FC = () => {
   const { user, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [expandedAlbums, setExpandedAlbums] = useState<Set<number>>(new Set());
+  const [selectedAlbums, setSelectedAlbums] = useState<Set<number>>(new Set());
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddImagesModal, setShowAddImagesModal] = useState<number | null>(null);
   const [showEditModal, setShowEditModal] = useState<number | null>(null);
@@ -81,6 +86,9 @@ const PhotoStudioAlbum: React.FC = () => {
   const [selectedClients, setSelectedClients] = useState<Set<number>>(new Set());
   const [clients, setClients] = useState<any[]>([]);
   const [isLoadingClients, setIsLoadingClients] = useState(false);
+  const [isTransferringToPhotoBook, setIsTransferringToPhotoBook] = useState(false);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [pendingAlbumIds, setPendingAlbumIds] = useState<number[]>([]);
   const [newAlbumName, setNewAlbumName] = useState('');
   const [newAlbumDescription, setNewAlbumDescription] = useState('');
   const [newAlbumPrice, setNewAlbumPrice] = useState('');
@@ -511,6 +519,95 @@ const PhotoStudioAlbum: React.FC = () => {
     return extension || image.fileType || 'unknown';
   };
 
+  const blobToDataUrl = (blob: Blob) => {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const fetchAsDataUrl = async (url: string): Promise<string> => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to fetch image (${res.status})`);
+    const blob = await res.blob();
+    return blobToDataUrl(blob);
+  };
+
+  const transferAlbumsToPhotoBook = useCallback(async (albumIds: number[], templateId: string) => {
+    if (!albumIds.length) {
+      toast.error('Please select at least one album');
+      return;
+    }
+    if (isTransferringToPhotoBook) return;
+
+    setIsTransferringToPhotoBook(true);
+    const loadingToastId = toast.loading(`Transferring from ${albumIds.length} album(s) to PhotoBook...`);
+
+    try {
+      const selected = albums.filter((a) => albumIds.includes(a.id));
+      if (!selected.length) {
+        toast.error('Selected albums not found', { id: loadingToastId });
+        return;
+      }
+
+      const seenUrls = new Set<string>();
+      const items: Array<{ name: string; dataUrl: string }> = [];
+
+      for (const album of selected) {
+        const images = albumImages.get(album.id) || extractAlbumImages(album);
+        for (const img of images) {
+          const filename = getImageFilename(img);
+          const ext = (filename.split('.').pop() || '').toLowerCase();
+          if (!ext.match(/^(png|jpg|jpeg|gif|webp)$/)) continue;
+
+          const url = getImageUrl(img);
+          if (!url) continue;
+          if (seenUrls.has(url)) continue;
+          seenUrls.add(url);
+
+          try {
+            const dataUrl = await fetchAsDataUrl(url);
+            items.push({ name: filename, dataUrl });
+          } catch (e: any) {
+            console.error('PhotoBook transfer failed for url:', url, e);
+          }
+        }
+      }
+
+      if (items.length === 0) {
+        toast.error('No transferable images found in selected albums', { id: loadingToastId });
+        return;
+      }
+
+      const store = usePhotoBookStore.getState();
+      // New behavior: user picks template first, then we create a fresh photobook using that template.
+      store.resetAll();
+      store.startNewAlbum(templateId);
+      if (selected.length === 1) store.setTitle(selected[0]?.name || 'My Photo Book');
+
+      await store.addPhotoDataUrls(items, { source: 'album' });
+
+      toast.success(`Transferred ${items.length} image(s) to PhotoBook`, { id: loadingToastId });
+      navigate('/photobook/editor');
+    } catch (e: any) {
+      console.error('PhotoBook transfer failed:', e);
+      toast.error(e?.message || 'Failed to transfer images to PhotoBook', { id: loadingToastId });
+    } finally {
+      setIsTransferringToPhotoBook(false);
+    }
+  }, [albums, albumImages, extractAlbumImages, getImageFilename, getImageUrl, isTransferringToPhotoBook, navigate]);
+
+  const toggleAlbumSelection = useCallback((albumId: number) => {
+    setSelectedAlbums((prev) => {
+      const next = new Set(prev);
+      if (next.has(albumId)) next.delete(albumId);
+      else next.add(albumId);
+      return next;
+    });
+  }, []);
+
 
   console.log(userImages);
   const toggleAlbum = (albumId: number) => {
@@ -592,6 +689,23 @@ const PhotoStudioAlbum: React.FC = () => {
         </div>
         <div className="flex items-center space-x-3">
           <button
+            onClick={() => {
+              const ids = Array.from(selectedAlbums);
+              if (ids.length === 0) {
+                toast.error('Please select at least one album');
+                return;
+              }
+              setPendingAlbumIds(ids);
+              setShowTemplateModal(true);
+            }}
+            disabled={selectedAlbums.size === 0 || isTransferringToPhotoBook}
+            className="px-4 py-2 rounded-lg bg-[#111827] text-white hover:bg-slate-800 transition-colors flex items-center disabled:opacity-60"
+            title="Transfer selected albums to PhotoBook"
+          >
+            <FaFolderOpen className="mr-2" />
+            Transfer to PhotoBook {selectedAlbums.size > 0 ? `(${selectedAlbums.size})` : ''}
+          </button>
+          <button
             onClick={() => setShowCreateModal(true)}
             className="px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors flex items-center"
           >
@@ -669,6 +783,7 @@ const PhotoStudioAlbum: React.FC = () => {
           <div className="space-y-3">
             {albums.map((album) => {
               const isExpanded = expandedAlbums.has(album.id);
+              const isSelectedAlbum = selectedAlbums.has(album.id);
               return (
                 <div
                   key={album.id}
@@ -676,6 +791,24 @@ const PhotoStudioAlbum: React.FC = () => {
                 >
                   {/* Album Header */}
                   <div className="flex items-center justify-between p-4">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleAlbumSelection(album.id);
+                      }}
+                      className="mr-3 flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50"
+                      title={isSelectedAlbum ? 'Unselect album' : 'Select album'}
+                    >
+                      <div
+                        className={[
+                          'h-5 w-5 rounded border-2 transition-colors',
+                          isSelectedAlbum ? 'border-[#2731db] bg-[#2731db]' : 'border-gray-300 bg-white',
+                        ].join(' ')}
+                      >
+                        {isSelectedAlbum ? <FaCheck className="h-4 w-4 text-white" /> : null}
+                      </div>
+                    </button>
                     <button
                       onClick={() => toggleAlbum(album.id)}
                       className="flex-1 flex items-center space-x-4 text-left"
@@ -728,6 +861,19 @@ const PhotoStudioAlbum: React.FC = () => {
                       />
                     </button>
                     <div className="flex items-center space-x-2 ml-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPendingAlbumIds([album.id]);
+                          setShowTemplateModal(true);
+                        }}
+                        disabled={isTransferringToPhotoBook}
+                        className="flex px-4 py-2 rounded-lg bg-[#111827] text-white hover:bg-slate-800 transition-colors text-sm disabled:opacity-60"
+                        title="Open in PhotoBook"
+                      >
+                        <FaFolderOpen className="mr-1" />
+                        PhotoBook
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -787,10 +933,24 @@ const PhotoStudioAlbum: React.FC = () => {
 
                       {/* Album Images */}
                       <div className="mt-4 pt-4 border-t border-gray-200">
-                        <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-                          <FaImages className="mr-2 text-[#2731db]" />
-                          Images in Album
-                        </h4>
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <h4 className="text-sm font-semibold text-gray-900 flex items-center">
+                            <FaImages className="mr-2 text-[#2731db]" />
+                            Images in Album
+                          </h4>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPendingAlbumIds([album.id]);
+                              setShowTemplateModal(true);
+                            }}
+                            disabled={isTransferringToPhotoBook}
+                            className="rounded-lg bg-[#111827] px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-60"
+                          >
+                            Transfer this album
+                          </button>
+                        </div>
                         
                         {(() => {
                           const images = albumImages.get(album.id) || extractAlbumImages(album);
@@ -1365,6 +1525,56 @@ const PhotoStudioAlbum: React.FC = () => {
                     )}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Template chooser modal for PhotoBook transfer */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-200 p-5">
+              <div>
+                <div className="text-lg font-bold text-slate-900">Choose a PhotoBook template</div>
+                <div className="mt-1 text-sm text-slate-600">
+                  Selected albums: {pendingAlbumIds.length}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                onClick={() => {
+                  setShowTemplateModal(false);
+                  setPendingAlbumIds([]);
+                }}
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            <div className="p-5">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {photobookTemplates.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    onClick={() => {
+                      const ids = pendingAlbumIds.slice();
+                      setShowTemplateModal(false);
+                      setPendingAlbumIds([]);
+                      void transferAlbumsToPhotoBook(ids, t.id);
+                    }}
+                  >
+                    <div className="text-base font-semibold text-slate-900">{t.name}</div>
+                    <div className="mt-1 text-sm text-slate-600">{t.description}</div>
+                    <div className="mt-3 text-xs text-slate-500">
+                      {t.defaultSpreads.length} starter spreads
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
