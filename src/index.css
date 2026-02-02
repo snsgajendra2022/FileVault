@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800&family=Great+Vibes&family=Playfair+Display:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -86,6 +88,24 @@
   .stat-card-gradient {
     @apply bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 shadow-lg border border-gray-100 card-hover;
   }
+
+  /* PhotoBook backgrounds */
+  .photobook-bg-party {
+    background: linear-gradient(135deg, rgba(250, 245, 255, 1) 0%, rgba(255, 255, 255, 1) 45%, rgba(240, 249, 255, 1) 100%);
+  }
+
+  .photobook-bg-wedding {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 45%, #fdf2f8 100%);
+  }
+
+  /* Wedding cover: matches provided sample (frame + florals + wreath) */
+  .photobook-bg-wedding-cover {
+    background-color: rgb(251, 247, 239);
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%201200%20600'%3E%3Crect%20width='1200'%20height='600'%20fill='rgb(251%2C247%2C239)'/%3E%3Cg%20opacity='0.22'%20fill='rgb(214%2C203%2C184)'%3E%3Ccircle%20cx='96'%20cy='86'%20r='6'/%3E%3Ccircle%20cx='170'%20cy='120'%20r='4'/%3E%3Ccircle%20cx='110'%20cy='180'%20r='5'/%3E%3Ccircle%20cx='1020'%20cy='92'%20r='6'/%3E%3Ccircle%20cx='1090'%20cy='140'%20r='4'/%3E%3Ccircle%20cx='1060'%20cy='190'%20r='5'/%3E%3Ccircle%20cx='120'%20cy='520'%20r='6'/%3E%3Ccircle%20cx='190'%20cy='480'%20r='4'/%3E%3Ccircle%20cx='1080'%20cy='520'%20r='6'/%3E%3Ccircle%20cx='1010'%20cy='490'%20r='4'/%3E%3C/g%3E%3Cpath%20d='M140%20105%20C250%2045%20370%2050%20480%20100%20C590%20150%20710%2050%20820%20100%20C930%20150%201055%2080%201060%20155%20C1070%20240%201075%20360%201055%20445%20C1035%20530%20910%20525%20810%20505%20C710%20485%20590%20560%20480%20510%20C370%20460%20245%20555%20165%20505%20C85%20455%2090%20400%20105%20325%20C120%20250%2065%20170%20140%20105%20Z'%20fill='none'%20stroke='rgb(214%2C164%2C83)'%20stroke-width='8'%20opacity='0.85'/%3E%3Cpath%20d='M152%20118%20C258%2062%20372%2066%20476%20110%20C580%20154%20712%2066%20816%20110%20C920%20154%201038%2096%201044%20158%20C1055%20242%201058%20356%201040%20440%20C1022%20524%20902%20518%20808%20500%20C714%20482%20586%20546%20482%20502%20C378%20458%20258%20542%20174%20498%20C90%20454%2098%20402%20112%20328%20C126%20254%2082%20174%20152%20118%20Z'%20fill='none'%20stroke='rgb(232%2C214%2C176)'%20stroke-width='6'%20opacity='0.9'/%3E%3Cg%20opacity='0.92'%3E%3Cg%20transform='translate(70%2C40)'%3E%3Cg%20fill='rgb(232%2C92%2C115)'%20opacity='0.9'%3E%3Ccircle%20cx='30'%20cy='30'%20r='10'/%3E%3Ccircle%20cx='52'%20cy='22'%20r='10'/%3E%3Ccircle%20cx='48'%20cy='48'%20r='10'/%3E%3Ccircle%20cx='24'%20cy='52'%20r='10'/%3E%3C/g%3E%3Ccircle%20cx='38'%20cy='38'%20r='9'%20fill='rgb(246%2C197%2C93)'/%3E%3Cpath%20d='M10%2060%20C30%2046%2050%2046%2072%2060'%20fill='none'%20stroke='rgb(93%2C121%2C100)'%20stroke-width='6'%20stroke-linecap='round'/%3E%3C/g%3E%3Cg%20transform='translate(1020%2C55)'%3E%3Cg%20fill='rgb(245%2C158%2C11)'%20opacity='0.85'%3E%3Ccircle%20cx='26'%20cy='26'%20r='10'/%3E%3Ccircle%20cx='46'%20cy='20'%20r='10'/%3E%3Ccircle%20cx='46'%20cy='44'%20r='10'/%3E%3Ccircle%20cx='20'%20cy='48'%20r='10'/%3E%3C/g%3E%3Ccircle%20cx='34'%20cy='34'%20r='9'%20fill='rgb(250%2C204%2C21)'/%3E%3Cpath%20d='M8%2058%20C28%2046%2048%2046%2070%2058'%20fill='none'%20stroke='rgb(93%2C121%2C100)'%20stroke-width='6'%20stroke-linecap='round'/%3E%3C/g%3E%3Cg%20transform='translate(78%2C500)'%3E%3Cg%20fill='rgb(251%2C113%2C133)'%20opacity='0.85'%3E%3Ccircle%20cx='26'%20cy='26'%20r='10'/%3E%3Ccircle%20cx='46'%20cy='20'%20r='10'/%3E%3Ccircle%20cx='46'%20cy='44'%20r='10'/%3E%3Ccircle%20cx='20'%20cy='48'%20r='10'/%3E%3C/g%3E%3Ccircle%20cx='34'%20cy='34'%20r='9'%20fill='rgb(246%2C197%2C93)'/%3E%3Cpath%20d='M8%2058%20C28%2046%2048%2046%2070%2058'%20fill='none'%20stroke='rgb(93%2C121%2C100)'%20stroke-width='6'%20stroke-linecap='round'/%3E%3C/g%3E%3Cg%20transform='translate(1030%2C498)'%3E%3Cg%20fill='rgb(245%2C158%2C11)'%20opacity='0.85'%3E%3Ccircle%20cx='26'%20cy='26'%20r='10'/%3E%3Ccircle%20cx='46'%20cy='20'%20r='10'/%3E%3Ccircle%20cx='46'%20cy='44'%20r='10'/%3E%3Ccircle%20cx='20'%20cy='48'%20r='10'/%3E%3C/g%3E%3Ccircle%20cx='34'%20cy='34'%20r='9'%20fill='rgb(250%2C204%2C21)'/%3E%3Cpath%20d='M8%2058%20C28%2046%2048%2046%2070%2058'%20fill='none'%20stroke='rgb(93%2C121%2C100)'%20stroke-width='6'%20stroke-linecap='round'/%3E%3C/g%3E%3C/g%3E%3Cg%20transform='translate(300%2C300)'%20opacity='0.95'%3E%3Ccircle%20cx='0'%20cy='0'%20r='120'%20fill='none'%20stroke='rgb(93%2C121%2C100)'%20stroke-width='5'/%3E%3Ccircle%20cx='0'%20cy='0'%20r='106'%20fill='none'%20stroke='rgb(232%2C214%2C176)'%20stroke-width='5'/%3E%3Cg%20opacity='0.9'%3E%3Ccircle%20cx='-80'%20cy='-10'%20r='5'%20fill='rgb(251%2C113%2C133)'/%3E%3Ccircle%20cx='-65'%20cy='22'%20r='4'%20fill='rgb(251%2C113%2C133)'/%3E%3Ccircle%20cx='-92'%20cy='18'%20r='3.5'%20fill='rgb(251%2C113%2C133)'/%3E%3Ccircle%20cx='78'%20cy='-12'%20r='5'%20fill='rgb(245%2C158%2C11)'/%3E%3Ccircle%20cx='92'%20cy='12'%20r='4'%20fill='rgb(245%2C158%2C11)'/%3E%3Ccircle%20cx='70'%20cy='18'%20r='3.5'%20fill='rgb(245%2C158%2C11)'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+  }
 }
 
 body {
@@ -97,6 +117,20 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: 100vh;
+}
+
+@media print {
+  /* Allow background colors/images in print/PDF */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .photobook-bg-wedding-cover,
+  .photobook-bg-wedding,
+  .photobook-bg-party {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 }
 
 code {

@@ -114,12 +114,15 @@ export const photobookTemplates: PhotoBookTemplate[] = [
       layout({
         id: 'cover-wedding-hero',
         name: 'Cover (Hero + Title Space)',
-        slots: [{ id: 'c1', col: 2, row: 1, colSpan: 10, rowSpan: 6 }],
+        // Match sample: circular photo on left, text on right.
+        slots: [{ id: 'c1', col: 2, row: 2, colSpan: 4, rowSpan: 4 }],
+        style: { background: 'wedding', variant: 'cover' },
       }),
       layout({
         id: 'wedding-full-bleed',
         name: 'Full Bleed',
         slots: [{ id: 's1', col: 1, row: 1, colSpan: 12, rowSpan: 6 }],
+        style: { background: 'wedding', variant: 'cover' },
       }),
       layout({
         id: 'wedding-two-up',
@@ -128,6 +131,7 @@ export const photobookTemplates: PhotoBookTemplate[] = [
           { id: 's1', col: 1, row: 1, colSpan: 6, rowSpan: 6 },
           { id: 's2', col: 7, row: 1, colSpan: 6, rowSpan: 6 },
         ],
+        style: { background: 'wedding', variant: 'cover' },
       }),
       layout({
         id: 'wedding-hero-plus-three',
@@ -138,6 +142,7 @@ export const photobookTemplates: PhotoBookTemplate[] = [
           { id: 's3', col: 5, row: 5, colSpan: 4, rowSpan: 2 },
           { id: 's4', col: 9, row: 5, colSpan: 4, rowSpan: 2 },
         ],
+        style: { background: 'wedding', variant: 'cover' },
       }),
       layout({
         id: 'wedding-details',
@@ -149,6 +154,7 @@ export const photobookTemplates: PhotoBookTemplate[] = [
           { id: 's4', col: 8, row: 5, colSpan: 5, rowSpan: 1 },
           { id: 's5', col: 8, row: 6, colSpan: 5, rowSpan: 1 },
         ],
+        style: { background: 'wedding', variant: 'cover' },
       }),
     ],
     defaultSpreads: [
@@ -358,7 +364,28 @@ export function createPhotoBookAlbumFromTemplate(templateId: string): PhotoBookA
   if (album.spreads.length > 0) {
     album.spreads[0] = {
       ...album.spreads[0],
-      text: { headline: album.title, subheadline: '' },
+      text:
+        template.id === 'wedding'
+          ? {
+              headline: 'WEDDING\nTHEME',
+              subheadline: 'This is a sample text that you can edit.',
+              body: 'You can change font (size, color, name), or apply any desired formatting.',
+              style: {
+                fontFamily: 'Cinzel',
+                align: 'left',
+                headlineSize: 54,
+                headlineWeight: 800,
+                headlineColor: '#b7791f',
+                subheadlineSize: 13,
+                subheadlineWeight: 500,
+                subheadlineColor: '#475569',
+                bodySize: 12,
+                bodyWeight: 400,
+                bodyColor: '#475569',
+                hideBanner: true,
+              },
+            }
+          : { headline: album.title, subheadline: '' },
     }
     const last = album.spreads.length - 1
     album.spreads[last] = {

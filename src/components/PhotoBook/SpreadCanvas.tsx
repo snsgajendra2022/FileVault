@@ -1,6 +1,11 @@
 import { useDroppable } from '@dnd-kit/core'
+import React from 'react'
 import type { PhotoBookPhoto, PhotoBookSpread, PhotoBookSpreadLayout } from '../../types/photobook'
 import { Decorations } from './Decorations'
+
+function clamp(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n))
+}
 
 function Slot({
   spreadIndex,
@@ -9,6 +14,13 @@ function Slot({
   selectedPhotoId,
   onAssignSelected,
   onClear,
+  roundedClassName,
+  hideFooterOverlay,
+  imageAdjust,
+  active,
+  onActivate,
+  onUpdateAdjust,
+  onRemovePhoto,
 }: {
   spreadIndex: number
   slotId: string
@@ -16,22 +28,41 @@ function Slot({
   selectedPhotoId: string | null
   onAssignSelected: () => void
   onClear: () => void
+  roundedClassName?: string
+  hideFooterOverlay?: boolean
+  imageAdjust?: { scale?: number; x?: number; y?: number }
+  active?: boolean
+  onActivate?: () => void
+  onUpdateAdjust?: (patch: Partial<{ scale: number; x: number; y: number }>) => void
+  onRemovePhoto?: () => void
 }) {
   const { isOver, setNodeRef } = useDroppable({
     id: `slot:${spreadIndex}:${slotId}`,
     data: { type: 'slot' as const, spreadIndex, slotId },
   })
 
+  const scale = clamp(imageAdjust?.scale ?? 1, 1, 3)
+  const maxT = (scale - 1) * 50
+  const x = clamp(imageAdjust?.x ?? 0, -maxT, maxT)
+  const y = clamp(imageAdjust?.y ?? 0, -maxT, maxT)
+
   return (
     <button
       ref={setNodeRef}
       type="button"
       onClick={() => {
-        if (selectedPhotoId) onAssignSelected()
-        else onClear()
+        if (selectedPhotoId) {
+          onAssignSelected()
+          return
+        }
+        if (assignedPhoto) {
+          onActivate?.()
+          return
+        }
+        onClear()
       }}
       className={[
-        'relative overflow-hidden rounded-xl border transition',
+        `relative overflow-hidden border transition ${roundedClassName ?? 'rounded-xl'}`,
         assignedPhoto ? 'border-slate-200 bg-white' : 'border-dashed border-slate-300 bg-white/60',
         isOver ? 'ring-2 ring-sky-400/60' : '',
       ].join(' ')}
@@ -41,15 +72,66 @@ function Slot({
           <img
             src={assignedPhoto.dataUrl}
             alt={assignedPhoto.name}
-            className="h-full w-full object-cover"
+            className="h-full w-full select-none object-cover"
             draggable={false}
+            style={{
+              transform: `translate(${x}%, ${y}%) scale(${scale})`,
+              transformOrigin: 'center',
+              willChange: active ? 'transform' : undefined,
+            }}
           />
-          <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/35 px-2 py-1 text-left text-[11px] text-white">
-            <div className="min-w-0 flex-1 truncate">{assignedPhoto.name}</div>
-            <span className="shrink-0 rounded bg-white/15 px-1.5 py-0.5 text-[10px]">
-              click to clear
-            </span>
-          </div>
+
+          {active ? (
+            <div
+              className="absolute inset-0"
+              onPointerDown={(e) => {
+                // Drag to reposition (crop)
+                if (!onUpdateAdjust) return
+                e.preventDefault()
+                e.stopPropagation()
+                const el = e.currentTarget as HTMLDivElement
+                const rect = el.getBoundingClientRect()
+                const startX = e.clientX
+                const startY = e.clientY
+                const startXPct = x
+                const startYPct = y
+
+                const onMove = (ev: PointerEvent) => {
+                  const dx = ev.clientX - startX
+                  const dy = ev.clientY - startY
+                  const nextX = clamp(startXPct + (dx / rect.width) * 100, -maxT, maxT)
+                  const nextY = clamp(startYPct + (dy / rect.height) * 100, -maxT, maxT)
+                  onUpdateAdjust({ x: nextX, y: nextY })
+                }
+                const onUp = () => {
+                  window.removeEventListener('pointermove', onMove)
+                  window.removeEventListener('pointerup', onUp)
+                }
+                window.addEventListener('pointermove', onMove)
+                window.addEventListener('pointerup', onUp)
+              }}
+              title="Drag to crop/position"
+            />
+          ) : null}
+
+          {active ? (
+            <div className="absolute inset-x-2 bottom-2 z-10 rounded-xl bg-black/40 p-2 text-white backdrop-blur">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[11px] font-semibold">Crop</div>
+                <div className="flex items-center gap-2">
+                  {/* removed buttons per request */}
+                </div>
+              </div>
+              <div className="mt-1 text-[10px] opacity-90">Mouse wheel to zoom • Zoom {scale.toFixed(2)}×</div>
+            </div>
+          ) : null}
+
+          {!hideFooterOverlay ? (
+            <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/35 px-2 py-1 text-left text-[11px] text-white">
+              <div className="min-w-0 flex-1 truncate">{assignedPhoto.name}</div>
+              <span className="shrink-0 rounded bg-white/15 px-1.5 py-0.5 text-[10px]">click to clear</span>
+            </div>
+          ) : null}
         </>
       ) : (
         <div className="flex h-full w-full items-center justify-center px-3 text-center text-xs font-medium text-slate-500">
@@ -77,17 +159,63 @@ export function SpreadCanvas({
   photosById: Record<string, PhotoBookPhoto>
   selectedPhotoId: string | null
   showTextEditor: boolean
-  onChangeText: (patch: { headline?: string; subheadline?: string }) => void
+  onChangeText: (patch: { headline?: string; subheadline?: string; body?: string; style?: any }) => void
   onAssignPhoto: (slotId: string, photoId: string) => void
   onClearSlot: (slotId: string) => void
 }) {
   const headline = spread.text?.headline ?? ''
   const subheadline = spread.text?.subheadline ?? ''
+  const body = spread.text?.body ?? ''
+  const style = spread.text?.style ?? {}
+  const isWedding = layout.style?.background === 'wedding'
+  const isWeddingCoverPage = layout.id === 'cover-wedding-hero'
+  const [activeSlotId, setActiveSlotId] = React.useState<string | null>(null)
+  const rootRef = React.useRef<HTMLDivElement | null>(null)
 
   const backgroundClass =
     layout.style?.background === 'party'
-      ? 'bg-gradient-to-br from-fuchsia-50 via-white to-sky-50'
-      : 'bg-slate-50'
+      ? 'photobook-bg-party'
+      : isWedding
+        ? 'photobook-bg-wedding-cover'
+        : 'bg-slate-50'
+
+  React.useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+
+    const onWheel = (ev: WheelEvent) => {
+      const target = ev.target as HTMLElement | null
+      const slotEl = target?.closest?.('[data-slot-id]') as HTMLElement | null
+      const slotId = slotEl?.dataset?.slotId
+      if (!slotId) return
+      const photoId = spread.slotPhotoIds[slotId]
+      if (!photoId) return
+
+      ev.preventDefault()
+      ev.stopPropagation()
+
+      const adj = spread.slotImageAdjust?.[slotId] ?? {}
+      const curScale = clamp(adj.scale ?? 1, 1, 3)
+      const curMaxT = (curScale - 1) * 50
+      const curX = clamp(adj.x ?? 0, -curMaxT, curMaxT)
+      const curY = clamp(adj.y ?? 0, -curMaxT, curMaxT)
+
+      const delta = ev.deltaY
+      const zoomIntensity = 0.0018
+      const nextScale = clamp(curScale * Math.exp(-delta * zoomIntensity), 1, 3)
+      const nextMaxT = (nextScale - 1) * 50
+
+      setActiveSlotId(slotId)
+      ;(window as any).__pb_setSlotImageAdjust?.(spreadIndex, slotId, {
+        scale: nextScale,
+        x: clamp(curX, -nextMaxT, nextMaxT),
+        y: clamp(curY, -nextMaxT, nextMaxT),
+      })
+    }
+
+    root.addEventListener('wheel', onWheel, { passive: false })
+    return () => root.removeEventListener('wheel', onWheel as any)
+  }, [spreadIndex, spread.slotImageAdjust, spread.slotPhotoIds])
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -104,6 +232,7 @@ export function SpreadCanvas({
       <div className="mt-4">
         <div className="relative w-full">
           <div
+            ref={rootRef}
             className={['grid w-full gap-2 rounded-xl p-3', backgroundClass].join(' ')}
             style={{
               gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
@@ -114,9 +243,11 @@ export function SpreadCanvas({
             {layout.slots.map((slot) => {
               const photoId = spread.slotPhotoIds[slot.id]
               const assignedPhoto = photoId ? photosById[photoId] ?? null : null
+              const imgAdj = spread.slotImageAdjust?.[slot.id]
               return (
                 <div
                   key={slot.id}
+                  data-slot-id={slot.id}
                   style={{
                     gridColumn: `${slot.col} / span ${slot.colSpan}`,
                     gridRow: `${slot.row} / span ${slot.rowSpan}`,
@@ -127,6 +258,21 @@ export function SpreadCanvas({
                     slotId={slot.id}
                     assignedPhoto={assignedPhoto}
                     selectedPhotoId={selectedPhotoId}
+                    roundedClassName={isWedding && isWeddingCoverPage ? 'rounded-full ring-2 ring-white/70 shadow-sm' : undefined}
+                    hideFooterOverlay={isWedding && isWeddingCoverPage}
+                    imageAdjust={imgAdj}
+                    active={activeSlotId === slot.id}
+                    onActivate={() => setActiveSlotId((cur) => (cur === slot.id ? null : slot.id))}
+                    onUpdateAdjust={(patch) => {
+                      // NOTE: parent must provide a store action; for now keep local no-op if missing.
+                      // We rely on onChangeText to persist text only.
+                      // Slot crop persistence is handled via a custom event for now.
+                      ;(window as any).__pb_setSlotImageAdjust?.(spreadIndex, slot.id, patch)
+                    }}
+                    onRemovePhoto={() => {
+                      setActiveSlotId(null)
+                      onClearSlot(slot.id)
+                    }}
                     onAssignSelected={() => {
                       if (!selectedPhotoId) return
                       onAssignPhoto(slot.id, selectedPhotoId)
@@ -141,27 +287,82 @@ export function SpreadCanvas({
           <Decorations decorations={layout.decorations} />
 
           {showTextEditor ? (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-              <div className="pointer-events-auto w-full max-w-lg rounded-2xl bg-white/65 p-4 backdrop-blur shadow-sm ring-1 ring-black/5">
-                <input
-                  value={headline}
-                  onChange={(e) => onChangeText({ headline: e.target.value })}
-                  placeholder="Cover / back cover headline"
-                  className="w-full bg-transparent text-center text-2xl font-semibold tracking-tight text-slate-900 outline-none placeholder:text-slate-400"
-                />
-                <textarea
-                  value={subheadline}
-                  onChange={(e) => onChangeText({ subheadline: e.target.value })}
-                  placeholder="Optional subtitle or date"
-                  rows={2}
-                  className="mt-2 w-full resize-none bg-transparent text-center text-sm text-slate-700 outline-none placeholder:text-slate-400"
-                />
+            isWedding && isWeddingCoverPage ? (
+              <div className="pointer-events-none absolute inset-0">
+                <div
+                  className="pointer-events-auto absolute"
+                  style={{
+                    left: '52%',
+                    top: '22%',
+                    width: '44%',
+                    textAlign: style.align ?? 'left',
+                    fontFamily: style.fontFamily ?? 'Cinzel',
+                  }}
+                >
+                  <textarea
+                    value={headline}
+                    onChange={(e) => onChangeText({ headline: e.target.value })}
+                    placeholder="WEDDING&#10;THEME"
+                    rows={2}
+                    className="w-full resize-none bg-transparent tracking-tight outline-none"
+                    style={{
+                      fontFamily: style.fontFamily ?? 'Cinzel',
+                      fontSize: style.headlineSize ?? 54,
+                      fontWeight: style.headlineWeight ?? 800,
+                      color: style.headlineColor ?? '#b7791f',
+                      lineHeight: 1.05,
+                    }}
+                  />
+                  <input
+                    value={subheadline}
+                    onChange={(e) => onChangeText({ subheadline: e.target.value })}
+                    placeholder="This is a sample text that you can edit."
+                    className="mt-2 w-full bg-transparent outline-none"
+                    style={{
+                      fontFamily: 'Poppins',
+                      fontSize: style.subheadlineSize ?? 13,
+                      fontWeight: style.subheadlineWeight ?? 500,
+                      color: style.subheadlineColor ?? '#475569',
+                    }}
+                  />
+                  <textarea
+                    value={body}
+                    onChange={(e) => onChangeText({ body: e.target.value })}
+                    placeholder="You can change font (size, color, name), or apply any desired formatting."
+                    rows={3}
+                    className="mt-2 w-full resize-none bg-transparent outline-none"
+                    style={{
+                      fontFamily: 'Poppins',
+                      fontSize: style.bodySize ?? 12,
+                      fontWeight: style.bodyWeight ?? 400,
+                      color: style.bodyColor ?? '#475569',
+                      lineHeight: 1.35,
+                    }}
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+                <div className="pointer-events-auto w-full max-w-lg rounded-2xl bg-white/65 p-4 backdrop-blur shadow-sm ring-1 ring-black/5">
+                  <input
+                    value={headline}
+                    onChange={(e) => onChangeText({ headline: e.target.value })}
+                    placeholder="Cover / back cover headline"
+                    className="w-full bg-transparent text-center text-2xl font-semibold tracking-tight text-slate-900 outline-none placeholder:text-slate-400"
+                  />
+                  <textarea
+                    value={subheadline}
+                    onChange={(e) => onChangeText({ subheadline: e.target.value })}
+                    placeholder="Optional subtitle or date"
+                    rows={2}
+                    className="mt-2 w-full resize-none bg-transparent text-center text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                  />
+                </div>
+              </div>
+            )
           ) : null}
         </div>
       </div>
     </div>
   )
 }
-

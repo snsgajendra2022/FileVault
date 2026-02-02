@@ -30,7 +30,30 @@ type PhotoBookState = {
   setSpreadLayout: (spreadIndex: number, layoutId: string) => void
   setSpreadText: (
     spreadIndex: number,
-    patch: { headline?: string; subheadline?: string },
+    patch: {
+      headline?: string
+      subheadline?: string
+      body?: string
+      style?: {
+        fontFamily?: string
+        align?: 'left' | 'center' | 'right'
+        headlineSize?: number
+        headlineWeight?: number
+        headlineColor?: string
+        subheadlineSize?: number
+        subheadlineWeight?: number
+        subheadlineColor?: string
+        bodySize?: number
+        bodyWeight?: number
+        bodyColor?: string
+        hideBanner?: boolean
+      }
+    },
+  ) => void
+  setSlotImageAdjust: (
+    spreadIndex: number,
+    slotId: string,
+    patch: Partial<{ scale: number; x: number; y: number }>,
   ) => void
   assignPhotoToSlot: (spreadIndex: number, slotId: string, photoId: string) => void
   clearSlot: (spreadIndex: number, slotId: string) => void
@@ -191,7 +214,27 @@ export const usePhotoBookStore = create<PhotoBookState>()(
             if (idx !== spreadIndex) return sp
             return {
               ...sp,
-              text: { ...(sp.text ?? {}), ...patch },
+              text: {
+                ...(sp.text ?? {}),
+                ...patch,
+                style: patch.style ? { ...(sp.text?.style ?? {}), ...patch.style } : sp.text?.style,
+              },
+            }
+          })
+          return { album: { ...s.album, spreads, updatedAt: new Date().toISOString() } }
+        }),
+
+      setSlotImageAdjust: (spreadIndex, slotId, patch) =>
+        set((s) => {
+          if (!s.album) return s
+          const spreads = s.album.spreads.map((sp, idx) => {
+            if (idx !== spreadIndex) return sp
+            return {
+              ...sp,
+              slotImageAdjust: {
+                ...(sp.slotImageAdjust ?? {}),
+                [slotId]: { ...(sp.slotImageAdjust?.[slotId] ?? {}), ...patch },
+              },
             }
           })
           return { album: { ...s.album, spreads, updatedAt: new Date().toISOString() } }

@@ -24,8 +24,19 @@ export function PhotoBookEditorPage() {
   const clearSlot = usePhotoBookStore((s) => s.clearSlot)
   const setSpreadLayout = usePhotoBookStore((s) => s.setSpreadLayout)
   const setSpreadText = usePhotoBookStore((s) => s.setSpreadText)
+  const setSlotImageAdjust = usePhotoBookStore((s) => (s as any).setSlotImageAdjust)
 
   const photosById = useMemo(() => Object.fromEntries(photos.map((p) => [p.id, p])), [photos])
+
+  // Bridge for Slot crop tool inside SpreadCanvas (keeps changes persisted in store).
+  // This avoids threading more props through the app right now.
+  ;(window as any).__pb_setSlotImageAdjust = (spreadIndex: number, slotId: string, patch: any) => {
+    try {
+      setSlotImageAdjust?.(spreadIndex, slotId, patch)
+    } catch (_) {
+      // ignore
+    }
+  }
 
   if (!album) {
     return (

@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import React, { useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { SpreadPreviewCanvas } from '../../components/PhotoBook/SpreadPreviewCanvas'
 import { usePhotoBookStore } from '../../store/photobookStore'
@@ -10,6 +10,10 @@ export function PhotoBookPreviewPage() {
   const photos = usePhotoBookStore((s) => s.photos)
   const exportJson = usePhotoBookStore((s) => s.exportJson)
   const importJson = usePhotoBookStore((s) => s.importJson)
+  const setSlotImageAdjust = usePhotoBookStore((s) => (s as any).setSlotImageAdjust ?? (s as any).setSlotImageAdjust)
+  const clearSlot = usePhotoBookStore((s) => s.clearSlot)
+
+  const [editMode, setEditMode] = React.useState(false)
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -37,6 +41,7 @@ export function PhotoBookPreviewPage() {
     <div className="space-y-5">
       <style>{`
         @media print {
+          * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           header { display: none !important; }
           .no-print { display: none !important; }
           main { padding: 0 !important; }
@@ -54,6 +59,16 @@ export function PhotoBookPreviewPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className={[
+                'rounded-xl px-4 py-2 text-sm font-semibold shadow-sm',
+                editMode ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+              ].join(' ')}
+              onClick={() => setEditMode((v) => !v)}
+            >
+              {editMode ? 'Editing: ON' : 'Edit in preview'}
+            </button>
             <button
               type="button"
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
@@ -101,6 +116,11 @@ export function PhotoBookPreviewPage() {
           <div className="mt-1 text-xs text-slate-600">
             Template: {template?.name ?? album.templateId} · Spreads: {album.spreads.length}
           </div>
+          {editMode ? (
+            <div className="mt-2 text-xs text-slate-600">
+              Tip: Click a photo to select it, then drag to crop/position and use the zoom slider.
+            </div>
+          ) : null}
         </div>
 
         <div className="space-y-4">
@@ -118,6 +138,9 @@ export function PhotoBookPreviewPage() {
                     spread={sp}
                     photosById={photosById}
                     showText={isTextPage}
+                    editable={editMode}
+                    onSetSlotImageAdjust={(slotId, patch) => setSlotImageAdjust?.(idx, slotId, patch)}
+                    onClearSlot={(slotId) => clearSlot(idx, slotId)}
                   />
                 ) : (
                   <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">

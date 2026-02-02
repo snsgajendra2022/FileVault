@@ -44,7 +44,8 @@ export type PhotoBookSpreadLayout = {
   rows: number
   slots: PhotoBookSlotDef[]
   style?: {
-    background?: 'default' | 'party'
+    background?: 'default' | 'party' | 'wedding'
+    variant?: 'default' | 'cover'
   }
   decorations?: PhotoBookDecoration[]
 }
@@ -62,9 +63,36 @@ export type PhotoBookSpread = {
   id: string
   layoutId: string
   slotPhotoIds: Record<string, string | undefined>
+  /**
+   * Per-slot crop/position settings (for in-frame image adjustment).
+   * x/y are percentage offsets relative to the slot box.
+   */
+  slotImageAdjust?: Record<
+    string,
+    {
+      scale?: number
+      x?: number
+      y?: number
+    }
+  >
   text?: {
     headline?: string
     subheadline?: string
+    body?: string
+    style?: {
+      fontFamily?: string
+      align?: 'left' | 'center' | 'right'
+      headlineSize?: number
+      headlineWeight?: number
+      headlineColor?: string
+      subheadlineSize?: number
+      subheadlineWeight?: number
+      subheadlineColor?: string
+      bodySize?: number
+      bodyWeight?: number
+      bodyColor?: string
+      hideBanner?: boolean
+    }
   }
 }
 
