@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { 
@@ -17,7 +17,8 @@ import {
   FaUserPlus,
   FaSitemap,
   FaQrcode,
-  FaCrown
+  FaCrown,
+  FaPalette
 } from 'react-icons/fa';
 
 interface NavigationProps {
@@ -53,6 +54,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
 
   const navigationItems = {'items':[
     { name: 'Dashboard', href: '/studio/dashboard', icon: FaHome, enabled: true },
+    { name: 'Photo Themes', href: '/photo-themes', icon: FaPalette, enabled: true },
     { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
     { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
     { name: 'Plans', href: '/plans', icon: FaPlus, enabled: true },
@@ -66,6 +68,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
   // const studioNavigationItems = [];
   const studioNavigationItems = {'items':[
     { name: 'Studio Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
+    { name: 'Photo Themes', href: '/photo-themes', icon: FaPalette, enabled: true },
     { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
     { name: 'My Images', href: '/client-images', icon: FaImages, enabled: true },
     { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
@@ -311,3 +314,7 @@ console.log( studioNavigationItems.active === true && 2 );
 };
 
 export default Navigation;
+
+
+
+

@@ -23,6 +23,9 @@ import ServicesPage from './pages/ServicesPage';
 import ProfilePage from './pages/ProfilePage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import DashboardPage from './pages/DashboardPage';
+import PhotoThemesPage from './pages/PhotoThemesPage';
+import PhotoThemeCategoryPage from './pages/PhotoThemeCategoryPage';
+import PhotoThemeAlbumBuilderPage from './pages/PhotoThemeAlbumBuilderPage';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
 import AcceptInvitationPage from './pages/AcceptInvitationPage';
@@ -134,6 +137,9 @@ const AppRoutes = () => {
           isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />
         } />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="photo-themes" element={<PhotoThemesPage />} />
+        <Route path="photo-themes/:categorySlug" element={<PhotoThemeCategoryPage />} />
+        <Route path="photo-themes/:categorySlug/album" element={<PhotoThemeAlbumBuilderPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="change-password" element={<ChangePasswordPage />} />
         <Route path="services" element={<ServicesPage />} />

@@ -339,7 +339,10 @@ export function getPhotoBookLayout(template: PhotoBookTemplate, layoutId: string
   return template.layouts.find((l) => l.id === layoutId) ?? null
 }
 
-export function createPhotoBookAlbumFromTemplate(templateId: string): PhotoBookAlbum {
+export function createPhotoBookAlbumFromTemplate(
+  templateId: string,
+  opts?: { category?: string; description?: string },
+): PhotoBookAlbum {
   const template = getPhotoBookTemplate(templateId)
   if (!template) throw new Error(`Unknown templateId: ${templateId}`)
 
@@ -351,6 +354,8 @@ export function createPhotoBookAlbumFromTemplate(templateId: string): PhotoBookA
     title: 'My Photo Book',
     createdAt: now,
     updatedAt: now,
+    category: opts?.category,
+    description: opts?.description,
     spreads: template.defaultSpreads.map((s) => {
       const spreadLayout = getPhotoBookLayout(template, s.layoutId)
       if (!spreadLayout) throw new Error(`Missing layout: ${s.layoutId}`)

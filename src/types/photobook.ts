@@ -103,5 +103,10 @@ export type PhotoBookAlbum = {
   createdAt: string
   updatedAt: string
   spreads: PhotoBookSpread[]
+  /**
+   * Optional theme/category metadata for higher-level flows (e.g. Photo Themes).
+   */
+  category?: string
+  description?: string
 }
 

@@ -16,8 +16,9 @@ type PhotoBookState = {
   selectedPhotoId: string | null
   selectedSpreadIndex: number
 
-  startNewAlbum: (templateId: string) => void
+  startNewAlbum: (templateId: string, opts?: { category?: string; description?: string }) => void
   setTitle: (title: string) => void
+  setDescription: (description: string) => void
   addPhotos: (files: FileList | File[]) => Promise<void>
   addPhotoDataUrls: (
     items: Array<{ name: string; dataUrl: string }>,
@@ -87,15 +88,23 @@ export const usePhotoBookStore = create<PhotoBookState>()(
       selectedPhotoId: null,
       selectedSpreadIndex: 0,
 
-      startNewAlbum: (templateId) => {
+      startNewAlbum: (templateId, opts) => {
         set({
-          album: createPhotoBookAlbumFromTemplate(templateId),
+          album: createPhotoBookAlbumFromTemplate(templateId, opts),
           photos: [],
           photoIndex: [],
           selectedPhotoId: null,
           selectedSpreadIndex: 0,
         })
       },
+
+      setDescription: (description) =>
+        set((s) => {
+          if (!s.album) return s
+          return {
+            album: { ...s.album, description, updatedAt: new Date().toISOString() },
+          }
+        }),
 
       setTitle: (title) =>
         set((s) => {
