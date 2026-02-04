@@ -112,6 +112,20 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   }, [basePages, pageCount]);
 
   const [pageImages, setPageImages] = React.useState<Record<number, PageImageState>>({});
+  
+  // Color theme options for Anniversary theme
+  const anniversaryColorThemes = [
+    { id: 'red-pink', name: 'Red & Pink', colors: ['rgba(220, 38, 38, 0.18)', 'rgba(236, 72, 153, 0.15)', 'rgba(219, 39, 119, 0.12)', 'rgba(251, 113, 133, 0.15)', 'rgba(239, 68, 68, 0.18)'], accent: ['rgba(251, 146, 60, 0.1)', 'rgba(244, 114, 182, 0.1)'], base: '#fef2f2', heartColors: ['text-red-400', 'text-pink-400', 'text-red-500', 'text-pink-500'] },
+    { id: 'purple-violet', name: 'Purple & Violet', colors: ['rgba(139, 92, 246, 0.18)', 'rgba(168, 85, 247, 0.15)', 'rgba(147, 51, 234, 0.12)', 'rgba(192, 132, 252, 0.15)', 'rgba(124, 58, 237, 0.18)'], accent: ['rgba(196, 181, 253, 0.1)', 'rgba(221, 214, 254, 0.1)'], base: '#faf5ff', heartColors: ['text-purple-400', 'text-violet-400', 'text-purple-500', 'text-violet-500'] },
+    { id: 'rose-gold', name: 'Rose Gold', colors: ['rgba(225, 29, 72, 0.18)', 'rgba(251, 146, 60, 0.15)', 'rgba(244, 63, 94, 0.12)', 'rgba(252, 165, 165, 0.15)', 'rgba(217, 119, 6, 0.18)'], accent: ['rgba(253, 186, 116, 0.1)', 'rgba(254, 215, 170, 0.1)'], base: '#fff1f2', heartColors: ['text-rose-400', 'text-amber-400', 'text-rose-500', 'text-orange-400'] },
+    { id: 'coral-peach', name: 'Coral & Peach', colors: ['rgba(249, 115, 22, 0.18)', 'rgba(251, 146, 60, 0.15)', 'rgba(234, 88, 12, 0.12)', 'rgba(253, 186, 116, 0.15)', 'rgba(239, 68, 68, 0.18)'], accent: ['rgba(254, 215, 170, 0.1)', 'rgba(255, 237, 213, 0.1)'], base: '#fff7ed', heartColors: ['text-orange-400', 'text-amber-400', 'text-orange-500', 'text-red-400'] },
+    { id: 'lavender', name: 'Lavender', colors: ['rgba(167, 139, 250, 0.18)', 'rgba(196, 181, 253, 0.15)', 'rgba(139, 92, 246, 0.12)', 'rgba(221, 214, 254, 0.15)', 'rgba(124, 58, 237, 0.18)'], accent: ['rgba(237, 233, 254, 0.1)', 'rgba(243, 240, 253, 0.1)'], base: '#f5f3ff', heartColors: ['text-purple-300', 'text-violet-300', 'text-purple-400', 'text-indigo-400'] },
+    { id: 'deep-pink', name: 'Deep Pink', colors: ['rgba(219, 39, 119, 0.18)', 'rgba(236, 72, 153, 0.15)', 'rgba(190, 24, 93, 0.12)', 'rgba(244, 114, 182, 0.15)', 'rgba(157, 23, 77, 0.18)'], accent: ['rgba(249, 168, 212, 0.1)', 'rgba(252, 211, 243, 0.1)'], base: '#fdf2f8', heartColors: ['text-pink-500', 'text-rose-500', 'text-pink-600', 'text-rose-600'] },
+    { id: 'burgundy', name: 'Burgundy', colors: ['rgba(185, 28, 28, 0.18)', 'rgba(220, 38, 38, 0.15)', 'rgba(153, 27, 27, 0.12)', 'rgba(239, 68, 68, 0.15)', 'rgba(127, 29, 29, 0.18)'], accent: ['rgba(254, 202, 202, 0.1)', 'rgba(252, 165, 165, 0.1)'], base: '#fef2f2', heartColors: ['text-red-600', 'text-red-500', 'text-red-700', 'text-red-400'] },
+    { id: 'blush', name: 'Blush', colors: ['rgba(251, 113, 133, 0.18)', 'rgba(244, 114, 182, 0.15)', 'rgba(236, 72, 153, 0.12)', 'rgba(249, 168, 212, 0.15)', 'rgba(219, 39, 119, 0.18)'], accent: ['rgba(252, 211, 243, 0.1)', 'rgba(253, 224, 71, 0.08)'], base: '#fdf2f8', heartColors: ['text-pink-300', 'text-rose-300', 'text-pink-400', 'text-rose-400'] },
+  ];
+  
+  const [selectedColorTheme, setSelectedColorTheme] = React.useState<string>('red-pink');
 
   const handleImageChange = async (pageIndex: number, file: File | null) => {
     if (!file) return;
@@ -121,6 +135,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       [pageIndex]: { imageDataUrl: dataUrl },
     }));
   };
+  
+  const selectedTheme = anniversaryColorThemes.find(t => t.id === selectedColorTheme) || anniversaryColorThemes[0];
 
   // Pre‑fill cover & last page images from previous step (if not already chosen here)
   React.useEffect(() => {
@@ -223,19 +239,38 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               Select photos for each page. Only these pages will appear in print/PDF.
             </span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-gray-600">
-            <span className="font-semibold">Total pages:</span>
-            <select
-              className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-gray-800"
-              value={pageCount}
-              onChange={(e) => setPageCount(Number(e.target.value))}
-            >
-              {[6, 7, 8, 9, 10, 11, 12].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center gap-3 text-xs text-gray-600">
+            {/* Color Theme Dropdown - Only for Anniversary theme */}
+            {categorySlug === 'anniversary' && (
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">Background Color:</span>
+                <select
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  value={selectedColorTheme}
+                  onChange={(e) => setSelectedColorTheme(e.target.value)}
+                >
+                  {anniversaryColorThemes.map((theme) => (
+                    <option key={theme.id} value={theme.id}>
+                      {theme.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">Total pages:</span>
+              <select
+                className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-gray-800"
+                value={pageCount}
+                onChange={(e) => setPageCount(Number(e.target.value))}
+              >
+                {[6, 7, 8, 9, 10, 11, 12].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -267,93 +302,92 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   <div className="text-xs text-gray-400 print:text-gray-500">#{page.index + 1}</div>
                 </div>
 
+
                 <div 
                   className="relative w-full aspect-[16/9] rounded-xl border border-dashed border-gray-300 flex items-center justify-center overflow-hidden"
                   style={{
-                    backgroundColor: categorySlug === 'anniversary' && 
-                                    (page.type === 'cover' || page.type === 'last')
-                      ? '#fef2f2' // Soft pink/red tint as base
+                    backgroundColor: categorySlug === 'anniversary'
+                      ? selectedTheme.base
                       : '#ffffff',
                   }}
                 >
-                  {/* Romantic couple-themed background with hearts for Anniversary theme */}
-                  {categorySlug === 'anniversary' && 
-                   (page.type === 'cover' || page.type === 'last') && (
+                  {/* Romantic couple-themed background with hearts for Anniversary theme - ALL pages */}
+                  {categorySlug === 'anniversary' && (
                     <>
-                      {/* Gradient background */}
+                      {/* Gradient background - uses selected color theme */}
                       <div 
                         className="anniversary-romantic-bg absolute inset-0 z-0 rounded-xl"
                         style={{
                           background: `linear-gradient(135deg, 
-                            rgba(220, 38, 38, 0.18) 0%, 
-                            rgba(236, 72, 153, 0.15) 25%, 
-                            rgba(219, 39, 119, 0.12) 50%, 
-                            rgba(251, 113, 133, 0.15) 75%, 
-                            rgba(239, 68, 68, 0.18) 100%
+                            ${selectedTheme.colors[0]} 0%, 
+                            ${selectedTheme.colors[1]} 25%, 
+                            ${selectedTheme.colors[2]} 50%, 
+                            ${selectedTheme.colors[3]} 75%, 
+                            ${selectedTheme.colors[4]} 100%
                           ),
-                          radial-gradient(circle at 20% 30%, rgba(251, 146, 60, 0.1) 0%, transparent 50%),
-                          radial-gradient(circle at 80% 70%, rgba(244, 114, 182, 0.1) 0%, transparent 50%)`,
+                          radial-gradient(circle at 20% 30%, ${selectedTheme.accent[0]} 0%, transparent 50%),
+                          radial-gradient(circle at 80% 70%, ${selectedTheme.accent[1]} 0%, transparent 50%)`,
                         }}
                       />
                       
-                      {/* Decorative hearts pattern */}
+                      {/* Decorative hearts pattern - uses selected theme colors */}
                       <div className="absolute inset-0 z-0 rounded-xl overflow-hidden">
                         <div 
-                          className="absolute text-red-400 opacity-20" 
+                          className={`absolute ${selectedTheme.heartColors[0]} opacity-20`}
                           style={{ top: '8%', left: '10%', transform: 'rotate(-15deg)' }}
                         >
                           <FaHeart size={24} />
                         </div>
                         <div 
-                          className="absolute text-pink-400 opacity-25" 
+                          className={`absolute ${selectedTheme.heartColors[1]} opacity-25`}
                           style={{ top: '15%', right: '12%', transform: 'rotate(20deg)' }}
                         >
                           <FaHeart size={20} />
                         </div>
                         <div 
-                          className="absolute text-red-500 opacity-20" 
+                          className={`absolute ${selectedTheme.heartColors[2]} opacity-20`}
                           style={{ top: '25%', left: '5%', transform: 'rotate(-10deg)' }}
                         >
                           <FaHeart size={18} />
                         </div>
                         <div 
-                          className="absolute text-pink-500 opacity-22" 
+                          className={`absolute ${selectedTheme.heartColors[3]} opacity-22`}
                           style={{ bottom: '20%', right: '8%', transform: 'rotate(15deg)' }}
                         >
                           <FaHeart size={22} />
                         </div>
                         <div 
-                          className="absolute text-red-400 opacity-18" 
+                          className={`absolute ${selectedTheme.heartColors[0]} opacity-18`}
                           style={{ bottom: '12%', left: '15%', transform: 'rotate(-25deg)' }}
                         >
                           <FaHeart size={19} />
                         </div>
                         <div 
-                          className="absolute text-pink-400 opacity-20" 
+                          className={`absolute ${selectedTheme.heartColors[1]} opacity-20`}
                           style={{ bottom: '30%', right: '20%', transform: 'rotate(10deg)' }}
                         >
                           <FaHeart size={16} />
                         </div>
                         <div 
-                          className="absolute text-red-500 opacity-15" 
+                          className={`absolute ${selectedTheme.heartColors[2]} opacity-15`}
                           style={{ top: '45%', left: '3%', transform: 'rotate(-18deg)' }}
                         >
                           <FaHeart size={21} />
                         </div>
                         <div 
-                          className="absolute text-pink-500 opacity-20" 
+                          className={`absolute ${selectedTheme.heartColors[3]} opacity-20`}
                           style={{ top: '55%', right: '5%', transform: 'rotate(22deg)' }}
                         >
                           <FaHeart size={17} />
                         </div>
                         <div 
-                          className="absolute text-red-400 opacity-18" 
+                          className={`absolute ${selectedTheme.heartColors[0]} opacity-18`}
                           style={{ top: '70%', left: '12%', transform: 'rotate(-12deg)' }}
                         >
                           <FaHeart size={19} />
                         </div>
                         <div 
-                          className="absolute text-pink-400 opacity-22" 
+                          className={`absolute ${selectedTheme.heartColors[1]} opacity-22`}
                           style={{ bottom: '45%', right: '15%', transform: 'rotate(18deg)' }}
                         >
                           <FaHeart size={20} />
@@ -370,15 +404,15 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                       style={{
                         transform: `scale(${textState?.style?.imageScale ?? 1})`,
                         transformOrigin: 'center center',
-                        maxWidth: categorySlug === 'anniversary' && (page.type === 'cover' || page.type === 'last') 
+                        maxWidth: categorySlug === 'anniversary' 
                           ? '85%' 
                           : '100%',
-                        maxHeight: categorySlug === 'anniversary' && (page.type === 'cover' || page.type === 'last') 
+                        maxHeight: categorySlug === 'anniversary' 
                           ? '85%' 
                           : '100%',
                       }}
                     />
-                  ) : categorySlug === 'anniversary' && (page.type === 'cover' || page.type === 'last') ? (
+                  ) : categorySlug === 'anniversary' ? (
                     <div className="relative z-10 w-full h-full flex items-center justify-center">
                       <span className="relative z-10 text-sm text-red-600 font-medium text-center px-4">
                         Select a romantic photo to see it beautifully framed with hearts
