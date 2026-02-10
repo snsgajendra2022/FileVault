@@ -67,6 +67,7 @@ class ImageService {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      timeout: 0,
     });
   
     return response.data ||response;

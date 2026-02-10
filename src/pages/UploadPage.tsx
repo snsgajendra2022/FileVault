@@ -29,6 +29,8 @@ interface Album {
   [key: string]: any;
 }
 
+const MAX_SELECTED_IMAGES = 100;
+
 const UploadPage = () => {
   const { user } = useAuth();
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
@@ -247,8 +249,19 @@ const UploadPage = () => {
     }
 
     if (validFiles.length > 0) {
-      setUploadFiles(prev => [...prev, ...validFiles]);
-      toast.success(`${validFiles.length} file(s) added to upload queue`);
+      setUploadFiles(prev => {
+        const remaining = Math.max(0, MAX_SELECTED_IMAGES - prev.length);
+        const toAdd = validFiles.slice(0, remaining);
+        if (validFiles.length > remaining && remaining > 0) {
+          toast.error(`Maximum ${MAX_SELECTED_IMAGES} images allowed. Only ${toAdd.length} of ${validFiles.length} added.`);
+        } else if (validFiles.length > remaining && remaining === 0) {
+          toast.error(`Maximum ${MAX_SELECTED_IMAGES} images allowed. Remove some files to add more.`);
+        }
+        if (toAdd.length > 0) {
+          toast.success(`${toAdd.length} file(s) added to upload queue`);
+        }
+        return [...prev, ...toAdd];
+      });
     }
   }, [userProfile, canUpload, isFileTypeAllowed, isFileSizeAllowed, hasStorageSpace]);
 
@@ -275,7 +288,8 @@ const UploadPage = () => {
     onDrop,
     accept: getAcceptTypes(),
     multiple: true,
-    disabled: !canUpload()
+    maxFiles: MAX_SELECTED_IMAGES,
+    disabled: !canUpload() || uploadFiles.length >= MAX_SELECTED_IMAGES
   });
 
   const removeFile = (id: string) => {
@@ -805,7 +819,7 @@ const UploadPage = () => {
               <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
                 <span className="w-3 h-3 bg-purple-400 rounded-full mr-3 animate-pulse"></span>
                 <span className="font-medium text-gray-700">
-                  Unlimited (Bulk uploads supported)
+                  Max {MAX_SELECTED_IMAGES} images per selection
                 </span>
               </span>
               <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
@@ -833,7 +847,7 @@ const UploadPage = () => {
                     Files to Upload
                   </h2>
                   <p className="text-base text-gray-600">
-                    {uploadFiles.length} file{uploadFiles.length !== 1 ? 's' : ''} selected
+                    {uploadFiles.length} file{uploadFiles.length !== 1 ? 's' : ''} selected (max {MAX_SELECTED_IMAGES})
                   </p>
                 </div>
               </div>

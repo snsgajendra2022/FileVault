@@ -17,7 +17,10 @@ import {
   FaUserPlus,
   FaSitemap,
   FaQrcode,
-  FaCrown
+  FaCrown,
+  FaFolder,
+  FaShare,
+  FaRupeeSign
 } from 'react-icons/fa';
 
 interface NavigationProps {
@@ -68,12 +71,24 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
     { name: 'Studio Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
     { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
     { name: 'My Images', href: '/client-images', icon: FaImages, enabled: true },
-    { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
-    { name: 'Create Client', href: '/invitations', icon: FaUsers, enabled: true },
-    { name: 'Clients', href: '/studio/clients', icon: FaUserPlus, enabled: true },
+    { name: 'Album', href: '/studio/albums', icon: FaFolder, enabled: true },
+    { name: 'Shared Albums', href: '/studio/shared-albums', icon: FaShare, enabled: true },
+    { name: 'Select & Pay', href: '/studio/payments', icon: FaQrcode, enabled: true },
     { name: 'Clients Tree', href: '/client-tree', icon: FaSitemap, enabled: true },
-    { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
-    { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
+    { name: 'Create Client', href: '/invitations', icon:FaUserPlus , enabled: true },
+    { name: 'Clients', href: '/studio/clients', icon: FaUsers, enabled: true },
+    { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
+
+    { name: 'Payment Management', href: '/studio/payment-management', icon: FaRupeeSign, enabled: true },
+    // { name: 'Studio Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
+    // { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
+    // { name: 'My Images', href: '/client-images', icon: FaImages, enabled: true },
+    // { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
+    // { name: 'Create Client', href: '/invitations', icon: FaUsers, enabled: true },
+    // { name: 'Clients', href: '/studio/clients', icon: FaUserPlus, enabled: true },
+    // { name: 'Clients Tree', href: '/client-tree', icon: FaSitemap, enabled: true },
+    // { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
+    // { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
     // { name: 'Studio Settings', href: '/studio/settings', icon: FaCog, enabled: true },
     // { name: 'Sheet', href: 'Sheet', icon: FaCog, enabled: true },
     // { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
