@@ -37,6 +37,7 @@ export interface CloudUploadS3Response {
 
 export interface UploadResponse {
   success?: boolean;
+  id?: number | string;
   image?: ImageInfo;
   message?: string;
   cloudUploads?: {
@@ -52,25 +53,47 @@ export interface DownloadResponse {
 }
 
 class ImageService {
+  /** Upload timeout: 5 minutes per image (avoids load/errors on large batches) */
+  private readonly UPLOAD_TIMEOUT_MS = 0;
+  private readonly UPLOAD_MAX_RETRIES = 3;
+  private readonly UPLOAD_RETRY_DELAY_MS = 1500;
+
   /**
-   * Upload an image with permission validation
+   * Upload an image with permission validation.
+   * Uses long timeout and retries to avoid load/errors when uploading many images.
    */
   async uploadImage(file: File, targetUserId?: number): Promise<UploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     if (targetUserId) {
       formData.append('targetUserId', targetUserId.toString());
     }
 
-    const response = await api.post('/api/images/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      timeout: 0,
-    });
-  
-    return response.data ||response;
+    let lastError: any;
+    for (let attempt = 1; attempt <= this.UPLOAD_MAX_RETRIES; attempt++) {
+      try {
+        const response = await api.post('/api/images/upload', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          timeout: this.UPLOAD_TIMEOUT_MS,
+        });
+        return response.data || response;
+      } catch (err: any) {
+        lastError = err;
+        const isRetryable =
+          err.code === 'ECONNABORTED' ||
+          err.code === 'ERR_NETWORK' ||
+          (err.response?.status >= 500 && err.response?.status < 600);
+        if (attempt < this.UPLOAD_MAX_RETRIES && isRetryable) {
+          await new Promise((r) => setTimeout(r, this.UPLOAD_RETRY_DELAY_MS));
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastError;
   }
 
   /**
@@ -163,20 +186,35 @@ class ImageService {
   }
 
   /**
-   * Upload image to family member's account
+   * Upload image to family member's account (same timeout/retry as uploadImage)
    */
   async uploadToFamilyMember(file: File, familyMemberId: number): Promise<UploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('familyMemberId', familyMemberId.toString());
 
-    const response = await api.post('/api/images/upload-family', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-
-    return response.data;
+    let lastError: any;
+    for (let attempt = 1; attempt <= this.UPLOAD_MAX_RETRIES; attempt++) {
+      try {
+        const response = await api.post('/api/images/upload-family', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: this.UPLOAD_TIMEOUT_MS,
+        });
+        return response.data;
+      } catch (err: any) {
+        lastError = err;
+        const isRetryable =
+          err.code === 'ECONNABORTED' ||
+          err.code === 'ERR_NETWORK' ||
+          (err.response?.status >= 500 && err.response?.status < 600);
+        if (attempt < this.UPLOAD_MAX_RETRIES && isRetryable) {
+          await new Promise((r) => setTimeout(r, this.UPLOAD_RETRY_DELAY_MS));
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastError;
   }
 
   /**

@@ -1,98 +1,530 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import imageService from '../services/imageService';
-import chunkedUploadService from '../services/chunkedUploadService';
 import toast from 'react-hot-toast';
-import { FaCloudUploadAlt, FaFileImage, FaTimes, FaCheck, FaExclamationTriangle, FaLock, FaDownload, FaPlus, FaFolder } from 'react-icons/fa';
+import {
+  FaCloudUploadAlt,
+  FaFileImage,
+  FaTimes,
+  FaCheck,
+  FaExclamationTriangle,
+  FaPlus,
+  FaFolder,
+  FaClock,
+  FaRedoAlt,
+} from 'react-icons/fa';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { useQuery } from '@tanstack/react-query';
 
-interface UploadFile {
-  file: File;
+// ---------------------------------------------------------------------------
+// Persistent queue types and IndexedDB (survives refresh/navigation)
+// ---------------------------------------------------------------------------
+
+const UPLOAD_DB_NAME = 'FileVaultUploadQueue';
+const UPLOAD_DB_VERSION = 1;
+const UPLOAD_STORE_NAME = 'queue';
+
+export type QueueItemStatus = 'waiting' | 'uploading' | 'paused' | 'completed' | 'failed';
+
+export interface QueueItemMeta {
   id: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  fileKey: string; // name+size+lastModified for duplicate detection
+  status: QueueItemStatus;
   progress: number;
-  status: 'pending' | 'uploading' | 'completed' | 'error';
+  retries: number;
+  response?: unknown;
   error?: string;
   successMessage?: string;
   uploadDestination?: 'my-account' | 'family-account';
-  targetFamilyMember?: any;
-  imageId?: number | string; // Store the uploaded image ID
+  targetFamilyMember?: {
+    otherUserId: number;
+    otherUserFirstName: string;
+    otherUserLastName?: string;
+    relationshipType?: string;
+  };
+  imageId?: number | string;
+  createdAt: number;
 }
+
+export interface QueueItemStored extends QueueItemMeta {
+  blob: Blob;
+}
+
+export interface QueueItem extends QueueItemMeta {
+  file: File; // in-memory only; when restored from IDB we build from blob
+}
+
+// IndexedDB helpers
+function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(UPLOAD_DB_NAME, UPLOAD_DB_VERSION);
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => resolve(req.result);
+    req.onupgradeneeded = (e) => {
+      const db = (e.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(UPLOAD_STORE_NAME)) {
+        db.createObjectStore(UPLOAD_STORE_NAME, { keyPath: 'id' });
+      }
+    };
+  });
+}
+
+async function getAllStored(): Promise<QueueItemStored[]> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(UPLOAD_STORE_NAME, 'readonly');
+    const store = tx.objectStore(UPLOAD_STORE_NAME);
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+    tx.oncomplete = () => db.close();
+  });
+}
+
+async function putStored(item: QueueItemStored): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(UPLOAD_STORE_NAME, 'readwrite');
+    tx.objectStore(UPLOAD_STORE_NAME).put(item);
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function deleteStored(id: string): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(UPLOAD_STORE_NAME, 'readwrite');
+    tx.objectStore(UPLOAD_STORE_NAME).delete(id);
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function fileToKey(file: File): string {
+  return `${file.name}-${file.size}-${(file as File & { lastModified?: number }).lastModified ?? Date.now()}`;
+}
+
+// ---------------------------------------------------------------------------
+// Upload Manager (singleton – runs outside React, survives unmount)
+// ---------------------------------------------------------------------------
+
+const MAX_CONCURRENT = 3;
+const MAX_RETRIES = 3;
+const UPLOAD_TIMEOUT_MS = 0; // no timeout for large files
+
+type Listener = () => void;
+
+class UploadManager {
+  private items: QueueItem[] = [];
+  private isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  private listeners = new Set<Listener>();
+  private activeUploads = new Map<string, AbortController>();
+  private processing = false;
+
+  getState(): { items: QueueItem[]; isOnline: boolean } {
+    return { items: [...this.items], isOnline: this.isOnline };
+  }
+
+  subscribe(listener: Listener): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notify(): void {
+    this.listeners.forEach((l) => l());
+  }
+
+  setOnline(online: boolean): void {
+    if (this.isOnline === online) return;
+    this.isOnline = online;
+    if (!online) {
+      this.activeUploads.forEach((ac) => ac.abort());
+      this.activeUploads.clear();
+      this.items = this.items.map((it) =>
+        it.status === 'uploading' ? { ...it, status: 'paused' as const } : it
+      );
+      this.persistAll();
+    }
+    this.notify();
+    if (online) this.processQueue();
+  }
+
+  async loadFromPersisted(): Promise<void> {
+    try {
+      const stored = await getAllStored();
+      const items: QueueItem[] = stored.map((s) => ({
+        ...s,
+        file: new File([s.blob], s.fileName, { type: s.fileType }),
+      }));
+      this.items = items;
+      this.notify();
+      if (this.isOnline) this.processQueue();
+    } catch (e) {
+      console.error('[UploadManager] loadFromPersisted failed', e);
+    }
+  }
+
+  private async persistItem(item: QueueItem): Promise<void> {
+    try {
+      const blob: Blob = item.file;
+      await putStored({
+        id: item.id,
+        fileName: item.fileName,
+        fileSize: item.fileSize,
+        fileType: item.fileType,
+        fileKey: item.fileKey,
+        status: item.status,
+        progress: item.progress,
+        retries: item.retries,
+        response: item.response,
+        error: item.error,
+        successMessage: item.successMessage,
+        uploadDestination: item.uploadDestination,
+        targetFamilyMember: item.targetFamilyMember,
+        imageId: item.imageId,
+        createdAt: item.createdAt,
+        blob,
+      });
+    } catch (e) {
+      console.error('[UploadManager] persistItem failed', e);
+    }
+  }
+
+  private async persistAll(): Promise<void> {
+    for (const item of this.items) {
+      await this.persistItem(item);
+    }
+  }
+
+  async addFiles(files: File[], options?: { uploadDestination?: 'my-account' | 'family-account'; targetFamilyMember?: QueueItem['targetFamilyMember'] }): Promise<{ added: number; skipped: number }> {
+    const existingKeys = new Set(this.items.map((i) => i.fileKey));
+    let added = 0;
+    let skipped = 0;
+    for (const file of files) {
+      const fileKey = fileToKey(file);
+      if (existingKeys.has(fileKey)) {
+        skipped++;
+        continue;
+      }
+      existingKeys.add(fileKey);
+      const id = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+      const item: QueueItem = {
+        id,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type || 'application/octet-stream',
+        fileKey,
+        status: 'waiting',
+        progress: 0,
+        retries: 0,
+        uploadDestination: options?.uploadDestination ?? 'my-account',
+        targetFamilyMember: options?.targetFamilyMember,
+        createdAt: Date.now(),
+        file,
+      };
+      this.items.push(item);
+      await this.persistItem(item);
+      added++;
+    }
+    this.notify();
+    if (this.isOnline) this.processQueue();
+    return { added, skipped };
+  }
+
+  async remove(id: string): Promise<void> {
+    const ac = this.activeUploads.get(id);
+    if (ac) {
+      ac.abort();
+      this.activeUploads.delete(id);
+    }
+    this.items = this.items.filter((i) => i.id !== id);
+    await deleteStored(id);
+    this.notify();
+    this.processQueue();
+  }
+
+  async retry(id: string): Promise<void> {
+    const item = this.items.find((i) => i.id === id);
+    if (!item || (item.status !== 'failed' && item.status !== 'paused')) return;
+    const updated: QueueItem = {
+      ...item,
+      status: 'waiting',
+      retries: 0,
+      error: undefined,
+      progress: 0,
+    };
+    this.items = this.items.map((i) => (i.id === id ? updated : i));
+    await this.persistItem(updated);
+    this.notify();
+    if (this.isOnline) this.processQueue();
+  }
+
+  async updateItemMeta(id: string, patch: Partial<QueueItemMeta>): Promise<void> {
+    const idx = this.items.findIndex((i) => i.id === id);
+    if (idx === -1) return;
+    const next = { ...this.items[idx], ...patch };
+    this.items[idx] = next;
+    this.notify();
+    try {
+      await this.persistItem(next);
+    } catch (e) {
+      console.error('[UploadManager] updateItemMeta persist failed', e);
+    }
+  }
+
+  /** Remove all items that are completed or failed. Returns removed ids for cleanup (e.g. thumbnails). */
+  async clearFinished(): Promise<string[]> {
+    const toRemove = this.items.filter(
+      (i) => i.status === 'completed' || i.status === 'failed'
+    );
+    const ids = toRemove.map((i) => i.id);
+    for (const id of ids) {
+      await deleteStored(id);
+    }
+    this.items = this.items.filter(
+      (i) => i.status !== 'completed' && i.status !== 'failed'
+    );
+    this.notify();
+    return ids;
+  }
+
+  private getNextToUpload(): QueueItem | undefined {
+    return this.items.find(
+      (i) =>
+        (i.status === 'waiting' || i.status === 'paused') &&
+        !this.activeUploads.has(i.id)
+    );
+  }
+
+  private async processQueue(): Promise<void> {
+    if (!this.isOnline || this.processing) return;
+    const running = this.activeUploads.size;
+    if (running >= MAX_CONCURRENT) return;
+
+    const next = this.getNextToUpload();
+    if (!next) return;
+
+    this.processing = true;
+    const item = next;
+    const updated: QueueItem = { ...item, status: 'uploading', progress: 0 };
+    this.items = this.items.map((i) => (i.id === item.id ? updated : i));
+    this.notify();
+    await this.persistItem(updated);
+
+    const controller = new AbortController();
+    this.activeUploads.set(item.id, controller);
+
+    try {
+      await this.runOneUpload(updated, controller.signal);
+    } finally {
+      this.activeUploads.delete(item.id);
+      this.processing = false;
+      this.notify();
+      if (this.isOnline) this.processQueue();
+    }
+  }
+
+  private async runOneUpload(item: QueueItem, signal: AbortSignal): Promise<void> {
+    const update = (patch: Partial<QueueItem>) => {
+      const idx = this.items.findIndex((i) => i.id === item.id);
+      if (idx === -1) return;
+      const next = { ...this.items[idx], ...patch };
+      this.items[idx] = next;
+      this.notify();
+      this.persistItem(next).catch(() => {});
+    };
+
+    const formData = new FormData();
+    formData.append('file', item.file);
+
+    const isFamily =
+      item.uploadDestination === 'family-account' && item.targetFamilyMember;
+    const url = isFamily ? '/api/images/upload-family' : '/api/images/upload';
+    if (isFamily && item.targetFamilyMember) {
+      formData.append('familyMemberId', String(item.targetFamilyMember.otherUserId));
+    }
+
+    try {
+      const response = await api.post(url, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: UPLOAD_TIMEOUT_MS,
+        signal,
+        onUploadProgress: (ev) => {
+          if (ev.total && ev.total > 0) {
+            const pct = Math.round((ev.loaded / ev.total) * 100);
+            update({ progress: pct });
+          }
+        },
+      });
+
+      const data = response?.data ?? response;
+      const imageId = data?.id ?? data?.image?.id;
+      const message =
+        data?.message ??
+        (isFamily
+          ? `${item.fileName} uploaded to ${item.targetFamilyMember?.otherUserFirstName}'s account.`
+          : `${item.fileName} uploaded successfully.`);
+
+      update({
+        status: 'completed',
+        progress: 100,
+        response: data,
+        successMessage: message,
+        imageId,
+        error: undefined,
+      });
+    } catch (err: unknown) {
+      const isAborted =
+        err instanceof Error && err.name === 'AbortError';
+      if (isAborted) {
+        update({ status: 'paused', progress: this.items.find((i) => i.id === item.id)?.progress ?? 0 });
+        return;
+      }
+
+      const errorMessage =
+        (err as { response?: { data?: { message?: string }; status?: number }; message?: string }).response?.data?.message ??
+        (err as Error).message ??
+        'Upload failed';
+      const newRetries = item.retries + 1;
+
+      if (newRetries >= MAX_RETRIES) {
+        update({
+          status: 'failed',
+          error: errorMessage,
+          retries: newRetries,
+        });
+        return;
+      }
+
+      update({
+        status: 'waiting',
+        error: errorMessage,
+        retries: newRetries,
+        progress: 0,
+      });
+      const delay = Math.min(1000 * Math.pow(2, newRetries), 30000);
+      await new Promise((r) => setTimeout(r, delay));
+      if (this.isOnline && !signal.aborted) this.processQueue();
+    }
+  }
+}
+
+const uploadManager = new UploadManager();
+
+// ---------------------------------------------------------------------------
+// Album type (unchanged)
+// ---------------------------------------------------------------------------
 
 interface Album {
   id: number;
   name: string;
   description?: string;
   imageCount?: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
-const MAX_SELECTED_IMAGES = 100;
+// ---------------------------------------------------------------------------
+// UploadPage component
+// ---------------------------------------------------------------------------
 
 const UploadPage = () => {
   const { user } = useAuth();
-  const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+  const [queueState, setQueueState] = useState(uploadManager.getState());
+  const [familyMembers, setFamilyMembers] = useState<
+    Array<{
+      id: number;
+      otherUserId: number;
+      otherUserFirstName: string;
+      otherUserLastName?: string;
+      relationshipType?: string;
+    }>
+  >([]);
   const [showUploadOptions, setShowUploadOptions] = useState(false);
-  const [selectedFileForOptions, setSelectedFileForOptions] = useState<UploadFile | null>(null);
+  const [selectedFileForOptions, setSelectedFileForOptions] = useState<QueueItem | null>(null);
   const [selectedAlbumId, setSelectedAlbumId] = useState<number | null>(null);
   const [uploadedImageIds, setUploadedImageIds] = useState<(number | string)[]>([]);
   const [showCreateAlbumModal, setShowCreateAlbumModal] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState('');
   const [newAlbumDescription, setNewAlbumDescription] = useState('');
-  const [newAlbumPrice, setNewAlbumPrice] = useState<string>('');
-  const [newPerPhotoPrice, setNewPerPhotoPrice] = useState<string>('');
-  const [perPhotoPrice, setPerPhotoPrice] = useState<string>('');
+  const [newAlbumPrice, setNewAlbumPrice] = useState('');
+  const [perPhotoPrice, setPerPhotoPrice] = useState('');
   const [newAlbumIsPublic, setNewAlbumIsPublic] = useState(false);
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
-  const [useChunkedUpload, setUseChunkedUpload] = useState(true);
-  const [maxConcurrentUploads, setMaxConcurrentUploads] = useState(5);
-  const [isPaused, setIsPaused] = useState(false);
-  const [failedUploads, setFailedUploads] = useState<UploadFile[]>([]);
+  const thumbnailUrlsRef = useRef<Map<string, string>>(new Map());
 
-  // Fetch user profile data dynamically
   const { data: userProfile, isLoading: userLoading, error: userError } = useQuery({
     queryKey: ['userProfile'],
     queryFn: async () => {
-      const response = await api.get('/api/auth/profile');
-      return response.data;
+      const res = await api.get('/api/auth/profile');
+      return res.data;
     },
-    enabled: !!user, // Only fetch if user is authenticated
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
   });
 
-  // (Deprecated) Separate upload-permissions endpoint not used anymore; rely on profile flags
-
-  // Fetch storage usage
   const { data: storageUsage } = useQuery({
     queryKey: ['storageUsage'],
     queryFn: () => imageService.getStorageUsage(),
     enabled: !!user,
-    staleTime: 1 * 60 * 1000, // 1 minute
+    staleTime: 1 * 60 * 1000,
   });
 
-  // Fetch albums
   const { data: albumsData, refetch: refetchAlbums } = useQuery({
     queryKey: ['albums'],
     queryFn: async () => {
-      const response = await api.get('/api/albums');
-      return response.data as Album[] | { albums: Album[] };
+      const res = await api.get('/api/albums');
+      return res.data as Album[] | { albums: Album[] };
     },
     enabled: !!user,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
   const albums = useMemo(() => {
     if (!albumsData) return [];
     if (Array.isArray(albumsData)) return albumsData;
-    if (albumsData.albums) return albumsData.albums;
+    if (albumsData && typeof albumsData === 'object' && 'albums' in albumsData) return (albumsData as { albums: Album[] }).albums;
     return [];
   }, [albumsData]);
 
-  // Fetch family members on component mount
+  useEffect(() => {
+    uploadManager.loadFromPersisted();
+  }, []);
+
+  useEffect(() => {
+    const unsub = uploadManager.subscribe(() => setQueueState(uploadManager.getState()));
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    const onOnline = () => uploadManager.setOnline(true);
+    const onOffline = () => uploadManager.setOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      thumbnailUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      thumbnailUrlsRef.current.clear();
+    };
+  }, []);
+
   useEffect(() => {
     fetchFamilyMembers();
   }, []);
@@ -100,389 +532,200 @@ const UploadPage = () => {
   const fetchFamilyMembers = async () => {
     try {
       const response = await api.get('/api/simple-invitations/family-relationships');
-      // console.log('Family relationships full response:', response);
-      // console.log('Family relationships response.data:', response.data);
-      
-      // Flatten nested clients structure and filter only clients
-      const allClients: any[] = [];
-      
-      const flattenClients = (clients: any[]) => {
+      const allClients: Array<{
+        id: number;
+        otherUserId: number;
+        otherUserFirstName: string;
+        otherUserLastName?: string;
+        relationshipType?: string;
+      }> = [];
+      const flattenClients = (clients: unknown[]) => {
         if (!Array.isArray(clients)) return;
-        
-        clients.forEach((client: any) => {
-          // Only add if relation is "Client"  familyData clients
-          if (client && client.relation === "Client") {
-            const clientData = {
-              id: client.userId,
-              otherUserId: client.userId,
-              otherUserFirstName: client.name?.split(' ')[0] || client.name || '',
-              otherUserLastName: client.name?.split(' ').slice(1).join(' ') || '',
-              relationshipType: client.relation || 'Client',
-              email: client.email,
-              username: client.username
-            };
-            allClients.push(clientData);
+        clients.forEach((client: unknown) => {
+          const c = client as { relation?: string; userId?: number; name?: string; clients?: unknown[] };
+          if (c?.relation === 'Client' && c.userId != null) {
+            allClients.push({
+              id: c.userId,
+              otherUserId: c.userId,
+              otherUserFirstName: c.name?.split(' ')[0] || (c.name as string) || '',
+              otherUserLastName: (c.name as string)?.split(' ').slice(1).join(' ') || '',
+              relationshipType: c.relation || 'Client',
+            });
           }
-          
-          // Recursively process nested clients
-          if (client && client.clients && Array.isArray(client.clients) && client.clients.length > 0) {
-            flattenClients(client.clients);
-          }
+          if (c?.clients && Array.isArray(c.clients)) flattenClients(c.clients);
         });
       };
-      
-      // Handle different response structures
-      if (response && response.data) {
-        // Check if response.data.familyData.clients exists (main structure)
-        if (response.data.familyData && response.data.familyData.clients && Array.isArray(response.data.familyData.clients)) {
-          // console.log('Found clients array in response.data.familyData.clients:', response.data.familyData.clients.length);
-          flattenClients(response.data.familyData.clients);
-        }
-        // Check if response.data has clients array directly (fallback)
-        else if (response.data.clients && Array.isArray(response.data.clients)) {
-          // console.log('Found clients array in response.data.clients:', response.data.clients.length);
-          flattenClients(response.data.clients);
-        }
-        // Check if response.data itself is an array (fallback)
-        else if (Array.isArray(response.data)) {
-          // console.log('Response.data is an array:', response.data.length);
-          flattenClients(response.data);
-        }
-        // Check if response.data has a data property with clients (fallback)
-        else if (response.data.data && Array.isArray(response.data.data)) {
-          // console.log('Found clients in response.data.data:', response.data.data.length);
-          flattenClients(response.data.data);
-        }
-      }
-      
-      // console.log('Total clients found after flattening:', allClients.length);
-      // console.log('All clients (before deduplication):', allClients);
-      
-      // Deduplicate clients by userId to avoid showing the same client multiple times
-      const uniqueClients = allClients.filter((client, index, self) => 
-        index === self.findIndex((c) => c.id === client.id)
-      );
-      
-      // console.log('Unique clients after deduplication:', uniqueClients.length);
-      // console.log('Unique clients:', uniqueClients);
-      
-      if (uniqueClients.length > 0) {
-        setFamilyMembers(uniqueClients);
-        // console.log('✅ Family members set successfully:', uniqueClients.length, 'clients');
-      } else {
-        console.warn('⚠️ No clients found in response');
-        setFamilyMembers([]);
-      }
-    } catch (error: any) {
-      console.error('❌ Error fetching family members:', error);
-      console.error('Error response:', error.response?.data);
+      const data = response?.data;
+      if (data?.familyData?.clients) flattenClients(data.familyData.clients);
+      else if (Array.isArray(data?.clients)) flattenClients(data.clients);
+      else if (Array.isArray(data)) flattenClients(data);
+      else if (Array.isArray(data?.data)) flattenClients(data.data);
+      const unique = allClients.filter((c, i, a) => a.findIndex((x) => x.id === c.id) === i);
+      setFamilyMembers(unique);
+    } catch (e) {
+      console.error(e);
       setFamilyMembers([]);
     }
   };
 
-  // Permission checking functions (source of truth: user profile flags)
-  const canUpload = () => {
-    if (!userProfile) return false;
-    // Allow uploads if user has upload permission and allowed file types
-    // Removed maxFileSizeMB check to allow unlimited bulk uploads (25GB+)
-    return !!userProfile.canUploadImages && !!userProfile.allowedFileTypes;
-  };
+  const canUpload = useCallback(() => {
+    return !!(userProfile?.canUploadImages && userProfile?.allowedFileTypes);
+  }, [userProfile]);
 
-  const canViewImages = () => {
-    if (!userProfile) return false;
-    return !!userProfile.canViewImages;
-  };
+  const isFileTypeAllowed = useCallback(
+    (file: File) => {
+      if (!userProfile?.allowedFileTypes) return false;
+      const allowed = userProfile.allowedFileTypes.split(',').map((t: string) => t.trim().toLowerCase());
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      return allowed.includes(ext || '');
+    },
+    [userProfile]
+  );
 
-  const canDownloadImages = () => {
-    if (!userProfile) return false;
-    return !!userProfile.canDownloadImages;
-  };
-
-  const isFileTypeAllowed = (file: File) => {
-    if (!userProfile?.allowedFileTypes) return false;
-    const allowedTypes = userProfile.allowedFileTypes.split(',').map(t => t.trim().toLowerCase());
-    const fileExtension = file.name.split('.').pop()?.toLowerCase();
-    return allowedTypes.includes(fileExtension || '');
-  };
-
-  const isFileSizeAllowed = (file: File) => {
-    // Remove file size limits - allow unlimited file sizes for bulk uploads
-    // Chunked upload will handle large files automatically
-    return true; // Always allow, no size restrictions
-  };
-
-  const hasStorageSpace = (fileSize: number) => {
-    // Remove storage quota checks - allow unlimited bulk uploads
-    // Backend will handle storage management
-    return true; // Always allow, no storage restrictions
-  };
-
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (!canUpload()) {
-      toast.error('You do not have permission to upload files');
-      return;
+  const getAcceptTypes = useCallback(() => {
+    if (!userProfile?.allowedFileTypes) return {};
+    const allowed = userProfile.allowedFileTypes.split(',').map((t: string) => t.trim().toLowerCase());
+    const accept: Record<string, string[]> = {};
+    if (allowed.some((t: string) => ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'heic'].includes(t))) {
+      accept['image/*'] = ['.jpeg', '.jpg', '.png', '.gif', '.bmp', '.webp', '.heic'];
     }
+    if (allowed.includes('pdf')) accept['application/pdf'] = ['.pdf'];
+    if (allowed.some((t: string) => ['doc', 'docx'].includes(t))) {
+      accept['application/msword'] = ['.doc'];
+      accept['application/vnd.openxmlformats-officedocument.wordprocessingml.document'] = ['.docx'];
+    }
+    return accept;
+  }, [userProfile]);
 
-    const validFiles: UploadFile[] = [];
-    const invalidFiles: string[] = [];
-
-    acceptedFiles.forEach(file => {
-      if (!isFileTypeAllowed(file)) {
-        invalidFiles.push(`${file.name} - File type not allowed`);
+  const onDrop = useCallback(
+    async (acceptedFiles: File[]) => {
+      if (!canUpload()) {
+        toast.error('You do not have permission to upload files');
         return;
       }
-      
-      // File size and storage checks removed - allow unlimited bulk uploads
-      // Chunked upload system will handle large files automatically
-
-      validFiles.push({
-        file,
-        id: Math.random().toString(36).substr(2, 9),
-        progress: 0,
-        status: 'pending',
-        uploadDestination: 'my-account' // Default to my account
+      const invalid: string[] = [];
+      const valid: File[] = [];
+      acceptedFiles.forEach((file) => {
+        if (!isFileTypeAllowed(file)) invalid.push(`${file.name} - File type not allowed`);
+        else valid.push(file);
       });
-    });
-
-    if (invalidFiles.length > 0) {
-      toast.error(`Some files were rejected:\n${invalidFiles.join('\n')}`);
-    }
-
-    if (validFiles.length > 0) {
-      setUploadFiles(prev => {
-        const remaining = Math.max(0, MAX_SELECTED_IMAGES - prev.length);
-        const toAdd = validFiles.slice(0, remaining);
-        if (validFiles.length > remaining && remaining > 0) {
-          toast.error(`Maximum ${MAX_SELECTED_IMAGES} images allowed. Only ${toAdd.length} of ${validFiles.length} added.`);
-        } else if (validFiles.length > remaining && remaining === 0) {
-          toast.error(`Maximum ${MAX_SELECTED_IMAGES} images allowed. Remove some files to add more.`);
-        }
-        if (toAdd.length > 0) {
-          toast.success(`${toAdd.length} file(s) added to upload queue`);
-        }
-        return [...prev, ...toAdd];
-      });
-    }
-  }, [userProfile, canUpload, isFileTypeAllowed, isFileSizeAllowed, hasStorageSpace]);
-
-  // Dynamic accept types based on profile allowedFileTypes
-  const getAcceptTypes = () => {
-    if (!userProfile?.allowedFileTypes) return {};
-    const acceptTypes: any = {};
-    const allowedTypes = userProfile.allowedFileTypes.split(',').map(t => t.trim().toLowerCase());
-
-    if (allowedTypes.some(type => ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'heic'].includes(type))) {
-      acceptTypes['image/*'] = ['.jpeg', '.jpg', '.png', '.gif', '.bmp', '.webp', '.heic'];
-    }
-    if (allowedTypes.includes('pdf')) {
-      acceptTypes['application/pdf'] = ['.pdf'];
-    }
-    if (allowedTypes.some(type => ['doc', 'docx'].includes(type))) {
-      acceptTypes['application/msword'] = ['.doc'];
-      acceptTypes['application/vnd.openxmlformats-officedocument.wordprocessingml.document'] = ['.docx'];
-    }
-    return acceptTypes;
-  };
+      if (invalid.length) toast.error(`Some files were rejected:\n${invalid.join('\n')}`);
+      if (valid.length) {
+        const { added, skipped } = await uploadManager.addFiles(valid);
+        if (added) toast.success(`${added} file(s) added to upload queue`);
+        if (skipped) toast(`Skipped ${skipped} duplicate(s).`);
+      }
+    },
+    [canUpload, isFileTypeAllowed]
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: getAcceptTypes(),
     multiple: true,
-    maxFiles: MAX_SELECTED_IMAGES,
-    disabled: !canUpload() || uploadFiles.length >= MAX_SELECTED_IMAGES
+    disabled: !canUpload(),
   });
 
-  const removeFile = (id: string) => {
-    setUploadFiles(prev => prev.filter(file => file.id !== id));
+  const removeFromQueue = useCallback((id: string) => {
+    const url = thumbnailUrlsRef.current.get(id);
+    if (url) {
+      URL.revokeObjectURL(url);
+      thumbnailUrlsRef.current.delete(id);
+    }
+    uploadManager.remove(id);
+  }, []);
+
+  const retryUpload = useCallback((id: string) => {
+    uploadManager.retry(id);
+  }, []);
+
+  const getThumbnailUrl = (item: QueueItem): string | null => {
+    if (thumbnailUrlsRef.current.has(item.id)) return thumbnailUrlsRef.current.get(item.id)!;
+    if (!item.file.type.startsWith('image/')) return null;
+    const url = URL.createObjectURL(item.file);
+    thumbnailUrlsRef.current.set(item.id, url);
+    return url;
   };
 
-  const convertFileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        // Remove the data:image/jpeg;base64, prefix
-        const base64Data = base64.split(',')[1];
-        resolve(base64Data);
+  const setUploadDestination = useCallback(
+    (fileId: string, destination: 'my-account' | 'family-account', familyMember?: (typeof familyMembers)[0]) => {
+      const meta: Partial<QueueItemMeta> = {
+        uploadDestination: destination,
+        targetFamilyMember: familyMember
+          ? {
+              otherUserId: familyMember.otherUserId,
+              otherUserFirstName: familyMember.otherUserFirstName,
+              otherUserLastName: familyMember.otherUserLastName,
+              relationshipType: familyMember.relationshipType,
+            }
+          : undefined,
       };
-      reader.onerror = error => reject(error);
-    });
+      uploadManager.updateItemMeta(fileId, meta).then(() => {
+        if (selectedFileForOptions?.id === fileId) {
+          setSelectedFileForOptions(uploadManager.getState().items.find((i) => i.id === fileId) ?? null);
+        }
+        if (destination === 'my-account' || familyMember) {
+          setShowUploadOptions(false);
+          setSelectedFileForOptions(null);
+        }
+      });
+    },
+    [familyMembers, selectedFileForOptions?.id]
+  );
+
+  useEffect(() => {
+    // Sync selected file when queue updates
+    if (selectedFileForOptions) {
+      const current = queueState.items.find((i) => i.id === selectedFileForOptions.id);
+      if (current) setSelectedFileForOptions(current);
+    }
+  }, [queueState.items]);
+
+  const getUploadDestinationText = (item: QueueItem) => {
+    if (item.uploadDestination === 'family-account' && item.targetFamilyMember) {
+      return `👥 ${item.targetFamilyMember.otherUserFirstName}'s Account`;
+    }
+    if (item.uploadDestination === 'family-account') return '👥 Family Account (Select Member)';
+    return '🏠 My Account';
   };
 
-  const uploadSingleFile = async (uploadFile: UploadFile): Promise<number | string | undefined> => {
+  const openUploadOptions = (item: QueueItem) => {
+    setSelectedFileForOptions(item);
+    setShowUploadOptions(true);
+  };
+
+  const handleCreateAlbum = async () => {
+    if (!newAlbumName.trim()) {
+      toast.error('Please enter an album name');
+      return;
+    }
+    setIsCreatingAlbum(true);
     try {
-      setUploadFiles(prev => 
-        prev.map(f => 
-          f.id === uploadFile.id 
-            ? { ...f, status: 'uploading' as const }
-            : f
-        )
-      );
-
-      let uploadResponse: any;
-      let imageId: number | string | undefined;
-
-      if (uploadFile.uploadDestination === 'family-account' && uploadFile.targetFamilyMember) {
-        // Upload to family member's account
-        uploadResponse = await imageService.uploadToFamilyMember(
-          uploadFile.file, 
-          uploadFile.targetFamilyMember.otherUserId
-        );
-        // alert('uploadResponse: ' + uploadResponse);
-        if (uploadResponse?.id) {
-          imageId = uploadResponse.id;
-          console.log(`[Upload] Extracted image ID directly from response.id:`, imageId);
-          const successMsg = uploadResponse.message || `${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`;
-          setUploadFiles(prev => 
-            prev.map(f => 
-              f.id === uploadFile.id 
-                ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg, imageId }
-                : f
-            )
-          );
-          toast.success(successMsg);
-          return imageId;
-        } else if (uploadResponse?.image?.id) {
-          imageId = uploadResponse.image.id;
-          const successMsg = uploadResponse.message || `${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`;
-          setUploadFiles(prev => 
-            prev.map(f => 
-              f.id === uploadFile.id 
-                ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg, imageId }
-                : f
-            )
-          );
-          toast.success(successMsg);
-          return imageId;
-        } else if (uploadResponse?.cloudUploads) {
-          // Fallback: support multiple dynamic services (s3, b2, googleDrive, etc.)
-          const serviceKeys = Object.keys(uploadResponse.cloudUploads);
-          const firstService = serviceKeys.length > 0 ? uploadResponse.cloudUploads[serviceKeys[0]] : null;
-          if (firstService && firstService.id) {
-            imageId = firstService.id;
-            console.log(`[Upload] Extracted image ID from cloudUploads.${serviceKeys[0]}.id:`, imageId);
-            const successMsg = firstService.message || `${uploadFile.file.name} uploaded to ${uploadFile.targetFamilyMember.otherUserFirstName}'s account successfully!`;
-            setUploadFiles(prev => 
-              prev.map(f => 
-                f.id === uploadFile.id 
-                  ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg, imageId }
-                  : f
-              )
-            );
-            toast.success(successMsg);
-            return imageId;
-          }
-        }
-        throw new Error('Image ID not found in upload response');
-      } else {
-        // /api/images/upload
-   
-         uploadResponse = await imageService.uploadImage(uploadFile.file);
-      //  alert('uploadResponse: ' + uploadResponse);
- 
-        // Extract image ID directly from response - priority: response.id (direct)
-        if (uploadResponse?.id) {
-          imageId = uploadResponse.id;
-          // console.log(`[Upload] Extracted image ID directly from response.id:`, imageId);
-          const successMsg = uploadResponse.message || `${uploadFile.file.name} uploaded to your account successfully!`;
-          setUploadFiles(prev => 
-            prev.map(f => 
-              f.id === uploadFile.id 
-                ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg, imageId }
-                : f
-            )
-          );
-          toast.success(successMsg);
-          return imageId;
-        }
-        
-        // Fallback: Check response.image.id
-        if (uploadResponse?.image?.id) {
-          imageId = uploadResponse.image.id;
-          // console.log(`[Upload] Extracted image ID from response.image.id:`, imageId);
-          const successMsg = uploadResponse.message || `${uploadFile.file.name} uploaded to your account successfully!`;
-          setUploadFiles(prev => 
-            prev.map(f => 
-              f.id === uploadFile.id 
-                ? { ...f, status: 'completed' as const, progress: 100, successMessage: successMsg, imageId }
-                : f
-            )
-          );
-          toast.success(successMsg);
-          return imageId;
-        }
-        
-        throw new Error('Image ID not found in upload response');
-      }
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || error?.message || 'Upload failed');
-      setUploadFiles(prev => 
-        prev.map(f => 
-          f.id === uploadFile.id 
-            ? { 
-                ...f, 
-                status: 'error' as const, 
-                error: error.response?.data?.message || error?.message || 'Upload failed'
-              }
-            : f
-        )
-      );
-      return undefined; // Return undefined on error
+      const albumData: Record<string, unknown> = {
+        name: newAlbumName.trim(),
+        isPublic: newAlbumIsPublic,
+      };
+      if (newAlbumDescription.trim()) albumData.description = newAlbumDescription.trim();
+      const price = parseFloat(newAlbumPrice.trim());
+      if (!isNaN(price) && price > 0) albumData.perAlbumPrice = price;
+      const perPhoto = parseFloat(perPhotoPrice.trim());
+      if (!isNaN(perPhoto) && perPhoto > 0) albumData.perPhotoPrice = perPhoto;
+      const res = await api.post('/api/albums', albumData);
+      toast.success('Album created successfully!');
+      setShowCreateAlbumModal(false);
+      setNewAlbumName('');
+      setNewAlbumDescription('');
+      setNewAlbumPrice('');
+      setPerPhotoPrice('');
+      setNewAlbumIsPublic(false);
+      await refetchAlbums();
+      if (res.data?.id) setSelectedAlbumId(res.data.id);
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to create album';
+      toast.error(message);
+    } finally {
+      setIsCreatingAlbum(false);
     }
-  };
-
-  const uploadAll = async () => {
-    const pendingFiles = uploadFiles.filter(f => f.status === 'pending');
-    if (pendingFiles.length === 0) return;
-
-    setUploading(true);
-    setUploadedImageIds([]); // Reset image IDs array
-    
-    const imageIds: (number | string)[] = [];
-    
-    // Step 1: Upload all files and collect image IDs (no limit - supports bulk uploads of 25GB+)
-    const filesToUpload = pendingFiles;
-    console.log(`[Upload All] Step 1: Starting upload of ${filesToUpload.length} files to /api/images/upload`);
-    
-    for (const file of filesToUpload) {
-      const imageId = await uploadSingleFile(file);
-      if (imageId) {
-        imageIds.push(imageId);
-        console.log(`[Upload All] Collected image ID: ${imageId} (Total: ${imageIds.length})`);
-      }
-    }
-    
-    console.log(`[Upload All] Step 1 Complete: All uploads finished. Collected ${imageIds.length} image IDs:`, imageIds);
-    
-    // Update state with collected image IDs
-    setUploadedImageIds(imageIds);
-    
-    // Step 2: If album is selected and we have image IDs, add all images to album at once
-    if (selectedAlbumId && imageIds.length > 0) {
-      try {
-        console.log(`[Upload All] Step 2: Adding ${imageIds.length} images to album ${selectedAlbumId} via POST /api/albums/${selectedAlbumId}/images`);
-        console.log(`[Upload All] Request payload:`, { imageIds });
-        
-        const response = await api.post(`/api/albums/${selectedAlbumId}/images`, { 
-          imageIds: imageIds 
-        });
-        console.log(`[Upload All] Album API response:`, response.data);
-        const albumName = albums.find(a => a.id === selectedAlbumId)?.name || 'album';
-        toast.success(`${imageIds.length} image${imageIds.length !== 1 ? 's' : ''} added to album "${albumName}"`);
-      } catch (albumError: any) {
-        console.error('[Upload All] Error adding images to album:', albumError);
-        console.error('[Upload All] Error response:', albumError.response?.data);
-        toast.error(albumError.response?.data?.message || 'Images uploaded but failed to add to album');
-      }
-    } else if (selectedAlbumId && imageIds.length === 0) {
-      console.warn('[Upload All] Album selected but no image IDs collected');
-      toast.error('Images uploaded but no image IDs were collected to add to album');
-    } else if (!selectedAlbumId) {
-      console.log('[Upload All] No album selected, skipping album addition');
-    }
-    
-    setUploading(false);
   };
 
   const formatFileSize = (bytes: number) => {
@@ -493,12 +736,14 @@ const UploadPage = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getStatusIcon = (status: UploadFile['status']) => {
+  const getStatusIcon = (status: QueueItemStatus) => {
     switch (status) {
       case 'completed':
         return <FaCheck className="h-4 w-4 text-green-500" />;
-      case 'error':
+      case 'failed':
         return <FaExclamationTriangle className="h-4 w-4 text-red-500" />;
+      case 'paused':
+        return <FaClock className="h-4 w-4 text-amber-500" />;
       case 'uploading':
         return <LoadingSpinner size="sm" text="" />;
       default:
@@ -506,12 +751,14 @@ const UploadPage = () => {
     }
   };
 
-  const getStatusColor = (status: UploadFile['status']) => {
+  const getStatusColor = (status: QueueItemStatus) => {
     switch (status) {
       case 'completed':
         return 'border-green-200 bg-green-50';
-      case 'error':
+      case 'failed':
         return 'border-red-200 bg-red-50';
+      case 'paused':
+        return 'border-amber-200 bg-amber-50';
       case 'uploading':
         return 'border-blue-200 bg-blue-50';
       default:
@@ -519,113 +766,42 @@ const UploadPage = () => {
     }
   };
 
-  const openUploadOptions = (uploadFile: UploadFile) => {
-    // Get the current state of the file from uploadFiles array
-    const currentFile = uploadFiles.find(f => f.id === uploadFile.id) || uploadFile;
-    setSelectedFileForOptions(currentFile);
-    setShowUploadOptions(true);
-  };
+  const pendingCount = queueState.items.filter((i) => i.status === 'waiting' || i.status === 'paused').length;
+  const finishedCount = queueState.items.filter(
+    (i) => i.status === 'completed' || i.status === 'failed'
+  ).length;
+  const completedWithIds = queueState.items.filter((i) => i.status === 'completed' && i.imageId != null);
 
-  const setUploadDestination = (fileId: string, destination: 'my-account' | 'family-account', familyMember?: any) => {
-    setUploadFiles(prev => 
-      prev.map(f => 
-        f.id === fileId 
-          ? { 
-              ...f, 
-              uploadDestination: destination,
-              targetFamilyMember: familyMember
-            }
-          : f
-      )
+  const handleClearFinished = useCallback(async () => {
+    const removedIds = await uploadManager.clearFinished();
+    removedIds.forEach((id) => {
+      const url = thumbnailUrlsRef.current.get(id);
+      if (url) {
+        URL.revokeObjectURL(url);
+        thumbnailUrlsRef.current.delete(id);
+      }
+    });
+    toast.success(
+      removedIds.length === 1
+        ? '1 item removed from queue'
+        : `${removedIds.length} items removed from queue`
     );
-    
-    // Update the selectedFileForOptions to reflect the current state
-    if (selectedFileForOptions && selectedFileForOptions.id === fileId) {
-      setSelectedFileForOptions(prev => prev ? {
-        ...prev,
-        uploadDestination: destination,
-        targetFamilyMember: familyMember
-      } : null);
-    }
-    
-    // Only close modal if it's "my-account" or if family member is selected
-    if (destination === 'my-account' || familyMember) {
-      setShowUploadOptions(false);
-      setSelectedFileForOptions(null);
-    }
-  };
+  }, []);
 
-  const getUploadDestinationText = (uploadFile: UploadFile) => {
-    if (uploadFile.uploadDestination === 'family-account') {
-      if (uploadFile.targetFamilyMember) {
-        return `👥 ${uploadFile.targetFamilyMember.otherUserFirstName}'s Account`;
-      } else {
-        return '👥 Family Account (Select Member)';
-      }
-    }
-    return '🏠 My Account';
-  };
-
-  const handleCreateAlbum = async () => {
-    if (!newAlbumName.trim()) {
-      toast.error('Please enter an album name');
-      return;
-    }
-
-    setIsCreatingAlbum(true);
+  const addCompletedToAlbum = useCallback(async () => {
+    if (!selectedAlbumId || completedWithIds.length === 0) return;
+    const ids = completedWithIds.map((i) => i.imageId!);
     try {
-      const albumData: any = {
-        name: newAlbumName.trim(),
-      };
-      
-      // Add optional fields only if they have values
-      if (newAlbumDescription.trim()) {
-        albumData.description = newAlbumDescription.trim();
-      }
-      
-      // Add perAlbumPrice if provided
-      if (newAlbumPrice.trim()) {
-        const price = parseFloat(newAlbumPrice.trim());
-        if (!isNaN(price) && price > 0) {
-          albumData.perAlbumPrice = price;
-        }
-      }
-      
-      if (perPhotoPrice.trim()) {
-        const price = parseFloat(perPhotoPrice.trim());
-        if (!isNaN(price) && price > 0) {
-          albumData.perPhotoPrice = price;
-        }
-      }
-      
-      // Add isPublic flag
-      albumData.isPublic = newAlbumIsPublic;
-      
-      const response = await api.post('/api/albums', albumData);
-
-      toast.success('Album created successfully!');
-      setShowCreateAlbumModal(false);
-      setNewAlbumName('');
-      setNewAlbumDescription('');
-      setNewAlbumPrice('');
-      setNewAlbumIsPublic(false);
-      
-      // Refresh albums list
-      await refetchAlbums();
-      
-      // Optionally select the newly created album
-      if (response.data?.id) {
-        setSelectedAlbumId(response.data.id);
-      }
-    } catch (error: any) {
-      console.error('Error creating album:', error);
-      toast.error(error.response?.data?.message || 'Failed to create album');
-    } finally {
-      setIsCreatingAlbum(false);
+      await api.post(`/api/albums/${selectedAlbumId}/images`, { imageIds: ids });
+      const name = albums.find((a) => a.id === selectedAlbumId)?.name ?? 'album';
+      toast.success(`${ids.length} image(s) added to album "${name}"`);
+      setUploadedImageIds((prev) => [...prev, ...ids]);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to add to album';
+      toast.error(msg);
     }
-  };
+  }, [selectedAlbumId, completedWithIds, albums]);
 
-  // Show loading state while fetching user profile
   if (userLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -636,7 +812,6 @@ const UploadPage = () => {
     );
   }
 
-  // Show error state if user profile fetch failed
   if (userError) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -644,10 +819,7 @@ const UploadPage = () => {
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Profile Loading Failed</h1>
           <p className="text-gray-600 mb-4">Unable to load your profile information</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-          >
+          <button onClick={() => window.location.reload()} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
             Retry
           </button>
         </div>
@@ -655,17 +827,13 @@ const UploadPage = () => {
     );
   }
 
-  // Show permission denied if user cannot upload
   if (!canUpload()) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center max-w-md mx-auto">
           <div className="text-red-500 text-6xl mb-4">🔒</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Upload Not Available</h1>
-          <p className="text-gray-600 mb-4">
-            You don't have permission to upload files. Please contact your administrator or upgrade your account.
-          </p>
-
+          <p className="text-gray-600 mb-4">You don't have permission to upload files.</p>
         </div>
       </div>
     );
@@ -673,73 +841,57 @@ const UploadPage = () => {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="text-center">
         <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-6">
           Upload Files
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          Upload and secure your images and documents with advanced cloud storage
+          Upload and secure your images and documents. Uploads continue in the background and survive refresh.
         </p>
-        
-        {/* User Info and Permissions */}
         {userProfile && (
           <div className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 max-w-4xl mx-auto border border-blue-100">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-lg">
-                    {userProfile.accountType?.charAt(0) || 'U'}
-                  </span>
+                  <span className="text-white font-bold text-lg">{userProfile.accountType?.charAt(0) || 'U'}</span>
                 </div>
                 <h3 className="font-semibold text-gray-800">Account Type</h3>
                 <p className="text-sm text-gray-600">{userProfile.accountType || 'Unknown'}</p>
               </div>
-              
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-xl">
-                    ∞
-                  </span>
+                  <span className="text-white font-bold text-xl">∞</span>
                 </div>
-                <h3 className="font-semibold text-gray-800">Max File Size</h3>
-                <p className="text-sm text-gray-600">Unlimited - Bulk uploads supported</p>
+                <h3 className="font-semibold text-gray-800">File Size</h3>
+                <p className="text-sm text-gray-600">Unlimited</p>
               </div>
-              
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-lg">
-                    {userProfile.allowedFileTypes?.split(',').length || 0}
-                  </span>
+                  <span className="text-white font-bold text-lg">{userProfile.allowedFileTypes?.split(',').length || 0}</span>
                 </div>
                 <h3 className="font-semibold text-gray-800">Allowed Types</h3>
                 <p className="text-sm text-gray-600">{userProfile.allowedFileTypes?.toUpperCase() || 'None'}</p>
               </div>
-
-              {/* <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-lg">
-                    {storageUsage ? `${Math.round((storageUsage.used / storageUsage.total) * 100)}%` : '0%'}
-                  </span>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <span className="text-white font-bold text-sm">{queueState.isOnline ? 'Online' : 'Offline'}</span>
                 </div>
-                <h3 className="font-semibold text-gray-800">Storage Used</h3>
-                <p className="text-sm text-gray-600">
-                  {storageUsage ? `${storageUsage.used}MB / ${storageUsage.total}MB` : '0MB / 0MB'}
-                </p>
-              </div>*/}
-            </div> 
+                <h3 className="font-semibold text-gray-800">Network</h3>
+                <p className="text-sm text-gray-600">{queueState.isOnline ? 'Uploads active' : 'Paused (Offline)'}</p>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Album Selection */}
+      {/* Album selection */}
       <div className="max-w-full mx-auto bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-100">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
-          <FaFolder  className="mr-3 font-medium text-[#2731db]" />
+            <FaFolder className="mr-3 font-medium text-[#2731db]" />
             <div>
               <h3 className="text-lg font-semibold text-gray-800">Select Album (Optional)</h3>
-              <p className="text-sm text-gray-600">Uploaded images will be automatically added to the selected album</p>
+              <p className="text-sm text-gray-600">Add uploaded images to the selected album</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
@@ -752,14 +904,14 @@ const UploadPage = () => {
             </button>
             {albums.length > 0 && (
               <select
-                value={selectedAlbumId || ''}
+                value={selectedAlbumId ?? ''}
                 onChange={(e) => setSelectedAlbumId(e.target.value ? Number(e.target.value) : null)}
                 className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2731db] min-w-[200px]"
               >
-                <option value="">No Album (Upload Only)</option>
+                <option value="">No Album</option>
                 {albums.map((album) => (
                   <option key={album.id} value={album.id}>
-                    {album.name} {album.imageCount !== undefined ? `(${album.imageCount} images)` : ''}
+                    {album.name} {album.imageCount != null ? `(${album.imageCount} images)` : ''}
                   </option>
                 ))}
               </select>
@@ -769,200 +921,176 @@ const UploadPage = () => {
         {selectedAlbumId && (
           <div className="mt-3 p-3 bg-blue-100 rounded-lg border border-blue-200">
             <p className="text-sm text-blue-800">
-              ✓ Images will be added to: <strong>{albums.find(a => a.id === selectedAlbumId)?.name}</strong>
+              ✓ Images can be added to: <strong>{albums.find((a) => a.id === selectedAlbumId)?.name}</strong>
             </p>
-          </div>
-        )}
-        {albums.length === 0 && (
-          <div className="text-center py-4 text-gray-600">
-            <FaFolder className="mx-auto mb-2 text-3xl text-gray-400" />
-            <p className="text-sm">No albums available. Create your first album to organize your uploads.</p>
+            {completedWithIds.length > 0 && (
+              <button
+                onClick={addCompletedToAlbum}
+                className="mt-2 text-sm text-blue-700 underline hover:no-underline"
+              >
+                Add {completedWithIds.length} completed image(s) to this album
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      {/* Upload Area */}
-      <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-3xl shadow-2xl border border-blue-100/50 backdrop-blur-sm">
+      {/* Dropzone */}
+      <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-3xl shadow-2xl border border-blue-100/50">
         <div className="p-10">
           <div
             {...getRootProps()}
-            className={`border-3 border-dashed rounded-3xl p-16 text-center cursor-pointer transition-all duration-500 transform hover:scale-105 ${
-              isDragActive 
-                ? 'border-indigo-400 bg-gradient-to-br from-indigo-50 to-purple-50 shadow-2xl' 
-                : 'border-gray-300 hover:border-indigo-400 hover:bg-gradient-to-br from-blue-50/50 to-purple-50/50'
+            className={`border-3 border-dashed rounded-3xl p-16 text-center cursor-pointer transition-all duration-300 ${
+              isDragActive ? 'border-indigo-400 bg-gradient-to-br from-indigo-50 to-purple-50' : 'border-gray-300 hover:border-indigo-400 hover:bg-gradient-to-br from-blue-50/50 to-purple-50/50'
             }`}
           >
             <input {...getInputProps()} />
-            <div className="relative">
-              <div className="relative">
-                <FaCloudUploadAlt className="mx-auto h-20 w-20 text-indigo-500 mb-6 drop-shadow-lg" />
-                <div className="absolute -top-3 -right-3 w-8 h-8 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
-                  <span className="text-white text-sm font-bold">+</span>
-                </div>
-              </div>
-            </div>
+            <FaCloudUploadAlt className="mx-auto h-20 w-20 text-indigo-500 mb-6" />
             <p className="mt-6 text-2xl font-bold text-gray-800">
               {isDragActive ? 'Drop files here' : 'Drag & drop files here'}
             </p>
-            <p className="mt-3 text-lg text-gray-600">
-              or click to select files
-            </p>
-            <div className="mt-6 flex items-center justify-center space-x-6 text-sm flex-wrap gap-4">
+            <p className="mt-3 text-lg text-gray-600">or click to select files</p>
+            <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm">
               {userProfile?.allowedFileTypes && (
                 <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
-                  <span className="w-3 h-3 bg-green-400 rounded-full mr-3 animate-pulse"></span>
-                  <span className="font-medium text-gray-700">
-                    {userProfile.allowedFileTypes.toUpperCase()}
-                  </span>
+                  <span className="w-3 h-3 bg-green-400 rounded-full mr-3 animate-pulse" />
+                  <span className="font-medium text-gray-700">{userProfile.allowedFileTypes.toUpperCase()}</span>
                 </span>
               )}
               <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
-                <span className="w-3 h-3 bg-purple-400 rounded-full mr-3 animate-pulse"></span>
-                <span className="font-medium text-gray-700">
-                  Max {MAX_SELECTED_IMAGES} images per selection
-                </span>
+                <span className="w-3 h-3 bg-blue-400 rounded-full mr-3 animate-pulse" />
+                <span className="font-medium text-gray-700">Background upload · Survives refresh</span>
               </span>
-              <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
-                <span className="w-3 h-3 bg-blue-400 rounded-full mr-3 animate-pulse"></span>
-                <span className="font-medium text-gray-700">
-                  {storageUsage ? `${storageUsage.total - storageUsage.used}MB Available` : '0MB Available'}
+              {storageUsage && (
+                <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
+                  <span className="w-3 h-3 bg-purple-400 rounded-full mr-3 animate-pulse" />
+                  <span className="font-medium text-gray-700">{storageUsage.total - storageUsage.used}MB Available</span>
                 </span>
-              </span>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* File List */}
-      {uploadFiles.length > 0 && (
+      {/* Queue list */}
+      {queueState.items.length > 0 && (
         <div className="bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 rounded-3xl shadow-2xl border border-blue-100/50">
           <div className="px-10 py-8 border-b border-blue-200/50 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 rounded-t-3xl">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
                   <FaFileImage className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-800">
-                    Files to Upload
-                  </h2>
+                  <h2 className="text-2xl font-bold text-gray-800">Upload Queue</h2>
                   <p className="text-base text-gray-600">
-                    {uploadFiles.length} file{uploadFiles.length !== 1 ? 's' : ''} selected (max {MAX_SELECTED_IMAGES})
+                    {queueState.items.length} file(s) · {pendingCount} waiting · {queueState.isOnline ? 'Online' : 'Paused (Offline)'}
                   </p>
                 </div>
               </div>
-              <button
-                onClick={uploadAll}
-                disabled={uploading || uploadFiles.every(f => f.status !== 'pending')}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-2xl font-bold hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-xl transform hover:scale-105"
-              >
-                {uploading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Uploading...</span>
-                  </div>
-                ) : (
-                  'Upload All Files'
-                )}
-              </button>
+              {finishedCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearFinished}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                >
+                  Clear finished ({finishedCount})
+                </button>
+              )}
             </div>
           </div>
-          
           <div className="p-8">
             <div className="space-y-4">
-              {uploadFiles.map((uploadFile) => (
-                <div
-                  key={uploadFile.id}
-                  className={`border-2 rounded-xl p-6 transition-all duration-300 hover:shadow-lg ${getStatusColor(uploadFile.status)}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${
-                        uploadFile.status === 'completed' ? 'bg-gradient-to-r from-green-500 to-emerald-600' :
-                        uploadFile.status === 'error' ? 'bg-gradient-to-r from-red-500 to-pink-600' :
-                        uploadFile.status === 'uploading' ? 'bg-gradient-to-r from-blue-500 to-indigo-600' :
-                        'bg-gradient-to-r from-gray-400 to-gray-500'
-                      }`}>
-                        <FaFileImage className="h-7 w-7 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-base font-semibold text-gray-900">
-                          {uploadFile.file.name}
-                        </p>
-                        <p className="text-sm text-gray-500 flex items-center">
-                          <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
-                          {formatFileSize(uploadFile.file.size)}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {getUploadDestinationText(uploadFile)}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-4">
-                      {getStatusIcon(uploadFile.status)}
-                      
-                      {uploadFile.status === 'uploading' && (
-                        <div className="w-40 bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
-                          <div
-                            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-4 rounded-full transition-all duration-500 shadow-sm"
-                            style={{ width: `${uploadFile.progress}%` }}
-                          />
+              {queueState.items.map((item) => {
+                const thumbUrl = getThumbnailUrl(item);
+                return (
+                  <div
+                    key={item.id}
+                    className={`border-2 rounded-xl p-6 transition-all duration-300 ${getStatusColor(item.status)}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center">
+                          {thumbUrl ? (
+                            <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <FaFileImage className="h-7 w-7 text-gray-400" />
+                          )}
                         </div>
-                      )}
-                      
-                      {uploadFile.status === 'pending' && (
-                        <div className="flex items-center space-x-2">
+                        <div>
+                          <p className="text-base font-semibold text-gray-900">{item.fileName}</p>
+                          <p className="text-sm text-gray-500">{formatFileSize(item.fileSize)}</p>
+                          <p className="text-xs text-gray-400 mt-1">{getUploadDestinationText(item)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        {getStatusIcon(item.status)}
+                        {(item.status === 'uploading' || item.status === 'waiting' || item.status === 'paused') && (
+                          <div className="w-40 bg-gray-200 rounded-full h-4 overflow-hidden">
+                            <div
+                              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-4 rounded-full transition-all duration-500"
+                              style={{ width: `${item.progress}%` }}
+                            />
+                          </div>
+                        )}
+                        {item.status === 'waiting' || item.status === 'paused' ? (
                           <button
-                            onClick={() => openUploadOptions(uploadFile)}
-                            className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-700 transition-all duration-300 shadow-lg transform hover:scale-105 text-sm"
+                            onClick={() => openUploadOptions(item)}
+                            className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-700 text-sm"
                           >
                             Choose Destination
                           </button>
+                        ) : null}
+                        {item.status === 'failed' && (
                           <button
-                            onClick={() => uploadSingleFile(uploadFile)}
-                            className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 shadow-lg transform hover:scale-105"
+                            onClick={() => retryUpload(item.id)}
+                            className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-amber-600 text-sm"
                           >
-                            Upload
+                            <FaRedoAlt className="h-4 w-4" /> Retry
                           </button>
-                        </div>
-                      )}
-                      
-                      <button
-                        onClick={() => removeFile(uploadFile.id)}
-                        className="w-10 h-10 bg-gradient-to-r from-red-100 to-pink-100 hover:from-red-200 hover:to-pink-200 text-red-600 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-md"
-                      >
-                        <FaTimes className="h-5 w-5" />
-                      </button>
+                        )}
+                        <button
+                          onClick={() => removeFromQueue(item.id)}
+                          className="w-10 h-10 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl flex items-center justify-center transition-colors"
+                          aria-label="Remove from queue"
+                        >
+                          <FaTimes className="h-5 w-5" />
+                        </button>
+                      </div>
                     </div>
+                    {item.status === 'uploading' && (
+                      <p className="mt-2 text-sm text-gray-600">{item.progress}%</p>
+                    )}
+                    {item.status === 'paused' && (
+                      <p className="mt-2 text-sm text-amber-700">Paused (Offline) – will resume when back online</p>
+                    )}
+                    {item.successMessage && item.status === 'completed' && (
+                      <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-2xl">
+                        <p className="text-sm text-green-700 flex items-center font-medium">
+                          <FaCheck className="h-5 w-5 mr-3 text-green-500" />
+                          {item.successMessage}
+                        </p>
+                      </div>
+                    )}
+                    {item.error && (
+                      <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-2xl">
+                        <p className="text-sm text-red-700 flex items-center font-medium">
+                          <FaExclamationTriangle className="h-5 w-5 mr-3 text-red-500" />
+                          {item.error}
+                          {item.retries > 0 && ` (retry ${item.retries}/${MAX_RETRIES})`}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  
-                  {uploadFile.successMessage && uploadFile.status === 'completed' && (
-                    <div className="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl shadow-sm">
-                      <p className="text-sm text-green-700 flex items-center font-medium">
-                        <FaCheck className="h-5 w-5 mr-3 text-green-500" />
-                        {uploadFile.successMessage}
-                      </p>
-                    </div>
-                  )}
-                  
-                  {uploadFile.error && (
-                    <div className="mt-6 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-2xl shadow-sm">
-                      <p className="text-sm text-red-700 flex items-center font-medium">
-                        <FaExclamationTriangle className="h-5 w-5 mr-3 text-red-500" />
-                        {uploadFile.error}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
       )}
 
-      {/* Upload Stats */}
-      {uploadFiles.length > 0 && (
+      {/* Summary */}
+      {queueState.items.length > 0 && (
         <div className="bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 rounded-3xl shadow-2xl border border-blue-100/50 p-10">
           <div className="flex items-center space-x-4 mb-8">
             <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -971,53 +1099,55 @@ const UploadPage = () => {
             <h3 className="text-2xl font-bold text-gray-800">Upload Summary</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100/50 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100/50">
               <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <span className="text-white font-bold text-xl">{uploadFiles.length}</span>
+                <div className="w-16 h-16 bg-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <span className="text-white font-bold text-xl">{queueState.items.length}</span>
                 </div>
-                <p className="text-base font-semibold text-gray-800">Total Files</p>
-                <p className="text-sm text-gray-500">Selected for upload</p>
+                <p className="text-base font-semibold text-gray-800">Total in queue</p>
               </div>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100/50 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100/50">
               <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <span className="text-white font-bold text-xl">{uploadFiles.filter(f => f.status === 'completed').length}</span>
+                <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <span className="text-white font-bold text-xl">
+                    {queueState.items.filter((i) => i.status === 'completed').length}
+                  </span>
                 </div>
                 <p className="text-base font-semibold text-gray-800">Completed</p>
-                <p className="text-sm text-gray-500">Successfully uploaded</p>
               </div>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100/50 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100/50">
               <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <span className="text-white font-bold text-xl">{uploadFiles.filter(f => f.status === 'uploading').length}</span>
+                <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <span className="text-white font-bold text-xl">
+                    {queueState.items.filter((i) => i.status === 'uploading').length}
+                  </span>
                 </div>
                 <p className="text-base font-semibold text-gray-800">Uploading</p>
-                <p className="text-sm text-gray-500">Currently in progress</p>
               </div>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100/50 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100/50">
               <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <span className="text-white font-bold text-xl">{uploadFiles.filter(f => f.status === 'error').length}</span>
+                <div className="w-16 h-16 bg-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <span className="text-white font-bold text-xl">
+                    {queueState.items.filter((i) => i.status === 'failed').length}
+                  </span>
                 </div>
                 <p className="text-base font-semibold text-gray-800">Failed</p>
-                <p className="text-sm text-gray-500">Upload errors</p>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Upload Options Modal */}
+      {/* Upload options modal */}
       {showUploadOptions && selectedFileForOptions && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-900">📤 Choose Upload Destination</h3>
+                <h3 className="text-xl font-bold text-gray-900">Choose Upload Destination</h3>
                 <button
                   onClick={() => {
                     setShowUploadOptions(false);
@@ -1028,140 +1158,77 @@ const UploadPage = () => {
                   ×
                 </button>
               </div>
-
               <div className="space-y-4">
-                {/* File Info */}
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h4 className="font-semibold text-gray-900 mb-2">Selected File</h4>
                   <div className="flex items-center space-x-3">
                     <FaFileImage className="h-8 w-8 text-blue-500" />
                     <div>
-                      <p className="font-medium text-gray-900">{selectedFileForOptions.file.name}</p>
-                      <p className="text-sm text-gray-500">{formatFileSize(selectedFileForOptions.file.size)}</p>
+                      <p className="font-medium text-gray-900">{selectedFileForOptions.fileName}</p>
+                      <p className="text-sm text-gray-500">{formatFileSize(selectedFileForOptions.fileSize)}</p>
                     </div>
                   </div>
                 </div>
-
-                {/* Upload Destination Options */}
                 <div className="space-y-3">
                   <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <input
-                          type="radio"
-                          name="uploadDestination"
-                          value="my-account"
-                          checked={selectedFileForOptions.uploadDestination === 'my-account'}
-                          onChange={() => setUploadDestination(selectedFileForOptions.id, 'my-account')}
-                          className="text-blue-600"
-                        />
-                        <div>
-                          <label className="font-medium text-blue-900">🏠 Upload to MY Account</label>
-                          <p className="text-sm text-blue-700">Store in your personal account</p>
-                        </div>
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="radio"
+                        name="uploadDestination"
+                        checked={selectedFileForOptions.uploadDestination === 'my-account'}
+                        onChange={() => setUploadDestination(selectedFileForOptions.id, 'my-account')}
+                        className="text-blue-600"
+                      />
+                      <div>
+                        <label className="font-medium text-blue-900">🏠 My Account</label>
+                        <p className="text-sm text-blue-700">Store in your account</p>
                       </div>
                     </div>
                   </div>
-
-                  {/* Debug: Show clients count */}
-                  <div className="bg-gray-100 rounded-lg p-2 text-xs text-gray-600">
-                    Debug: {familyMembers.length} client(s) loaded
-                    {familyMembers.length > 0 && (
-                      <div className="mt-1 text-xs">
-                        Clients: {familyMembers.map(c => c.otherUserFirstName).join(', ')}
-                      </div>
-                    )}
-                  </div>
-
                   {familyMembers.length > 0 && (
                     <div className="bg-purple-50 rounded-lg p-4 border-2 border-purple-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <input
-                            type="radio"
-                            name="uploadDestination"
-                            value="family-account"
-                            checked={selectedFileForOptions.uploadDestination === 'family-account'}
-                            onChange={() => setUploadDestination(selectedFileForOptions.id, 'family-account')}
-                            className="text-purple-600"
-                          />
-                          <div>
-                            <label className="font-medium text-purple-900">👥 Upload to Client's Account</label>
-                            <p className="text-sm text-purple-700">Store in client's account</p>
-                          </div>
+                      <div className="flex items-center space-x-3 mb-3">
+                        <input
+                          type="radio"
+                          name="uploadDestination"
+                          checked={selectedFileForOptions.uploadDestination === 'family-account'}
+                          onChange={() => setUploadDestination(selectedFileForOptions.id, 'family-account')}
+                          className="text-purple-600"
+                        />
+                        <div>
+                          <label className="font-medium text-purple-900">👥 Client Account</label>
+                          <p className="text-sm text-purple-700">Store in client's account</p>
                         </div>
                       </div>
-                      
                       {selectedFileForOptions.uploadDestination === 'family-account' && (
                         <div className="ml-6">
                           <select
-                            value={selectedFileForOptions.targetFamilyMember?.id || ''}
+                            value={selectedFileForOptions.targetFamilyMember?.otherUserId ?? ''}
                             onChange={(e) => {
-                              const member = familyMembers.find(m => m.id === parseInt(e.target.value));
-                              setUploadDestination(selectedFileForOptions.id, 'family-account', member);
+                              const member = familyMembers.find((m) => m.otherUserId === Number(e.target.value));
+                              if (member) setUploadDestination(selectedFileForOptions.id, 'family-account', member);
                             }}
-                            className="w-full p-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            className="w-full p-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500"
                           >
                             <option value="">Select a client...</option>
                             {familyMembers.map((member) => (
-                              <option key={member.id} value={member.id}>
+                              <option key={member.id} value={member.otherUserId}>
                                 {member.otherUserFirstName} {member.otherUserLastName} ({member.relationshipType})
                               </option>
                             ))}
                           </select>
-                          
-                          {/* Show status when family-account is selected but no client chosen */}
-                          {selectedFileForOptions.uploadDestination === 'family-account' && !selectedFileForOptions.targetFamilyMember && (
-                            <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
-                              <p className="text-sm text-orange-700">
-                                ⚠️ Please select a client to complete the upload destination.
-                              </p>
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
                   )}
                 </div>
-
-                {/* Warning Notice */}
-                {selectedFileForOptions.uploadDestination === 'family-account' && (
-                  <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                    <div className="flex items-start space-x-2">
-                      <span className="text-yellow-600 text-lg">⚠️</span>
-                      <div>
-                        <h5 className="font-semibold text-yellow-800">Important Notice</h5>
-                        <p className="text-sm text-yellow-700">
-                          <strong>This image will be stored under your client's account, not yours.</strong>
-                        </p>
-                        <ul className="text-sm text-yellow-700 mt-2 space-y-1">
-                          <li>✅ You can view the image anytime</li>
-                          <li>✅ Your client will see it in their account</li>
-                          <li>❌ You cannot move it to your account later</li>
-                          <li>❌ Your client can delete it if they choose</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex justify-end space-x-3 pt-4">
+                <div className="flex justify-end pt-4">
                   <button
                     onClick={() => {
                       setShowUploadOptions(false);
                       setSelectedFileForOptions(null);
                     }}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowUploadOptions(false);
-                      setSelectedFileForOptions(null);
-                    }}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
                     Done
                   </button>
@@ -1172,9 +1239,9 @@ const UploadPage = () => {
         </div>
       )}
 
-      {/* Create Album Modal */}
+      {/* Create album modal */}
       {showCreateAlbumModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold text-gray-900 flex items-center">
@@ -1196,67 +1263,48 @@ const UploadPage = () => {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Album Name *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Album Name *</label>
                 <input
                   type="text"
                   value={newAlbumName}
                   onChange={(e) => setNewAlbumName(e.target.value)}
                   placeholder="Enter album name"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newAlbumName.trim()) {
-                      handleCreateAlbum();
-                    }
-                  }}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description (optional)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
                 <textarea
                   value={newAlbumDescription}
                   onChange={(e) => setNewAlbumDescription(e.target.value)}
-                  placeholder="Enter album description"
+                  placeholder="Enter description"
                   rows={3}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Album Price (₹) (optional)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Album Price (₹) (optional)</label>
                 <input
                   type="number"
                   value={newAlbumPrice}
                   onChange={(e) => setNewAlbumPrice(e.target.value)}
-                  placeholder="Enter price per album"
+                  placeholder="Price per album"
                   min="0"
                   step="0.01"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  Set a price for purchasing this entire album
-                </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Price Per Photo (₹) (optional)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Price Per Photo (₹) (optional)</label>
                 <input
                   type="number"
                   value={perPhotoPrice}
                   onChange={(e) => setPerPhotoPrice(e.target.value)}
-                  placeholder="Enter price per album"
+                  placeholder="Price per photo"
                   min="0"
                   step="0.01"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  Set a price for purchasing each photo
-                </p>
               </div>
               <div className="flex items-center space-x-2">
                 <input
@@ -1264,17 +1312,15 @@ const UploadPage = () => {
                   id="isPublic"
                   checked={newAlbumIsPublic}
                   onChange={(e) => setNewAlbumIsPublic(e.target.checked)}
-                  className="w-4 h-4 text-[#2731db] border-gray-300 rounded focus:ring-[#2731db]"
+                  className="w-4 h-4 text-[#2731db] border-gray-300 rounded"
                 />
-                <label htmlFor="isPublic" className="text-sm font-medium text-gray-700">
-                  Make album public
-                </label>
+                <label htmlFor="isPublic" className="text-sm font-medium text-gray-700">Make album public</label>
               </div>
-              <div className="flex items-center space-x-3 pt-4">
+              <div className="flex space-x-3 pt-4">
                 <button
                   onClick={handleCreateAlbum}
                   disabled={isCreatingAlbum || !newAlbumName.trim()}
-                  className="flex-1 px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isCreatingAlbum ? 'Creating...' : 'Create Album'}
                 </button>
@@ -1284,7 +1330,7 @@ const UploadPage = () => {
                     setNewAlbumName('');
                     setNewAlbumDescription('');
                   }}
-                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
                 </button>
