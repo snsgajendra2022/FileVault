@@ -14,9 +14,11 @@ import {
   FaFolder,
   FaClock,
   FaRedoAlt,
+  FaVideo,
 } from 'react-icons/fa';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import { useQuery } from '@tanstack/react-query';
+import { getVideoDuration, trimVideoTo30Seconds, isVideoFile, VIDEO_TRIM_THRESHOLD_SECONDS } from '../utils/videoTrim';
 
 // ---------------------------------------------------------------------------
 // Persistent queue types and IndexedDB (survives refresh/navigation)
@@ -26,7 +28,7 @@ const UPLOAD_DB_NAME = 'FileVaultUploadQueue';
 const UPLOAD_DB_VERSION = 1;
 const UPLOAD_STORE_NAME = 'queue';
 
-export type QueueItemStatus = 'waiting' | 'uploading' | 'paused' | 'completed' | 'failed';
+export type QueueItemStatus = 'waiting' | 'processing' | 'uploading' | 'paused' | 'completed' | 'failed';
 
 export interface QueueItemMeta {
   id: string;
@@ -123,6 +125,7 @@ function fileToKey(file: File): string {
 const MAX_CONCURRENT = 3;
 const MAX_RETRIES = 3;
 const UPLOAD_TIMEOUT_MS = 0; // no timeout for large files
+const MAX_UPLOAD_QUEUE = 100;
 
 type Listener = () => void;
 
@@ -208,11 +211,16 @@ class UploadManager {
     }
   }
 
-  async addFiles(files: File[], options?: { uploadDestination?: 'my-account' | 'family-account'; targetFamilyMember?: QueueItem['targetFamilyMember'] }): Promise<{ added: number; skipped: number }> {
+  async addFiles(files: File[], options?: { uploadDestination?: 'my-account' | 'family-account'; targetFamilyMember?: QueueItem['targetFamilyMember'] }): Promise<{ added: number; skipped: number; skippedDueToLimit: number }> {
     const existingKeys = new Set(this.items.map((i) => i.fileKey));
     let added = 0;
     let skipped = 0;
+    let skippedDueToLimit = 0;
     for (const file of files) {
+      if (this.items.length >= MAX_UPLOAD_QUEUE) {
+        skippedDueToLimit++;
+        continue;
+      }
       const fileKey = fileToKey(file);
       if (existingKeys.has(fileKey)) {
         skipped++;
@@ -240,7 +248,7 @@ class UploadManager {
     }
     this.notify();
     if (this.isOnline) this.processQueue();
-    return { added, skipped };
+    return { added, skipped, skippedDueToLimit };
   }
 
   async remove(id: string): Promise<void> {
@@ -300,12 +308,28 @@ class UploadManager {
     return ids;
   }
 
+  private isVideo(item: QueueItem): boolean {
+    return isVideoFile(item.file);
+  }
+
   private getNextToUpload(): QueueItem | undefined {
-    return this.items.find(
+    const candidate = this.items.find(
       (i) =>
         (i.status === 'waiting' || i.status === 'paused') &&
         !this.activeUploads.has(i.id)
     );
+    if (!candidate) return undefined;
+    // Process at most one video at a time (trim + upload)
+    if (this.isVideo(candidate)) {
+      const anotherVideoActive = this.items.some(
+        (i) =>
+          i.id !== candidate.id &&
+          this.isVideo(i) &&
+          (i.status === 'processing' || i.status === 'uploading')
+      );
+      if (anotherVideoActive) return undefined;
+    }
+    return candidate;
   }
 
   private async processQueue(): Promise<void> {
@@ -318,7 +342,8 @@ class UploadManager {
 
     this.processing = true;
     const item = next;
-    const updated: QueueItem = { ...item, status: 'uploading', progress: 0 };
+    const initialStatus = isVideoFile(item.file) ? 'processing' : 'uploading';
+    const updated: QueueItem = { ...item, status: initialStatus, progress: 0 };
     this.items = this.items.map((i) => (i.id === item.id ? updated : i));
     this.notify();
     await this.persistItem(updated);
@@ -337,23 +362,53 @@ class UploadManager {
   }
 
   private async runOneUpload(item: QueueItem, signal: AbortSignal): Promise<void> {
+    let currentItem = item;
+
     const update = (patch: Partial<QueueItem>) => {
-      const idx = this.items.findIndex((i) => i.id === item.id);
+      const idx = this.items.findIndex((i) => i.id === currentItem.id);
       if (idx === -1) return;
       const next = { ...this.items[idx], ...patch };
       this.items[idx] = next;
+      currentItem = next;
       this.notify();
       this.persistItem(next).catch(() => {});
     };
 
+    // Video auto-trim: if duration > 30s, trim to first 30s (no user confirmation)
+    if (isVideoFile(currentItem.file)) {
+      try {
+        const duration = await getVideoDuration(currentItem.file);
+        if (duration > VIDEO_TRIM_THRESHOLD_SECONDS) {
+          if (currentItem.status !== 'processing') update({ status: 'processing', progress: 0 });
+          if (signal.aborted) return;
+          const trimmedFile = await trimVideoTo30Seconds(currentItem.file);
+          if (signal.aborted) return;
+          update({
+            file: trimmedFile,
+            fileSize: trimmedFile.size,
+            fileKey: fileToKey(trimmedFile),
+            fileName: trimmedFile.name,
+            status: 'uploading',
+            progress: 0,
+          });
+        } else {
+          update({ status: 'uploading', progress: 0 });
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Video processing failed';
+        update({ status: 'failed', error: msg });
+        return;
+      }
+    }
+
     const formData = new FormData();
-    formData.append('file', item.file);
+    formData.append('file', currentItem.file);
 
     const isFamily =
-      item.uploadDestination === 'family-account' && item.targetFamilyMember;
+      currentItem.uploadDestination === 'family-account' && currentItem.targetFamilyMember;
     const url = isFamily ? '/api/images/upload-family' : '/api/images/upload';
-    if (isFamily && item.targetFamilyMember) {
-      formData.append('familyMemberId', String(item.targetFamilyMember.otherUserId));
+    if (isFamily && currentItem.targetFamilyMember) {
+      formData.append('familyMemberId', String(currentItem.targetFamilyMember.otherUserId));
     }
 
     try {
@@ -374,8 +429,8 @@ class UploadManager {
       const message =
         data?.message ??
         (isFamily
-          ? `${item.fileName} uploaded to ${item.targetFamilyMember?.otherUserFirstName}'s account.`
-          : `${item.fileName} uploaded successfully.`);
+          ? `${currentItem.fileName} uploaded to ${currentItem.targetFamilyMember?.otherUserFirstName}'s account.`
+          : `${currentItem.fileName} uploaded successfully.`);
 
       update({
         status: 'completed',
@@ -397,7 +452,7 @@ class UploadManager {
         (err as { response?: { data?: { message?: string }; status?: number }; message?: string }).response?.data?.message ??
         (err as Error).message ??
         'Upload failed';
-      const newRetries = item.retries + 1;
+      const newRetries = currentItem.retries + 1;
 
       if (newRetries >= MAX_RETRIES) {
         update({
@@ -462,7 +517,9 @@ const UploadPage = () => {
   const [perPhotoPrice, setPerPhotoPrice] = useState('');
   const [newAlbumIsPublic, setNewAlbumIsPublic] = useState(false);
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
+  const [isAddingFiles, setIsAddingFiles] = useState(false);
   const thumbnailUrlsRef = useRef<Map<string, string>>(new Map());
+  const queueListRef = useRef<HTMLDivElement>(null);
 
   const { data: userProfile, isLoading: userLoading, error: userError } = useQuery({
     queryKey: ['userProfile'],
@@ -525,6 +582,15 @@ const UploadPage = () => {
     };
   }, []);
 
+  // Scroll queue into view when files are added so user sees selected items
+  const prevQueueLengthRef = useRef(0);
+  useEffect(() => {
+    if (queueState.items.length > 0 && queueState.items.length > prevQueueLengthRef.current) {
+      queueListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    prevQueueLengthRef.current = queueState.items.length;
+  }, [queueState.items.length]);
+
   useEffect(() => {
     fetchFamilyMembers();
   }, []);
@@ -572,12 +638,19 @@ const UploadPage = () => {
     return !!(userProfile?.canUploadImages && userProfile?.allowedFileTypes);
   }, [userProfile]);
 
+  const VIDEO_EXTENSIONS = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
+
   const isFileTypeAllowed = useCallback(
     (file: File) => {
       if (!userProfile?.allowedFileTypes) return false;
       const allowed = userProfile.allowedFileTypes.split(',').map((t: string) => t.trim().toLowerCase());
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      return allowed.includes(ext || '');
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      if (allowed.includes(ext)) return true;
+      // If profile allows any video type, allow all common video formats (e.g. mov when mp4 is allowed)
+      if (VIDEO_EXTENSIONS.includes(ext) && allowed.some((t: string) => VIDEO_EXTENSIONS.includes(t))) {
+        return true;
+      }
+      return false;
     },
     [userProfile]
   );
@@ -588,6 +661,9 @@ const UploadPage = () => {
     const accept: Record<string, string[]> = {};
     if (allowed.some((t: string) => ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'heic'].includes(t))) {
       accept['image/*'] = ['.jpeg', '.jpg', '.png', '.gif', '.bmp', '.webp', '.heic'];
+    }
+    if (allowed.some((t: string) => ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'].includes(t))) {
+      accept['video/*'] = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'];
     }
     if (allowed.includes('pdf')) accept['application/pdf'] = ['.pdf'];
     if (allowed.some((t: string) => ['doc', 'docx'].includes(t))) {
@@ -611,9 +687,15 @@ const UploadPage = () => {
       });
       if (invalid.length) toast.error(`Some files were rejected:\n${invalid.join('\n')}`);
       if (valid.length) {
-        const { added, skipped } = await uploadManager.addFiles(valid);
-        if (added) toast.success(`${added} file(s) added to upload queue`);
-        if (skipped) toast(`Skipped ${skipped} duplicate(s).`);
+        setIsAddingFiles(true);
+        try {
+          const { added, skipped, skippedDueToLimit } = await uploadManager.addFiles(valid);
+          if (added) toast.success(`${added} file(s) added to upload queue`);
+          if (skipped) toast(`Skipped ${skipped} duplicate(s).`);
+          if (skippedDueToLimit) toast.error(`Queue limit (${MAX_UPLOAD_QUEUE}) reached. ${skippedDueToLimit} file(s) not added.`);
+        } finally {
+          setIsAddingFiles(false);
+        }
       }
     },
     [canUpload, isFileTypeAllowed]
@@ -623,7 +705,7 @@ const UploadPage = () => {
     onDrop,
     accept: getAcceptTypes(),
     multiple: true,
-    disabled: !canUpload(),
+    disabled: !canUpload() || isAddingFiles,
   });
 
   const removeFromQueue = useCallback((id: string) => {
@@ -641,11 +723,15 @@ const UploadPage = () => {
 
   const getThumbnailUrl = (item: QueueItem): string | null => {
     if (thumbnailUrlsRef.current.has(item.id)) return thumbnailUrlsRef.current.get(item.id)!;
-    if (!item.file.type.startsWith('image/')) return null;
+    const isImage = item.file.type.startsWith('image/');
+    const isVideo = item.file.type.startsWith('video/');
+    if (!isImage && !isVideo) return null;
     const url = URL.createObjectURL(item.file);
     thumbnailUrlsRef.current.set(item.id, url);
     return url;
   };
+
+  const isVideoItem = (item: QueueItem): boolean => item.file.type.startsWith('video/');
 
   const setUploadDestination = useCallback(
     (fileId: string, destination: 'my-account' | 'family-account', familyMember?: (typeof familyMembers)[0]) => {
@@ -736,6 +822,14 @@ const UploadPage = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const formatRelativeTime = (timestamp: number) => {
+    const sec = Math.floor((Date.now() - timestamp) / 1000);
+    if (sec < 60) return 'Just now';
+    if (sec < 3600) return `${Math.floor(sec / 60)} min ago`;
+    if (sec < 86400) return `${Math.floor(sec / 3600)} hr ago`;
+    return `${Math.floor(sec / 86400)} day(s) ago`;
+  };
+
   const getStatusIcon = (status: QueueItemStatus) => {
     switch (status) {
       case 'completed':
@@ -746,8 +840,21 @@ const UploadPage = () => {
         return <FaClock className="h-4 w-4 text-amber-500" />;
       case 'uploading':
         return <LoadingSpinner size="sm" text="" />;
+      case 'processing':
+        return <LoadingSpinner size="sm" text="" />;
       default:
         return null;
+    }
+  };
+
+  const getStatusLabel = (status: QueueItemStatus): string => {
+    switch (status) {
+      case 'completed': return 'Completed';
+      case 'failed': return 'Failed';
+      case 'paused': return 'Paused';
+      case 'uploading': return 'Uploading';
+      case 'processing': return 'Processing';
+      default: return 'Waiting';
     }
   };
 
@@ -761,12 +868,15 @@ const UploadPage = () => {
         return 'border-amber-200 bg-amber-50';
       case 'uploading':
         return 'border-blue-200 bg-blue-50';
+      case 'processing':
+        return 'border-indigo-200 bg-indigo-50';
       default:
         return 'border-gray-200 bg-white';
     }
   };
 
   const pendingCount = queueState.items.filter((i) => i.status === 'waiting' || i.status === 'paused').length;
+  const processingCount = queueState.items.filter((i) => i.status === 'processing').length;
   const finishedCount = queueState.items.filter(
     (i) => i.status === 'completed' || i.status === 'failed'
   ).length;
@@ -936,13 +1046,24 @@ const UploadPage = () => {
       </div>
 
       {/* Dropzone */}
-      <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-3xl shadow-2xl border border-blue-100/50">
+      <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-3xl shadow-2xl border border-blue-100/50 relative">
+        {isAddingFiles && (
+          <div className="absolute inset-0 rounded-3xl bg-indigo-500/10 backdrop-blur-sm z-10 flex items-center justify-center">
+            <div className="bg-white rounded-2xl shadow-xl px-8 py-6 flex items-center gap-4">
+              <LoadingSpinner size="md" text="" />
+              <div>
+                <p className="font-semibold text-gray-800">Adding files...</p>
+                <p className="text-sm text-gray-600">Max {MAX_UPLOAD_QUEUE} files · Please wait</p>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="p-10">
           <div
             {...getRootProps()}
             className={`border-3 border-dashed rounded-3xl p-16 text-center cursor-pointer transition-all duration-300 ${
               isDragActive ? 'border-indigo-400 bg-gradient-to-br from-indigo-50 to-purple-50' : 'border-gray-300 hover:border-indigo-400 hover:bg-gradient-to-br from-blue-50/50 to-purple-50/50'
-            }`}
+            } ${isAddingFiles ? 'pointer-events-none opacity-70' : ''}`}
           >
             <input {...getInputProps()} />
             <FaCloudUploadAlt className="mx-auto h-20 w-20 text-indigo-500 mb-6" />
@@ -950,6 +1071,7 @@ const UploadPage = () => {
               {isDragActive ? 'Drop files here' : 'Drag & drop files here'}
             </p>
             <p className="mt-3 text-lg text-gray-600">or click to select files</p>
+            <p className="mt-2 text-sm text-gray-500">Videos longer than 30s are auto-trimmed. Queue limit: {MAX_UPLOAD_QUEUE} files.</p>
             <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm">
               {userProfile?.allowedFileTypes && (
                 <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
@@ -972,118 +1094,182 @@ const UploadPage = () => {
         </div>
       </div>
 
-      {/* Queue list */}
+      {/* Queue list - scroll into view when files added */}
       {queueState.items.length > 0 && (
-        <div className="bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 rounded-3xl shadow-2xl border border-blue-100/50">
-          <div className="px-10 py-8 border-b border-blue-200/50 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 rounded-t-3xl">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+        <div ref={queueListRef} className="bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 rounded-3xl shadow-2xl border border-blue-100/50">
+          <div className="px-6 sm:px-10 py-6 sm:py-8 border-b border-blue-200/50 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 rounded-t-3xl">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-4 min-w-0">
+                <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
                   <FaFileImage className="h-6 w-6 text-white" />
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800">Upload Queue</h2>
-                  <p className="text-base text-gray-600">
-                    {queueState.items.length} file(s) · {pendingCount} waiting · {queueState.isOnline ? 'Online' : 'Paused (Offline)'}
-                  </p>
+                <div className="min-w-0">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Upload Queue</h2>
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mt-1">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 font-semibold tabular-nums text-base shrink-0">
+                      {queueState.items.length} / {MAX_UPLOAD_QUEUE} files
+                    </span>
+                    {queueState.items.length >= MAX_UPLOAD_QUEUE && (
+                      <span className="text-amber-600 text-sm font-medium shrink-0">(max limit)</span>
+                    )}
+                    <span className="text-gray-500 text-sm">·</span>
+                    <span className="text-gray-600 text-sm tabular-nums">{pendingCount} waiting</span>
+                    {processingCount > 0 && (
+                      <>
+                        <span className="text-gray-400">·</span>
+                        <span className="text-indigo-600 text-sm tabular-nums">{processingCount} processing</span>
+                      </>
+                    )}
+                    <span className="text-gray-400">·</span>
+                    <span className="text-gray-600 text-sm">{queueState.isOnline ? 'Online' : 'Paused'}</span>
+                  </div>
                 </div>
               </div>
               {finishedCount > 0 && (
                 <button
                   type="button"
                   onClick={handleClearFinished}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors shrink-0"
                 >
                   Clear finished ({finishedCount})
                 </button>
               )}
             </div>
           </div>
-          <div className="p-8">
-            <div className="space-y-4">
+          {isAddingFiles && (
+            <div className="px-6 py-3 bg-indigo-100 border-b border-indigo-200 flex items-center justify-center gap-2 text-sm text-indigo-800 font-medium">
+              <LoadingSpinner size="sm" text="" />
+              <span>Adding more files... (max {MAX_UPLOAD_QUEUE})</span>
+            </div>
+          )}
+          <div className="relative flex flex-col min-h-[320px] max-h-[70vh] h-[70vh]">
+            <div className="sticky top-0 z-10 px-4 py-2 bg-indigo-50/95 border-b border-indigo-100/80 backdrop-blur-sm flex items-center justify-center gap-2 text-sm text-gray-700 shrink-0">
+              <span className="tabular-nums font-semibold text-indigo-800">{queueState.items.length}</span>
+              <span>files in queue</span>
+              <span className="text-gray-400">(scroll to see all)</span>
+            </div>
+            <div className="p-6 md:p-8 overflow-y-auto overflow-x-hidden scroll-smooth flex-1 min-h-0 basis-0">
+            <div className="grid grid-cols-1 gap-4">
               {queueState.items.map((item) => {
-                const thumbUrl = getThumbnailUrl(item);
+                const isVideo = isVideoItem(item);
+                const isUploading = item.status === 'uploading';
+                const progressBarColor =
+                  item.status === 'completed'
+                    ? 'bg-green-500'
+                    : item.status === 'uploading' || item.status === 'processing'
+                      ? 'bg-blue-500'
+                      : 'bg-gray-300';
                 return (
                   <div
                     key={item.id}
-                    className={`border-2 rounded-xl p-6 transition-all duration-300 ${getStatusColor(item.status)}`}
+                    className={`flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-[14px] border shadow-sm hover:shadow-md transition-shadow duration-200 ${getStatusColor(item.status)}`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-14 h-14 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center">
-                          {thumbUrl ? (
-                            <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <FaFileImage className="h-7 w-7 text-gray-400" />
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-base font-semibold text-gray-900">{item.fileName}</p>
-                          <p className="text-sm text-gray-500">{formatFileSize(item.fileSize)}</p>
-                          <p className="text-xs text-gray-400 mt-1">{getUploadDestinationText(item)}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        {getStatusIcon(item.status)}
-                        {(item.status === 'uploading' || item.status === 'waiting' || item.status === 'paused') && (
-                          <div className="w-40 bg-gray-200 rounded-full h-4 overflow-hidden">
-                            <div
-                              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-4 rounded-full transition-all duration-500"
-                              style={{ width: `${item.progress}%` }}
-                            />
-                          </div>
-                        )}
-                        {item.status === 'waiting' || item.status === 'paused' ? (
-                          <button
-                            onClick={() => openUploadOptions(item)}
-                            className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-purple-600 hover:to-pink-700 text-sm"
-                          >
-                            Choose Destination
-                          </button>
-                        ) : null}
-                        {item.status === 'failed' && (
-                          <button
-                            onClick={() => retryUpload(item.id)}
-                            className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-amber-600 text-sm"
-                          >
-                            <FaRedoAlt className="h-4 w-4" /> Retry
-                          </button>
-                        )}
-                        <button
-                          onClick={() => removeFromQueue(item.id)}
-                          className="w-10 h-10 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl flex items-center justify-center transition-colors"
-                          aria-label="Remove from queue"
-                        >
-                          <FaTimes className="h-5 w-5" />
-                        </button>
-                      </div>
+                    {/* Left: Icon only (no image preview) */}
+                    <div className="w-full h-[90px] md:w-[120px] md:h-[90px] md:flex-shrink-0 rounded-lg bg-gray-100 flex items-center justify-center">
+                      {isVideo ? (
+                        <FaVideo className="h-10 w-10 text-indigo-500" />
+                      ) : (
+                        <FaFileImage className="h-10 w-10 text-gray-500" />
+                      )}
                     </div>
-                    {item.status === 'uploading' && (
-                      <p className="mt-2 text-sm text-gray-600">{item.progress}%</p>
-                    )}
-                    {item.status === 'paused' && (
-                      <p className="mt-2 text-sm text-amber-700">Paused (Offline) – will resume when back online</p>
-                    )}
-                    {item.successMessage && item.status === 'completed' && (
-                      <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-2xl">
-                        <p className="text-sm text-green-700 flex items-center font-medium">
-                          <FaCheck className="h-5 w-5 mr-3 text-green-500" />
-                          {item.successMessage}
-                        </p>
+
+                    {/* Center: Details + progress */}
+                    <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                      <p className="font-bold text-gray-900 truncate" title={item.fileName}>
+                        {item.fileName}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {formatRelativeTime(item.createdAt)} · {formatFileSize(item.fileSize)}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {item.status === 'processing' && (
+                          <>
+                            {getStatusIcon(item.status)}
+                            <span className="text-sm font-medium text-indigo-600">Processing video...</span>
+                          </>
+                        )}
+                        {item.status === 'uploading' && (
+                          <>
+                            {getStatusIcon(item.status)}
+                            <span className="text-sm font-medium text-blue-600">Uploading</span>
+                          </>
+                        )}
+                        {(item.status === 'waiting' || item.status === 'paused') && (
+                          <span className="text-sm font-medium text-gray-600">{getStatusLabel(item.status)}</span>
+                        )}
+                        {item.status === 'completed' && (
+                          <span className="text-sm font-medium text-green-700 flex items-center gap-1.5">
+                            {getStatusIcon(item.status)}
+                            Completed
+                          </span>
+                        )}
+                        {item.status === 'failed' && (
+                          <span className="text-sm font-medium text-red-700 flex items-center gap-1.5">
+                            {getStatusIcon(item.status)}
+                            Failed
+                          </span>
+                        )}
                       </div>
-                    )}
-                    {item.error && (
-                      <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-2xl">
-                        <p className="text-sm text-red-700 flex items-center font-medium">
-                          <FaExclamationTriangle className="h-5 w-5 mr-3 text-red-500" />
+                      {/* Progress bar: 6px, rounded, blue when uploading, green when completed */}
+                      <div className="mt-1.5 h-1.5 w-full max-w-xs bg-gray-200 rounded-full overflow-hidden">
+                        {item.status === 'processing' ? (
+                          <div className="h-full w-full rounded-full bg-blue-400 animate-pulse" />
+                        ) : (
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ease-out ${progressBarColor}`}
+                            style={{ width: item.status === 'completed' ? '100%' : `${item.progress}%` }}
+                          />
+                        )}
+                      </div>
+                      {(item.status === 'waiting' || item.status === 'paused') && (
+                        <button
+                          type="button"
+                          onClick={() => openUploadOptions(item)}
+                          className="mt-1 text-sm font-medium text-purple-600 hover:text-purple-700"
+                        >
+                          Choose Destination
+                        </button>
+                      )}
+                      {item.status === 'failed' && (
+                        <button
+                          type="button"
+                          onClick={() => retryUpload(item.id)}
+                          className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-amber-600 hover:text-amber-700"
+                        >
+                          <FaRedoAlt className="h-4 w-4" /> Retry
+                        </button>
+                      )}
+                      {item.status === 'paused' && (
+                        <p className="text-xs text-amber-700 mt-0.5">Paused (Offline) – will resume when back online</p>
+                      )}
+                      {item.successMessage && item.status === 'completed' && (
+                        <p className="text-xs text-green-700 mt-0.5 truncate">{item.successMessage}</p>
+                      )}
+                      {item.error && (
+                        <p className="text-xs text-red-700 mt-0.5 break-words">
                           {item.error}
                           {item.retries > 0 && ` (retry ${item.retries}/${MAX_RETRIES})`}
                         </p>
-                      </div>
-                    )}
+                      )}
+                    </div>
+
+                    {/* Right: Delete button - circular, centered, disabled during upload */}
+                    <div className="flex md:flex-shrink-0 justify-end md:justify-center items-center">
+                      <button
+                        type="button"
+                        onClick={() =>removeFromQueue(item.id)}
+                        // onClick={() => !isUploading && removeFromQueue(item.id)}
+                        // disabled={isUploading}
+                        className="w-10 h-10 rounded-full bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label="Remove from queue"
+                      >
+                        <FaTimes className="h-5 w-5" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
+            </div>
             </div>
           </div>
         </div>
@@ -1098,43 +1284,52 @@ const UploadPage = () => {
             </div>
             <h3 className="text-2xl font-bold text-gray-800">Upload Summary</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100/50">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
               <div className="text-center">
-                <div className="w-16 h-16 bg-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <span className="text-white font-bold text-xl">{queueState.items.length}</span>
+                <div className="w-14 h-14 bg-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <span className="text-white font-bold text-lg tabular-nums">{queueState.items.length}</span>
                 </div>
-                <p className="text-base font-semibold text-gray-800">Total in queue</p>
+                <p className="text-sm font-semibold text-gray-800">Total</p>
+                <p className="text-xs text-gray-500 mt-0.5">max {MAX_UPLOAD_QUEUE} files</p>
               </div>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100/50">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
               <div className="text-center">
-                <div className="w-16 h-16 bg-green-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <span className="text-white font-bold text-xl">
-                    {queueState.items.filter((i) => i.status === 'completed').length}
-                  </span>
+                <div className="w-14 h-14 bg-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <span className="text-white font-bold text-lg">{processingCount}</span>
                 </div>
-                <p className="text-base font-semibold text-gray-800">Completed</p>
+                <p className="text-sm font-semibold text-gray-800">Processing</p>
               </div>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100/50">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
               <div className="text-center">
-                <div className="w-16 h-16 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <span className="text-white font-bold text-xl">
+                <div className="w-14 h-14 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <span className="text-white font-bold text-lg">
                     {queueState.items.filter((i) => i.status === 'uploading').length}
                   </span>
                 </div>
-                <p className="text-base font-semibold text-gray-800">Uploading</p>
+                <p className="text-sm font-semibold text-gray-800">Uploading</p>
               </div>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-100/50">
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
               <div className="text-center">
-                <div className="w-16 h-16 bg-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <span className="text-white font-bold text-xl">
+                <div className="w-14 h-14 bg-green-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <span className="text-white font-bold text-lg">
+                    {queueState.items.filter((i) => i.status === 'completed').length}
+                  </span>
+                </div>
+                <p className="text-sm font-semibold text-gray-800">Completed</p>
+              </div>
+            </div>
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
+              <div className="text-center">
+                <div className="w-14 h-14 bg-red-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                  <span className="text-white font-bold text-lg">
                     {queueState.items.filter((i) => i.status === 'failed').length}
                   </span>
                 </div>
-                <p className="text-base font-semibold text-gray-800">Failed</p>
+                <p className="text-sm font-semibold text-gray-800">Failed</p>
               </div>
             </div>
           </div>
