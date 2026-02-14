@@ -23,6 +23,7 @@ import toast from 'react-hot-toast';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import { FamilyRelationship } from '../../types/user';
+import { isVisible } from '@testing-library/user-event/dist/utils';
 
 const SCROLL_RESTORE_KEY = 'photo-studio-images-scroll';
 const ASPECT_RATIO = 4 / 3;
@@ -36,6 +37,7 @@ interface UserImage {
   previewUrl: string;
   filename: string;
   downloadUrl: string;
+  thumbnailUrl: string;
   enabledServices: { [key: string]: string };
   uploadTime: string;
   fileType: string;
@@ -210,7 +212,7 @@ const ImageCard = memo(function ImageCard({
           {showImg && (
             <img
               ref={imgRef}
-              src={isVisible ? image.previewUrl : undefined}
+              src={isVisible ?image.thumbnailUrl || image.previewUrl : undefined}
               alt={image.filename}
               className="w-full h-full object-cover transition-opacity duration-300"
               style={{
@@ -323,6 +325,10 @@ const ImageCard = memo(function ImageCard({
 const ClientImagesPage = () => {
   const { user } = useAuth();
   const [selectedImage, setSelectedImage] = useState<UserImage | null>(null);
+  const [lightboxPreviewReady, setLightboxPreviewReady] = useState(false);
+  const [lightboxPreviewFailed, setLightboxPreviewFailed] = useState(false);
+  const [lightboxPreviewVisible, setLightboxPreviewVisible] = useState(false);
+  const lightboxPreviewUrlRef = useRef<string | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<FamilyRelationship | null>(null);
   const [viewMode, setViewMode] = useState<'my' | 'invited'>('my');
@@ -475,6 +481,51 @@ const ClientImagesPage = () => {
 
   const closeLightbox = useCallback(() => setSelectedImage(null), []);
 
+  // Progressive image loading in lightbox: show thumbnail immediately, preload previewUrl, then fade in preview when ready
+  useEffect(() => {
+    if (!selectedImage || !isImageType(selectedImage.fileType)) return;
+    const thumb = selectedImage.thumbnailUrl || selectedImage.previewUrl;
+    const preview = selectedImage.previewUrl;
+    setLightboxPreviewReady(false);
+    setLightboxPreviewFailed(false);
+    setLightboxPreviewVisible(false);
+    if (!preview || preview === thumb) {
+      setLightboxPreviewReady(true);
+      return;
+    }
+    const url = preview;
+    lightboxPreviewUrlRef.current = url;
+    const img = new Image();
+    const onLoad = () => {
+      if (lightboxPreviewUrlRef.current === url) {
+        setLightboxPreviewReady(true);
+      }
+    };
+    const onError = () => {
+      if (lightboxPreviewUrlRef.current === url) {
+        setLightboxPreviewFailed(true);
+      }
+    };
+    img.onload = onLoad;
+    img.onerror = onError;
+    img.src = url;
+    return () => {
+      lightboxPreviewUrlRef.current = null;
+      img.onload = null;
+      img.onerror = null;
+      img.src = '';
+    };
+  }, [selectedImage]);
+
+  // Trigger fade-in after preview is in DOM (avoids no transition on first paint)
+  useEffect(() => {
+    if (!lightboxPreviewReady) return;
+    const id = requestAnimationFrame(() => {
+      setLightboxPreviewVisible(true);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [lightboxPreviewReady]);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeLightbox();
@@ -504,23 +555,23 @@ const ClientImagesPage = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="text-center py-12">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Images</h2>
-          <p className="text-gray-600 mb-4">Failed to load your images. Please try again.</p>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // if (error) {
+  //   return (
+  //     <div className="p-6">
+  //       <div className="text-center py-12">
+  //         <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Images</h2>
+  //         <p className="text-gray-600 mb-4">Failed to load your images. Please try again.</p>
+  //         <button
+  //           type="button"
+  //           onClick={() => refetch()}
+  //           className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+  //         >
+  //           Retry
+  //         </button>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="p-6">
@@ -777,6 +828,14 @@ const ClientImagesPage = () => {
               </h3>
               <button
                 type="button"
+                onClick={() => handleDownload(selectedImage)}
+                className="absolute top-4 right-16 p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                aria-label="Close"
+              >
+                <FiDownload className="h-6 w-6" />
+              </button>
+              <button
+                type="button"
                 onClick={closeLightbox}
                 className="absolute top-4 right-4 p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
                 aria-label="Close"
@@ -786,16 +845,43 @@ const ClientImagesPage = () => {
             </div>
             <div className="p-6">
               {isImageType(selectedImage.fileType) ? (
-                <img
-                  src={selectedImage.previewUrl}
-                  alt={selectedImage.filename}
-                  className="max-w-full max-h-[70vh] w-auto mx-auto rounded-lg object-contain"
-                />
+                (() => {
+                  const thumbUrl = selectedImage.thumbnailUrl || selectedImage.previewUrl;
+                  const previewUrl = selectedImage.previewUrl;
+                  const hasDistinctPreview =
+                    !!previewUrl &&
+                    previewUrl !== thumbUrl &&
+                    lightboxPreviewReady &&
+                    !lightboxPreviewFailed;
+                  const showingPreviewOverlay = hasDistinctPreview && lightboxPreviewVisible;
+                  return (
+                    <div
+                      className="relative flex justify-center items-center w-full rounded-lg overflow-hidden"
+                      style={{ minHeight: '70vh' }}
+                    >
+                      <img
+                        src={thumbUrl}
+                        alt={selectedImage.filename}
+                        className={`max-w-full max-h-[70vh] w-[100%] mx-auto rounded-lg object-contain transition-opacity duration-300 ${
+                          showingPreviewOverlay ? 'opacity-0' : 'opacity-100'
+                        }`}
+                      />
+                      {hasDistinctPreview && (
+                        <img
+                          src={previewUrl}
+                          alt={selectedImage.filename}
+                          className={`absolute max-w-full max-h-[70vh] w-[100%] rounded-lg object-contain transition-opacity duration-300 ${
+                            lightboxPreviewVisible ? 'opacity-100' : 'opacity-0'
+                          }`}
+                          style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                        />
+                      )}
+                    </div>
+                  );
+                })()
               ) : (
                 <div className="flex items-center justify-center h-64 bg-gray-100 rounded-xl">
-                  <div
-                    className={`${getFileTypeColor(selectedImage.fileType)} text-white rounded-xl p-8 text-6xl`}
-                  >
+                  <div className={`${getFileTypeColor(selectedImage.fileType)} text-white rounded-xl p-8 text-6xl`} >
                     {getFileTypeIcon(selectedImage.fileType)}
                   </div>
                 </div>
@@ -803,7 +889,7 @@ const ClientImagesPage = () => {
               <p className="mt-4 text-sm text-gray-500 text-center">
                 {selectedImage.fileType.toUpperCase()} · {formatDate(selectedImage.uploadTime)}
               </p>
-              {Object.keys(selectedImage.enabledServices).length > 0 && (
+              {/* {Object.keys(selectedImage.enabledServices).length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-2 justify-center">
                   {Object.entries(selectedImage.enabledServices).map(([service]) => (
                     <span
@@ -815,17 +901,10 @@ const ClientImagesPage = () => {
                     </span>
                   ))}
                 </div>
-              )}
-              <div className="mt-6 flex justify-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => handleDownload(selectedImage)}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <FiDownload className="mr-2 h-4 w-4" />
-                  Download
-                </button>
-                {viewMode === 'my' && (
+              )} */}
+              {/* <div className="mt-6 flex justify-center gap-4"> */}
+  
+                {/* {viewMode === 'my' && (
                   <button
                     type="button"
                     onClick={() => handleDelete(selectedImage)}
@@ -834,8 +913,8 @@ const ClientImagesPage = () => {
                     <FiTrash2 className="mr-2 h-4 w-4" />
                     Delete
                   </button>
-                )}
-              </div>
+                )} */}
+              {/* </div> */}
             </div>
           </div>
         </div>
