@@ -425,7 +425,7 @@ class UploadManager {
       });
 
       const data = response?.data ?? response;
-      const imageId = data?.id ?? data?.image?.id;
+      const imageId = data?.id ?? data?.image?.id ?? (data as { imageId?: number })?.imageId;
       const message =
         data?.message ??
         (isFamily
@@ -440,6 +440,7 @@ class UploadManager {
         imageId,
         error: undefined,
       });
+      setTimeout(() => this.notify(), 0);
     } catch (err: unknown) {
       const isAborted =
         err instanceof Error && err.name === 'AbortError';
@@ -560,7 +561,9 @@ const UploadPage = () => {
   }, []);
 
   useEffect(() => {
-    const unsub = uploadManager.subscribe(() => setQueueState(uploadManager.getState()));
+    const unsub = uploadManager.subscribe(() => {
+      setQueueState(() => uploadManager.getState());
+    });
     return unsub;
   }, []);
 
@@ -640,30 +643,41 @@ const UploadPage = () => {
 
   const VIDEO_EXTENSIONS = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
 
+  const normalizeAllowedTypes = useCallback((allowedFileTypes: string) => {
+    return allowedFileTypes
+      .split(',')
+      .map((t: string) => t.trim().toLowerCase().replace(/^\./, ''));
+  }, []);
+
   const isFileTypeAllowed = useCallback(
     (file: File) => {
-      if (!userProfile?.allowedFileTypes) return false;
-      const allowed = userProfile.allowedFileTypes.split(',').map((t: string) => t.trim().toLowerCase());
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      const isVideoByExt = VIDEO_EXTENSIONS.includes(ext);
+      const isVideoByType = file.type.startsWith('video/');
+      // Always allow MOV and all video formats when user has upload permission (no profile restriction for video)
+      if (userProfile?.canUploadImages && (isVideoByExt || isVideoByType)) {
+        return true;
+      }
+      if (!userProfile?.allowedFileTypes) return false;
+      const allowed = normalizeAllowedTypes(userProfile.allowedFileTypes);
       if (allowed.includes(ext)) return true;
-      // If profile allows any video type, allow all common video formats (e.g. mov when mp4 is allowed)
-      if (VIDEO_EXTENSIONS.includes(ext) && allowed.some((t: string) => VIDEO_EXTENSIONS.includes(t))) {
+      if (isVideoByExt && allowed.some((t: string) => VIDEO_EXTENSIONS.includes(t))) {
         return true;
       }
       return false;
     },
-    [userProfile]
+    [userProfile, normalizeAllowedTypes]
   );
 
   const getAcceptTypes = useCallback(() => {
-    if (!userProfile?.allowedFileTypes) return {};
-    const allowed = userProfile.allowedFileTypes.split(',').map((t: string) => t.trim().toLowerCase());
+    if (!userProfile?.canUploadImages) return {};
     const accept: Record<string, string[]> = {};
+    // Always allow video (including MOV) when user can upload
+    accept['video/*'] = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'];
+    if (!userProfile?.allowedFileTypes) return accept;
+    const allowed = normalizeAllowedTypes(userProfile.allowedFileTypes);
     if (allowed.some((t: string) => ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'heic'].includes(t))) {
       accept['image/*'] = ['.jpeg', '.jpg', '.png', '.gif', '.bmp', '.webp', '.heic'];
-    }
-    if (allowed.some((t: string) => ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'].includes(t))) {
-      accept['video/*'] = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v'];
     }
     if (allowed.includes('pdf')) accept['application/pdf'] = ['.pdf'];
     if (allowed.some((t: string) => ['doc', 'docx'].includes(t))) {
@@ -671,7 +685,7 @@ const UploadPage = () => {
       accept['application/vnd.openxmlformats-officedocument.wordprocessingml.document'] = ['.docx'];
     }
     return accept;
-  }, [userProfile]);
+  }, [userProfile, normalizeAllowedTypes]);
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
@@ -690,6 +704,7 @@ const UploadPage = () => {
         setIsAddingFiles(true);
         try {
           const { added, skipped, skippedDueToLimit } = await uploadManager.addFiles(valid);
+          setQueueState(uploadManager.getState());
           if (added) toast.success(`${added} file(s) added to upload queue`);
           if (skipped) toast(`Skipped ${skipped} duplicate(s).`);
           if (skippedDueToLimit) toast.error(`Queue limit (${MAX_UPLOAD_QUEUE}) reached. ${skippedDueToLimit} file(s) not added.`);
@@ -708,17 +723,19 @@ const UploadPage = () => {
     disabled: !canUpload() || isAddingFiles,
   });
 
-  const removeFromQueue = useCallback((id: string) => {
+  const removeFromQueue = useCallback(async (id: string) => {
     const url = thumbnailUrlsRef.current.get(id);
     if (url) {
       URL.revokeObjectURL(url);
       thumbnailUrlsRef.current.delete(id);
     }
-    uploadManager.remove(id);
+    await uploadManager.remove(id);
+    setQueueState(uploadManager.getState());
   }, []);
 
-  const retryUpload = useCallback((id: string) => {
-    uploadManager.retry(id);
+  const retryUpload = useCallback(async (id: string) => {
+    await uploadManager.retry(id);
+    setQueueState(uploadManager.getState());
   }, []);
 
   const getThumbnailUrl = (item: QueueItem): string | null => {
@@ -891,6 +908,7 @@ const UploadPage = () => {
         thumbnailUrlsRef.current.delete(id);
       }
     });
+    setQueueState(uploadManager.getState());
     toast.success(
       removedIds.length === 1
         ? '1 item removed from queue'
@@ -1181,7 +1199,7 @@ const UploadPage = () => {
                       <p className="text-xs text-gray-500">
                         {formatRelativeTime(item.createdAt)} · {formatFileSize(item.fileSize)}
                       </p>
-                      <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex items-center gap-2 mt-0.5 h-10">
                         {item.status === 'processing' && (
                           <>
                             {getStatusIcon(item.status)}

@@ -23,8 +23,6 @@ import toast from 'react-hot-toast';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import { FamilyRelationship } from '../../types/user';
-import { isVisible } from '@testing-library/user-event/dist/utils';
-
 const SCROLL_RESTORE_KEY = 'photo-studio-images-scroll';
 const ASPECT_RATIO = 4 / 3;
 const IMAGE_ROOT_MARGIN = '100px';
@@ -70,7 +68,11 @@ function formatDate(dateString: string): string {
   });
 }
 
-function getFileTypeIcon(fileType: string): string {
+function getFileTypeIcon(fileType: string, filename?: string): string {
+  if (fileType === 'unknown' && filename) {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    if (['mov', 'mp4', 'avi', 'mkv', 'webm', 'm4v'].includes(ext)) return '🎬';
+  }
   switch (fileType.toLowerCase()) {
     case 'png':
     case 'jpg':
@@ -96,7 +98,11 @@ function getFileTypeIcon(fileType: string): string {
   }
 }
 
-function getFileTypeColor(fileType: string): string {
+function getFileTypeColor(fileType: string, filename?: string): string {
+  if (fileType === 'unknown' && filename) {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    if (['mov', 'mp4', 'avi', 'mkv', 'webm', 'm4v'].includes(ext)) return 'bg-purple-500';
+  }
   switch (fileType.toLowerCase()) {
     case 'png':
     case 'jpg':
@@ -124,6 +130,12 @@ function getFileTypeColor(fileType: string): string {
 
 function isImageType(fileType: string): boolean {
   return /^(png|jpg|jpeg|gif|webp)$/i.test(fileType);
+}
+
+function isVideoType(fileType: string, filename?: string): boolean {
+  if (fileType === 'unknown') return true;
+  const ext = (filename || '').split('.').pop()?.toLowerCase() || '';
+  return ['mov', 'mp4', 'avi', 'mkv', 'webm', 'm4v'].includes(ext);
 }
 
 function getEnabledServicesCount(enabledServices: { [key: string]: string }): number {
@@ -172,12 +184,13 @@ const ImageCard = memo(function ImageCard({
   const [loadState, setLoadState] = useState<ImageLoadState>('idle');
   const imgRef = useRef<HTMLImageElement | null>(null);
   const showImage = isImageType(image.fileType);
+  const showVideo = isVideoType(image.fileType, image.filename);
 
-  // When visible and image type, start loading
+  // When visible and image or video type, start loading
   useEffect(() => {
-    if (!showImage || !isVisible) return;
+    if ((!showImage && !showVideo) || !isVisible) return;
     if (loadState === 'idle') setLoadState('loading');
-  }, [showImage, isVisible, loadState]);
+  }, [showImage, showVideo, isVisible, loadState]);
 
   const handleLoad = useCallback(() => setLoadState('loaded'), []);
   const handleError = useCallback(() => setLoadState('error'), []);
@@ -191,10 +204,10 @@ const ImageCard = memo(function ImageCard({
     }
   }, [image.previewUrl]);
 
-  const showSkeleton = showImage && (loadState === 'idle' || loadState === 'loading');
+  const showSkeleton = (showImage || showVideo) && (loadState === 'idle' || loadState === 'loading');
   const showImg = showImage && (loadState === 'loading' || loadState === 'loaded');
-  const showError = showImage && loadState === 'error';
-  const showIcon = !showImage || loadState === 'error';
+  const showError = (showImage || showVideo) && loadState === 'error';
+  const showIcon = !showImage && !showVideo || loadState === 'error';
 
   return (
     <div
@@ -209,7 +222,7 @@ const ImageCard = memo(function ImageCard({
       >
         <div className="absolute inset-0">
           {showSkeleton && <SkeletonPlaceholder />}
-          {showImg && (
+          {showImg &&  image.fileType !== 'unknown' && (
             <img
               ref={imgRef}
               src={isVisible ?image.thumbnailUrl || image.previewUrl : undefined}
@@ -222,6 +235,19 @@ const ImageCard = memo(function ImageCard({
               onLoad={handleLoad}
               onError={handleError}
               decoding="async"
+            />
+          )}
+          {showVideo && (
+            <video
+              src={isVisible ? image.previewUrl : undefined}
+              className="w-full h-full object-cover transition-opacity duration-300"
+              style={{ opacity: loadState === 'loaded' ? 1 : 0 }}
+              onLoadedData={handleLoad}
+              onError={handleError}
+              controls
+              muted
+              playsInline
+              preload="metadata"
             />
           )}
           {showError && (
@@ -239,16 +265,16 @@ const ImageCard = memo(function ImageCard({
           {showIcon && !showError && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
               <div
-                className={`${getFileTypeColor(image.fileType)} text-white rounded-xl p-4 text-3xl shadow-inner`}
+                className={`${getFileTypeColor(image.fileType, image.filename)} text-white rounded-xl p-4 text-3xl shadow-inner`}
               >
-                {getFileTypeIcon(image.fileType)}
+                {getFileTypeIcon(image.fileType, image.filename)}
               </div>
             </div>
           )}
 
           <div className="absolute top-2 left-2">
             <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-800/90 text-white backdrop-blur-sm">
-              {image.fileType.toUpperCase()}
+              {showVideo ? 'VIDEO' : image.fileType.toUpperCase()}
             </span>
           </div>
           <div className="absolute top-2 right-2">
@@ -859,14 +885,16 @@ const ClientImagesPage = () => {
                       className="relative flex justify-center items-center w-full rounded-lg overflow-hidden"
                       style={{ minHeight: '70vh' }}
                     >
-                      <img
+                      {selectedImage.fileType !== 'unknown' && (
+                        <img
                         src={thumbUrl}
                         alt={selectedImage.filename}
                         className={`max-w-full max-h-[70vh] w-[100%] mx-auto rounded-lg object-contain transition-opacity duration-300 ${
                           showingPreviewOverlay ? 'opacity-0' : 'opacity-100'
                         }`}
-                      />
-                      {hasDistinctPreview && (
+                        />
+                      )}
+                      {hasDistinctPreview && selectedImage.fileType !== 'unknown' &&(
                         <img
                           src={previewUrl}
                           alt={selectedImage.filename}
@@ -876,18 +904,42 @@ const ClientImagesPage = () => {
                           style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                         />
                       )}
+                      {selectedImage.fileType === 'unknown' && (
+                        <video
+                          src={selectedImage.previewUrl}
+                          className="max-w-full max-h-[70vh] w-full rounded-lg object-contain"
+                          controls
+                          muted
+                          playsInline
+                          preload="auto"
+                        />
+                      )}
                     </div>
                   );
                 })()
+              ) : isVideoType(selectedImage.fileType, selectedImage.filename) ? (
+                <div
+                  className="relative flex justify-center items-center w-full rounded-lg overflow-hidden"
+                  style={{ minHeight: '70vh' }}
+                >
+                  <video
+                    src={selectedImage.previewUrl}
+                    className="max-w-full max-h-[70vh] w-full rounded-lg object-contain"
+                    controls
+                    muted
+                    playsInline
+                    preload="auto"
+                  />
+                </div>
               ) : (
                 <div className="flex items-center justify-center h-64 bg-gray-100 rounded-xl">
-                  <div className={`${getFileTypeColor(selectedImage.fileType)} text-white rounded-xl p-8 text-6xl`} >
-                    {getFileTypeIcon(selectedImage.fileType)}
+                  <div className={`${getFileTypeColor(selectedImage.fileType, selectedImage.filename)} text-white rounded-xl p-8 text-6xl`} >
+                    {getFileTypeIcon(selectedImage.fileType, selectedImage.filename)}
                   </div>
                 </div>
               )}
               <p className="mt-4 text-sm text-gray-500 text-center">
-                {selectedImage.fileType.toUpperCase()} · {formatDate(selectedImage.uploadTime)}
+                {isVideoType(selectedImage.fileType, selectedImage.filename) ? 'VIDEO' : selectedImage.fileType.toUpperCase()} · {formatDate(selectedImage.uploadTime)}
               </p>
               {/* {Object.keys(selectedImage.enabledServices).length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-2 justify-center">
