@@ -13,12 +13,15 @@ export function PhotoBookEditorPage() {
   const album = usePhotoBookStore((s) => s.album)
   const photos = usePhotoBookStore((s) => s.photos)
   const selectedPhotoId = usePhotoBookStore((s) => s.selectedPhotoId)
+  const selectedPhotoIds = usePhotoBookStore((s) => s.selectedPhotoIds)
   const selectedSpreadIndex = usePhotoBookStore((s) => s.selectedSpreadIndex)
   const setTitle = usePhotoBookStore((s) => s.setTitle)
   const addPhotos = usePhotoBookStore((s) => s.addPhotos)
   const addPhotoDataUrls = usePhotoBookStore((s) => s.addPhotoDataUrls)
   const removePhotosByIds = usePhotoBookStore((s) => s.removePhotosByIds)
   const selectPhoto = usePhotoBookStore((s) => s.selectPhoto)
+  const togglePhotoInSelection = usePhotoBookStore((s) => s.togglePhotoInSelection)
+  const fillEmptySlotsForSpread = usePhotoBookStore((s) => s.fillEmptySlotsForSpread)
   const selectSpread = usePhotoBookStore((s) => s.selectSpread)
   const assignPhotoToSlot = usePhotoBookStore((s) => s.assignPhotoToSlot)
   const clearSlot = usePhotoBookStore((s) => s.clearSlot)
@@ -171,32 +174,60 @@ export function PhotoBookEditorPage() {
           </div>
 
           {isTextPage ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="text-sm font-semibold text-slate-900">
-                {selectedSpreadIndex === 0 ? 'Cover text' : 'Back cover text'}
+            <div
+              className={`relative overflow-hidden rounded-2xl shadow-lg ${
+                selectedSpreadIndex === 0
+                  ? 'bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 text-white'
+                  : 'bg-gradient-to-br from-slate-700 via-slate-600 to-slate-700 text-white'
+              }`}
+            >
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(255,255,255,0.15),transparent)]" />
+              <div className="relative p-5">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
+                      selectedSpreadIndex === 0 ? 'bg-white/20' : 'bg-white/15'
+                    }`}
+                  >
+                    <span className="text-2xl" aria-hidden>
+                      {selectedSpreadIndex === 0 ? '📖' : '📕'}
+                    </span>
+                  </div>
+                  <div>
+                    <div className="text-lg font-bold tracking-tight">
+                      {selectedSpreadIndex === 0 ? 'Front Cover' : 'Back Cover'}
+                    </div>
+                    <p className="mt-0.5 text-xs text-white/80">
+                      Edit title & subtitle · Shown in Preview & Print
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-4">
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/90">
+                      Headline
+                    </span>
+                    <input
+                      value={spread.text?.headline ?? ''}
+                      onChange={(e) => setSpreadText(selectedSpreadIndex, { headline: e.target.value })}
+                      className="w-full rounded-xl border-0 bg-white/95 px-4 py-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-white/50"
+                      placeholder="e.g. Summer in Kyoto"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-white/90">
+                      Subheadline
+                    </span>
+                    <textarea
+                      value={spread.text?.subheadline ?? ''}
+                      onChange={(e) => setSpreadText(selectedSpreadIndex, { subheadline: e.target.value })}
+                      rows={2}
+                      className="w-full resize-none rounded-xl border-0 bg-white/95 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-white/50"
+                      placeholder="e.g. 2026 · Family Trip"
+                    />
+                  </label>
+                </div>
               </div>
-              <p className="mt-1 text-xs text-slate-600">
-                This text is editable and will appear in Preview / Print.
-              </p>
-              <label className="mt-3 block text-xs font-medium text-slate-700">
-                Headline
-                <input
-                  value={spread.text?.headline ?? ''}
-                  onChange={(e) => setSpreadText(selectedSpreadIndex, { headline: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-0 focus:border-slate-400"
-                  placeholder="e.g. Summer in Kyoto"
-                />
-              </label>
-              <label className="mt-3 block text-xs font-medium text-slate-700">
-                Subheadline
-                <textarea
-                  value={spread.text?.subheadline ?? ''}
-                  onChange={(e) => setSpreadText(selectedSpreadIndex, { subheadline: e.target.value })}
-                  rows={2}
-                  className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none ring-0 focus:border-slate-400"
-                  placeholder="e.g. 2026 • Family Trip"
-                />
-              </label>
             </div>
           ) : null}
 
@@ -205,11 +236,19 @@ export function PhotoBookEditorPage() {
             title="Album Photos"
             photos={trayPhotos}
             selectedPhotoId={selectedPhotoId}
+            selectedPhotoIds={selectedPhotoIds}
             onSelectPhoto={selectPhoto}
+            onToggleMultiSelect={togglePhotoInSelection}
             onClearPhotos={() => {
               const ids = trayPhotos.map((p) => p.id)
               removePhotosByIds(ids)
             }}
+            onFillEmptySlots={() => fillEmptySlotsForSpread(selectedSpreadIndex)}
+            canFillEmptySlots={
+              !!layout &&
+              layout.slots.length > 1 &&
+              layout.slots.some((slot) => !spread.slotPhotoIds[slot.id])
+            }
           />
 
           <FileVaultImagePicker
@@ -242,7 +281,10 @@ export function PhotoBookEditorPage() {
                 <select
                   className="ml-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
                   value={spread.layoutId}
-                  onChange={(e) => setSpreadLayout(selectedSpreadIndex, e.target.value)}
+                  onChange={(e) => {
+                    const layoutId = e.target.value
+                    if (layoutId) setSpreadLayout(selectedSpreadIndex, layoutId)
+                  }}
                 >
                   {template.layouts.map((l) => (
                     <option key={l.id} value={l.id}>
@@ -254,8 +296,15 @@ export function PhotoBookEditorPage() {
             ) : null}
           </div>
 
+          {layout && layout.slots.length > 1 ? (
+            <div className="rounded-xl bg-sky-50 border border-sky-200 px-3 py-2 text-xs text-sky-800">
+              <span className="font-semibold">Multiple images:</span> Select several photos in the tray (Ctrl+Click), then click <strong>Fill empty slots</strong> to fill this spread in one go.
+            </div>
+          ) : null}
+
           {layout ? (
             <SpreadCanvas
+              key={`spread-${selectedSpreadIndex}`}
               layout={layout}
               spread={spread}
               spreadIndex={selectedSpreadIndex}

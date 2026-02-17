@@ -5,11 +5,13 @@ import type { PhotoBookPhoto } from '../../types/photobook'
 export function DraggablePhoto({
   photo,
   selected,
+  multiSelected,
   onClick,
 }: {
   photo: PhotoBookPhoto
   selected: boolean
-  onClick: () => void
+  multiSelected?: boolean
+  onClick?: (e: React.MouseEvent) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: photo.id,
@@ -26,9 +28,8 @@ export function DraggablePhoto({
       type="button"
       className={[
         'group relative aspect-square w-20 overflow-hidden rounded-xl border bg-white shadow-sm transition',
-        selected
-          ? 'border-slate-900 ring-2 ring-slate-900/20'
-          : 'border-slate-200 hover:border-slate-300',
+        selected ? 'border-slate-900 ring-2 ring-slate-900/20' : 'border-slate-200 hover:border-slate-300',
+        multiSelected ? 'ring-2 ring-sky-500 ring-offset-1' : '',
         isDragging ? 'opacity-40' : '',
       ].join(' ')}
       style={style}

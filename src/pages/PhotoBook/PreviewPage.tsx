@@ -123,15 +123,42 @@ export function PhotoBookPreviewPage() {
           ) : null}
         </div>
 
-        <div className="space-y-4">
+        <div className="mx-auto max-w-3xl space-y-6">
           {album.spreads.map((sp, idx) => {
             const layout = template ? getPhotoBookLayout(template, sp.layoutId) : null
             const isTextPage = idx === 0 || idx === Math.max(0, album.spreads.length - 1)
+            const isFrontCover = idx === 0
+            const isBackCover = idx === Math.max(0, album.spreads.length - 1) && album.spreads.length > 1
             return (
-              <div key={sp.id} className="break-inside-avoid">
-                <div className="mb-2 text-xs font-semibold text-slate-600">
-                  Spread {idx + 1} {layout ? `· ${layout.name}` : ''}
+              <div
+                key={sp.id}
+                className={`break-inside-avoid rounded-2xl shadow-lg print:shadow-none overflow-hidden ${
+                  isFrontCover
+                    ? 'border-2 border-amber-200/80 bg-gradient-to-b from-amber-50/50 to-white'
+                    : isBackCover
+                    ? 'border-2 border-slate-200/80 bg-gradient-to-b from-slate-50/50 to-white'
+                    : 'border border-slate-200 bg-white'
+                }`}
+              >
+                <div
+                  className={`flex items-center justify-between px-4 py-2.5 ${
+                    isFrontCover
+                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white'
+                      : isBackCover
+                      ? 'bg-gradient-to-r from-slate-600 to-slate-700 text-white'
+                      : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  <span className="text-sm font-bold tracking-tight">
+                    {isFrontCover ? 'Front Cover' : isBackCover ? 'Back Cover' : `Spread ${idx + 1}`}
+                  </span>
+                  {layout ? (
+                    <span className={`text-xs font-medium ${isFrontCover || isBackCover ? 'text-white/90' : 'text-slate-500'}`}>
+                      {layout.name}
+                    </span>
+                  ) : null}
                 </div>
+                <div className="p-4">
                 {layout ? (
                   <SpreadPreviewCanvas
                     layout={layout}
@@ -143,10 +170,11 @@ export function PhotoBookPreviewPage() {
                     onClearSlot={(slotId) => clearSlot(idx, slotId)}
                   />
                 ) : (
-                  <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
                     Missing layout: {sp.layoutId}
                   </div>
                 )}
+                </div>
               </div>
             )
           })}

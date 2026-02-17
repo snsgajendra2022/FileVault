@@ -53,7 +53,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     // Check for existing token and user data in localStorage
     const token = getStoredToken();
-    const userData = getStoredUserData();
+    const userData = getStoredUserData(); 
     
     // console.log('AuthContext: Found token:', !!token, 'Found userData:', !!userData);
     

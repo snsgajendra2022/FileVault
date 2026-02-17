@@ -14,6 +14,7 @@ type PhotoBookState = {
   photos: PhotoBookPhoto[]
   photoIndex: Array<{ id: string; name: string; source?: 'album' | 'local' | 'filevault' }>
   selectedPhotoId: string | null
+  selectedPhotoIds: string[]
   selectedSpreadIndex: number
 
   startNewAlbum: (templateId: string, opts?: { category?: string; description?: string }) => void
@@ -27,6 +28,8 @@ type PhotoBookState = {
   hydratePhotosFromDb: () => Promise<void>
   removePhotosByIds: (photoIds: string[]) => void
   selectPhoto: (photoId: string | null) => void
+  togglePhotoInSelection: (photoId: string) => void
+  fillEmptySlotsForSpread: (spreadIndex: number) => void
   selectSpread: (index: number) => void
   setSpreadLayout: (spreadIndex: number, layoutId: string) => void
   setSpreadText: (
@@ -86,6 +89,7 @@ export const usePhotoBookStore = create<PhotoBookState>()(
       photos: [],
       photoIndex: [],
       selectedPhotoId: null,
+      selectedPhotoIds: [],
       selectedSpreadIndex: 0,
 
       startNewAlbum: (templateId, opts) => {
@@ -93,10 +97,11 @@ export const usePhotoBookStore = create<PhotoBookState>()(
           album: createPhotoBookAlbumFromTemplate(templateId, opts),
           photos: [],
           photoIndex: [],
-          selectedPhotoId: null,
-          selectedSpreadIndex: 0,
-        })
-      },
+      selectedPhotoId: null,
+      selectedPhotoIds: [],
+      selectedSpreadIndex: 0,
+    })
+  },
 
       setDescription: (description) =>
         set((s) => {
@@ -184,10 +189,48 @@ export const usePhotoBookStore = create<PhotoBookState>()(
             photos: s.photos.filter((p) => !toRemove.has(p.id)),
             photoIndex: s.photoIndex.filter((p) => !toRemove.has(p.id)),
             selectedPhotoId: toRemove.has(s.selectedPhotoId ?? '') ? null : s.selectedPhotoId,
+            selectedPhotoIds: s.selectedPhotoIds.filter((id) => !toRemove.has(id)),
           }
         }),
 
-      selectPhoto: (photoId) => set({ selectedPhotoId: photoId }),
+      selectPhoto: (photoId) =>
+        set({
+          selectedPhotoId: photoId,
+          selectedPhotoIds: photoId ? [photoId] : [],
+        }),
+
+      togglePhotoInSelection: (photoId) =>
+        set((s) => {
+          const has = s.selectedPhotoIds.includes(photoId)
+          const next = has ? s.selectedPhotoIds.filter((id) => id !== photoId) : [...s.selectedPhotoIds, photoId]
+          return {
+            selectedPhotoIds: next,
+            selectedPhotoId: next.length > 0 ? next[next.length - 1] : null,
+          }
+        }),
+
+      fillEmptySlotsForSpread: (spreadIndex) =>
+        set((s) => {
+          if (!s.album || !s.selectedPhotoIds.length) return s
+          const template = getPhotoBookTemplate(s.album.templateId)
+          if (!template) return s
+          const spread = s.album.spreads[spreadIndex]
+          if (!spread) return s
+          const layout = getPhotoBookLayout(template, spread.layoutId)
+          if (!layout) return s
+          const emptySlots = layout.slots.filter((slot) => !spread.slotPhotoIds[slot.id])
+          if (emptySlots.length === 0) return s
+          const toAssign = s.selectedPhotoIds.slice(0, emptySlots.length)
+          const spreads = s.album.spreads.map((sp, idx) => {
+            if (idx !== spreadIndex) return sp
+            let next = { ...sp.slotPhotoIds }
+            toAssign.forEach((photoId, i) => {
+              next = { ...next, [emptySlots[i].id]: photoId }
+            })
+            return { ...sp, slotPhotoIds: next }
+          })
+          return { album: { ...s.album, spreads, updatedAt: new Date().toISOString() } }
+        }),
 
       selectSpread: (index) =>
         set((s) => {

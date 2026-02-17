@@ -50,6 +50,11 @@ function Slot({
     <button
       ref={setNodeRef}
       type="button"
+      className={[
+        `relative flex min-h-0 min-w-0 flex-1 overflow-hidden border transition ${roundedClassName ?? 'rounded-xl'}`,
+        assignedPhoto ? 'border-slate-200 bg-white' : 'border-dashed border-slate-300 bg-white/60',
+        isOver ? 'ring-2 ring-sky-400/60' : '',
+      ].join(' ')}
       onClick={() => {
         if (selectedPhotoId) {
           onAssignSelected()
@@ -61,25 +66,24 @@ function Slot({
         }
         onClear()
       }}
-      className={[
-        `relative overflow-hidden border transition ${roundedClassName ?? 'rounded-xl'}`,
-        assignedPhoto ? 'border-slate-200 bg-white' : 'border-dashed border-slate-300 bg-white/60',
-        isOver ? 'ring-2 ring-sky-400/60' : '',
-      ].join(' ')}
     >
       {assignedPhoto ? (
         <>
-          <img
-            src={assignedPhoto.dataUrl}
-            alt={assignedPhoto.name}
-            className="h-full w-full select-none object-cover"
-            draggable={false}
-            style={{
-              transform: `translate(${x}%, ${y}%) scale(${scale})`,
-              transformOrigin: 'center',
-              willChange: active ? 'transform' : undefined,
-            }}
-          />
+          <div className="absolute inset-0 min-h-0 min-w-full">
+            <img
+              src={assignedPhoto.dataUrl}
+              alt={assignedPhoto.name}
+              className="block h-full w-full select-none object-cover object-center"
+              draggable={false}
+              style={{
+                transform: `translate(${x}%, ${y}%) scale(${scale})`,
+                transformOrigin: 'center',
+                willChange: active ? 'transform' : undefined,
+                minWidth: '100%',
+                minHeight: '100%',
+              }}
+            />
+          </div>
 
           {active ? (
             <div
@@ -225,34 +229,49 @@ export function SpreadCanvas({
           <div className="text-xs text-slate-600">{layout.name}</div>
         </div>
         <div className="text-xs text-slate-500">
-          Tip: drag photos from the tray or click-select then click a slot.
+          {layout.slots.length > 1
+            ? 'Tip: Drag photos to slots, or select multiple (Ctrl+Click) and use Fill empty slots in the tray.'
+            : 'Tip: Drag a photo onto the slot or click-select then click the slot.'}
         </div>
       </div>
 
       <div className="mt-4">
-        <div className="relative w-full">
+        <div className="relative w-full" style={{ minWidth: 0 }}>
           <div
-            ref={rootRef}
-            className={['grid w-full gap-2 rounded-xl p-3', backgroundClass].join(' ')}
-            style={{
-              gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
-              gridTemplateRows: `repeat(${layout.rows}, minmax(0, 1fr))`,
-              aspectRatio: '2 / 1',
-            }}
+            className="w-full rounded-xl overflow-hidden"
+            style={{ aspectRatio: '2 / 1', minHeight: 120 }}
           >
-            {layout.slots.map((slot) => {
-              const photoId = spread.slotPhotoIds[slot.id]
-              const assignedPhoto = photoId ? photosById[photoId] ?? null : null
-              const imgAdj = spread.slotImageAdjust?.[slot.id]
-              return (
-                <div
-                  key={slot.id}
-                  data-slot-id={slot.id}
-                  style={{
-                    gridColumn: `${slot.col} / span ${slot.colSpan}`,
-                    gridRow: `${slot.row} / span ${slot.rowSpan}`,
-                  }}
-                >
+            <div
+              ref={rootRef}
+              className={['grid h-full w-full gap-2 p-3', backgroundClass].join(' ')}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
+                gridTemplateRows: `repeat(${layout.rows}, minmax(0, 1fr))`,
+                minHeight: 0,
+                maxHeight: '100%',
+                transition: 'grid-template-columns 0.3s ease-out, grid-template-rows 0.3s ease-out',
+              }}
+            >
+              {layout.slots.map((slot) => {
+                const photoId = spread.slotPhotoIds[slot.id]
+                const assignedPhoto = photoId ? photosById[photoId] ?? null : null
+                const imgAdj = spread.slotImageAdjust?.[slot.id]
+                return (
+                  <div
+                    key={slot.id}
+                    data-slot-id={slot.id}
+                    className="flex min-h-0 min-w-0 overflow-hidden"
+                    style={{
+                      gridColumn: `${slot.col} / span ${slot.colSpan}`,
+                      gridRow: `${slot.row} / span ${slot.rowSpan}`,
+                      minHeight: 0,
+                      minWidth: 0,
+                      alignSelf: 'stretch',
+                      justifySelf: 'stretch',
+                      transition: 'grid-column 0.3s ease-out, grid-row 0.3s ease-out',
+                    }}
+                  >
                   <Slot
                     spreadIndex={spreadIndex}
                     slotId={slot.id}
@@ -282,6 +301,7 @@ export function SpreadCanvas({
                 </div>
               )
             })}
+            </div>
           </div>
 
           <Decorations decorations={layout.decorations} />
@@ -343,20 +363,22 @@ export function SpreadCanvas({
               </div>
             ) : (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-                <div className="pointer-events-auto w-full max-w-lg rounded-2xl bg-white/65 p-4 backdrop-blur shadow-sm ring-1 ring-black/5">
+                <div className="pointer-events-auto w-full max-w-lg rounded-2xl border-2 border-white/90 bg-white/80 p-5 shadow-xl backdrop-blur-md">
+                  <div className="mb-3 h-0.5 w-12 rounded-full bg-gradient-to-r from-transparent via-slate-300 to-transparent mx-auto" />
                   <input
                     value={headline}
                     onChange={(e) => onChangeText({ headline: e.target.value })}
-                    placeholder="Cover / back cover headline"
-                    className="w-full bg-transparent text-center text-2xl font-semibold tracking-tight text-slate-900 outline-none placeholder:text-slate-400"
+                    placeholder="Your book title"
+                    className="w-full bg-transparent text-center text-2xl font-bold tracking-tight text-slate-900 outline-none placeholder:text-slate-400"
                   />
                   <textarea
                     value={subheadline}
                     onChange={(e) => onChangeText({ subheadline: e.target.value })}
-                    placeholder="Optional subtitle or date"
+                    placeholder="Subtitle or date"
                     rows={2}
-                    className="mt-2 w-full resize-none bg-transparent text-center text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                    className="mt-3 w-full resize-none bg-transparent text-center text-sm font-medium text-slate-600 outline-none placeholder:text-slate-400"
                   />
+                  <div className="mt-3 h-0.5 w-12 rounded-full bg-gradient-to-r from-transparent via-slate-300 to-transparent mx-auto" />
                 </div>
               </div>
             )

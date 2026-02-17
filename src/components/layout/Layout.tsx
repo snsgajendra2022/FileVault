@@ -23,7 +23,7 @@ const Layout = () => {
       <div className="lg:ml-64 min-h-screen flex flex-col">
         <Header setSidebarOpen={setSidebarOpen} />
 
-        <main className="flex-1 py-6 px-6 lg:px-8 xl:px-8 2xl:px-16">
+        <main className="flex-1 py-6 px-6 lg:px-8 xl:px-8 2xl:px-4">
           <div className="w-full max-w-none">
             <Outlet />
           </div>

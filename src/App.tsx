@@ -23,9 +23,6 @@ import ServicesPage from './pages/ServicesPage';
 import ProfilePage from './pages/ProfilePage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import DashboardPage from './pages/DashboardPage';
-import PhotoThemesPage from './pages/PhotoThemesPage';
-import PhotoThemeCategoryPage from './pages/PhotoThemeCategoryPage';
-import PhotoThemeAlbumBuilderPage from './pages/PhotoThemeAlbumBuilderPage';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
 import AcceptInvitationPage from './pages/AcceptInvitationPage';
@@ -53,12 +50,10 @@ import PublicSelectionPage from './pages/PhotoStudio/PublicSelectionPage';
 import PublicCheckoutPage from './pages/PhotoStudio/PublicCheckoutPage';
 import SharedAlbums from './pages/PhotoStudio/SharedAlbums';
 import PaymentManagement from './components/admin/PaymentManagement';
-// PhotoBook imports
-import { PhotoBookLayout } from './pages/PhotoBook/PhotoBookLayout';
-import { PhotoBookTemplateGalleryPage } from './pages/PhotoBook/TemplateGalleryPage';
-import { PhotoBookEditorPage } from './pages/PhotoBook/EditorPage';
-import { PhotoBookPreviewPage } from './pages/PhotoBook/PreviewPage';
-import { PhotoBookNotFoundPage } from './pages/PhotoBook/NotFoundPage';
+// Photo Themes
+import PhotoThemesPage from './pages/PhotoThemesPage';
+import PhotoThemeCategoryPage from './pages/PhotoThemeCategoryPage';
+import PhotoThemeAlbumBuilderPage from './pages/PhotoThemeAlbumBuilderPage';
 
 
 const queryClient = new QueryClient({
@@ -137,9 +132,6 @@ const AppRoutes = () => {
           isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />
         } />
         <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="photo-themes" element={<PhotoThemesPage />} />
-        <Route path="photo-themes/:categorySlug" element={<PhotoThemeCategoryPage />} />
-        <Route path="photo-themes/:categorySlug/album" element={<PhotoThemeAlbumBuilderPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="change-password" element={<ChangePasswordPage />} />
         <Route path="services" element={<ServicesPage />} />
@@ -170,13 +162,10 @@ const AppRoutes = () => {
         <Route path="family-tree" element={<FamilyTree />} />
         <Route path="Sheet" element={<SheetPage />} />
         <Route path="create-client" element={<CreateClientInvitationForm onInvitationCreated={() => {}} />} />
-        {/* PhotoBook Routes */}
-        <Route path="photobook" element={<PhotoBookLayout />}>
-          <Route index element={<PhotoBookTemplateGalleryPage />} />
-          <Route path="editor" element={<PhotoBookEditorPage />} />
-          <Route path="preview" element={<PhotoBookPreviewPage />} />
-          <Route path="*" element={<PhotoBookNotFoundPage />} />
-        </Route>
+        {/* Photo Themes */}
+        <Route path="photo-themes" element={<PhotoThemesPage />} />
+        <Route path="photo-themes/:categorySlug" element={<PhotoThemeCategoryPage />} />
+        <Route path="photo-themes/:categorySlug/album" element={<PhotoThemeAlbumBuilderPage />} />
         {/* Admin route with proper protection */}
         <Route path="admin" element={
           <ProtectedRoute adminOnly>

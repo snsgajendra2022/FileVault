@@ -135,47 +135,59 @@ export function SpreadPreviewCanvas({
         : 'bg-white'
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full" style={{ minWidth: 0 }}>
       <div
-        ref={rootRef}
-        className={[
-          'grid w-full gap-2 rounded-xl border border-slate-200 p-3 shadow-sm',
-          backgroundClass,
-        ].join(' ')}
-        style={{
-          gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${layout.rows}, minmax(0, 1fr))`,
-          aspectRatio: '2 / 1',
-        }}
+        className="w-full rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+        style={{ aspectRatio: '2 / 1', minHeight: 120, maxWidth: '100%' }}
       >
-        {layout.slots.map((slot) => {
-          const photoId = spread.slotPhotoIds[slot.id]
-          const assignedPhoto = photoId ? photosById[photoId] ?? null : null
-          const adj = spread.slotImageAdjust?.[slot.id] ?? {}
-          const scale = Math.min(3, Math.max(1, adj.scale ?? 1))
-          const maxT = (scale - 1) * 50 // at scale=1 → 0, scale=3 → 100
-          const x = clamp(adj.x ?? 0, -maxT, maxT)
-          const y = clamp(adj.y ?? 0, -maxT, maxT)
-          return (
-            <div
-              key={slot.id}
-              data-slot-id={slot.id}
-              className={['overflow-hidden bg-slate-50', isWedding && isWeddingCoverPage ? 'rounded-full' : 'rounded-lg'].join(' ')}
-              style={{
-                gridColumn: `${slot.col} / span ${slot.colSpan}`,
-                gridRow: `${slot.row} / span ${slot.rowSpan}`,
-                position: 'relative',
-                outline:
-                  editable && activeSlotId === slot.id ? '2px solid rgba(16, 185, 129, 0.9)' : '2px solid transparent',
-                outlineOffset: 2,
-              }}
-            >
+        <div
+          ref={rootRef}
+          className={['grid h-full w-full gap-1.5 p-2.5', backgroundClass].join(' ')}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${layout.rows}, minmax(0, 1fr))`,
+            minHeight: 0,
+            maxHeight: '100%',
+            transition: 'grid-template-columns 0.3s ease-out, grid-template-rows 0.3s ease-out',
+          }}
+        >
+          {layout.slots.map((slot) => {
+            const photoId = spread.slotPhotoIds[slot.id]
+            const assignedPhoto = photoId ? photosById[photoId] ?? null : null
+            const adj = spread.slotImageAdjust?.[slot.id] ?? {}
+            const scale = Math.min(3, Math.max(1, adj.scale ?? 1))
+            const maxT = (scale - 1) * 50 // at scale=1 → 0, scale=3 → 100
+            const x = clamp(adj.x ?? 0, -maxT, maxT)
+            const y = clamp(adj.y ?? 0, -maxT, maxT)
+            return (
+              <div
+                key={slot.id}
+                data-slot-id={slot.id}
+                className={[
+                  'relative flex min-h-0 min-w-0 overflow-hidden bg-slate-100',
+                  isWedding && isWeddingCoverPage ? 'rounded-full' : 'rounded-lg',
+                ].join(' ')}
+                style={{
+                  gridColumn: `${slot.col} / span ${slot.colSpan}`,
+                  gridRow: `${slot.row} / span ${slot.rowSpan}`,
+                  position: 'relative',
+                  minHeight: 0,
+                  minWidth: 0,
+                  alignSelf: 'stretch',
+                  justifySelf: 'stretch',
+                  transition: 'grid-column 0.3s ease-out, grid-row 0.3s ease-out',
+                  outline:
+                    editable && activeSlotId === slot.id ? '2px solid rgba(16, 185, 129, 0.9)' : '2px solid transparent',
+                  outlineOffset: 2,
+                }}
+              >
               {assignedPhoto ? (
-                <>
+                <div className="absolute inset-0 min-h-0 min-w-0 overflow-hidden">
                   <img
                     src={assignedPhoto.dataUrl}
                     alt=""
-                    className="h-full w-full select-none object-cover"
+                    className="block h-full w-full select-none object-cover object-center"
                     draggable={false}
                     onClick={() => {
                       if (!editable) return
@@ -186,6 +198,8 @@ export function SpreadPreviewCanvas({
                       transformOrigin: 'center',
                       willChange: editable && activeSlotId === slot.id ? 'transform' : undefined,
                       cursor: editable ? 'pointer' : undefined,
+                      minWidth: '100%',
+                      minHeight: '100%',
                     }}
                   />
 
@@ -241,15 +255,16 @@ export function SpreadPreviewCanvas({
                       />
                     </>
                   ) : null}
-                </>
+                </div>
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-xs font-medium text-slate-400">
+                <div className="flex flex-1 items-center justify-center text-xs font-medium text-slate-400">
                   Empty
                 </div>
               )}
             </div>
           )
         })}
+        </div>
       </div>
 
       <Decorations decorations={layout.decorations} />
@@ -312,13 +327,15 @@ export function SpreadPreviewCanvas({
           </div>
         ) : (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-            <div className="max-w-lg rounded-2xl bg-white/70 p-4 text-center backdrop-blur ring-1 ring-black/5">
+            <div className="max-w-lg rounded-2xl border-2 border-white/90 bg-white/80 px-5 py-5 text-center shadow-xl backdrop-blur-md">
+              <div className="mb-3 h-0.5 w-12 rounded-full bg-gradient-to-r from-transparent via-slate-300 to-transparent mx-auto" />
               {headline.trim() ? (
-                <div className="text-2xl font-semibold tracking-tight text-slate-900">{headline}</div>
+                <div className="text-2xl font-bold tracking-tight text-slate-900">{headline}</div>
               ) : null}
               {subheadline.trim() ? (
-                <div className="mt-1 text-sm text-slate-700">{subheadline}</div>
+                <div className="mt-3 text-sm font-medium text-slate-600">{subheadline}</div>
               ) : null}
+              <div className="mt-3 h-0.5 w-12 rounded-full bg-gradient-to-r from-transparent via-slate-300 to-transparent mx-auto" />
             </div>
           </div>
         )
