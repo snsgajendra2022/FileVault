@@ -50,6 +50,8 @@ export interface QueueItemMeta {
     relationshipType?: string;
   };
   imageId?: number | string;
+  /** When set, this upload will be added to this album once it completes */
+  targetAlbumId?: number;
   createdAt: number;
 }
 
@@ -197,6 +199,7 @@ class UploadManager {
         uploadDestination: item.uploadDestination,
         targetFamilyMember: item.targetFamilyMember,
         imageId: item.imageId,
+        targetAlbumId: item.targetAlbumId,
         createdAt: item.createdAt,
         blob,
       });
@@ -211,7 +214,7 @@ class UploadManager {
     }
   }
 
-  async addFiles(files: File[], options?: { uploadDestination?: 'my-account' | 'family-account'; targetFamilyMember?: QueueItem['targetFamilyMember'] }): Promise<{ added: number; skipped: number; skippedDueToLimit: number }> {
+  async addFiles(files: File[], options?: { uploadDestination?: 'my-account' | 'family-account'; targetFamilyMember?: QueueItem['targetFamilyMember']; targetAlbumId?: number }): Promise<{ added: number; skipped: number; skippedDueToLimit: number }> {
     const existingKeys = new Set(this.items.map((i) => i.fileKey));
     let added = 0;
     let skipped = 0;
@@ -239,6 +242,7 @@ class UploadManager {
         retries: 0,
         uploadDestination: options?.uploadDestination ?? 'my-account',
         targetFamilyMember: options?.targetFamilyMember,
+        targetAlbumId: options?.targetAlbumId,
         createdAt: Date.now(),
         file,
       };
@@ -705,7 +709,9 @@ const UploadPage = () => {
       if (valid.length) {
         setIsAddingFiles(true);
         try {
-          const { added, skipped, skippedDueToLimit } = await uploadManager.addFiles(valid);
+          const { added, skipped, skippedDueToLimit } = await uploadManager.addFiles(valid, {
+            targetAlbumId: selectedAlbumId ?? undefined,
+          });
           setQueueState(uploadManager.getState());
           if (added) toast.success(`${added} file(s) added to upload queue`);
           if (skipped) toast(`Skipped ${skipped} duplicate(s).`);
@@ -715,7 +721,7 @@ const UploadPage = () => {
         }
       }
     },
-    [canUpload, isFileTypeAllowed]
+    [canUpload, isFileTypeAllowed, selectedAlbumId]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -823,6 +829,7 @@ const UploadPage = () => {
       setNewAlbumPrice('');
       setPerPhotoPrice('');
       setNewAlbumIsPublic(false);
+      handleClearFinished();
       await refetchAlbums();
       if (res.data?.id) setSelectedAlbumId(res.data.id);
     } catch (err: unknown) {
@@ -920,6 +927,7 @@ const UploadPage = () => {
 
   const addCompletedToAlbum = useCallback(async () => {
     if (!selectedAlbumId || completedWithIds.length === 0) return;
+    handleClearFinished();
     const ids = completedWithIds.map((i) => Number(i.imageId!));
     try {
       await api.post(`/api/albums/${selectedAlbumId}/images`, { imageIds: ids });
@@ -934,29 +942,41 @@ const UploadPage = () => {
     }
   }, [selectedAlbumId, completedWithIds, albums]);
 
-  // When an album is selected, automatically add newly completed uploads to that album via POST /api/albums/{albumId}/images
-  const completedImageIdsKey = completedWithIds.map((i) => i.imageId).join(',');
+  // When runOneUpload completes an item that has targetAlbumId, add that image to that album (e.g. folder-selected or album-selected when files were added)
+  const completedWithTargetAlbum = queueState.items.filter(
+    (i) => i.status === 'completed' && i.imageId != null && i.targetAlbumId != null
+  );
+  const completedImageIdsKey = completedWithTargetAlbum.map((i) => `${i.targetAlbumId}:${i.imageId}`).join(',');
+
   useEffect(() => {
-    if (!selectedAlbumId || completedWithIds.length === 0) return;
-    const ids = completedWithIds.map((i) => Number(i.imageId!)).filter((id) => !Number.isNaN(id));
-    if (ids.length === 0) return;
-    if (!addedToAlbumRef.current.has(selectedAlbumId)) addedToAlbumRef.current.set(selectedAlbumId, new Set());
-    const alreadyAdded = addedToAlbumRef.current.get(selectedAlbumId)!;
-    const toAdd = ids.filter((id) => !alreadyAdded.has(id));
-    if (toAdd.length === 0) return;
-    const albumName = albums.find((a) => a.id === selectedAlbumId)?.name ?? 'album';
-    api
-      .post(`/api/albums/${selectedAlbumId}/images`, { imageIds: toAdd })
-      .then(() => {
-        toAdd.forEach((id) => alreadyAdded.add(id));
-        setUploadedImageIds((prev) => [...prev, ...toAdd]);
-        toast.success(`${toAdd.length} image(s) added to album "${albumName}"`);
-      })
-      .catch((err: unknown) => {
-        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to add to album';
-        toast.error(msg);
-      });
-  }, [selectedAlbumId, completedImageIdsKey, completedWithIds, albums]);
+    if (completedWithTargetAlbum.length === 0) return;
+    const byAlbum = new Map<number, number[]>();
+    for (const item of completedWithTargetAlbum) {
+      const albumId = item.targetAlbumId!;
+      const id = Number(item.imageId!);
+      if (Number.isNaN(id)) continue;
+      if (!byAlbum.has(albumId)) byAlbum.set(albumId, []);
+      byAlbum.get(albumId)!.push(id);
+    }
+    byAlbum.forEach((imageIds, albumId) => {
+      if (!addedToAlbumRef.current.has(albumId)) addedToAlbumRef.current.set(albumId, new Set());
+      const alreadyAdded = addedToAlbumRef.current.get(albumId)!;
+      const toAdd = imageIds.filter((id) => !alreadyAdded.has(id));
+      if (toAdd.length === 0) return;
+      const albumName = albums.find((a) => a.id === albumId)?.name ?? 'album';
+      api
+        .post(`/api/albums/${albumId}/images`, { imageIds: toAdd })
+        .then(() => {
+          toAdd.forEach((id) => alreadyAdded.add(id));
+          setUploadedImageIds((prev) => [...prev, ...toAdd]);
+          toast.success(`${toAdd.length} image(s) added to album "${albumName}"`);
+        })
+        .catch((err: unknown) => {
+          const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to add to album';
+          toast.error(msg);
+        });
+    });
+  }, [completedImageIdsKey, completedWithTargetAlbum, albums]);
 
   if (userLoading) {
     return (
@@ -1041,7 +1061,7 @@ const UploadPage = () => {
       </div>
 
       {/* Album selection */}
-      <div className="max-w-full mx-auto bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-100">
+      <div className={`max-w-full mx-auto rounded-2xl p-6 border border-blue-100 transition-opacity ${canUpload() ? 'bg-gradient-to-r from-blue-50 to-purple-50' : 'bg-gray-100 opacity-75 pointer-events-none'}`}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
             <FaFolder className="mr-3 font-medium text-[#2731db]" />
@@ -1052,8 +1072,10 @@ const UploadPage = () => {
           </div>
           <div className="flex items-center space-x-3">
             <button
+              type="button"
               onClick={() => setShowCreateAlbumModal(true)}
-              className="flex items-center px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors text-sm font-semibold"
+              disabled={!canUpload()}
+              className="flex items-center px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FaPlus className="mr-2" />
               Create Album
@@ -1062,7 +1084,8 @@ const UploadPage = () => {
               <select
                 value={selectedAlbumId ?? ''}
                 onChange={(e) => setSelectedAlbumId(e.target.value ? Number(e.target.value) : null)}
-                className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2731db] min-w-[200px]"
+                disabled={!canUpload()}
+                className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2731db] min-w-[200px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="">No Album</option>
                 {albums.map((album) => (
