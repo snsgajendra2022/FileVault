@@ -1136,7 +1136,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                           switch (layoutLabel) {
                             case 'Two Up':
                               flipInner = (
-                                <div className="absolute inset-2 z-10 grid grid-cols-2 gap-1">
+                                <div className="absolute inset-0 z-10 grid grid-cols-2 gap-1">
                                   <PhotoWithFloralFrame
                                     src={commonImgProps(0).src}
                                     alt={commonImgProps(0).alt}
@@ -1154,7 +1154,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                               break;
                             case 'Three Grid':
                               flipInner = (
-                                <div className="absolute inset-2 z-10 grid grid-cols-3 gap-1">
+                                <div className="absolute inset-0 z-10 grid grid-cols-3 gap-1">
                                   {[0, 1, 2].map((i) => {
                                     const props = commonImgProps(i);
                                     return (
@@ -1172,7 +1172,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                               break;
                             case 'Four Grid':
                               flipInner = (
-                                <div className="absolute inset-2 z-10 grid grid-cols-2 grid-rows-2 gap-1">
+                                <div className="absolute inset-0 z-10 grid grid-cols-2 grid-rows-2 gap-1">
                                   {[0, 1, 2, 3].map((i) => {
                                     const props = commonImgProps(i);
                                     return (
@@ -1190,7 +1190,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                               break;
                             case 'Hero + Two':
                               flipInner = (
-                                <div className="absolute inset-2 z-10 grid grid-rows-[2fr,1fr] gap-1">
+                                <div className="absolute inset-0 z-10 grid grid-rows-[2fr,1fr] gap-1">
                                   <PhotoWithFloralFrame
                                     src={commonImgProps(0).src}
                                     alt={commonImgProps(0).alt}
@@ -1217,19 +1217,19 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                             case 'Collage':
                               flipInner = (
                                 <div className="absolute inset-0 z-10 bg-transparent">
-                                  <div className="absolute inset-2">
+                                  <div className="absolute inset-0 p-2 box-border">
                                     <PhotoWithFloralFrame
                                       src={commonImgProps(0).src}
                                       alt={commonImgProps(0).alt}
                                       frameStyle={frameStyle as FloralFrameStyle}
-                                      className="absolute top-1 left-2 w-1/2 h-2/3"
+                                      className="absolute top-2 left-2 w-1/2 h-2/3"
                                       imgClassName="w-full h-full object-cover rounded-md shadow-md rotate-[-3deg]"
                                     />
                                     <PhotoWithFloralFrame
                                       src={commonImgProps(1).src}
                                       alt={commonImgProps(1).alt}
                                       frameStyle={frameStyle as FloralFrameStyle}
-                                      className="absolute bottom-1 right-2 w-1/2 h-2/3"
+                                      className="absolute bottom-2 right-2 w-1/2 h-2/3"
                                       imgClassName="w-full h-full object-cover rounded-md shadow-md rotate-[4deg]"
                                     />
                                     <PhotoWithFloralFrame
@@ -1261,7 +1261,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                               );
                           }
                           return (
-                            <ImageFrameWrapper frameStyle={frameStyle} className="absolute inset-2 z-10 w-full h-full">
+                            <ImageFrameWrapper frameStyle={frameStyle} className="absolute inset-0 z-10 p-2 box-border">
                               {flipInner}
                             </ImageFrameWrapper>
                           );
