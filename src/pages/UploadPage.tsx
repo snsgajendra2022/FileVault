@@ -521,6 +521,8 @@ const UploadPage = () => {
   const [isAddingFiles, setIsAddingFiles] = useState(false);
   const thumbnailUrlsRef = useRef<Map<string, string>>(new Map());
   const queueListRef = useRef<HTMLDivElement>(null);
+  /** Track imageIds we've already added to each album (so we don't double-call the API) */
+  const addedToAlbumRef = useRef<Map<number, Set<number>>>(new Map());
 
   const { data: userProfile, isLoading: userLoading, error: userError } = useQuery({
     queryKey: ['userProfile'],
@@ -918,17 +920,43 @@ const UploadPage = () => {
 
   const addCompletedToAlbum = useCallback(async () => {
     if (!selectedAlbumId || completedWithIds.length === 0) return;
-    const ids = completedWithIds.map((i) => i.imageId!);
+    const ids = completedWithIds.map((i) => Number(i.imageId!));
     try {
       await api.post(`/api/albums/${selectedAlbumId}/images`, { imageIds: ids });
       const name = albums.find((a) => a.id === selectedAlbumId)?.name ?? 'album';
       toast.success(`${ids.length} image(s) added to album "${name}"`);
       setUploadedImageIds((prev) => [...prev, ...ids]);
+      if (!addedToAlbumRef.current.has(selectedAlbumId)) addedToAlbumRef.current.set(selectedAlbumId, new Set());
+      ids.forEach((id) => addedToAlbumRef.current.get(selectedAlbumId)!.add(id));
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to add to album';
       toast.error(msg);
     }
   }, [selectedAlbumId, completedWithIds, albums]);
+
+  // When an album is selected, automatically add newly completed uploads to that album via POST /api/albums/{albumId}/images
+  const completedImageIdsKey = completedWithIds.map((i) => i.imageId).join(',');
+  useEffect(() => {
+    if (!selectedAlbumId || completedWithIds.length === 0) return;
+    const ids = completedWithIds.map((i) => Number(i.imageId!)).filter((id) => !Number.isNaN(id));
+    if (ids.length === 0) return;
+    if (!addedToAlbumRef.current.has(selectedAlbumId)) addedToAlbumRef.current.set(selectedAlbumId, new Set());
+    const alreadyAdded = addedToAlbumRef.current.get(selectedAlbumId)!;
+    const toAdd = ids.filter((id) => !alreadyAdded.has(id));
+    if (toAdd.length === 0) return;
+    const albumName = albums.find((a) => a.id === selectedAlbumId)?.name ?? 'album';
+    api
+      .post(`/api/albums/${selectedAlbumId}/images`, { imageIds: toAdd })
+      .then(() => {
+        toAdd.forEach((id) => alreadyAdded.add(id));
+        setUploadedImageIds((prev) => [...prev, ...toAdd]);
+        toast.success(`${toAdd.length} image(s) added to album "${albumName}"`);
+      })
+      .catch((err: unknown) => {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to add to album';
+        toast.error(msg);
+      });
+  }, [selectedAlbumId, completedImageIdsKey, completedWithIds, albums]);
 
   if (userLoading) {
     return (
