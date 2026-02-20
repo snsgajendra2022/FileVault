@@ -118,31 +118,30 @@ const ThemeCard: React.FC<{ theme: ThemeCategory; onClick: (theme: ThemeCategory
   return (
     <div
       onClick={() => onClick(theme)}
-      className="group relative bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transform transition-all duration-300 hover:scale-105 hover:-translate-y-2 border border-gray-100 overflow-hidden cursor-pointer"
+      className="group relative bg-white/95 rounded-2xl p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_18px_40px_-16px_rgba(15,23,42,0.35)] hover:shadow-[0_0_0_1px_rgba(56,189,248,0.6),0_22px_50px_-18px_rgba(15,23,42,0.6)] transform transition-all duration-300 hover:-translate-y-1.5 border border-slate-200/80 hover:border-cyan-400/70 overflow-hidden cursor-pointer backdrop-blur-sm"
     >
       <div
-        className={`absolute inset-0 bg-gradient-to-br ${theme.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}
+        className={`absolute inset-0 bg-gradient-to-br ${theme.color} opacity-[0.03] group-hover:opacity-10 transition-opacity duration-300`}
       ></div>
 
-      <div className="absolute top-2 right-2 w-2 h-2 bg-blue-400 rounded-full opacity-0 group-hover:opacity-60 animate-pulse" />
-      <div className="absolute top-4 right-4 w-1 h-1 bg-purple-400 rounded-full opacity-0 group-hover:opacity-40 animate-ping" />
+      <div className="absolute top-3 right-3 w-8 h-8 rounded-full bg-cyan-400/10 blur-xl group-hover:bg-cyan-400/20 transition-colors" />
 
       <div className="relative z-10">
         <div
-          className={`w-16 h-16 bg-gradient-to-br ${theme.color} rounded-2xl flex items-center justify-center mb-4 transform group-hover:scale-110 transition-transform duration-300 shadow-lg`}
+          className={`w-14 h-14 bg-gradient-to-br ${theme.color} rounded-2xl flex items-center justify-center mb-4 transform group-hover:scale-105 transition-transform duration-300 shadow-lg shadow-slate-900/20`}
         >
           <Icon className="h-8 w-8 text-white" />
         </div>
 
-        <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors duration-300">
+        <h3 className="text-lg font-bold text-slate-900 mb-1.5 group-hover:text-cyan-700 transition-colors duration-300">
           {theme.title}
         </h3>
-        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{theme.subtitle}</p>
+        <p className="text-xs text-slate-500 mb-4 line-clamp-2">{theme.subtitle}</p>
 
-        <div className="flex items-center text-indigo-600 text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <span>Explore themes</span>
+        <div className="flex items-center text-cyan-700 text-[11px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <span>Open theme</span>
           <svg
-            className="w-4 h-4 ml-2 transform group-hover:translate-x-1 transition-transform duration-300"
+            className="w-3.5 h-3.5 ml-1.5 transform group-hover:translate-x-1 transition-transform duration-300"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -415,36 +414,50 @@ const PhotoThemesPage: React.FC = () => {
     return (
       <div className="space-y-8 w-full">
         {/* Header - Show even during loading */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl p-8 text-white shadow-2xl">
-          <div className="absolute inset-0 bg-black opacity-10" />
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -translate-y-32 translate-x-32" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full translate-y-24 -translate-x-24" />
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6 md:p-7 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_22px_60px_-20px_rgba(15,23,42,0.4)]">
+          <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-cyan-500 via-indigo-500 to-violet-500 rounded-t-3xl" />
+          <div className="absolute top-0 right-0 w-40 h-40 bg-cyan-400/10 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-36 h-36 bg-indigo-400/10 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
 
-          <div className="relative z-10 flex items-center space-x-4">
-            <div className="w-16 h-16 bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-              <FaPalette className="h-8 w-8 text-white" />
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-slate-900/40">
+              <FaPalette className="h-8 w-8 text-cyan-300" />
             </div>
             <div>
-              <h1 className="text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
                 Photo Themes
               </h1>
-              <p className="text-base md:text-lg text-blue-100">
-                Browse beautiful, ready-made themes for your photo books and albums.
+              <p className="text-sm md:text-base text-slate-500 mt-1">
+                Pick a style to design your cover & album pages.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Loading State */}
-        <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <div className="text-center">
-            <FaSpinner className="h-16 w-16 text-indigo-600 animate-spin mx-auto mb-6" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Loading Photo Themes</h3>
-            <p className="text-gray-600 mb-4">Fetching templates from server...</p>
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-              <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-              <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+        {/* Loading State – premium futuristic */}
+        <div className="relative flex flex-col items-center justify-center min-h-[380px] rounded-2xl overflow-hidden border border-slate-200/80 bg-gradient-to-b from-slate-50 via-white to-slate-50 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_20px_50px_-20px_rgba(15,23,42,0.15)]">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(56,189,248,0.08),transparent_60%)] pointer-events-none" />
+          <div className="relative flex flex-col items-center">
+            {/* Double ring + icon */}
+            <div className="relative w-20 h-20 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-2 border-slate-200/80" />
+              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-400 border-r-indigo-400 animate-spin" style={{ animationDuration: '0.9s' }} />
+              <div className="absolute inset-2 rounded-full border-2 border-transparent border-t-cyan-300 border-b-violet-300 animate-spin" style={{ animationDuration: '1.4s', animationDirection: 'reverse' }} />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="loader-glow-pulse absolute w-10 h-10 rounded-full bg-cyan-400/30" />
+                <FaPalette className="relative h-8 w-8 text-cyan-500 drop-shadow-sm" />
+              </div>
+            </div>
+            <p className="mt-6 text-base font-bold text-slate-800 tracking-tight">Loading themes</p>
+            <p className="mt-1 text-xs text-slate-500">Preparing your templates</p>
+            {/* Shimmer bar */}
+            <div className="mt-5 w-32 h-1 rounded-full bg-slate-200/80 overflow-hidden">
+              <div className="loader-shimmer h-full w-full rounded-full" />
+            </div>
+            <div className="mt-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400/50 animate-pulse" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 rounded-full bg-indigo-400 shadow-sm shadow-indigo-400/40 animate-pulse" style={{ animationDelay: '250ms' }} />
+              <span className="w-2 h-2 rounded-full bg-violet-400 shadow-sm shadow-violet-400/40 animate-pulse" style={{ animationDelay: '500ms' }} />
             </div>
           </div>
         </div>
@@ -455,21 +468,21 @@ const PhotoThemesPage: React.FC = () => {
   return (
     <div className="space-y-8 w-full">
       {/* Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl p-8 text-white shadow-2xl">
-        <div className="absolute inset-0 bg-black opacity-10" />
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -translate-y-32 translate-x-32" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full translate-y-24 -translate-x-24" />
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6 md:p-7 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_22px_60px_-20px_rgba(15,23,42,0.4)]">
+        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-cyan-500 via-indigo-500 to-violet-500 rounded-t-3xl" />
+        <div className="absolute top-0 right-0 w-40 h-40 bg-cyan-400/10 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-36 h-36 bg-indigo-400/10 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
 
-        <div className="relative z-10 flex items-center space-x-4">
-          <div className="w-16 h-16 bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-            <FaPalette className="h-8 w-8 text-white" />
+        <div className="relative z-10 flex items-center gap-4">
+          <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-slate-900/40">
+            <FaPalette className="h-8 w-8 text-cyan-300" />
           </div>
           <div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
               Photo Themes
             </h1>
-            <p className="text-base md:text-lg text-blue-100">
-              Browse beautiful, ready-made themes for your photo books and albums.
+            <p className="text-sm md:text-base text-slate-500 mt-1 max-w-xl">
+              Choose a theme for your front & back cover, then customize pages in the album builder.
             </p>
           </div>
         </div>
@@ -488,70 +501,15 @@ const PhotoThemesPage: React.FC = () => {
         ))}
       </div>
 
-      {/* Last saved theme preview (local only) */}
-      {lastPreview && (
-        <div className="mt-6">
-          <h2 className="text-sm font-semibold text-gray-800 mb-2">
-            Your last saved theme
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <div
-              onClick={handleLastPreviewClick}
-              className="group relative bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transform transition-all duration-300 hover:scale-105 hover:-translate-y-2 border border-indigo-100 overflow-hidden cursor-pointer"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 opacity-5 group-hover:opacity-10 transition-opacity duration-300" />
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                      <FaPalette className="w-4 h-4 text-indigo-600" />
-                    </div>
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">
-                      Last saved
-                    </span>
-                  </div>
-                </div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-1">
-                  {lastPreview.title}
-                </h3>
-                <p className="text-xs text-gray-600 line-clamp-2 mb-1">
-                  {lastPreview.subtitle}
-                </p>
-                {lastPreview.description && (
-                  <p className="text-[11px] text-gray-500 line-clamp-2 mb-2">
-                    {lastPreview.description}
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {lastPreview.coverHasImage && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-green-50 text-[10px] font-medium text-green-700 border border-green-100">
-                      Cover image saved
-                    </span>
-                  )}
-                  {lastPreview.backHasImage && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-[10px] font-medium text-blue-700 border border-blue-100">
-                      Last page image saved
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] text-indigo-600 font-medium">
-                  View & edit this design →
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Info */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
-        <div className="flex items-start space-x-4">
-          <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-            <FaPalette className="h-6 w-6 text-blue-600" />
+      <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-5 border border-slate-200/80">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm shadow-slate-900/30">
+            <FaPalette className="h-5 w-5 text-cyan-300" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">About Photo Themes</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="text-sm font-bold text-slate-900 mb-1.5">About Photo Themes</h3>
+            <p className="text-xs text-slate-600">
               Use Photo Themes as a central place to explore different photo book styles. Each
               category groups templates and layouts tailored for a specific occasion such as
               birthdays, weddings, family albums, and more. Pick a theme to continue into a

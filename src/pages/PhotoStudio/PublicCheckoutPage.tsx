@@ -373,10 +373,10 @@ const PublicCheckoutPage: React.FC = () => {
     if (!totalAmount || allSelectedImages.length === 0) return '';
     const params = new URLSearchParams({
       pa: 'rohitrawat9009@ybl',
-      pn: 'PhotoStudio',
+      pn: 'Photo Book',
       am: String(totalAmount),
       cu: 'INR',
-      tn: `PhotoStudio payment for ${allSelectedImages.length} photo(s)`,
+      tn: `Photo Book payment for ${allSelectedImages.length} photo(s)`,
     }).toString();
     const upiUrl = `upi://pay?${params.toString()}`;
     return encodeURIComponent(upiUrl);

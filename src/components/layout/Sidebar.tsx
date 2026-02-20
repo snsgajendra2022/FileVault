@@ -66,7 +66,7 @@ const Sidebar = () => {
   
   // const studioNavigationItems = [];
   const studioNavigationItems = {'items':[
-    { name: 'Studio Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
+    { name: 'Photo Book Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
     { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
     { name: 'My Images', href: '/client-images', icon: FaImages, enabled: true },
     { name: 'Photo Themes', href: '/photo-themes', icon: FaPalette, enabled: true },
@@ -87,7 +87,7 @@ const Sidebar = () => {
     
     // { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
     // { name: 'Sheet', href: 'Sheet', icon: FaCog, enabled: true },
-    // { name: 'Studio Settings', href: '/studio/settings', icon: FaCog, enabled: true },
+    // { name: 'Photo Book Settings', href: '/studio/settings', icon: FaCog, enabled: true },
     // { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
   ],active:true};
 
@@ -128,7 +128,7 @@ console.log( studioNavigationItems.active === true && 2 );
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">ImageSecurity</h1>
                 )}
                 {user?.accountType == 'FREE' && menuFlags.studio === true && studioNavigationItems.active === true && (
-                <h1 className="text-xl font-bold text-white drop-shadow-lg">Photo Studio</h1>
+                <h1 className="text-xl font-bold text-white drop-shadow-lg">Photo Book</h1>
                 )}
                 {user.accountType == 'ADMIN' && menuFlags.admin === true && adminNavigationItems.active === true && (
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">Admin Panel</h1>
@@ -178,14 +178,14 @@ console.log( studioNavigationItems.active === true && 2 );
               </NavLink>
                 ))}
               
-              {/* Studio Section */}
+              {/* Photo Book Section */}
               {menuFlags.studio === true && studioNavigationItems.active === true
                &&  
               <div className=" pb-3">
                 <div className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border border-[#2731db]">
                   <FaCamera className="h-4 w-4 text-[#2731db] mr-2" />
                   <h3 className="text-xs font-bold text-[#2731db] uppercase tracking-wider">
-                    PhotoStudio Pro
+                    Photo Book Pro
                   </h3>
                 </div>
               </div>

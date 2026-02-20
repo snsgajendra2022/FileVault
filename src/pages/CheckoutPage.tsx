@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { FaArrowLeft, FaHeart, FaCreditCard, FaAmazon, FaDollarSign, FaLock, FaShieldAlt, FaCheck, FaInfoCircle } from 'react-icons/fa';
@@ -591,9 +591,9 @@ const CheckoutPage = () => {
                   <button type="button" className="text-gray-400 hover:text-gray-600 transition-colors">
                     Terms
                   </button>
-                  <button type="button" className="text-gray-400 hover:text-gray-600 transition-colors">
+                  {/* <Link to="/privacy-policy" className="text-gray-400 hover:text-gray-600 transition-colors">
                     Privacy
-                  </button>
+                  </Link> */}
                 </div>
               </div>
             </form>

@@ -21,10 +21,12 @@ type UserImagesResponse = {
 function FileVaultThumb({
   img,
   busy,
+  selected,
   onClick,
 }: {
   img: UserImage
   busy: boolean
+  selected?: boolean
   onClick: () => Promise<void>
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -44,6 +46,7 @@ function FileVaultThumb({
         'group relative aspect-square overflow-hidden rounded-xl border bg-slate-50 shadow-sm transition hover:shadow-md',
         busy ? 'opacity-60' : '',
         isDragging ? 'opacity-40' : '',
+        selected ? 'ring-2 ring-indigo-500 border-indigo-500' : '',
       ].join(' ')}
       style={style}
       disabled={busy}
@@ -87,15 +90,20 @@ async function fetchAsDataUrl(url: string): Promise<string> {
 
 export function FileVaultImagePicker({
   onPick,
+  onPickMany,
+  allowMultiSelect = false,
   onDropFiles,
   maxInitial = 24,
 }: {
   onPick: (picked: { name: string; dataUrl: string }) => Promise<void> | void
+  onPickMany?: (picked: { name: string; dataUrl: string }[]) => Promise<void> | void
+  allowMultiSelect?: boolean
   onDropFiles?: (files: File[]) => Promise<void> | void
   maxInitial?: number
 }) {
   const [limit, setLimit] = React.useState(maxInitial)
   const [busyUrl, setBusyUrl] = React.useState<string | null>(null)
+  const [selectedUrls, setSelectedUrls] = React.useState<Set<string>>(new Set())
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'image/*': [] },
@@ -169,7 +177,20 @@ export function FileVaultImagePicker({
                 key={img.previewUrl}
                 img={img}
                 busy={busyUrl === img.previewUrl}
+                selected={allowMultiSelect && selectedUrls.has(img.previewUrl)}
                 onClick={async () => {
+                  if (allowMultiSelect && onPickMany) {
+                    setSelectedUrls((prev) => {
+                      const next = new Set(prev)
+                      if (next.has(img.previewUrl)) {
+                        next.delete(img.previewUrl)
+                      } else {
+                        next.add(img.previewUrl)
+                      }
+                      return next
+                    })
+                    return
+                  }
                   try {
                     setBusyUrl(img.previewUrl)
                     const dataUrl = await fetchAsDataUrl(img.previewUrl)
@@ -189,6 +210,39 @@ export function FileVaultImagePicker({
                 onClick={() => setLimit((v) => v + maxInitial)}
               >
                 Show more ({Math.min(images.length, limit + maxInitial)} / {images.length})
+              </button>
+            </div>
+          ) : null}
+          {allowMultiSelect && onPickMany ? (
+            <div className="mt-3 flex items-center justify-between text-[11px] text-slate-600">
+              <span>
+                {selectedUrls.size > 0
+                  ? `${selectedUrls.size} image${selectedUrls.size > 1 ? 's' : ''} selected`
+                  : 'Click images to select multiple.'}
+              </span>
+              <button
+                type="button"
+                disabled={selectedUrls.size === 0}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={async () => {
+                  if (selectedUrls.size === 0) return
+                  const chosen = images.filter((img) => selectedUrls.has(img.previewUrl))
+                  try {
+                    setBusyUrl('bulk')
+                    const picked = await Promise.all(
+                      chosen.map(async (img) => {
+                        const dataUrl = await fetchAsDataUrl(img.previewUrl)
+                        return { name: img.filename, dataUrl }
+                      }),
+                    )
+                    await onPickMany(picked)
+                    setSelectedUrls(new Set())
+                  } finally {
+                    setBusyUrl(null)
+                  }
+                }}
+              >
+                Add selected
               </button>
             </div>
           ) : null}

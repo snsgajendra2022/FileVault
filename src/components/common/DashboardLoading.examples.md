@@ -23,7 +23,7 @@ if (loading) {
   return (
     <DashboardLoading 
       title="Loading Dashboard"
-      subtitle="Preparing your photo studio..."
+      subtitle="Preparing your photo book..."
       icon={FaCamera}
     />
   );

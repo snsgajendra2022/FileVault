@@ -1,8 +1,10 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useParams } from 'react-router-dom';
 import HTMLFlipBook from 'react-pageflip';
 import { FaHeart } from 'react-icons/fa';
 import { photobookTemplates, getPhotoBookTemplate } from '../templates/photobookTemplates';
+import { FileVaultImagePicker } from '../components/PhotoBook/FileVaultImagePicker';
 import type { EditablePageState } from './PhotoThemeCategoryPage';
 
 type AlbumPage = {
@@ -80,15 +82,11 @@ const MULTI_IMAGE_SLOT_COUNT: Record<string, number> = {
 };
 
 const PAGE_LAYOUT_OPTIONS = [
+  'Single Photo',
   'Hero + Two',
   'Two Up',
   'Three Grid',
   'Four Grid',
-  'Full Bleed',
-  'Polaroid',
-  'Image + Text',
-  'Collage',
-  'Elegant Border',
   'Cinematic Spread',
 ];
 
@@ -248,6 +246,10 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   const [pageImages, setPageImages] = React.useState<Record<number, PageImageState>>({});
   const [pageLayouts, setPageLayouts] = React.useState<Record<number, string>>({});
   const [showFlipBook, setShowFlipBook] = React.useState(false);
+  const [pageImagePickerFor, setPageImagePickerFor] = React.useState<{
+    pageIndex: number;
+    layout: string;
+  } | null>(null);
   
   // Color theme options for Anniversary theme
   const anniversaryColorThemes = [
@@ -305,7 +307,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   const getPageLayoutLabel = (pageIndex: number, _fallbackLayoutName?: string) => {
     if (pageImages[pageIndex]?.layout) return pageImages[pageIndex]!.layout as string;
     if (pageLayouts[pageIndex]) return pageLayouts[pageIndex];
-    return 'Full Bleed';
+    // Default: simple single-image layout on every page
+    return 'Single Photo';
   };
 
   const handleOpenFlipBook = React.useCallback(() => {
@@ -379,93 +382,79 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           .no-print { display: none !important; }
           html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
           main { padding: 0 !important; margin: 0 !important; }
-          /* Ensure Anniversary romantic backgrounds print correctly */
-          .anniversary-romantic-bg {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            color-adjust: exact !important;
-          }
+          /* Only images: 1 section = 1 page, no overflow to next page */
+          .album-page-card { border: none !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; background: transparent !important; width: 100% !important; height: 100vh !important; max-height: 100vh !important; overflow: hidden !important; page-break-after: always !important; page-break-inside: avoid !important; display: flex !important; flex-direction: column !important; }
+          .album-page-card:last-child { page-break-after: auto !important; }
+          .album-page-card .album-card-no-print { display: none !important; }
+          .album-page-card:has(.album-placeholder) { display: none !important; }
+          .album-decor-no-print { display: none !important; }
+          .album-page-preview { border: none !important; background: transparent !important; aspect-ratio: unset !important; height: 100% !important; min-height: 0 !important; max-height: 100% !important; width: 100% !important; padding: 0 !important; flex: 1 !important; display: flex !important; align-items: center !important; justify-content: center !important; overflow: hidden !important; }
+          .album-page-preview img { max-width: 100% !important; max-height: 100% !important; width: auto !important; height: auto !important; object-fit: contain !important; display: block !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .album-page-preview [class*="grid"] { height: 100% !important; max-height: 100% !important; overflow: hidden !important; }
+          .album-page-preview [class*="grid"] img { max-width: 100% !important; max-height: 100% !important; width: auto !important; height: auto !important; object-fit: contain !important; }
+          .album-pages-section { padding: 0 !important; }
+          .album-pages-grid { padding: 0 !important; gap: 0 !important; }
+          .anniversary-romantic-bg { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
       `}</style>
 
       {/* Header (hidden in print) */}
-      <div className="no-print relative overflow-hidden bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-3xl p-6 text-white shadow-2xl">
-        <div className="absolute inset-0 bg-black opacity-10" />
-        <div className="relative z-10 flex items-center justify-between gap-4">
+      <div className="no-print relative overflow-hidden rounded-2xl border border-slate-200/60 bg-gradient-to-br from-slate-50 to-white p-6 shadow-[0_0_0_1px_rgba(148,163,184,0.06),0_20px_50px_-12px_rgba(15,23,42,0.08)]">
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-cyan-500 via-indigo-500 to-violet-500 rounded-t-2xl" />
+        <div className="absolute top-0 right-0 w-48 h-48 bg-cyan-400/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold mb-1">Build your album</h1>
-            <p className="text-sm md:text-base text-blue-100">
-              Theme: <span className="font-semibold capitalize">{categorySlug || 'custom'}</span> ·
-              Template: <span className="font-semibold">{template.name}</span>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">Build your album</h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              <span className="capitalize font-medium text-slate-600">{categorySlug || 'custom'}</span>
+              <span className="mx-1.5 text-slate-300">·</span>
+              <span>{template.name}</span>
+              <span className="ml-2 text-slate-400">({albumPages.length} pages)</span>
             </p>
-          </div>
-          <div className="hidden md:flex flex-col items-end text-right text-xs text-blue-100">
-            <span>Total pages: {albumPages.length}</span>
-            <span>Cover + {Math.max(0, albumPages.length - 2)} inner + last page</span>
           </div>
         </div>
       </div>
 
-      {/* Album pages – per-page image selection */}
-      <div className="bg-white rounded-2xl border border-gray-200/80 shadow-md shadow-gray-200/50 p-5 md:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-5 no-print">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Album pages</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Select photos for each page. Only these pages will appear in print/PDF.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
+      {/* Album pages – in print only images; toolbar hidden in print */}
+      <div className="album-pages-section rounded-2xl border border-slate-200/80 bg-white/95 shadow-[0_4px_20px_rgba(15,23,42,0.06)] overflow-hidden backdrop-blur-sm print:shadow-none print:border-0 print:bg-transparent print:rounded-none">
+        <div className="no-print flex flex-wrap items-center justify-between gap-3 px-4 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+          <h2 className="text-base font-bold text-slate-800 tracking-tight">Pages</h2>
+          <div className="flex flex-wrap items-center gap-2">
             {categorySlug === 'anniversary' && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700">Background</span>
-                <select
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent shadow-sm"
-                  value={selectedColorTheme}
-                  onChange={(e) => setSelectedColorTheme(e.target.value)}
-                >
-                  {anniversaryColorThemes.map((theme) => (
-                    <option key={theme.id} value={theme.id}>
-                      {theme.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {categorySlug === 'wedding' && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700">Image background</span>
-                <select
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent shadow-sm min-w-[10rem]"
-                  value={selectedWeddingBackground}
-                  onChange={(e) => setSelectedWeddingBackground(e.target.value)}
-                >
-                  {weddingBackgroundThemes.map((theme) => (
-                    <option key={theme.id} value={theme.id}>
-                      {theme.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700">Total pages</span>
               <select
-                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent shadow-sm min-w-[4rem]"
-                value={pageCount}
-                onChange={(e) => setPageCount(Number(e.target.value))}
+                className="rounded-lg border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                value={selectedColorTheme}
+                onChange={(e) => setSelectedColorTheme(e.target.value)}
               >
-                {[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
+                {anniversaryColorThemes.map((theme) => (
+                  <option key={theme.id} value={theme.id}>{theme.name}</option>
                 ))}
               </select>
-            </div>
+            )}
+            {categorySlug === 'wedding' && (
+              <select
+                className="rounded-lg border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 min-w-[8rem]"
+                value={selectedWeddingBackground}
+                onChange={(e) => setSelectedWeddingBackground(e.target.value)}
+              >
+                {weddingBackgroundThemes.map((theme) => (
+                  <option key={theme.id} value={theme.id}>{theme.name}</option>
+                ))}
+              </select>
+            )}
+            <select
+              className="rounded-lg border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+              value={pageCount}
+              onChange={(e) => setPageCount(Number(e.target.value))}
+            >
+              {[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].map((n) => (
+                <option key={n} value={n}>{n} pages</option>
+              ))}
+            </select>
           </div>
         </div>
 
-        <div className="grid gap-5 sm:gap-6 md:grid-cols-2 xl:grid-cols-3 print:grid-cols-1">
+        <div className="album-pages-grid p-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3 print:grid-cols-1 print:p-0 print:gap-0">
           {albumPages.map((page, idx, allPages) => {
             const state = pageImages[page.index] ?? {};
             const layoutLabel = getPageLayoutLabel(page.index, page.layoutName);
@@ -480,59 +469,52 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             return (
               <div
                 key={page.index}
-                className="group rounded-2xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 print:shadow-none print:border-gray-300"
+                className="album-page-card group rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm hover:shadow-md hover:border-slate-300/80 transition-all duration-200 print:shadow-none print:border-0"
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="min-w-0">
-                    <span
-                      className={`inline-block text-xs font-bold uppercase tracking-wider rounded-lg px-2 py-0.5 ${
-                        isCover
-                          ? 'bg-indigo-100 text-indigo-700'
-                          : isLast
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {isCover ? 'Cover' : isLast ? 'Last page' : `Page ${page.index + 1}`}
-                    </span>
-                    <label className="mt-2 block text-xs font-semibold text-gray-600">Layout</label>
-                    <select
-                      className="mt-1 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
-                      value={layoutLabel}
-                      onChange={(e) =>
-                        setPageLayouts((prev) => {
-                          const value = e.target.value;
-                          setPageImages((prevImages) => ({
-                            ...prevImages,
-                            [page.index]: {
-                              ...(prevImages[page.index] ?? {}),
-                              layout: value,
-                            },
-                          }));
-                          return { ...prev, [page.index]: value };
-                        })
-                      }
-                    >
-                      {PAGE_LAYOUT_OPTIONS.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <span className="text-xs font-semibold text-gray-400 tabular-nums">#{page.index + 1}</span>
+                <div className="album-card-no-print flex items-center justify-between gap-2 mb-2">
+                  <span
+                    className={`inline-block text-[10px] font-bold uppercase tracking-wider rounded-md px-2 py-0.5 ${
+                      isCover
+                        ? 'bg-cyan-100 text-cyan-800'
+                        : isLast
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {isCover ? 'Cover' : isLast ? 'Last' : `P${page.index + 1}`}
+                  </span>
+                  <span className="text-[10px] font-medium text-slate-400 tabular-nums">#{page.index + 1}</span>
                 </div>
+                <select
+                  className="album-card-no-print mb-2 w-full rounded-lg border border-slate-200/80 bg-slate-50/80 px-2 py-1.5 text-[11px] font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                  value={layoutLabel}
+                  onChange={(e) =>
+                    setPageLayouts((prev) => {
+                      const value = e.target.value;
+                      setPageImages((prevImages) => ({
+                        ...prevImages,
+                        [page.index]: {
+                          ...(prevImages[page.index] ?? {}),
+                          layout: value,
+                        },
+                      }));
+                      return { ...prev, [page.index]: value };
+                    })
+                  }
+                >
+                  {PAGE_LAYOUT_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
 
 
                 <div 
-                  className={`relative w-full aspect-[16/9] rounded-xl flex items-center justify-center overflow-hidden border ${
+                  className={`album-page-preview relative w-full aspect-[16/9] rounded-lg flex items-center justify-center overflow-hidden ${
                     layoutLabel === 'Full Bleed'
-                      ? 'border-transparent'
-                      : layoutLabel === 'Elegant Border'
-                      ? 'border-2 border-yellow-500/70'
+                      ? 'border border-slate-200/60'
                       : layoutLabel === 'Polaroid'
-                      ? 'border-white bg-slate-100'
-                      : 'border-dashed border-gray-300'
+                      ? 'border border-slate-200/80 bg-slate-50'
+                      : 'border border-dashed border-slate-200'
                   }`}
                   style={{
                     backgroundColor:
@@ -540,17 +522,17 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                         ? selectedTheme.base
                         : categorySlug === 'wedding'
                         ? selectedWeddingTheme.base
-                        : '#ffffff',
+                        : '#fafafa',
                   }}
                 >
                   {/* Wedding theme – gradient + attractive decorative graphics */}
                   {categorySlug === 'wedding' && (
                     <>
                       <div
-                        className="absolute inset-0 z-0 rounded-xl"
+                        className="album-decor-no-print absolute inset-0 z-0 rounded-xl"
                         style={{ background: selectedWeddingTheme.gradient }}
                       />
-                      <div className="absolute inset-0 z-0 rounded-xl overflow-hidden pointer-events-none">
+                      <div className="album-decor-no-print absolute inset-0 z-0 rounded-xl overflow-hidden pointer-events-none">
                         {/* Soft rose gold / gold accents */}
                         <svg className="absolute w-16 h-16" style={{ top: '6%', left: '8%', transform: 'rotate(-18deg)', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.06))' }} viewBox="0 0 48 48" fill="none" stroke="rgba(180,130,120,0.35)" strokeWidth="1.4">
                           <path d="M24 38C24 38 8 28 8 18c0-6 6-10 16-10s16 4 16 10c0 10-16 20-16 20z" />
@@ -588,7 +570,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                     <>
                       {/* Gradient background - uses selected color theme */}
                       <div 
-                        className="anniversary-romantic-bg absolute inset-0 z-0 rounded-xl"
+                        className="album-decor-no-print anniversary-romantic-bg absolute inset-0 z-0 rounded-xl"
                         style={{
                           background: `linear-gradient(135deg, 
                             ${selectedTheme.colors[0]} 0%, 
@@ -603,7 +585,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                       />
                       
                       {/* Decorative hearts pattern - uses selected theme colors */}
-                      <div className="absolute inset-0 z-0 rounded-xl overflow-hidden">
+                      <div className="album-decor-no-print absolute inset-0 z-0 rounded-xl overflow-hidden">
                         <div 
                           className={`absolute ${selectedTheme.heartColors[0]} opacity-20`}
                           style={{ top: '8%', left: '10%', transform: 'rotate(-15deg)' }}
@@ -675,20 +657,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                       : !!state.imageDataUrl;
 
                     if (!hasImage) {
-                      if (categorySlug === 'anniversary') {
-                        return (
-                          <div className="relative z-10 w-full h-full flex items-center justify-center">
-                            <span className="relative z-10 text-sm text-red-600 font-medium text-center px-4">
-                              Select a romantic photo to see it beautifully framed with hearts
-                            </span>
-                          </div>
-                        );
-                      }
                       return (
-                        <span className="relative z-10 text-[10px] text-gray-400 text-center px-4">
-                          {isMultiLayout
-                            ? 'Choose multiple images for this layout.'
-                            : 'No image selected. Choose an image to place on this page.'}
+                        <span className="album-placeholder relative z-10 text-[10px] text-slate-400 text-center px-3">
+                          {isMultiLayout ? 'Add multiple photos' : 'Add photo'}
                         </span>
                       );
                     }
@@ -841,22 +812,6 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                           </div>
                         );
                         break;
-                      case 'Elegant Border':
-                        inner = (
-                          <div className="relative z-10 w-full h-full p-3">
-                            <div className="w-full h-full rounded-xl border-4 border-yellow-400/80 bg-white/90 flex items-center justify-center">
-                              <PhotoWithFloralFrame
-                                src={commonImgProps(0).src}
-                                alt={commonImgProps(0).alt}
-                                frameStyle={state.frameStyle ?? 'none'}
-                                className="w-[90%] h-[90%]"
-                                imgClassName="w-full h-full object-cover rounded-lg shadow-md"
-                                imgStyle={commonImgProps(0).style}
-                              />
-                            </div>
-                          </div>
-                        );
-                        break;
                       case 'Cinematic Spread':
                         inner = (
                           <div className="relative z-10 w-full h-full bg-black flex items-center justify-center">
@@ -914,10 +869,10 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                     );
                   })()}
 
-                  {/* Cover / last page text overlay - appears ABOVE image (z-20) */}
+                  {/* Cover / last page text overlay - hidden in print (only images) */}
                   {textState && (textState.headline || textState.subheadline) && (
                     <div
-                      className={`absolute inset-0 z-20 flex px-4 py-4 bg-gradient-to-t from-black/70 via-black/10 to-transparent ${
+                      className={`album-card-no-print absolute inset-0 z-20 flex px-4 py-4 bg-gradient-to-t from-black/70 via-black/10 to-transparent ${
                         textState.style?.verticalAlign === 'top'
                           ? 'items-start justify-start'
                           : textState.style?.verticalAlign === 'center'
@@ -966,36 +921,19 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 </div>
 
                 {/* Controls (hidden in print) */}
-                <div className="mt-3 space-y-2 print:hidden">
-                  <label className="block text-[11px] font-semibold text-gray-700">
-                    {MULTI_IMAGE_LAYOUTS.includes(layoutLabel)
-                      ? `Select images for this page (${MULTI_IMAGE_SLOT_COUNT[layoutLabel] ?? 2}+ images)`
-                      : 'Select image for this page'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple={MULTI_IMAGE_LAYOUTS.includes(layoutLabel)}
-                      className="mt-1 block w-full text-[11px] text-gray-600 file:mr-2 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
-                      onChange={(e) => {
-                        const files = e.target.files;
-                        if (MULTI_IMAGE_LAYOUTS.includes(layoutLabel)) {
-                          handleMultipleImagesChange(page.index, files);
-                        } else {
-                          handleImageChange(page.index, files?.[0] ?? null);
-                        }
-                        e.target.value = '';
-                      }}
-                    />
-                  </label>
-                  <p className="text-[10px] text-gray-500">
-                    Theme layouts (cover, grids, collage) are already chosen as per{' '}
-                    <span className="font-semibold">{template.name}</span>.{' '}
-                    {MULTI_IMAGE_LAYOUTS.includes(layoutLabel) ? (
-                      <>For this layout you can <strong>choose multiple images</strong> at once; they will fill the slots in order.</>
-                    ) : (
-                      <>Pick which photo should appear on this page.</>
-                    )}
-                  </p>
+                <div className="mt-2 print:hidden">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPageImagePickerFor({
+                        pageIndex: page.index,
+                        layout: layoutLabel,
+                      })
+                    }
+                    className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-cyan-200 bg-cyan-50/80 px-2.5 py-1.5 text-[11px] font-semibold text-cyan-800 hover:bg-cyan-100 hover:border-cyan-300 transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                  >
+                    {MULTI_IMAGE_LAYOUTS.includes(layoutLabel) ? `Add ${MULTI_IMAGE_SLOT_COUNT[layoutLabel] ?? 2} photos` : 'Add photo'}
+                  </button>
                 </div>
               </div>
             );
@@ -1003,44 +941,36 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Export / print from same page (hidden in print) */}
-      <div className="no-print flex justify-between items-center print:hidden">
-        <p className="text-xs text-gray-500">
-          Jab aap sab pages ke images select kar lo, &quot;Print / Export&quot; dabayein aur browser
-          se PDF / print le sakte hain.
-        </p>
-        <div className="flex items-center gap-3">
+      {/* Export / print (hidden in print) */}
+      <div className="no-print flex flex-wrap justify-between items-center gap-3 print:hidden">
+        <p className="text-xs text-slate-500">Select photos per page, then preview or export to PDF.</p>
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleOpenFlipBook}
-            className="inline-flex items-center rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+            className="inline-flex items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
           >
-            Photo Book
+            Preview book
           </button>
           <button
             type="button"
             onClick={() => window.print()}
-            className="inline-flex items-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2"
+            className="inline-flex items-center rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
           >
-            Print / Export PDF
+            Print / PDF
           </button>
         </div>
       </div>
 
-      {/* Inline 3D flip-book preview using react-pageflip (no redirect) */}
+      {/* Inline 3D flip-book preview */}
       {showFlipBook && (
-        <div className="mt-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl border border-slate-700 shadow-xl p-4">
+        <div className="no-print mt-6 rounded-2xl border border-slate-200/80 bg-gradient-to-b from-slate-100 to-slate-50 shadow-[0_4px_24px_rgba(15,23,42,0.08)] p-4">
           <div className="flex items-center justify-between mb-3">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-50">Photo book preview</h3>
-              <p className="text-xs text-slate-300">
-                Drag from the corners or use arrows to flip pages.
-              </p>
-            </div>
+            <h3 className="text-sm font-bold text-slate-800">Preview</h3>
             <button
               type="button"
               onClick={() => setShowFlipBook(false)}
-              className="text-xs text-slate-300 hover:text-white"
+              className="text-xs font-medium text-slate-500 hover:text-slate-800"
             >
               Close
             </button>
@@ -1065,7 +995,6 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 const state = pageImages[page.index];
                 const layoutLabel = getPageLayoutLabel(page.index, page.layoutName);
                 const isPolaroid = layoutLabel === 'Polaroid';
-                const isElegant = layoutLabel === 'Elegant Border';
                 const isFullBleed = layoutLabel === 'Full Bleed';
 
                 const title =
@@ -1253,8 +1182,6 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                                   imgClassName={`${
                                     isPolaroid
                                       ? 'w-[88%] h-[78%] object-cover rounded-md shadow-md top-5 left-1/2 -translate-x-1/2'
-                                      : isElegant
-                                      ? 'w-[92%] h-[82%] object-cover rounded-lg shadow-md top-5 left-1/2 -translate-x-1/2'
                                       : 'w-full h-full object-cover'
                                   }`}
                                 />
@@ -1297,6 +1224,92 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {pageImagePickerFor &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4"
+            onClick={() => setPageImagePickerFor(null)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-slate-200/80"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/80">
+                <h3 className="text-sm font-bold text-slate-800">
+                  Page {pageImagePickerFor.pageIndex + 1} — Add photo(s)
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setPageImagePickerFor(null)}
+                  className="rounded-lg p-2 text-slate-500 hover:bg-cyan-50 hover:text-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
+                >
+                  <span className="text-lg leading-none">×</span>
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto flex-1 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Upload from device</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple={MULTI_IMAGE_LAYOUTS.includes(pageImagePickerFor.layout)}
+                    className="block w-full text-[11px] text-slate-600 file:mr-2 file:rounded-lg file:border-0 file:bg-cyan-600 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-cyan-700"
+                    onChange={async (e) => {
+                      const files = e.target.files;
+                      const targetIndex = pageImagePickerFor.pageIndex;
+                      const isMulti = MULTI_IMAGE_LAYOUTS.includes(pageImagePickerFor.layout);
+                      if (!files || !files.length) return;
+                      if (isMulti) {
+                        await handleMultipleImagesChange(targetIndex, files);
+                      } else {
+                        await handleImageChange(targetIndex, files[0] ?? null);
+                      }
+                      setPageImagePickerFor(null);
+                      e.target.value = '';
+                    }}
+                  />
+                </div>
+
+                <div className="h-px w-full bg-slate-200 my-1" />
+
+                <FileVaultImagePicker
+                  onPick={async (picked) => {
+                    const targetIndex = pageImagePickerFor.pageIndex;
+                    const isMulti = MULTI_IMAGE_LAYOUTS.includes(pageImagePickerFor.layout);
+                    setPageImages((prev) => {
+                      const current = prev[targetIndex] ?? {};
+                      if (isMulti) {
+                        const existing =
+                          current.imageDataUrls ??
+                          (current.imageDataUrl ? [current.imageDataUrl] : []);
+                        const nextArr = [...existing, picked.dataUrl];
+                        return {
+                          ...prev,
+                          [targetIndex]: {
+                            ...current,
+                            imageDataUrl: nextArr[0],
+                            imageDataUrls: nextArr,
+                          },
+                        };
+                      }
+                      return {
+                        ...prev,
+                        [targetIndex]: {
+                          ...current,
+                          imageDataUrl: picked.dataUrl,
+                          imageDataUrls: undefined,
+                        },
+                      };
+                    });
+                    setPageImagePickerFor(null);
+                  }}
+                />
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

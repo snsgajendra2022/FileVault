@@ -52,13 +52,13 @@ const StudioLanding: React.FC = () => {
           <div className="hero-content">
             <div className="hero-badge">
               <FaStar />
-              <span>Professional Photo Studio Management</span>
+              <span>Professional Photo Book Management</span>
             </div>
             <h1 className="hero-title">
-              PhotoStudio <span className="gradient-text">Pro</span>
+              Photo Book <span className="gradient-text">Pro</span>
             </h1>
             <p className="hero-description">
-              The complete SAAS solution for professional photo studios. 
+              The complete SAAS solution for professional photo books. 
               Manage clients, organize photos, and share with barcode technology.
             </p>
             <div className="hero-actions">
@@ -82,7 +82,7 @@ const StudioLanding: React.FC = () => {
         <section className="features-section">
           <div className="section-header">
             <h2>Everything You Need</h2>
-            <p>Complete photo studio management in one platform</p>
+            <p>Complete photo book management in one platform</p>
           </div>
           <div className="features-grid">
             {features.map((feature, index) => {
@@ -104,9 +104,9 @@ const StudioLanding: React.FC = () => {
         <section className="benefits-section">
           <div className="benefits-content">
             <div className="benefits-text">
-              <h2>Why Choose PhotoStudio Pro?</h2>
+              <h2>Why Choose Photo Book Pro?</h2>
               <p>
-                Built specifically for photo studios, our platform provides 
+                Built specifically for photo books, our platform provides 
                 everything you need to manage your business professionally.
               </p>
               <ul className="benefits-list">
@@ -133,11 +133,11 @@ const StudioLanding: React.FC = () => {
         {/* CTA Section */}
         <section className="cta-section">
           <div className="cta-content">
-            <h2>Ready to Transform Your Studio?</h2>
-            <p>Join thousands of professional photographers who trust PhotoStudio Pro</p>
+            <h2>Ready to Transform Your Photo Book?</h2>
+            <p>Join thousands of professional photographers who trust Photo Book Pro</p>
             <div className="cta-actions">
               <Link to="/studio/auth" className="cta-btn primary large">
-                Create Your Studio Account
+                Create Your Photo Book Account
                 <FaArrowRight />
               </Link>
             </div>

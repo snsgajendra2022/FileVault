@@ -54,6 +54,7 @@ import PaymentManagement from './components/admin/PaymentManagement';
 import PhotoThemesPage from './pages/PhotoThemesPage';
 import PhotoThemeCategoryPage from './pages/PhotoThemeCategoryPage';
 import PhotoThemeAlbumBuilderPage from './pages/PhotoThemeAlbumBuilderPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 
 
 const queryClient = new QueryClient({
@@ -100,6 +101,7 @@ const AppRoutes = () => {
     <Routes>
       {/* Public image view route */}
       <Route path="/view" element={<ViewImagePage />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
       <Route path="/login" element={
         !isLoading && isAuthenticated ? 
           (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />) : 

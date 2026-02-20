@@ -44,15 +44,8 @@ const PaymentManagement = () => {
   const { data: pendingPayments, isLoading, refetch } = useQuery({
     queryKey: ['pendingPayments'],
     queryFn: async () => {
-      const urls =[{ api:'/api/payments/owner/pending'},{api:'/api/payments'}] ;
-       for(const url of urls){
-        const response = await api.get(url.api);
-        if(response.status === 200){
-          return response.data as PendingPayment[] | { payments: PendingPayment[] } | { data: PendingPayment[] };
-        }
-      }
-      return [];
-      // return response.data as PendingPayment[] | { payments: PendingPayment[] } | { data: PendingPayment[] };
+      const response = await api.get('/api/payments/owner/pending');
+      return response.data as PendingPayment[] | { payments: PendingPayment[] } | { data: PendingPayment[] };
     },
     refetchInterval: 30000, // Refresh every 30 seconds
   });
@@ -69,6 +62,7 @@ const PaymentManagement = () => {
     }
     return [];
   }, [pendingPayments]);
+
 
   // Confirm payment mutation
   const confirmPaymentMutation = useMutation({

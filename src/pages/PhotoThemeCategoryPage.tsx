@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   FaStar,
@@ -15,6 +16,7 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import imageService from '../services/imageService';
 import { getStoredToken } from '../utils/authUtils';
+import { FileVaultImagePicker } from '../components/PhotoBook/FileVaultImagePicker';
 
 type PageKind = 'cover' | 'last';
 
@@ -32,6 +34,24 @@ export type EditablePageState = {
     headlineColor?: string;
     subheadlineColor?: string;
     imageScale?: number;
+    overlayOpacity?: number;
+    overlayGradientDirection?: 'top-bottom' | 'bottom-top' | 'radial';
+    overlayColor?: string;
+    letterSpacing?: number;
+    lineHeight?: number;
+    textShadow?: boolean;
+    dividerEnabled?: boolean;
+    dividerWidth?: number;
+    dividerColor?: string;
+    blurBackground?: boolean;
+    vignette?: boolean;
+    darkModeCover?: boolean;
+    subtleAnimation?: boolean;
+    logoDataUrl?: string;
+    logoPosition?: 'top-left' | 'top-right' | 'bottom-center';
+    logoPositionX?: number;
+    logoPositionY?: number;
+    logoSize?: number;
   };
 };
 
@@ -168,67 +188,143 @@ const PageEditorCard: React.FC<{
   const hint = isCover
     ? 'Design the first page of your album.'
     : 'Design the closing page of your album.';
+  const [showAlbumPicker, setShowAlbumPicker] = React.useState(false);
+  type Section = 'text' | 'effects' | 'extras';
+  const [openSection, setOpenSection] = React.useState<Section | null>(null);
+  const toggle = (s: Section) => setOpenSection((v) => (v === s ? null : s));
+
+  const previewRef = React.useRef<HTMLDivElement>(null);
+  const stateRef = React.useRef(state);
+  const onChangeRef = React.useRef(onChange);
+  stateRef.current = state;
+  onChangeRef.current = onChange;
+
+  const [logoDrag, setLogoDrag] = React.useState<{ startX: number; startY: number; startPX: number; startPY: number } | null>(null);
+
+  const getLogoPreset = (pos?: 'top-left' | 'top-right' | 'bottom-center') => {
+    if (pos === 'top-right') return { x: 88, y: 12 };
+    if (pos === 'bottom-center') return { x: 50, y: 88 };
+    return { x: 12, y: 12 };
+  };
+
+  const logoX = state.style?.logoPositionX ?? getLogoPreset(state.style?.logoPosition).x;
+  const logoY = state.style?.logoPositionY ?? getLogoPreset(state.style?.logoPosition).y;
+
+  React.useEffect(() => {
+    if (!logoDrag) return;
+    const onMove = (e: MouseEvent) => {
+      const el = previewRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const deltaPx = ((e.clientX - logoDrag.startX) / rect.width) * 100;
+      const deltaPy = ((e.clientY - logoDrag.startY) / rect.height) * 100;
+      const newX = Math.max(0, Math.min(100, logoDrag.startPX + deltaPx));
+      const newY = Math.max(0, Math.min(100, logoDrag.startPY + deltaPy));
+      const s = stateRef.current;
+      onChangeRef.current({ ...s, style: { ...s.style, logoPositionX: newX, logoPositionY: newY } });
+    };
+    const onUp = () => setLogoDrag(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [logoDrag]);
 
   return (
-    <div className="bg-white rounded-3xl p-6 shadow-[0_18px_45px_rgba(15,23,42,0.06)] border border-slate-100 relative overflow-hidden">
+    <>
+    <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-gradient-to-b from-white to-slate-50/50 p-6 shadow-[0_0_0_1px_rgba(148,163,184,0.06),0_20px_50px_-12px_rgba(15,23,42,0.12),0_0_80px_-20px_rgba(99,102,241,0.15)] backdrop-blur-sm">
       <div
-        className={`absolute inset-x-0 top-0 h-1 ${
+        className={`absolute inset-x-0 top-0 h-1.5 shadow-[0_0_20px_-2px_rgba(99,102,241,0.4)] ${
           isCover
-            ? 'bg-gradient-to-r from-indigo-500 via-sky-500 to-violet-500'
-            : 'bg-gradient-to-r from-amber-500 via-rose-500 to-pink-500'
+            ? 'bg-gradient-to-r from-cyan-500 via-indigo-500 to-violet-500'
+            : 'bg-gradient-to-r from-amber-400 via-rose-500 to-fuchsia-500'
         }`}
       />
+      <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-bl from-indigo-400/8 to-transparent rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-48 h-48 bg-cyan-400/5 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
 
       <div className="relative z-10 flex items-center justify-between mb-4">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-slate-50 border border-slate-100 px-3 py-1 mb-1">
+          <div className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 mb-2 border border-white/60 shadow-sm ${
+            isCover
+              ? 'bg-gradient-to-r from-cyan-500/15 via-indigo-500/15 to-violet-500/15'
+              : 'bg-gradient-to-r from-amber-500/15 via-rose-500/15 to-fuchsia-500/15'
+          }`}>
             <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                isCover ? 'bg-indigo-500' : 'bg-rose-500'
+              className={`w-2 h-2 rounded-full shadow-sm ${
+                isCover ? 'bg-cyan-400 shadow-cyan-400/50' : 'bg-rose-400 shadow-rose-400/50'
               }`}
             />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-              {isCover ? 'Cover page (first)' : 'Last page (back)'}
+            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600">
+              {isCover ? 'Front cover' : 'Back cover'}
             </span>
           </div>
-          <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-          <p className="text-xs text-slate-500 mt-0.5">{hint}</p>
+          <h3 className="text-xl font-bold text-slate-900 tracking-tight">{title}</h3>
+          <p className="text-xs text-slate-500 mt-1 font-medium">{hint}</p>
         </div>
       </div>
 
       {/* Preview */}
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-[260px,1fr] gap-6 items-start">
-        <div className="relative w-full aspect-[3/4] rounded-2xl border border-slate-200/80 overflow-hidden bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 flex items-center justify-center shadow-inner">
+      <div className="mt-5 grid grid-cols-1 md:grid-cols-[260px,1fr] gap-6 items-start">
+        <div
+          ref={previewRef}
+          className={`relative w-full aspect-[3/4] rounded-2xl overflow-hidden flex items-center justify-center transition-all duration-500 ring-2 ring-slate-200/80 ring-offset-2 ring-offset-slate-50 shadow-[0_8px_30px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 ${state.style?.subtleAnimation ? 'cover-fade-in' : ''} ${state.style?.darkModeCover ? 'brightness-90' : ''}`}
+          style={state.style?.vignette ? { boxShadow: 'inset 0 0 80px rgba(0,0,0,0.35), 0 8px 30px rgba(15,23,42,0.12)' } : undefined}
+        >
           {state.imageDataUrl ? (
             <img
               src={state.imageDataUrl}
               alt={`${title} preview`}
-              className="w-full h-full object-cover"
+              role="button"
+              title="Click to zoom"
+              className={`w-full h-full object-cover ${state.style?.blurBackground ? 'blur-sm' : ''} cursor-zoom-in`}
               style={{
                 transform: `scale(${state.style?.imageScale ?? 1})`,
                 transformOrigin: 'center center',
               }}
+              onClick={() => {
+                const next = Math.min(1.6, (state.style?.imageScale ?? 1) + 0.15);
+                onChange({ ...state, style: { ...state.style, imageScale: next } });
+              }}
             />
           ) : (
-            <div className="flex flex-col items-center justify-center gap-2 px-4 text-center">
-              <div className="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center shadow-sm">
-                <span className="text-[11px] font-semibold text-slate-400">Preview</span>
+            <div className="flex flex-col items-center justify-center gap-3 px-4 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-200/90 to-slate-300/80 flex items-center justify-center shadow-inner border border-white/50">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Preview</span>
               </div>
-              <span className="text-[11px] leading-snug text-slate-400">
-                Upload a photo and type your headline to see a live preview of this page.
+              <span className="text-[11px] leading-snug text-slate-500 font-medium">
+                Upload a photo and type your headline to see a live preview.
               </span>
             </div>
           )}
           {/* Text overlay with adjustable font & position */}
           {(state.headline || state.subheadline) && (
             <div
-              className={`absolute inset-0 flex px-4 py-4 bg-gradient-to-t from-black/75 via-black/15 to-transparent ${
+              className={`absolute inset-0 flex px-4 py-4 transition-all duration-200 ${
+                (state.style?.overlayOpacity != null || state.style?.overlayColor || state.style?.overlayGradientDirection)
+                  ? ''
+                  : 'bg-gradient-to-t from-black/75 via-black/15 to-transparent'
+              } ${
                 state.style?.verticalAlign === 'top'
                   ? 'items-start justify-start'
                   : state.style?.verticalAlign === 'center'
                   ? 'items-center justify-center'
                   : 'items-end justify-end'
-              } transition-all duration-200`}
+              }`}
+              style={
+                (state.style?.overlayOpacity != null || state.style?.overlayColor)
+                  ? {
+                      background:
+                        state.style?.overlayGradientDirection === 'radial'
+                          ? `radial-gradient(circle, ${state.style?.overlayColor ?? '#000000'}${Math.round(((state.style?.overlayOpacity ?? 50) / 100) * 255).toString(16).padStart(2, '0')} 0%, transparent 70%)`
+                          : state.style?.overlayGradientDirection === 'bottom-top'
+                          ? `linear-gradient(to top, ${state.style?.overlayColor ?? '#000000'}${Math.round(((state.style?.overlayOpacity ?? 50) / 100) * 255).toString(16).padStart(2, '0')}, transparent 40%)`
+                          : `linear-gradient(to bottom, ${state.style?.overlayColor ?? '#000000'}${Math.round(((state.style?.overlayOpacity ?? 50) / 100) * 255).toString(16).padStart(2, '0')}, transparent 40%)`,
+                    }
+                  : undefined
+              }
             >
               <div
                 className={`w-full max-w-full ${
@@ -241,25 +337,42 @@ const PageEditorCard: React.FC<{
               >
                 {state.headline && (
                   <div
-                    className="truncate drop-shadow-[0_4px_8px_rgba(0,0,0,0.45)]"
+                    className="truncate"
                     style={{
                       fontSize: state.style?.fontSize ?? 20,
                       fontWeight: state.style?.fontWeight ?? 700,
                       color: state.style?.headlineColor ?? '#ffffff',
                       fontFamily: state.style?.fontFamily,
+                      letterSpacing: state.style?.letterSpacing ?? 0,
+                      lineHeight: state.style?.lineHeight ?? 1.2,
+                      textShadow: state.style?.textShadow !== false ? '0 4px 8px rgba(0,0,0,0.45)' : 'none',
                     }}
                   >
                     {state.headline}
                   </div>
                 )}
+                {state.style?.dividerEnabled && state.headline && (
+                  <div
+                    className="mt-1 h-px"
+                    style={{
+                      width: `${state.style?.dividerWidth ?? 60}%`,
+                      backgroundColor: state.style?.dividerColor ?? '#ffffff',
+                      marginLeft: (state.style?.align === 'center' || state.style?.align === 'right') ? 'auto' : 0,
+                      marginRight: (state.style?.align === 'center' || state.style?.align === 'left') ? 'auto' : 0,
+                    }}
+                  />
+                )}
                 {state.subheadline && (
                   <div
-                    className="truncate mt-1 drop-shadow-[0_3px_6px_rgba(0,0,0,0.4)]"
+                    className="truncate mt-1"
                     style={{
                       fontSize: (state.style?.fontSize ?? 20) - 4,
                       fontWeight: (state.style?.fontWeight ?? 700) - 200 || 400,
                       color: state.style?.subheadlineColor ?? '#e5e7eb',
                       fontFamily: state.style?.fontFamily,
+                      letterSpacing: state.style?.letterSpacing ?? 0,
+                      lineHeight: state.style?.lineHeight ?? 1.2,
+                      textShadow: state.style?.textShadow !== false ? '0 3px 6px rgba(0,0,0,0.4)' : 'none',
                     }}
                   >
                     {state.subheadline}
@@ -268,16 +381,46 @@ const PageEditorCard: React.FC<{
               </div>
             </div>
           )}
+          {state.style?.logoDataUrl && (
+            <div
+              className="absolute z-10 select-none"
+              style={{
+                left: `${logoX}%`,
+                top: `${logoY}%`,
+                transform: 'translate(-50%, -50%)',
+                width: state.style?.logoSize ?? 60,
+                height: state.style?.logoSize ?? 60,
+                cursor: logoDrag ? 'grabbing' : 'grab',
+              }}
+              onMouseDown={(e) => {
+                if (e.button !== 0) return;
+                e.preventDefault();
+                setLogoDrag({
+                  startX: e.clientX,
+                  startY: e.clientY,
+                  startPX: logoX,
+                  startPY: logoY,
+                });
+              }}
+            >
+              <img
+                src={state.style.logoDataUrl}
+                alt="Logo"
+                className="w-full h-full object-contain pointer-events-none"
+                draggable={false}
+              />
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-3">
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                 Headline
               </label>
               <input
-                className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300 bg-slate-50/40"
+                className="w-full rounded-xl border border-slate-200/80 px-3.5 py-2.5 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 bg-white/80 shadow-sm transition-all"
                 placeholder={
                   isCover ? 'e.g. Our Wedding Day' : 'e.g. Thank you for being here'
                 }
@@ -287,11 +430,11 @@ const PageEditorCard: React.FC<{
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                 Subheadline
               </label>
               <input
-                className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300 bg-slate-50/40"
+                className="w-full rounded-xl border border-slate-200/80 px-3.5 py-2.5 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 bg-white/80 shadow-sm transition-all"
                 placeholder={
                   isCover
                     ? 'e.g. 5th June 2026 • Mumbai'
@@ -303,12 +446,12 @@ const PageEditorCard: React.FC<{
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                 Description (optional)
               </label>
               <textarea
                 rows={3}
-                className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300 resize-none bg-slate-50/40"
+                className="w-full rounded-xl border border-slate-200/80 px-3.5 py-2 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 resize-none bg-white/80 shadow-sm transition-all"
                 placeholder="Add a short story or note about this album."
                 value={state.description}
                 onChange={(e) => onChange({ ...state, description: e.target.value })}
@@ -321,41 +464,44 @@ const PageEditorCard: React.FC<{
               <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                 Page image
               </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="block w-full text-[11px] text-slate-500 file:mr-3 file:rounded-xl file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-[11px] file:font-semibold file:text-white hover:file:bg-slate-800"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const dataUrl = await fileToDataUrl(file);
-                    onChange({ ...state, imageDataUrl: dataUrl });
-                  }}
-                />
-              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowAlbumPicker(true);
+                }}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-gradient-to-r from-cyan-50 to-indigo-50 px-3 py-2 text-[11px] font-bold text-cyan-800 hover:from-cyan-100 hover:to-indigo-100 hover:border-cyan-300 transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/30 cursor-pointer w-auto"
+              >
+                <FaImages className="h-3.5 w-3.5 shrink-0" />
+                Use from album / upload
+              </button>
             </div>
 
             <div className="hidden md:flex justify-end">
-              <div className="inline-flex items-center gap-2 rounded-2xl bg-slate-50 border border-dashed border-slate-200 px-3 py-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span className="text-[11px] text-slate-500">
-                  Live preview updates automatically as you type.
+              <div className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-50 to-cyan-50 border border-emerald-200/60 px-3.5 py-2 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50 animate-pulse" />
+                <span className="text-[11px] font-medium text-slate-600">
+                  Live preview updates as you type
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Text style controls */}
-          <div className="mt-2 rounded-2xl border border-slate-100 bg-slate-50/60 px-3 py-3">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] font-semibold text-slate-600">Text & layout</p>
-              <span className="text-[10px] text-slate-400">
-                Fine‑tune how your cover looks
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {/* Settings: same accordion for both front and back cover */}
+          <div className="mt-5 rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_4px_20px_rgba(15,23,42,0.06)] overflow-hidden backdrop-blur-sm">
+            <>
+                <button
+                  type="button"
+                  onClick={() => toggle('text')}
+                  className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-gradient-to-r hover:from-cyan-50/50 hover:to-indigo-50/50 transition-all"
+                >
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Text & layout</span>
+                  <span className="text-slate-400 text-[10px]">{openSection === 'text' ? '▼' : '▶'}</span>
+                </button>
+                {openSection === 'text' && (
+                  <div className="p-4 pt-2 border-b border-slate-100 bg-gradient-to-b from-slate-50/80 to-white">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 mb-1">
                   Font size
@@ -371,7 +517,7 @@ const PageEditorCard: React.FC<{
                       style: { ...state.style, fontSize: Number(e.target.value) },
                     })
                   }
-                  className="w-full accent-indigo-500"
+                  className="w-full accent-cyan-500"
                 />
               </div>
               <div>
@@ -379,7 +525,7 @@ const PageEditorCard: React.FC<{
                   Weight
                 </label>
                 <select
-                  className="w-full rounded-xl border border-slate-200 px-2 py-1.5 text-[11px] bg-white"
+                  className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                   value={state.style?.fontWeight ?? 700}
                   onChange={(e) =>
                     onChange({
@@ -399,7 +545,7 @@ const PageEditorCard: React.FC<{
                   Align
                 </label>
                 <select
-                  className="w-full rounded-xl border border-slate-200 px-2 py-1.5 text-[11px] bg-white"
+                  className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                   value={state.style?.align ?? 'center'}
                   onChange={(e) =>
                     onChange({
@@ -421,7 +567,7 @@ const PageEditorCard: React.FC<{
                   Vertical position
                 </label>
                 <select
-                  className="w-full rounded-xl border border-slate-200 px-2 py-1.5 text-[11px] bg-white"
+                  className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                   value={state.style?.verticalAlign ?? (kind === 'cover' ? 'center' : 'bottom')}
                   onChange={(e) =>
                     onChange({
@@ -443,7 +589,7 @@ const PageEditorCard: React.FC<{
                   Font family
                 </label>
                 <select
-                  className="w-full rounded-xl border border-slate-200 px-2 py-1.5 text-[11px] bg-white"
+                  className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                   value={state.style?.fontFamily ?? 'system'}
                   onChange={(e) =>
                     onChange({
@@ -516,14 +662,335 @@ const PageEditorCard: React.FC<{
                       style: { ...state.style, imageScale: Number(e.target.value) },
                     })
                   }
-                  className="w-full accent-indigo-500"
+                  className="w-full accent-cyan-500"
                 />
               </div>
-            </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Letter spacing</label>
+                <input
+                  type="range"
+                  min={-2}
+                  max={8}
+                  value={state.style?.letterSpacing ?? 0}
+                  onChange={(e) =>
+                    onChange({ ...state, style: { ...state.style, letterSpacing: Number(e.target.value) } })
+                  }
+                  className="w-full accent-cyan-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Line height</label>
+                <input
+                  type="range"
+                  min={1}
+                  max={2.5}
+                  step={0.1}
+                  value={state.style?.lineHeight ?? 1.2}
+                  onChange={(e) =>
+                    onChange({ ...state, style: { ...state.style, lineHeight: Number(e.target.value) } })
+                  }
+                  className="w-full accent-cyan-500"
+                />
+              </div>
+              <div className="flex items-end gap-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={state.style?.textShadow ?? true}
+                    onChange={(e) =>
+                      onChange({ ...state, style: { ...state.style, textShadow: e.target.checked } })
+                    }
+                    className="rounded border-slate-200 accent-cyan-500"
+                  />
+                  <span className="text-[11px] font-semibold text-slate-600">Text shadow</span>
+                </label>
+              </div>
+              <div className="flex items-end gap-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={state.style?.dividerEnabled ?? false}
+                    onChange={(e) =>
+                      onChange({ ...state, style: { ...state.style, dividerEnabled: e.target.checked } })
+                    }
+                    className="rounded border-slate-200 accent-cyan-500"
+                  />
+                  <span className="text-[11px] font-semibold text-slate-600">Decorative divider</span>
+                </label>
+              </div>
+              {state.style?.dividerEnabled && (
+                <>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Divider width (%)</label>
+                    <input
+                      type="range"
+                      min={10}
+                      max={100}
+                      value={state.style?.dividerWidth ?? 60}
+                      onChange={(e) =>
+                        onChange({ ...state, style: { ...state.style, dividerWidth: Number(e.target.value) } })
+                      }
+                      className="w-full accent-cyan-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Divider color</label>
+                    <input
+                      type="color"
+                      className="w-full h-8 rounded-xl border border-slate-200 p-0 bg-white"
+                      value={state.style?.dividerColor ?? '#ffffff'}
+                      onChange={(e) =>
+                        onChange({ ...state, style: { ...state.style, dividerColor: e.target.value } })
+                      }
+                    />
+                  </div>
+                </>
+              )}
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => toggle('effects')}
+                  className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-gradient-to-r hover:from-cyan-50/50 hover:to-indigo-50/50 transition-all"
+                >
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Page effects</span>
+                  <span className="text-slate-400 text-[10px]">{openSection === 'effects' ? '▼' : '▶'}</span>
+                </button>
+                {openSection === 'effects' && (
+                  <div className="p-4 pt-2 border-b border-slate-100 bg-gradient-to-b from-slate-50/80 to-white space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Overlay opacity</label>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={state.style?.overlayOpacity ?? 50}
+                          onChange={(e) =>
+                            onChange({ ...state, style: { ...state.style, overlayOpacity: Number(e.target.value) } })
+                          }
+                          className="w-full accent-cyan-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Gradient</label>
+                        <select
+                          className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                          value={state.style?.overlayGradientDirection ?? 'top-bottom'}
+                          onChange={(e) =>
+                            onChange({
+                              ...state,
+                              style: {
+                                ...state.style,
+                                overlayGradientDirection: e.target.value as 'top-bottom' | 'bottom-top' | 'radial',
+                              },
+                            })
+                          }
+                        >
+                          <option value="top-bottom">Top → Bottom</option>
+                          <option value="bottom-top">Bottom → Top</option>
+                          <option value="radial">Radial</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Overlay color</label>
+                        <input
+                          type="color"
+                          className="w-full h-8 rounded-xl border border-slate-200 p-0 bg-white block"
+                          value={state.style?.overlayColor ?? '#000000'}
+                          onChange={(e) =>
+                            onChange({ ...state, style: { ...state.style, overlayColor: e.target.value } })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => toggle('extras')}
+                  className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-gradient-to-r hover:from-cyan-50/50 hover:to-indigo-50/50 transition-all"
+                >
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Background & logo</span>
+                  <span className="text-slate-400 text-[10px]">{openSection === 'extras' ? '▼' : '▶'}</span>
+                </button>
+                {openSection === 'extras' && (
+                  <div className="p-4 pt-2 bg-gradient-to-b from-slate-50/80 to-white space-y-4">
+                    <div>
+                      <p className="text-[11px] font-semibold text-slate-600 mb-2">Background</p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={state.style?.blurBackground ?? false}
+                            onChange={(e) =>
+                              onChange({ ...state, style: { ...state.style, blurBackground: e.target.checked } })
+                            }
+                            className="rounded border-slate-200 accent-cyan-500"
+                          />
+                          <span className="text-[11px] text-slate-600">Blur</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={state.style?.vignette ?? false}
+                            onChange={(e) =>
+                              onChange({ ...state, style: { ...state.style, vignette: e.target.checked } })
+                            }
+                            className="rounded border-slate-200 accent-cyan-500"
+                          />
+                          <span className="text-[11px] text-slate-600">Vignette</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={state.style?.darkModeCover ?? false}
+                            onChange={(e) =>
+                              onChange({ ...state, style: { ...state.style, darkModeCover: e.target.checked } })
+                            }
+                            className="rounded border-slate-200 accent-cyan-500"
+                          />
+                          <span className="text-[11px] text-slate-600">Dark mode</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={state.style?.subtleAnimation ?? false}
+                            onChange={(e) =>
+                              onChange({ ...state, style: { ...state.style, subtleAnimation: e.target.checked } })
+                            }
+                            className="rounded border-slate-200 accent-cyan-500"
+                          />
+                          <span className="text-[11px] text-slate-600">Animation</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold text-slate-600 mb-2">Logo</p>
+                      <div className="space-y-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="block w-full text-[11px] text-slate-500 file:mr-2 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-1.5 file:text-[11px] file:font-semibold file:text-white"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const dataUrl = await fileToDataUrl(file);
+                            onChange({ ...state, style: { ...state.style, logoDataUrl: dataUrl } });
+                            e.target.value = '';
+                          }}
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[10px] font-medium text-slate-500 mb-0.5">Position</label>
+                            <select
+                              className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                              value={state.style?.logoPosition ?? 'top-left'}
+                              onChange={(e) => {
+                                const pos = e.target.value as 'top-left' | 'top-right' | 'bottom-center';
+                                const preset = pos === 'top-right' ? { x: 88, y: 12 } : pos === 'bottom-center' ? { x: 50, y: 88 } : { x: 12, y: 12 };
+                                onChange({
+                                  ...state,
+                                  style: {
+                                    ...state.style,
+                                    logoPosition: pos,
+                                    logoPositionX: preset.x,
+                                    logoPositionY: preset.y,
+                                  },
+                                });
+                              }}
+                            >
+                              <option value="top-left">Top Left</option>
+                              <option value="top-right">Top Right</option>
+                              <option value="bottom-center">Bottom Center</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-medium text-slate-500 mb-0.5">Size</label>
+                            <input
+                              type="range"
+                              min={20}
+                              max={120}
+                              value={state.style?.logoSize ?? 60}
+                              onChange={(e) =>
+                                onChange({ ...state, style: { ...state.style, logoSize: Number(e.target.value) } })
+                              }
+                              className="w-full accent-cyan-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
           </div>
         </div>
       </div>
     </div>
+
+    {showAlbumPicker && createPortal(
+      <div
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+        onClick={() => setShowAlbumPicker(false)}
+        onKeyDown={(e) => e.key === 'Escape' && setShowAlbumPicker(false)}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="album-picker-title"
+      >
+        <div
+          className="bg-white rounded-2xl shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_25px_60px_-12px_rgba(15,23,42,0.25)] max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col border border-slate-200/80"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+            <h3 id="album-picker-title" className="text-lg font-bold text-slate-900 tracking-tight">
+              Choose image — {title}
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowAlbumPicker(false)}
+              className="rounded-xl p-2 text-slate-500 hover:bg-cyan-50 hover:text-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
+              aria-label="Close"
+            >
+              <span className="text-xl leading-none">×</span>
+            </button>
+          </div>
+          <div className="p-4 overflow-y-auto flex-1 space-y-4">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                Upload from device
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                className="block w-full text-[11px] text-slate-500 file:mr-3 file:rounded-xl file:border-0 file:bg-slate-900 file:px-3 file:py-1.5 file:text-[11px] file:font-semibold file:text-white hover:file:bg-slate-800"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const dataUrl = await fileToDataUrl(file);
+                  onChange({ ...state, imageDataUrl: dataUrl });
+                  setShowAlbumPicker(false);
+                }}
+              />
+            </div>
+
+            <div className="h-px w-full bg-slate-200 my-1" />
+
+            <FileVaultImagePicker
+              onPick={async (picked) => {
+                onChange({ ...state, imageDataUrl: picked.dataUrl });
+                setShowAlbumPicker(false);
+              }}
+            />
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
   );
 };
 
@@ -635,7 +1102,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
       try {
         const token = getStoredToken();
         const response = await api.get<ApiCoverRecord[]>('/api/covers', {
-          params: { userId: user.id },
+          params: { userId: user.id , templateId : initialTemplateId?.toString() },
           headers: {
             ...(token ? { 'X-API-KEY': token } : {}),
           },
@@ -722,7 +1189,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
     try {
       const token = getStoredToken();
       const response = await api.get<ApiCoverRecord[]>('/api/covers', {
-        params: { userId: user.id, templateId },
+        params: { userId: user.id, templateId : templateId.toString() },
         headers: {
           ...(token ? { 'X-API-KEY': token } : {}),
         },
@@ -762,21 +1229,43 @@ const PhotoThemeCategoryPage: React.FC = () => {
     return new File([u8arr], filename, { type: mime });
   };
 
-  // Helper function to map EditablePageState to API format
-  const mapPageStateToApiFormat = (pageState: EditablePageState) => {
+  // Helper function to map EditablePageState to API format (all fields for frontCover/backCover payload)
+  const mapPageStateToApiFormat = (
+    pageState: EditablePageState,
+    opts: { imageId?: number; logoImageId?: number } = {}
+  ) => {
+    const style = pageState.style;
+    const overlayOpacity = style?.overlayOpacity ?? 50;
+    const overlayColor = style?.overlayColor ?? '#000000';
+    const gradient =
+      style?.overlayGradientDirection === 'radial'
+        ? `radial-gradient(circle, ${overlayColor}${Math.round((overlayOpacity / 100) * 255).toString(16).padStart(2, '0')} 0%, transparent 70%)`
+        : style?.overlayGradientDirection === 'bottom-top'
+          ? `linear-gradient(to top, ${overlayColor}${Math.round((overlayOpacity / 100) * 255).toString(16).padStart(2, '0')}, transparent 40%)`
+          : `linear-gradient(to bottom, ${overlayColor}${Math.round((overlayOpacity / 100) * 255).toString(16).padStart(2, '0')}, transparent 40%)`;
     return {
       headline: pageState.headline || '',
       subheadline: pageState.subheadline || '',
       description: pageState.description || '',
-      fontSize: pageState.style?.fontSize || 20,
-      fontWeight: String(pageState.style?.fontWeight || 700),
-      align: pageState.style?.align || 'center',
-      position: pageState.style?.verticalAlign || 'center',
-      fontFamily: pageState.style?.fontFamily || '',
-      headlineColor: pageState.style?.headlineColor || '#ffffff',
-      subheadlineColor: pageState.style?.subheadlineColor || '#e5e7eb',
-      imageId: 0, // Will be set after image upload
-      imageZoom: pageState.style?.imageScale || 1,
+      fontSize: style?.fontSize ?? 20,
+      fontWeight: String(style?.fontWeight ?? 700),
+      align: style?.align || 'center',
+      position: style?.verticalAlign || 'center',
+      fontFamily: style?.fontFamily || '',
+      headlineColor: style?.headlineColor || '#ffffff',
+      subheadlineColor: style?.subheadlineColor || '#e5e7eb',
+      imageId: opts.imageId ?? 0,
+      imageZoom: style?.imageScale ?? 1,
+      overlayOpacity: style?.overlayOpacity ?? 0,
+      gradient,
+      overlayColor: style?.overlayColor || '',
+      backgroundBlur: style?.blurBackground ?? true,
+      backgroundVignette: style?.vignette ?? true,
+      backgroundDarkMode: style?.darkModeCover ?? true,
+      backgroundAnimation: style?.subtleAnimation ?? true,
+      logoImageId: opts.logoImageId ?? 0,
+      logoPosition: style?.logoPosition || '',
+      logoSize: style?.logoSize ?? 0,
     };
   };
 
@@ -802,9 +1291,11 @@ const PhotoThemeCategoryPage: React.FC = () => {
 
     try {
       console.log('Starting save process...');
-      // Upload images if they exist
+      // Upload cover/back images and logos if they exist
       let frontCoverImageId = 0;
       let backCoverImageId = 0;
+      let frontLogoImageId = 0;
+      let backLogoImageId = 0;
 
       if (coverPage.imageDataUrl) {
         try {
@@ -834,12 +1325,44 @@ const PhotoThemeCategoryPage: React.FC = () => {
         }
       }
 
-      // Map page states to API format
-      const frontCover = mapPageStateToApiFormat(coverPage);
-      frontCover.imageId = frontCoverImageId;
+      if (coverPage.style?.logoDataUrl) {
+        try {
+          const file = dataUrlToFile(coverPage.style.logoDataUrl, 'cover-logo.png');
+          const uploadResponse = await imageService.uploadImage(file);
+          if (uploadResponse.cloudUploads?.s3?.id) {
+            frontLogoImageId = uploadResponse.cloudUploads.s3.id;
+          } else if (uploadResponse.image?.id) {
+            frontLogoImageId = Number(uploadResponse.image.id);
+          }
+        } catch (err) {
+          console.warn('Failed to upload cover logo:', err);
+        }
+      }
 
-      const backCover = mapPageStateToApiFormat(lastPage);
-      backCover.imageId = backCoverImageId;
+      if (lastPage.style?.logoDataUrl) {
+        try {
+          const file = dataUrlToFile(lastPage.style.logoDataUrl, 'back-logo.png');
+          const uploadResponse = await imageService.uploadImage(file);
+          if (uploadResponse.cloudUploads?.s3?.id) {
+            backLogoImageId = uploadResponse.cloudUploads.s3.id;
+          } else if (uploadResponse.image?.id) {
+            backLogoImageId = Number(uploadResponse.image.id);
+          }
+        } catch (err) {
+          console.warn('Failed to upload back cover logo:', err);
+        }
+      }
+
+      // Map page states to API format (all new fields included)
+      const frontCover = mapPageStateToApiFormat(coverPage, {
+        imageId: frontCoverImageId,
+        logoImageId: frontLogoImageId,
+      });
+
+      const backCover = mapPageStateToApiFormat(lastPage, {
+        imageId: backCoverImageId,
+        logoImageId: backLogoImageId,
+      });
 
       // Call API to save covers - New endpoint: POST /api/covers
       const token = getStoredToken();
@@ -1076,26 +1599,26 @@ const PhotoThemeCategoryPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Your saved themes – redesigned section */}
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-gradient-to-b from-slate-50 to-white shadow-lg shadow-slate-200/50">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(99,102,241,0.08),transparent)] pointer-events-none" />
+      {/* Your saved themes – futuristic section */}
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-gradient-to-b from-slate-50 via-white to-slate-50 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_18px_40px_-18px_rgba(15,23,42,0.4)]">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(56,189,248,0.12),transparent)] pointer-events-none" />
         <div className="relative px-6 py-6 md:px-8 md:py-8">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/30">
-                <FaFolderOpen className="h-6 w-6" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-cyan-300 shadow-lg shadow-slate-900/40">
+                <FaFolderOpen className="h-5 w-5" />
               </div>
               <div>
-                <h2 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
+                <h2 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight">
                   Your saved themes
                 </h2>
-                <p className="text-sm text-slate-500 mt-0.5">
-                  Pick a theme to edit or continue building your album
+                <p className="text-xs md:text-sm text-slate-500 mt-0.5">
+                  Reopen a cover design you already created.
                 </p>
               </div>
             </div>
             {isLoadingUserThemes && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700">
+              <span className="inline-flex items-center gap-2 rounded-full bg-cyan-50 px-3 py-1.5 text-xs font-medium text-cyan-700 border border-cyan-200/80">
                 <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -1107,7 +1630,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
 
           {userThemesError && (
             <div className="rounded-2xl border border-red-200 bg-red-50/80 px-5 py-4 text-sm text-red-700 flex items-center gap-3 mb-6">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600 text-sm font-semibold">
                 !
               </span>
               {userThemesError}
@@ -1115,57 +1638,57 @@ const PhotoThemeCategoryPage: React.FC = () => {
           )}
 
           {userCoverThemes.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {userCoverThemes.map((theme) => (
                 <button
                   type="button"
                   key={theme.templateId}
                   onClick={() => handleEditTheme(theme.templateId)}
-                  className="group text-left rounded-2xl border border-slate-200 bg-white p-0 overflow-hidden shadow-sm hover:shadow-xl hover:border-indigo-300/80 hover:ring-2 hover:ring-indigo-500/20 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  className="group text-left rounded-2xl border border-slate-200/80 bg-white/95 p-0 overflow-hidden shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_14px_30px_-18px_rgba(15,23,42,0.35)] hover:shadow-[0_0_0_1px_rgba(56,189,248,0.6),0_20px_40px_-20px_rgba(15,23,42,0.7)] hover:border-cyan-400/70 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:ring-offset-2 backdrop-blur-sm"
                 >
-                  <div className="flex items-center justify-between px-5 pt-4 pb-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600 bg-indigo-50 rounded-full px-2.5 py-1">
+                  <div className="flex items-center justify-between px-4 pt-3 pb-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-cyan-700 bg-cyan-50 rounded-full px-2.5 py-0.5 border border-cyan-100">
                       Template #{theme.templateId}
                     </span>
-                    <span className="text-slate-400 group-hover:text-indigo-500 transition-colors text-xs font-medium">
+                    <span className="text-[11px] text-slate-400 group-hover:text-cyan-700 transition-colors font-medium">
                       Open →
                     </span>
                   </div>
                   {/* Mini book spread: front + back */}
-                  <div className="grid grid-cols-2 gap-px bg-slate-100 min-h-[120px]">
-                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 text-white p-4 flex flex-col justify-end">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Front</p>
-                      <p className="font-semibold text-sm line-clamp-2 text-white">
+                  <div className="grid grid-cols-2 gap-px bg-slate-100/90 min-h-[110px]">
+                    <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-3 flex flex-col justify-end">
+                      <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">Front</p>
+                      <p className="font-semibold text-xs line-clamp-2 text-white">
                         {theme.frontCover?.headline || 'Untitled'}
                       </p>
-                      <p className="text-xs text-slate-300 line-clamp-1 mt-0.5">
+                      <p className="text-[11px] text-slate-300 line-clamp-1 mt-0.5">
                         {theme.frontCover?.subheadline || '—'}
                       </p>
                     </div>
-                    <div className="bg-slate-100 text-slate-800 p-4 flex flex-col justify-end border-l border-slate-200">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Back</p>
-                      <p className="font-semibold text-sm line-clamp-2 text-slate-900">
+                    <div className="bg-slate-50 text-slate-900 p-3 flex flex-col justify-end border-l border-slate-200/80">
+                      <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">Back</p>
+                      <p className="font-semibold text-xs line-clamp-2">
                         {theme.backCover?.headline || '—'}
                       </p>
-                      <p className="text-xs text-slate-600 line-clamp-1 mt-0.5">
+                      <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">
                         {theme.backCover?.subheadline || '—'}
                       </p>
                     </div>
                   </div>
-                  <div className="px-5 py-3 bg-slate-50/80 border-t border-slate-100 text-xs text-slate-500 group-hover:bg-indigo-50/50 group-hover:text-indigo-700 transition-colors">
-                    Click to edit or continue building
+                  <div className="px-4 py-2.5 bg-slate-50/90 border-t border-slate-100 text-[11px] text-slate-500 group-hover:bg-cyan-50/70 group-hover:text-cyan-800 transition-colors">
+                    Continue editing this cover
                   </div>
                 </button>
               ))}
             </div>
           ) : !isLoadingUserThemes ? (
-            <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 px-8 py-12 text-center">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 mb-4">
-                <FaFolderOpen className="h-8 w-8" />
+            <div className="rounded-2xl border-2 border-dashed border-slate-200/80 bg-slate-50/60 px-8 py-10 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900/90 text-slate-200 mb-4 shadow-md shadow-slate-900/40">
+                <FaFolderOpen className="h-7 w-7 text-cyan-300" />
               </div>
-              <h3 className="text-lg font-semibold text-slate-700 mb-1">No saved themes yet</h3>
-              <p className="text-sm text-slate-500 max-w-sm mx-auto">
-                Create your cover and last page above, then click &quot;Next: Build album&quot;. Your theme will be saved and show up here.
+              <h3 className="text-sm font-semibold text-slate-800 mb-1">No saved themes yet</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Design your cover and last page above, then choose &quot;Next: Build album&quot; to save this theme.
               </p>
             </div>
           ) : null}

@@ -346,7 +346,7 @@ const StudioDashboard: React.FC = () => {
     return (
       <DashboardLoading 
         title="Loading Dashboard"
-        subtitle="Preparing your photo studio..."
+        subtitle="Preparing your photo book..."
         icon={FaCamera}
       />
     );
@@ -359,7 +359,7 @@ const StudioDashboard: React.FC = () => {
         <div className="header-left">
           <div className="logo">
             <FaCamera className="logo-icon" />
-            <h1>PhotoStudio Pro</h1>
+            <h1>Photo Book Pro</h1>
           </div>
         </div>
         <div className="header-right">
@@ -377,8 +377,8 @@ const StudioDashboard: React.FC = () => {
         {/* Welcome Section */}
         <section className="welcome-section">
           <div className="welcome-content">
-            <h2>Welcome back, Studio Owner!</h2>
-            <p>Here's what's happening with your photo studio today.</p>
+            <h2>Welcome back, Photo Book Owner!</h2>
+            <p>Here's what's happening with your photo book today.</p>
           </div>
           <div className="quick-actions">
             <Link to="/invitations" className="quick-action-btn primary">

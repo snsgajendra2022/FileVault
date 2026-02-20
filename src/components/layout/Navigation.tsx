@@ -18,7 +18,10 @@ import {
   FaSitemap,
   FaQrcode,
   FaCrown,
-  FaPalette
+  FaPalette,
+  FaFolder,
+  FaShare,
+  FaRupeeSign
 } from 'react-icons/fa';
 
 interface NavigationProps {
@@ -66,17 +69,31 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
   
   // const studioNavigationItems = [];
   const studioNavigationItems = {'items':[
-    { name: 'Studio Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
+    { name: 'Photo Book Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
     { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
     { name: 'My Images', href: '/client-images', icon: FaImages, enabled: true },
-    { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
-    { name: 'Create Client', href: '/invitations', icon: FaUsers, enabled: true },
-    { name: 'Clients', href: '/studio/clients', icon: FaUserPlus, enabled: true },
+    { name: 'Album', href: '/studio/albums', icon: FaFolder, enabled: true },
+    { name: 'Shared Albums', href: '/studio/shared-albums', icon: FaShare, enabled: true },
+    { name: 'Select & Pay', href: '/studio/payments', icon: FaQrcode, enabled: true },
     { name: 'Clients Tree', href: '/client-tree', icon: FaSitemap, enabled: true },
     { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
     { name: 'Photo Themes', href: '/photo-themes', icon: FaPalette, enabled: true },
     { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
-    // { name: 'Studio Settings', href: '/studio/settings', icon: FaCog, enabled: true },
+    { name: 'Create Client', href: '/invitations', icon:FaUserPlus , enabled: true },
+    { name: 'Clients', href: '/studio/clients', icon: FaUsers, enabled: true },
+    { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
+
+    { name: 'Payment Management', href: '/studio/payment-management', icon: FaRupeeSign, enabled: true },
+    // { name: 'Photo Book Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
+    // { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
+    // { name: 'My Images', href: '/client-images', icon: FaImages, enabled: true },
+    // { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
+    // { name: 'Create Client', href: '/invitations', icon: FaUsers, enabled: true },
+    // { name: 'Clients', href: '/studio/clients', icon: FaUserPlus, enabled: true },
+    // { name: 'Clients Tree', href: '/client-tree', icon: FaSitemap, enabled: true },
+    // { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
+    // { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
+    // { name: 'Photo Book Settings', href: '/studio/settings', icon: FaCog, enabled: true },
     // { name: 'Sheet', href: 'Sheet', icon: FaCog, enabled: true },
     // { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
   ],active:true};
@@ -118,7 +135,7 @@ console.log( studioNavigationItems.active === true && 2 );
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">ImageSecurity</h1>
                 )}
                 {user?.accountType == 'FREE' && menuFlags.studio === true && studioNavigationItems.active === true && (
-                <h1 className="text-xl font-bold text-white drop-shadow-lg">Photo Studio</h1>
+                <h1 className="text-xl font-bold text-white drop-shadow-lg">Photo Book</h1>
                 )}
                 {user.accountType == 'ADMIN' && menuFlags.admin === true && adminNavigationItems.active === true && (
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">Admin Panel</h1>
@@ -173,14 +190,14 @@ console.log( studioNavigationItems.active === true && 2 );
               </NavLink>
                 ))}
               
-              {/* Studio Section */}
+              {/* Photo Book Section */}
               {menuFlags.studio === true && studioNavigationItems.active === true
                &&  
               <div className=" pb-3">
                 <div className="flex items-center px-4 py-2 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-200">
                   <FaCamera className="h-4 w-4 text-pink-600 mr-2" />
                   <h3 className="text-xs font-bold text-pink-700 uppercase tracking-wider">
-                    PhotoStudio Pro
+                    Photo Book Pro
                   </h3>
                 </div>
               </div>

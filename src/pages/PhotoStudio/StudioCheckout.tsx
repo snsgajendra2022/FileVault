@@ -387,10 +387,10 @@ const StudioCheckout: React.FC = () => {
     
     const params = new URLSearchParams({
       pa: upiIdToUse,
-      pn: 'PhotoStudio',
+      pn: 'Photo Book',
       am: String(totalAmount),
       cu: 'INR',
-      tn: `PhotoStudio payment for ${allSelectedImages.length} photo(s)`,
+      tn: `Photo Book payment for ${allSelectedImages.length} photo(s)`,
     });
     const upiUrl = `upi://pay?${params.toString()}`;
     return encodeURIComponent(upiUrl);

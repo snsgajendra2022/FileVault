@@ -104,13 +104,13 @@ const StudioSettings: React.FC = () => {
       
       const mockProfile: StudioProfile = {
         id: '1',
-        name: 'Elite Photography Studio',
+        name: 'Elite Photo Book',
         ownerName: 'John Smith',
         email: 'john@elitephoto.com',
         phone: '+1 (555) 123-4567',
         address: '123 Photography Lane, New York, NY 10001',
         website: 'https://elitephoto.com',
-        description: 'Professional photography studio specializing in portraits, weddings, and corporate events.',
+        description: 'Professional photo book specializing in portraits, weddings, and corporate events.',
         logo: '/api/logo/1',
         coverImage: '/api/cover/1',
         primaryColor: '#667eea',
@@ -192,7 +192,7 @@ const StudioSettings: React.FC = () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
       // Redirect to home or show success message
-      alert('Studio account deleted successfully');
+      alert('Photo Book account deleted successfully');
     } catch (error) {
       console.error('Error deleting studio:', error);
     } finally {
@@ -230,7 +230,7 @@ const StudioSettings: React.FC = () => {
           </Link>
           <div className="page-title">
             <FaCog className="title-icon" />
-            <h1>Studio Settings</h1>
+            <h1>Photo Book Settings</h1>
           </div>
         </div>
         {saving && (
@@ -267,8 +267,8 @@ const StudioSettings: React.FC = () => {
           {activeTab === 'profile' && studioProfile && (
             <div className="settings-section">
               <div className="section-header">
-                <h2>Studio Profile</h2>
-                <p>Manage your studio information and branding</p>
+                <h2>Photo Book Profile</h2>
+                <p>Manage your photo book information and branding</p>
               </div>
 
               <div className="profile-form">
@@ -276,7 +276,7 @@ const StudioSettings: React.FC = () => {
                   <h3>Basic Information</h3>
                   <div className="form-grid">
                     <div className="form-group">
-                      <label>Studio Name</label>
+                      <label>Photo Book Name</label>
                       <input
                         type="text"
                         value={studioProfile.name}
@@ -340,7 +340,7 @@ const StudioSettings: React.FC = () => {
                     <div className="logo-upload">
                       <div className="logo-preview">
                         {studioProfile.logo ? (
-                          <img src={studioProfile.logo} alt="Studio Logo" />
+                          <img src={studioProfile.logo} alt="Photo Book Logo" />
                         ) : (
                           <FaCamera />
                         )}
@@ -654,8 +654,8 @@ const StudioSettings: React.FC = () => {
               <div className="danger-zone">
                 <div className="danger-item">
                   <div className="danger-info">
-                    <h3>Delete Studio Account</h3>
-                    <p>Permanently delete your studio account and all associated data. This action cannot be undone.</p>
+                    <h3>Delete Photo Book Account</h3>
+                    <p>Permanently delete your photo book account and all associated data. This action cannot be undone.</p>
                   </div>
                   <button 
                     className="danger-btn"
@@ -743,7 +743,7 @@ const StudioSettings: React.FC = () => {
         <div className="modal-overlay">
           <div className="modal-content delete-modal">
             <div className="modal-header">
-              <h2>Delete Studio Account</h2>
+              <h2>Delete Photo Book Account</h2>
               <button 
                 className="close-btn"
                 onClick={() => setShowDeleteModal(false)}
@@ -756,7 +756,7 @@ const StudioSettings: React.FC = () => {
                 <FaTrash />
               </div>
               <h3>Are you absolutely sure?</h3>
-              <p>This action cannot be undone. This will permanently delete your studio account and remove all data from our servers.</p>
+              <p>This action cannot be undone. This will permanently delete your photo book account and remove all data from our servers.</p>
               <div className="confirmation-input">
                 <label>Type "DELETE" to confirm:</label>
                 <input type="text" placeholder="DELETE" />

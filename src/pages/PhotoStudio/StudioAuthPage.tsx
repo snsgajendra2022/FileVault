@@ -59,9 +59,9 @@ const StudioAuthPage: React.FC = () => {
         <div className="auth-header">
           <div className="logo">
             <FaCamera className="logo-icon" />
-            <h1>PhotoStudio Pro</h1>
+            <h1>Photo Book Pro</h1>
           </div>
-          <p className="tagline">Professional Photo Studio Management</p>
+          <p className="tagline">Professional Photo Book Management</p>
         </div>
 
         <div className="auth-card">
@@ -76,7 +76,7 @@ const StudioAuthPage: React.FC = () => {
               className={`tab ${!isLogin ? 'active' : ''}`}
               onClick={() => setIsLogin(false)}
             >
-              Create Studio
+              Create Photo Book
             </button>
           </div>
 
@@ -84,7 +84,7 @@ const StudioAuthPage: React.FC = () => {
             {!isLogin && (
               <>
                 <div className="form-group">
-                  <label htmlFor="studioName">Studio Name</label>
+                  <label htmlFor="studioName">Photo Book Name</label>
                   <div className="input-group">
                     <FaBuilding className="input-icon" />
                     <input
@@ -93,7 +93,7 @@ const StudioAuthPage: React.FC = () => {
                       name="studioName"
                       value={formData.studioName}
                       onChange={handleInputChange}
-                      placeholder="Enter your studio name"
+                      placeholder="Enter your photo book name"
                       required={!isLogin}
                     />
                   </div>
@@ -132,7 +132,7 @@ const StudioAuthPage: React.FC = () => {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="address">Studio Address</label>
+                  <label htmlFor="address">Photo Book Address</label>
                   <div className="input-group">
                     <FaBuilding className="input-icon" />
                     <input
@@ -141,7 +141,7 @@ const StudioAuthPage: React.FC = () => {
                       name="address"
                       value={formData.address}
                       onChange={handleInputChange}
-                      placeholder="Enter your studio address"
+                      placeholder="Enter your photo book address"
                       required={!isLogin}
                     />
                   </div>
@@ -227,14 +227,14 @@ const StudioAuthPage: React.FC = () => {
               {loading ? (
                 <div className="spinner"></div>
               ) : (
-                isLogin ? 'Sign In' : 'Create Studio'
+                isLogin ? 'Sign In' : 'Create Photo Book'
               )}
             </button>
 
             {isLogin && (
               <div className="auth-footer">
                 <p>
-                  Don't have a studio account?{' '}
+                  Don't have a photo book account?{' '}
                   <button 
                     type="button" 
                     className="link-btn"
@@ -249,7 +249,7 @@ const StudioAuthPage: React.FC = () => {
         </div>
 
         <div className="features-preview">
-          <h3>What you get with PhotoStudio Pro:</h3>
+          <h3>What you get with Photo Book Pro:</h3>
           <div className="features-grid">
             <div className="feature">
               <FaUser className="feature-icon" />
