@@ -25,6 +25,8 @@ export type EditablePageState = {
   subheadline: string;
   description: string;
   imageDataUrl?: string;
+  imageId?: number;
+  previewUrl?: string;
   style?: {
     fontSize?: number;
     fontWeight?: number;
@@ -959,7 +961,7 @@ const PageEditorCard: React.FC<{
             </button>
           </div>
           <div className="p-4 overflow-y-auto flex-1 space-y-4">
-            <div>
+            {/* <div>
               <label className="block text-[11px] font-semibold text-slate-700 mb-1">
                 Upload from device
               </label>
@@ -975,7 +977,7 @@ const PageEditorCard: React.FC<{
                   setShowAlbumPicker(false);
                 }}
               />
-            </div>
+            </div> */}
 
             <div className="h-px w-full bg-slate-200 my-1" />
 
@@ -1134,9 +1136,10 @@ const PhotoThemeCategoryPage: React.FC = () => {
       setIsLoadingCovers(true);
       try {
         console.log('Loading saved covers...', { userId: user.id, templateId: initialTemplateId });
+        // `/api/users/${user.id}/photobook-templates/${initialTemplateId}/covers`
 
         const response = await api.get(
-          `/api/users/${user.id}/photobook-templates/${initialTemplateId}/covers`,
+          `/api/covers?userId=${user.id}&templateId=${initialTemplateId}`,
           {
             headers: {
               // Use same dynamic token as other APIs
