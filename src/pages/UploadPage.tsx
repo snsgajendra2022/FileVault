@@ -918,11 +918,13 @@ const UploadPage = () => {
       }
     });
     setQueueState(uploadManager.getState());
-    toast.success(
-      removedIds.length === 1
-        ? '1 item removed from queue'
-        : `${removedIds.length} items removed from queue`
-    );
+    if (removedIds.length > 0) {
+      toast.success(
+        removedIds.length === 1
+          ? '1 item removed from queue'
+          : `${removedIds.length} items removed from queue`
+      );
+    }
   }, []);
 
   const addCompletedToAlbum = useCallback(async () => {

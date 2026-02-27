@@ -41,7 +41,7 @@ const PaymentManagement = () => {
   const queryClient = useQueryClient();
 
   // Fetch pending payments
-  const { data: pendingPayments, isLoading, refetch } = useQuery({
+  const { data: pendingPayments, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['pendingPayments'],
     queryFn: async () => {
       const urls =[{ api:'/api/payments/owner/pending'},{api:'/api/payments'}] ;
@@ -176,9 +176,17 @@ const PaymentManagement = () => {
         </div>
         <button
           onClick={() => refetch()}
-          className="px-4 py-2 bg-[#2731db] text-white rounded-lg hover:bg-blue-700 transition-colors"
+          disabled={isFetching}
+          className="px-4 py-2 bg-[#2731db] text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
         >
-          Refresh
+          {isFetching ? (
+            <>
+              <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span>Refreshing...</span>
+            </>
+          ) : (
+            <span>Refresh</span>
+          )}
         </button>
       </div>
 

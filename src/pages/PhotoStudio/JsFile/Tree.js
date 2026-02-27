@@ -78,11 +78,12 @@ export default function Tree() {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [myUserId, setMyUserId] = useState(null);
+  const initialToastShownRef = useRef(false);
 
   const root = useMemo(() => d3.hierarchy(rootData), [rootData]);
 
   // Fetch family data from API
-  const fetchFamilyData = async () => {
+  const fetchFamilyData = async (isInitial = false) => {
     try {
       setLoading(true);
 
@@ -126,7 +127,15 @@ export default function Tree() {
 
           const newRootData = convertFamilyDataToTree(sanitized);
           setRootData(newRootData);
-          toast.success("Family data loaded successfully");
+
+          if (isInitial) {
+            if (!initialToastShownRef.current) {
+              toast.success("Family data loaded successfully");
+              initialToastShownRef.current = true;
+            }
+          } else {
+            toast.success("Family data loaded successfully");
+          }
         } else {
           toast.error("Invalid data format received from server");
         }
@@ -149,7 +158,7 @@ export default function Tree() {
 
   // Fetch data on mount
   useEffect(() => {
-    fetchFamilyData();
+    fetchFamilyData(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

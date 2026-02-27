@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import React, { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { FaUser, FaEnvelope, FaPhone, FaBuilding, FaSave, FaEdit, FaShieldAlt, FaUpload, FaLock } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaPhone, FaLock, FaSave } from 'react-icons/fa';
 import DashboardLoading from '../components/common/DashboardLoading';
 import { useNavigate } from 'react-router-dom';
 
@@ -30,10 +29,14 @@ interface ProfileData {
 }
 
 const ProfilePage = () => {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [isEditing, setIsEditing] = useState(false);
+  const queryClient = useQueryClient();
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+  });
 
   // Fetch profile data from API
   const { data: profileData, isLoading: profileLoading } = useQuery({
@@ -44,39 +47,25 @@ const ProfilePage = () => {
     }
   });
 
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    company: '',
-    role: '',
-    department: '',
-  });
-
-  // Update form data when profile data is loaded
-  React.useEffect(() => {
+  useEffect(() => {
     if (profileData) {
       setFormData({
         firstName: profileData.firstName || '',
         lastName: profileData.lastName || '',
         email: profileData.email || '',
         phone: profileData.phone || '',
-        company: profileData.company || '',
-        role: profileData.role || '',
-        department: profileData.department || '',
       });
     }
   }, [profileData]);
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: Partial<ProfileData>) => {
       const response = await api.put('/api/auth/profile', data);
       return response.data;
     },
     onSuccess: () => {
       toast.success('Profile updated successfully!');
-      setIsEditing(false);
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
     },
     onError: () => {
@@ -84,22 +73,22 @@ const ProfilePage = () => {
     }
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
     updateProfileMutation.mutate(formData);
   };
 
   const handleCancel = () => {
-    setFormData({
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
-      email: user?.email || '',
-      phone: user?.phone || '',
-      company: user?.company || '',
-      role: user?.role || '',
-      department: user?.department || '',
-    });
-    setIsEditing(false);
+    if (profileData) {
+      setFormData({
+        firstName: profileData.firstName || '',
+        lastName: profileData.lastName || '',
+        email: profileData.email || '',
+        phone: profileData.phone || '',
+      });
+    }
   };
 
   if (profileLoading) {
@@ -127,15 +116,6 @@ const ProfilePage = () => {
       <div style={{ display: 'flex', justifyContent: 'end', alignItems: 'center', gap: '10px' }}>
         <div className="flex justify-center ">
           <button
-              onClick={(e) => {setIsEditing(!isEditing);  isEditing && handleSubmit(e)}}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
-          >
-            {isEditing ? <FaSave className="h-5 w-5" /> : <FaEdit className="h-5 w-5" />}
-            <span>{isEditing ? 'Save Changes' : 'Edit Profile'}</span>
-          </button>
-        </div>
-        <div className="flex justify-center ">
-          <button
             type="button"
             onClick={() => navigate('/change-password')}
             className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-red-700 hover:to-pink-700 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
@@ -147,7 +127,7 @@ const ProfilePage = () => {
       </div>
       {/* Profile Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
-        <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-2xl p-8 border border-blue-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+        {/* <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-2xl p-8 border border-blue-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium mb-2">Account Type</p>
@@ -157,9 +137,9 @@ const ProfilePage = () => {
               <FaUser className="h-6 w-6 text-white" />
             </div>
           </div>
-        </div>
+        </div> */}
 
-        <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/30 rounded-2xl p-8 border border-green-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+        {/* <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/30 rounded-2xl p-8 border border-green-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium mb-2">Account Status</p>
@@ -169,7 +149,7 @@ const ProfilePage = () => {
               <FaShieldAlt className="h-6 w-6 text-white" />
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* <div className="bg-gradient-to-br from-white via-yellow-50/30 to-orange-50/30 rounded-2xl p-8 border border-yellow-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
           <div className="flex items-center justify-between">
@@ -214,8 +194,7 @@ const ProfilePage = () => {
               <label className="block text-base font-semibold text-gray-800 mb-3">First Name</label>
               <input
                 type="text"
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 text-base"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
               />
@@ -224,8 +203,7 @@ const ProfilePage = () => {
               <label className="block text-base font-semibold text-gray-800 mb-3">Last Name</label>
               <input
                 type="text"
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 text-base"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
               />
@@ -240,8 +218,7 @@ const ProfilePage = () => {
               </label>
               <input
                 type="email"
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 text-base"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
@@ -253,8 +230,7 @@ const ProfilePage = () => {
               </label>
               <input
                 type="tel"
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 text-base"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
@@ -264,7 +240,7 @@ const ProfilePage = () => {
       </div>
 
       {/* Professional Information */}
-      <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/30 rounded-3xl shadow-2xl border border-green-100/50 p-8">
+      {/* <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/30 rounded-3xl shadow-2xl border border-green-100/50 p-8">
         <div className="flex items-center space-x-4 mb-8">
           <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
             <FaBuilding className="h-6 w-6 text-white" />
@@ -309,11 +285,11 @@ const ProfilePage = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
 
       {/* Account Information */}
-      <div className="bg-gradient-to-br from-white via-yellow-50/30 to-orange-50/30 rounded-3xl shadow-2xl border border-yellow-100/50 p-8">
+      {/* <div className="bg-gradient-to-br from-white via-yellow-50/30 to-orange-50/30 rounded-3xl shadow-2xl border border-yellow-100/50 p-8">
         <div className="flex items-center space-x-4 mb-8">
           <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
             <FaShieldAlt className="h-6 w-6 text-white" />
@@ -359,10 +335,10 @@ const ProfilePage = () => {
             />
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Storage & Security Settings */}
-      <div className="bg-gradient-to-br from-white via-indigo-50/30 to-blue-50/30 rounded-3xl shadow-2xl border border-indigo-100/50 p-8">
+      {/* <div className="bg-gradient-to-br from-white via-indigo-50/30 to-blue-50/30 rounded-3xl shadow-2xl border border-indigo-100/50 p-8">
         <div className="flex items-center space-x-4 mb-8">
           <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
             <FaUpload className="h-6 w-6 text-white" />
@@ -399,30 +375,27 @@ const ProfilePage = () => {
             />
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Action Buttons */}
-      {isEditing && (
-        <div className="flex justify-center space-x-6">
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 px-8 py-4 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 shadow-lg transform hover:scale-105"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            onClick={handleSubmit}
-            disabled={updateProfileMutation.isPending}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
-          >
-            <FaSave className="h-5 w-5" />
-            <span>{updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}</span>
-          </button>
-        </div>
-      )}
-
+      <div className="flex justify-center space-x-6">
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 px-8 py-4 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 shadow-lg transform hover:scale-105"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          onClick={handleSubmit}
+          disabled={updateProfileMutation.isPending}
+          className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
+        >
+          <FaSave className="h-5 w-5" />
+          <span>{updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}</span>
+        </button>
+      </div>
 
     </div>
   );
