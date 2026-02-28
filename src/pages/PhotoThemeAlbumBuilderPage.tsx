@@ -1248,31 +1248,6 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 </button>
               </div>
               <div className="p-4 overflow-y-auto flex-1 space-y-4">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Upload from device</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple={MULTI_IMAGE_LAYOUTS.includes(pageImagePickerFor.layout)}
-                    className="block w-full text-[11px] text-slate-600 file:mr-2 file:rounded-lg file:border-0 file:bg-cyan-600 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-cyan-700"
-                    onChange={async (e) => {
-                      const files = e.target.files;
-                      const targetIndex = pageImagePickerFor.pageIndex;
-                      const isMulti = MULTI_IMAGE_LAYOUTS.includes(pageImagePickerFor.layout);
-                      if (!files || !files.length) return;
-                      if (isMulti) {
-                        await handleMultipleImagesChange(targetIndex, files);
-                      } else {
-                        await handleImageChange(targetIndex, files[0] ?? null);
-                      }
-                      setPageImagePickerFor(null);
-                      e.target.value = '';
-                    }}
-                  />
-                </div>
-
-                <div className="h-px w-full bg-slate-200 my-1" />
-
                 <FileVaultImagePicker
                   onPick={async (picked) => {
                     const targetIndex = pageImagePickerFor.pageIndex;
