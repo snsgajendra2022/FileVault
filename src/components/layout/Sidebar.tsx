@@ -114,7 +114,7 @@ console.log( studioNavigationItems.active === true && 2 );
               <div className="relative">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-white to-gray-100 flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform duration-300">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-inner">
-                    <span className="text-sm font-bold text-white">PS</span>
+                    <span className="text-sm font-bold text-white">OM</span>
                   </div>
                 </div>
                 {/* Glow effect */}
