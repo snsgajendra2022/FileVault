@@ -125,7 +125,7 @@ console.log( studioNavigationItems.active === true && 2 );
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">ImageSecurity</h1>
                 )}
                 {user?.accountType == 'FREE' && menuFlags.studio === true && studioNavigationItems.active === true && (
-                <h1 className="text-xl font-bold text-white drop-shadow-lg">Photo Studio</h1>
+                <h1 className="text-xl font-bold text-white drop-shadow-lg">Our Memory</h1>
                 )}
                 {user.accountType == 'ADMIN' && menuFlags.admin === true && adminNavigationItems.active === true && (
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">Admin Panel</h1>
@@ -182,7 +182,7 @@ console.log( studioNavigationItems.active === true && 2 );
                 <div className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border border-[#2731db]">
                   <FaCamera className="h-4 w-4 text-[#2731db] mr-2" />
                   <h3 className="text-xs font-bold text-[#2731db] uppercase tracking-wider">
-                    PhotoStudio Pro
+                  OurMemory Pro
                   </h3>
                 </div>
               </div>
