@@ -99,8 +99,7 @@ const PhotoStudioAlbum: React.FC = () => {
   const [editAlbumPrice, setEditAlbumPrice] = useState('');
   const [editPerPhotoPrice, setEditPerPhotoPrice] = useState('');
   const [editAlbumIsPublic, setEditAlbumIsPublic] = useState(false);
-  const [searchImageId, setSearchImageId] = useState('');
-  const [searchResults, setSearchResults] = useState<Album[]>([]);
+  const [albumSearch, setAlbumSearch] = useState('');
   const [albumImages, setAlbumImages] = useState<Map<number, AlbumImage[]>>(new Map());
   const [coverImageErrors, setCoverImageErrors] = useState<Set<number>>(new Set());
   const [fullScreenImage, setFullScreenImage] = useState<{ image: AlbumImage; albumId: number; index: number } | null>(null);
@@ -150,6 +149,12 @@ const PhotoStudioAlbum: React.FC = () => {
     if (albumsData.albums) return albumsData.albums;
     return [];
   }, [albumsData]);
+
+  const filteredAlbums = useMemo(() => {
+    if (!albumSearch.trim()) return albums;
+    const q = albumSearch.toLowerCase();
+    return albums.filter((album) => album.name.toLowerCase().includes(q));
+  }, [albums, albumSearch]);
 
   // Populate album images from album data when albums are loaded
   useEffect(() => {
@@ -247,7 +252,7 @@ const PhotoStudioAlbum: React.FC = () => {
   // Update album mutation
   const updateAlbumMutation = useMutation({
     mutationFn: async ({ albumId, name, description, perAlbumPrice, perPhotoPrice, isPublic }: { albumId: number; name: string; description?: string; perAlbumPrice?: number; perPhotoPrice?: number; isPublic?: boolean }) => {
-      const response = await api.put(`/api/albums/${albumId}/images`, { name, description, perAlbumPrice, perPhotoPrice, isPublic });
+      const response = await api.put(`/api/albums/${albumId}`, { name, description, perAlbumPrice, perPhotoPrice, isPublic });
       return response.data;
     },
     onSuccess: () => {
@@ -396,24 +401,6 @@ const PhotoStudioAlbum: React.FC = () => {
       albumId: showShareModal,
       clientIds: Array.from(selectedClients)
     });
-  };
-
-  // Find albums for an image
-  const findAlbumsForImage = async (imageId: number | string) => {
-    try {
-      const response = await api.get(`/api/albums/image/${imageId}/albums`);
-      const albums = Array.isArray(response.data) ? response.data : (response.data?.albums || []);
-      setSearchResults(albums);
-      if (albums.length === 0) {
-        toast('This image is not in any albums', { icon: 'ℹ️' });
-      } else {
-        toast.success(`Found ${albums.length} album(s) for this image`);
-      }
-    } catch (error: any) {
-      console.error('Error finding albums:', error);
-      toast.error(error.response?.data?.message || 'Failed to find albums for image');
-      setSearchResults([]);
-    }
   };
 
   const handleCreateAlbum = () => {
@@ -715,59 +702,25 @@ const PhotoStudioAlbum: React.FC = () => {
         </div>
       </div>
 
-      {/* Find Albums for Image */}
-      <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-4">
-        <div className="flex items-center space-x-3">
+      {/* Albums List */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-2">
+        <div className="text-left flex items-center space-x-2">
+          <p className="text-sm text-gray-500">Total albums:</p>
+          <p className="text-2xl font-bold text-gray-900">{filteredAlbums.length}</p>
+        </div>
+        <div className="flex items-center space-x-2 max-w-sm w-full">
           <FaSearch className="text-gray-400" />
           <input
             type="text"
-            placeholder="Enter image ID to find albums..."
-            value={searchImageId}
-            onChange={(e) => setSearchImageId(e.target.value)}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+            placeholder="Search albums by name..."
+            value={albumSearch}
+            onChange={(e) => setAlbumSearch(e.target.value)}
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db] text-sm"
           />
-          <button
-            onClick={() => {
-              if (searchImageId.trim()) {
-                findAlbumsForImage(searchImageId.trim());
-              } else {
-                toast.error('Please enter an image ID');
-              }
-            }}
-            className="px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors"
-          >
-            Search
-          </button>
         </div>
-        {searchResults.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <p className="text-sm font-semibold text-gray-700 mb-2">
-              Albums containing image {searchImageId}:
-            </p>
-            <div className="space-y-2">
-              {searchResults.map((album) => (
-                <div
-                  key={album.id}
-                  className="p-3 bg-gray-50 rounded-lg border border-gray-200"
-                >
-                  <p className="font-medium text-gray-900">{album.name}</p>
-                  {album.description && (
-                    <p className="text-sm text-gray-500 mt-1">{album.description}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
-
-      {/* Albums List */}
-      <div className="text-left flex items-center space-x-2">
-            <p className="text-sm text-gray-500">Total albums:</p>
-            <p className="text-2xl font-bold text-gray-900">{albums.length}</p>
-          </div>
       <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-        {albums.length === 0 ? (
+        {filteredAlbums.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
             <FaFolder className="mx-auto mb-4 text-5xl text-gray-300" />
             <p className="text-lg font-medium mb-2">No albums found</p>
@@ -781,7 +734,7 @@ const PhotoStudioAlbum: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {albums.map((album) => {
+            {filteredAlbums.map((album) => {
               const isExpanded = expandedAlbums.has(album.id);
               const isSelectedAlbum = selectedAlbums.has(album.id);
               return (

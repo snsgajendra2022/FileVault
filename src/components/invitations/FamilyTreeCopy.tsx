@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { toast } from 'react-hot-toast';
@@ -487,9 +487,10 @@ const FamilyTree: React.FC = () => {
     width: window.innerWidth,
     height: window.innerHeight
   });
+  const initialToastShownRef = useRef(false);
 
   useEffect(() => {
-    fetchFamilyData();
+    fetchFamilyData(true);
     
     const handleResize = () => {
       setScreenSize({
@@ -502,7 +503,7 @@ const FamilyTree: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const fetchFamilyData = async () => {
+  const fetchFamilyData = async (isInitial: boolean = false) => {
     try {
       setLoading(true);
       console.log('Fetching family data from API...');
@@ -514,7 +515,15 @@ const FamilyTree: React.FC = () => {
         // Check if the API response has the expected structure
         if (response.data.familyData) {
           setFamilyData(response.data.familyData);
-          toast.success('Family data loaded successfully');
+
+          if (isInitial) {
+            if (!initialToastShownRef.current) {
+              toast.success('Family data loaded successfully');
+              initialToastShownRef.current = true;
+            }
+          } else {
+            toast.success('Family data loaded successfully');
+          }
         } else {
           console.error('API response missing familyData:', response.data);
           toast.error('Invalid data format received from server');
@@ -804,7 +813,7 @@ const FamilyTree: React.FC = () => {
             marginBottom: '20px',
           }}>
             <button
-              onClick={fetchFamilyData}
+              onClick={() => fetchFamilyData(false)}
               disabled={loading}
               style={{
                 padding: '10px 20px',

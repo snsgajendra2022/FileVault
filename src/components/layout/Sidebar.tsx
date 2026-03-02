@@ -117,7 +117,7 @@ console.log( studioNavigationItems.active === true && 2 );
               <div className="relative">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-white to-gray-100 flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform duration-300">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-inner">
-                    <span className="text-sm font-bold text-white">PS</span>
+                    <span className="text-sm font-bold text-white">OM</span>
                   </div>
                 </div>
                 {/* Glow effect */}
@@ -128,7 +128,7 @@ console.log( studioNavigationItems.active === true && 2 );
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">ImageSecurity</h1>
                 )}
                 {user?.accountType == 'FREE' && menuFlags.studio === true && studioNavigationItems.active === true && (
-                <h1 className="text-xl font-bold text-white drop-shadow-lg">Photo Book</h1>
+                <h1 className="text-xl font-bold text-white drop-shadow-lg">Our Memory</h1>
                 )}
                 {user.accountType == 'ADMIN' && menuFlags.admin === true && adminNavigationItems.active === true && (
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">Admin Panel</h1>
@@ -185,7 +185,7 @@ console.log( studioNavigationItems.active === true && 2 );
                 <div className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border border-[#2731db]">
                   <FaCamera className="h-4 w-4 text-[#2731db] mr-2" />
                   <h3 className="text-xs font-bold text-[#2731db] uppercase tracking-wider">
-                    Photo Book Pro
+                  OurMemory Pro
                   </h3>
                 </div>
               </div>
