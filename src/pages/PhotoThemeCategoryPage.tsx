@@ -18,6 +18,25 @@ import imageService from '../services/imageService';
 import { getStoredToken } from '../utils/authUtils';
 import { FileVaultImagePicker } from '../components/PhotoBook/FileVaultImagePicker';
 
+const API_BASE = process.env.REACT_APP_API_URL || '';
+
+/** Build a reliable preview URL from an image ID */
+function buildPreviewUrl(imageId: number): string {
+  const token = getStoredToken();
+  return `${API_BASE}/api/images/${imageId}/preview${token ? `?token=${token}` : ''}`;
+}
+
+function resolveBackendImageUrl(url: string | undefined | null): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith('data:')) return url;
+  const idMatch = url.match(/\/api\/images\/(\d+)\/(preview|download|thumbnail)/);
+  if (idMatch) return buildPreviewUrl(Number(idMatch[1]));
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const token = getStoredToken();
+  const sep = url.includes('?') ? '&' : '?';
+  return `${API_BASE}${url}${token ? `${sep}token=${token}` : ''}`;
+}
+
 type PageKind = 'cover' | 'last';
 
 export type EditablePageState = {
@@ -50,6 +69,7 @@ export type EditablePageState = {
     darkModeCover?: boolean;
     subtleAnimation?: boolean;
     logoDataUrl?: string;
+    logoImageId?: number;
     logoPosition?: 'top-left' | 'top-right' | 'bottom-center';
     logoPositionX?: number;
     logoPositionY?: number;
@@ -66,23 +86,34 @@ type ThemeMeta = {
 };
 
 type ApiCoverSide = {
-  id: number;
-  userId: number;
-  templateId: number;
-  coverType: 'FRONT_COVER' | 'BACK_COVER';
+  id?: number;
+  userId?: number;
+  templateId?: number;
+  coverType?: 'FRONT_COVER' | 'BACK_COVER';
   headline: string;
   subheadline: string;
-  description: string;
-  fontSize: number;
-  fontWeight: string | number;
-  align: 'left' | 'center' | 'right';
-  position: 'top' | 'center' | 'bottom';
-  fontFamily: string;
-  headlineColor: string;
-  subheadlineColor: string;
-  imageId: number | null;
-  imageUrl: string | null;
-  imageZoom: number;
+  description?: string;
+  fontSize?: number;
+  fontWeight?: string | number;
+  align?: 'left' | 'center' | 'right';
+  position?: 'top' | 'center' | 'bottom';
+  fontFamily?: string;
+  headlineColor?: string;
+  subheadlineColor?: string;
+  imageId?: number | null;
+  imageUrl?: string | null;
+  imageZoom?: number;
+  overlayOpacity?: number;
+  gradient?: string;
+  overlayColor?: string;
+  backgroundBlur?: boolean;
+  backgroundVignette?: boolean;
+  backgroundDarkMode?: boolean;
+  backgroundAnimation?: boolean;
+  logoImageId?: number | null;
+  logoImageUrl?: string | null;
+  logoPosition?: string;
+  logoSize?: number;
 };
 
 type ApiCoverRecord = {
@@ -269,11 +300,12 @@ const PageEditorCard: React.FC<{
         </div>
       </div>
 
-      {/* Preview */}
-      <div className="mt-5 grid grid-cols-1 md:grid-cols-[260px,1fr] gap-6 items-start">
-        <div
-          ref={previewRef}
-          className={`relative w-full aspect-[3/4] rounded-2xl overflow-hidden flex items-center justify-center transition-all duration-500 ring-2 ring-slate-200/80 ring-offset-2 ring-offset-slate-50 shadow-[0_8px_30px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 ${state.style?.subtleAnimation ? 'cover-fade-in' : ''} ${state.style?.darkModeCover ? 'brightness-90' : ''}`}
+      {/* Preview on top, settings below so image shows properly */}
+      <div className="mt-5 flex flex-col gap-6">
+        <div className="flex justify-center">
+          <div
+            ref={previewRef}
+            className={`relative w-full max-w-sm aspect-[3/4] rounded-2xl overflow-hidden flex items-center justify-center transition-all duration-500 ring-2 ring-slate-200/80 ring-offset-2 ring-offset-slate-50 shadow-[0_8px_30px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 ${state.style?.subtleAnimation ? 'cover-fade-in' : ''} ${state.style?.darkModeCover ? 'brightness-90' : ''}`}
           style={state.style?.vignette ? { boxShadow: 'inset 0 0 80px rgba(0,0,0,0.35), 0 8px 30px rgba(15,23,42,0.12)' } : undefined}
         >
           {state.imageDataUrl ? (
@@ -414,6 +446,7 @@ const PageEditorCard: React.FC<{
               />
             </div>
           )}
+        </div>
         </div>
 
         <div className="space-y-4">
@@ -980,7 +1013,8 @@ const PageEditorCard: React.FC<{
 
             <FileVaultImagePicker
               onPick={async (picked) => {
-                onChange({ ...state, imageDataUrl: picked.dataUrl });
+                const imgUrl = picked.imageId ? buildPreviewUrl(picked.imageId) : picked.dataUrl;
+                onChange({ ...state, imageDataUrl: imgUrl, imageId: picked.imageId });
                 setShowAlbumPicker(false);
               }}
             />
@@ -1022,6 +1056,7 @@ const PageEditorCard: React.FC<{
                   style: {
                     ...state.style,
                     logoDataUrl: picked.dataUrl,
+                    logoImageId: picked.imageId,
                   },
                 });
                 setShowLogoPicker(false);
@@ -1039,7 +1074,7 @@ const PageEditorCard: React.FC<{
 const PhotoThemeCategoryPage: React.FC = () => {
   const { categorySlug = '' } = useParams<{ categorySlug: string }>();
   const navigate = useNavigate();
-  const location = useLocation() as { state?: { templateId?: number } };
+  const location = useLocation() as { state?: { templateId?: number; photobookId?: number } };
   const { user } = useAuth();
 
   const meta = THEME_META.find((m) => m.id === categorySlug) ?? {
@@ -1052,6 +1087,17 @@ const PhotoThemeCategoryPage: React.FC = () => {
 
   const Icon = meta.icon;
   const initialTemplateId = location.state?.templateId;
+
+  // Persist templateId in localStorage so it survives page refresh
+  const PHOTOBOOK_KEY = `photobook_${categorySlug}`;
+  const storedTemplateId = React.useMemo(() => {
+    try {
+      const raw = localStorage.getItem(PHOTOBOOK_KEY);
+      if (raw) return JSON.parse(raw) as { templateId: number; photobookId?: number };
+    } catch { /* ignore */ }
+    return null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categorySlug]);
 
   const [coverPage, setCoverPage] = React.useState<EditablePageState>({
     ...defaultPageState,
@@ -1073,9 +1119,47 @@ const PhotoThemeCategoryPage: React.FC = () => {
   const [isLoadingUserThemes, setIsLoadingUserThemes] = React.useState(false);
   const [userThemesError, setUserThemesError] = React.useState<string | null>(null);
   const [activeTemplateId, setActiveTemplateId] = React.useState<number | null>(
-    initialTemplateId ?? null
+    initialTemplateId ?? storedTemplateId?.templateId ?? null
+  );
+  const [photobookId, setPhotobookId] = React.useState<number | null>(
+    location.state?.photobookId ?? storedTemplateId?.photobookId ?? null
   );
   const [isLoadingSelectedTheme, setIsLoadingSelectedTheme] = React.useState(false);
+
+  type PhotobookListItem = {
+    id: number; templateId: number; categorySlug: string; title: string;
+    status: string; currentStep: string; pageCount: number;
+    hasCovers: boolean; savedPagesCount: number;
+    createdAt: string; updatedAt: string;
+  };
+  const [myAlbums, setMyAlbums] = React.useState<PhotobookListItem[]>([]);
+  const [isLoadingAlbums, setIsLoadingAlbums] = React.useState(false);
+  const [isDeletingAlbum, setIsDeletingAlbum] = React.useState<number | null>(null);
+  const [albumListVersion, setAlbumListVersion] = React.useState(0);
+
+  // Fetch all albums for this category
+  React.useEffect(() => {
+    if (!user?.id || !categorySlug) return;
+    const load = async () => {
+      setIsLoadingAlbums(true);
+      try {
+        const token = getStoredToken();
+        const res = await api.get(`/api/photobooks/by-category/${categorySlug}`, {
+          headers: { ...(token ? { 'X-API-KEY': token } : {}) },
+        });
+        const list = Array.isArray(res.data) ? res.data : [];
+        setMyAlbums(list);
+        // Auto-recover templateId from the latest album if none set
+        if (!activeTemplateId && list.length > 0) {
+          const latest = list[0];
+          if (latest?.templateId) setActiveTemplateId(latest.templateId);
+        }
+      } catch { setMyAlbums([]); }
+      finally { setIsLoadingAlbums(false); }
+    };
+    load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, categorySlug, albumListVersion]);
 
   const mapApiSideToEditableState = React.useCallback(
     async (side: ApiCoverSide | undefined | null, kind: PageKind): Promise<EditablePageState> => {
@@ -1101,8 +1185,8 @@ const PhotoThemeCategoryPage: React.FC = () => {
             : 'Grateful for every moment captured here.'),
         description: side.description || '',
         style: {
-          fontSize: side.fontSize || 20,
-          fontWeight: side.fontWeight ? Number(side.fontWeight) : 700,
+          fontSize: side.fontSize ?? 20,
+          fontWeight: side.fontWeight != null ? Number(side.fontWeight) : 700,
           align: (side.align as 'left' | 'center' | 'right') || 'center',
           verticalAlign:
             (side.position as 'top' | 'center' | 'bottom') ||
@@ -1110,24 +1194,33 @@ const PhotoThemeCategoryPage: React.FC = () => {
           fontFamily: side.fontFamily || undefined,
           headlineColor: side.headlineColor || '#ffffff',
           subheadlineColor: side.subheadlineColor || '#e5e7eb',
-          imageScale: side.imageZoom || 1,
+          imageScale: side.imageZoom ?? 1,
+          overlayOpacity: side.overlayOpacity,
+          overlayColor: side.overlayColor,
+          overlayGradientDirection: undefined,
+          blurBackground: side.backgroundBlur,
+          vignette: side.backgroundVignette,
+          darkModeCover: side.backgroundDarkMode,
+          subtleAnimation: side.backgroundAnimation,
+          logoPosition: (side.logoPosition as 'top-left' | 'top-right' | 'bottom-center') || undefined,
+          logoSize: side.logoSize,
         },
       };
 
-      // Prefer direct imageUrl if provided, fallback to imageId lookup
-      if (side.imageUrl) {
-        mapped.imageDataUrl = side.imageUrl;
-      } else if (side.imageId) {
-        try {
-          const imageDetails = await imageService.getImageDetails(String(side.imageId));
-          if (imageDetails.downloadUrl || imageDetails.thumbnailUrl) {
-            mapped.imageDataUrl = imageDetails.downloadUrl || imageDetails.thumbnailUrl;
-          }
-        } catch (imgError) {
-          console.warn('Failed to load cover image:', imgError);
-        }
+      // Capture existing imageId so we don't re-upload on save
+      if (side.imageId) mapped.imageId = side.imageId;
+
+      if (side.imageId) {
+        mapped.imageDataUrl = buildPreviewUrl(side.imageId);
+      } else if (side.imageUrl) {
+        mapped.imageDataUrl = resolveBackendImageUrl(side.imageUrl);
       }
 
+      if (side.logoImageId) {
+        mapped.style = { ...mapped.style, logoImageId: side.logoImageId, logoDataUrl: buildPreviewUrl(side.logoImageId) };
+      } else if (side.logoImageUrl) {
+        mapped.style = { ...mapped.style, logoDataUrl: resolveBackendImageUrl(side.logoImageUrl) };
+      }
       return mapped;
     },
     [meta.title, meta.subtitle]
@@ -1144,7 +1237,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
       try {
         const token = getStoredToken();
         const response = await api.get<ApiCoverRecord[]>('/api/covers', {
-          params: { userId: user.id , templateId : initialTemplateId?.toString() },
+          params: { userId: user.id, ...(activeTemplateId ? { templateId: activeTemplateId.toString() } : {}) },
           headers: {
             ...(token ? { 'X-API-KEY': token } : {}),
           },
@@ -1160,67 +1253,50 @@ const PhotoThemeCategoryPage: React.FC = () => {
     };
 
     loadUserThemes();
-  }, [user?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, activeTemplateId]);
 
   // Load saved covers from API when page loads
   React.useEffect(() => {
     const loadSavedCovers = async () => {
-      if (!user?.id || !initialTemplateId) {
-        console.log('Skipping load - missing userId or templateId', {
-          userId: user?.id,
-          templateId: initialTemplateId,
-        });
-        return;
-      }
+      if (!user?.id) return;
 
       setIsLoadingCovers(true);
       try {
-        console.log('Loading saved covers...', { userId: user.id, templateId: initialTemplateId });
-        // `/api/users/${user.id}/photobook-templates/${initialTemplateId}/covers`
+        const token = getStoredToken();
+        const headers = { ...(token ? { 'X-API-KEY': token } : {}) };
+        let payload: any = null;
 
-        const response = await api.get(
-          `/api/covers?userId=${user.id}&templateId=${initialTemplateId}`,
-          {
-            headers: {
-              // Use same dynamic token as other APIs
-              'X-API-KEY': getStoredToken(),
-            },
+        // Try photobook-scoped endpoint first, fall back to old (userId, templateId) endpoint
+        if (photobookId) {
+          const res = await api.get(`/api/photobooks/${photobookId}/covers`, { headers }).catch(() => null);
+          if (res?.data?.frontCover || res?.data?.backCover) payload = res.data;
+        }
+        if (!payload && activeTemplateId) {
+          const res = await api.get(
+            `/api/covers?userId=${user.id}&templateId=${activeTemplateId}`,
+            { headers },
+          ).catch(() => null);
+          if (res?.data) {
+            payload = Array.isArray(res.data) ? res.data[0] : res.data;
           }
-        ).catch((error: any) => {
-          // If 404, no saved covers exist yet - this is fine
-          if (error.response?.status === 404) {
-            console.log('No saved covers found (404) - using defaults');
-            return null;
-          }
-          throw error;
-        });
+        }
 
-        if (response?.data) {
-          console.log('✅ Loaded saved covers:', response.data);
-
-          const { frontCover, backCover } = response.data;
-
-          // Map API response to EditablePageState format
-          if (frontCover) {
-            const mappedCover = await mapApiSideToEditableState(frontCover, 'cover');
-            setCoverPage(mappedCover);
-          }
-
-          if (backCover) {
-            const mappedBack = await mapApiSideToEditableState(backCover, 'last');
-            setLastPage(mappedBack);
-          }
+        if (payload) {
+          const { frontCover, backCover } = payload;
+          if (frontCover) setCoverPage(await mapApiSideToEditableState(frontCover, 'cover'));
+          if (backCover) setLastPage(await mapApiSideToEditableState(backCover, 'last'));
         }
       } catch (error: any) {
         console.error('Failed to load saved covers:', error);
-        // Don't show error to user - just use defaults
       } finally {
         setIsLoadingCovers(false);
       }
     };
 
     loadSavedCovers();
-  }, [user?.id, initialTemplateId, mapApiSideToEditableState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, photobookId, activeTemplateId, mapApiSideToEditableState]);
 
   const handleEditTheme = async (templateId: number) => {
     if (!user?.id) return;
@@ -1302,29 +1378,85 @@ const PhotoThemeCategoryPage: React.FC = () => {
       overlayOpacity: style?.overlayOpacity ?? 0,
       gradient,
       overlayColor: style?.overlayColor || '',
-      backgroundBlur: style?.blurBackground ?? true,
-      backgroundVignette: style?.vignette ?? true,
-      backgroundDarkMode: style?.darkModeCover ?? true,
-      backgroundAnimation: style?.subtleAnimation ?? true,
+      backgroundBlur: style?.blurBackground ?? false,
+      backgroundVignette: style?.vignette ?? false,
+      backgroundDarkMode: style?.darkModeCover ?? false,
+      backgroundAnimation: style?.subtleAnimation ?? false,
       logoImageId: opts.logoImageId ?? 0,
       logoPosition: style?.logoPosition || '',
-      logoSize: style?.logoSize ?? 0,
+      logoSize: style?.logoSize || 60,
     };
+  };
+
+  // Resolve image ID: use existing imageId from state, or upload data: URL, or extract from URL pattern
+  const resolveImageId = async (dataUrl?: string, existingId?: number): Promise<number> => {
+    if (existingId && existingId > 0) return existingId;
+    if (!dataUrl) return 0;
+    if (dataUrl.startsWith('data:')) {
+      try {
+        const file = dataUrlToFile(dataUrl, 'image.jpg');
+        const res = await imageService.uploadImage(file);
+        if (res.cloudUploads?.s3?.id) return res.cloudUploads.s3.id;
+        if (res.image?.id) return Number(res.image.id);
+      } catch (err) {
+        console.warn('Image upload failed:', err);
+      }
+    }
+    // Try to extract imageId from URL pattern /api/images/{id}/preview
+    const match = dataUrl.match(/\/api\/images\/(\d+)\/(preview|download|thumbnail)/);
+    if (match) return Number(match[1]);
+    return 0;
+  };
+
+  // ── Album management handlers ──
+
+  const handleContinueAlbum = async (album: PhotobookListItem) => {
+    setPhotobookId(album.id);
+    setActiveTemplateId(album.templateId);
+    localStorage.setItem(PHOTOBOOK_KEY, JSON.stringify({ templateId: album.templateId, photobookId: album.id }));
+    setIsLoadingCovers(true);
+    try {
+      const token = getStoredToken();
+      const headers = { ...(token ? { 'X-API-KEY': token } : {}) };
+      const res = await api.get(`/api/photobooks/${album.id}/covers`, { headers });
+      if (res.data?.frontCover) setCoverPage(await mapApiSideToEditableState(res.data.frontCover, 'cover'));
+      if (res.data?.backCover) setLastPage(await mapApiSideToEditableState(res.data.backCover, 'last'));
+    } catch { /* covers may not exist yet */ }
+    finally { setIsLoadingCovers(false); }
+  };
+
+  const handleDeleteAlbum = async (albumId: number) => {
+    if (!window.confirm('Delete this album and all its pages/covers? This cannot be undone.')) return;
+    setIsDeletingAlbum(albumId);
+    try {
+      const token = getStoredToken();
+      await api.delete(`/api/photobooks/${albumId}`, { headers: { ...(token ? { 'X-API-KEY': token } : {}) } });
+      setMyAlbums(prev => prev.filter(a => a.id !== albumId));
+      if (photobookId === albumId) {
+        setPhotobookId(null);
+        setCoverPage({ ...defaultPageState, headline: meta.title, subheadline: meta.subtitle });
+        setLastPage({ ...defaultPageState, headline: 'Thank you', subheadline: 'Grateful for every moment captured here.' });
+        localStorage.removeItem(PHOTOBOOK_KEY);
+      }
+    } catch { alert('Failed to delete album. Please try again.'); }
+    finally { setIsDeletingAlbum(null); }
+  };
+
+  const handleCreateNewAlbum = () => {
+    setPhotobookId(null);
+    setCoverPage({ ...defaultPageState, headline: meta.title, subheadline: meta.subtitle });
+    setLastPage({ ...defaultPageState, headline: 'Thank you', subheadline: 'Grateful for every moment captured here.' });
+    localStorage.removeItem(PHOTOBOOK_KEY);
+    setSaveSuccess(false);
+    setSaveError(null);
   };
 
   // Save covers to backend API
   const handleSaveCovers = async () => {
-    console.log('handleSaveCovers called', { templateId: activeTemplateId });
 
     if (!activeTemplateId) {
-      console.warn('Missing templateId, skipping API save', { templateId: activeTemplateId });
-      setSaveError('Template ID missing. Please refresh and try again.');
-      // Still navigate even if API save fails
-      setTimeout(() => {
-        navigate(`/photo-themes/${meta.id}/album`, {
-          state: { coverPage, lastPage },
-        });
-      }, 2000);
+      console.warn('Missing templateId, cannot save');
+      setSaveError('Template ID missing. Please refresh the page and try again.');
       return;
     }
 
@@ -1333,190 +1465,72 @@ const PhotoThemeCategoryPage: React.FC = () => {
     setSaveSuccess(false);
 
     try {
-      console.log('Starting save process...');
-      // Upload cover/back images and logos if they exist
-      let frontCoverImageId = 0;
-      let backCoverImageId = 0;
-      let frontLogoImageId = 0;
-      let backLogoImageId = 0;
+      const token = getStoredToken();
+      const headers = { ...(token ? { 'X-API-KEY': token } : {}), 'Content-Type': 'application/json' };
 
-      if (coverPage.imageDataUrl) {
-        try {
-          const file = dataUrlToFile(coverPage.imageDataUrl, 'cover-image.jpg');
-          const uploadResponse = await imageService.uploadImage(file);
-          if (uploadResponse.cloudUploads?.s3?.id) {
-            frontCoverImageId = uploadResponse.cloudUploads.s3.id;
-          } else if (uploadResponse.image?.id) {
-            frontCoverImageId = Number(uploadResponse.image.id);
-          }
-        } catch (err) {
-          console.warn('Failed to upload cover image:', err);
-        }
+      // 1) Create photobook first (always new if no existing photobookId)
+      let savedPhotobookId = photobookId;
+      if (!savedPhotobookId) {
+        const pbRes = await api.post('/api/photobooks', {
+          templateId: Number(activeTemplateId),
+          categorySlug: meta.id,
+          title: coverPage.headline || meta.title,
+        }, { headers });
+        savedPhotobookId = pbRes.data?.id;
+        if (savedPhotobookId) setPhotobookId(savedPhotobookId);
       }
 
-      if (lastPage.imageDataUrl) {
-        try {
-          const file = dataUrlToFile(lastPage.imageDataUrl, 'back-cover-image.jpg');
-          const uploadResponse = await imageService.uploadImage(file);
-          if (uploadResponse.cloudUploads?.s3?.id) {
-            backCoverImageId = uploadResponse.cloudUploads.s3.id;
-          } else if (uploadResponse.image?.id) {
-            backCoverImageId = Number(uploadResponse.image.id);
-          }
-        } catch (err) {
-          console.warn('Failed to upload back cover image:', err);
-        }
+      if (!savedPhotobookId) {
+        setSaveError('Failed to create photobook. Please try again.');
+        setIsSaving(false);
+        return;
       }
 
-      if (coverPage.style?.logoDataUrl) {
-        try {
-          const file = dataUrlToFile(coverPage.style.logoDataUrl, 'cover-logo.png');
-          const uploadResponse = await imageService.uploadImage(file);
-          if (uploadResponse.cloudUploads?.s3?.id) {
-            frontLogoImageId = uploadResponse.cloudUploads.s3.id;
-          } else if (uploadResponse.image?.id) {
-            frontLogoImageId = Number(uploadResponse.image.id);
-          }
-        } catch (err) {
-          console.warn('Failed to upload cover logo:', err);
-        }
-      }
+      // 2) Upload images only if needed (skip for existing FileVault images)
+      const frontCoverImageId = await resolveImageId(coverPage.imageDataUrl, coverPage.imageId);
+      const backCoverImageId = await resolveImageId(lastPage.imageDataUrl, lastPage.imageId);
+      const frontLogoImageId = await resolveImageId(coverPage.style?.logoDataUrl, coverPage.style?.logoImageId);
+      const backLogoImageId = await resolveImageId(lastPage.style?.logoDataUrl, lastPage.style?.logoImageId);
 
-      if (lastPage.style?.logoDataUrl) {
-        try {
-          const file = dataUrlToFile(lastPage.style.logoDataUrl, 'back-logo.png');
-          const uploadResponse = await imageService.uploadImage(file);
-          if (uploadResponse.cloudUploads?.s3?.id) {
-            backLogoImageId = uploadResponse.cloudUploads.s3.id;
-          } else if (uploadResponse.image?.id) {
-            backLogoImageId = Number(uploadResponse.image.id);
-          }
-        } catch (err) {
-          console.warn('Failed to upload back cover logo:', err);
-        }
-      }
-
-      // Map page states to API format (all new fields included)
       const frontCover = mapPageStateToApiFormat(coverPage, {
         imageId: frontCoverImageId,
         logoImageId: frontLogoImageId,
       });
-
       const backCover = mapPageStateToApiFormat(lastPage, {
         imageId: backCoverImageId,
         logoImageId: backLogoImageId,
       });
 
-      // Call API to save covers - New endpoint: POST /api/covers
-      const token = getStoredToken();
-      const requestBody = {
-        templateId: Number(activeTemplateId),
-        frontCover,
-        backCover,
-      };
-
-      // Log BEFORE making the API call
-      console.log('🚀 ===== API CALL STARTING =====');
-      console.log('📤 Request URL:', `${process.env.REACT_APP_API_URL || ''}/api/covers`);
-      console.log('📤 Request Method:', 'POST');
-      console.log('📤 Request Headers:', {
-        'Content-Type': 'application/json',
-        'Authorization': token || 'MISSING TOKEN',
-      });
-      console.log('📤 Request Body:', JSON.stringify(requestBody, null, 2));
-      console.log('📤 Token from localStorage:', token ? `${token.substring(0, 20)}...` : 'NOT FOUND');
-
-      // Make the API call
-      const response = await api.post(
-        '/api/covers',
-        requestBody,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            // Match your curl: Authorization: <token> (without Bearer prefix)
-            // Set Authorization explicitly to override interceptor's Bearer prefix
-            ...(token ? { Authorization: token } : {}),
-          },
-        }
-      ).catch((apiError: any) => {
-        // Log error details
-        console.error('❌ API CALL FAILED:', {
-          status: apiError.response?.status,
-          statusText: apiError.response?.statusText,
-          data: apiError.response?.data,
-          message: apiError.message,
-          config: {
-            url: apiError.config?.url,
-            method: apiError.config?.method,
-            headers: apiError.config?.headers,
-          },
-        });
-
-        // If API endpoint doesn't exist (404), handle gracefully
-        if (apiError.response?.status === 404) {
-          console.warn('⚠️ API endpoint not found (404). This is okay - continuing without backend save.');
-          // Return a mock success response so flow continues
-          return { data: { success: true, message: 'Local save only (API endpoint not available)' } };
-        }
-        // Re-throw other errors
-        throw apiError;
-      });
-
-      const responseData = response?.data || response;
-      // Log AFTER getting response
-      console.log('✅ ===== API CALL SUCCESSFUL =====');
-      console.log('📥 Response Status:', responseData?.status);
-      console.log('📥 Response Headers:', responseData?.headers);
-      console.log('📥 Response Data:', JSON.stringify(responseData.data, null, 2));
-      console.log('✅ ===== API CALL COMPLETE =====');
-
-      // Show success message immediately after API call succeeds (or graceful 404 handling)
-      setSaveSuccess(true);
-      setIsSaving(false);
-
-      console.log('✅ Covers processed successfully! Showing success message...');
-
-      // Save a detailed preview marker in localStorage so it can show under themes list
+      // 3) Save covers — try photobook-scoped endpoint, fall back to old one
       try {
-        const preview = {
-          templateId: Number(activeTemplateId),
-          categorySlug: meta.id,
-          themeTitle: meta.title,
-          themeSubtitle: meta.subtitle,
-          cover: {
-            headline: coverPage.headline,
-            subheadline: coverPage.subheadline,
-            description: coverPage.description,
-            hasImage: !!coverPage.imageDataUrl || !!frontCoverImageId,
-          },
-          back: {
-            headline: lastPage.headline,
-            subheadline: lastPage.subheadline,
-            description: lastPage.description,
-            hasImage: !!lastPage.imageDataUrl || !!backCoverImageId,
-          },
-          savedAt: new Date().toISOString(),
-        };
-        localStorage.setItem('lastPhotobookThemePreview', JSON.stringify(preview));
-        console.log('💾 Saved lastPhotobookThemePreview to localStorage', preview);
-      } catch (storageError) {
-        console.warn('Failed to save theme preview to localStorage:', storageError);
+        await api.post(`/api/photobooks/${savedPhotobookId}/covers`, {
+          frontCover, backCover,
+        }, { headers });
+      } catch {
+        await api.post('/api/covers', {
+          templateId: Number(activeTemplateId), frontCover, backCover,
+        }, { headers: { ...headers, Authorization: token ?? '' } });
       }
 
-      // Navigate to album builder after showing success message (2 seconds delay to see message)
+      setSaveSuccess(true);
+      setIsSaving(false);
+      setAlbumListVersion(v => v + 1);
+
+      // Persist to localStorage
+      try {
+        localStorage.setItem(PHOTOBOOK_KEY, JSON.stringify({
+          templateId: Number(activeTemplateId),
+          photobookId: savedPhotobookId,
+        }));
+      } catch { /* ignore */ }
+
       setTimeout(() => {
-        console.log('Navigating to album builder...');
         navigate(`/photo-themes/${meta.id}/album`, {
-          state: { coverPage, lastPage },
+          state: { coverPage, lastPage, dbTemplateId: activeTemplateId, photobookId: savedPhotobookId },
         });
       }, 2000);
     } catch (error: any) {
-      console.error('❌ Failed to save covers:', error);
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
+      console.error('Failed to save covers:', error);
 
       const errorMessage = error.response?.data?.message ||
         error.response?.data?.error ||
@@ -1530,7 +1544,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
       setTimeout(() => {
         console.log('Navigating despite error...');
         navigate(`/photo-themes/${meta.id}/album`, {
-          state: { coverPage, lastPage },
+          state: { coverPage, lastPage, dbTemplateId: activeTemplateId },
         });
       }, 3000);
     }
@@ -1557,6 +1571,143 @@ const PhotoThemeCategoryPage: React.FC = () => {
         </div>
       </div>
 
+      {/* ── My Albums section ────────────────────────── */}
+      <section className="rounded-2xl border border-slate-200/80 bg-white shadow-md overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
+              <FaImages className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-800">My Albums</h2>
+              <p className="text-[11px] text-slate-400">
+                {myAlbums.length} album{myAlbums.length !== 1 ? 's' : ''} · <span className="capitalize">{categorySlug}</span>
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleCreateNewAlbum}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-indigo-500/25 hover:from-indigo-600 hover:to-indigo-700 transition-all"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
+            New Album
+          </button>
+        </div>
+
+        <div className="p-4">
+          {isLoadingAlbums ? (
+            <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-500">
+              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Loading albums...
+            </div>
+          ) : myAlbums.length === 0 ? (
+            <div className="text-center py-10">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 text-indigo-400 mb-3">
+                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+              </div>
+              <p className="text-sm font-semibold text-slate-700">Start your first album</p>
+              <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Design your cover below and click "Save & Create Album" to begin building your photo book.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {myAlbums.map((album) => {
+                const isActive = photobookId === album.id;
+                const isDeleting = isDeletingAlbum === album.id;
+                const dateStr = album.updatedAt
+                  ? new Date(album.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                  : '';
+                const progressPct = album.pageCount > 0 ? Math.round((album.savedPagesCount / album.pageCount) * 100) : 0;
+                return (
+                  <div
+                    key={album.id}
+                    className={`group relative rounded-xl border p-4 transition-all ${
+                      isActive
+                        ? 'border-indigo-400 bg-gradient-to-br from-indigo-50/80 to-white ring-2 ring-indigo-200 shadow-md'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
+                    }`}
+                  >
+                    {isActive && (
+                      <span className="absolute -top-2 right-3 text-[9px] font-bold uppercase tracking-wider bg-indigo-600 text-white rounded-full px-2.5 py-0.5 shadow-sm">
+                        Active
+                      </span>
+                    )}
+                    <div className="mb-3">
+                      <h3 className="text-sm font-bold text-slate-800 line-clamp-1">
+                        {album.title || 'Untitled Album'}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <span className={`text-[10px] font-semibold uppercase tracking-wide rounded-full px-2 py-0.5 ${
+                          album.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+                          album.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' :
+                          'bg-slate-100 text-slate-500'
+                        }`}>
+                          {album.status?.replace('_', ' ') || 'Draft'}
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          {album.pageCount} pages
+                        </span>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="flex-1 h-1 rounded-full bg-slate-100 overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${progressPct}%`,
+                              background: progressPct === 100 ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #6366f1, #818cf8)',
+                            }}
+                          />
+                        </div>
+                        <span className="text-[9px] text-slate-400 font-medium">{progressPct}%</span>
+                      </div>
+                      {dateStr && (
+                        <p className="text-[10px] text-slate-400 mt-1.5">Last edited {dateStr}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleContinueAlbum(album)}
+                        className="flex-1 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 px-3 py-2 text-xs font-bold text-white shadow-sm shadow-indigo-500/20 hover:from-indigo-600 hover:to-indigo-700 transition-all"
+                      >
+                        {album.hasCovers ? 'Continue' : 'Edit Covers'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/photo-themes/${categorySlug}/album`, {
+                          state: { dbTemplateId: album.templateId, photobookId: album.id },
+                        })}
+                        disabled={!album.hasCovers}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Open
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAlbum(album.id)}
+                        disabled={isDeleting}
+                        className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 disabled:opacity-50 transition-all opacity-0 group-hover:opacity-100"
+                        title="Delete album"
+                      >
+                        {isDeleting ? (
+                          <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                        ) : (
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Loading indicator */}
       {isLoadingCovers && (
         <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 flex items-center gap-2">
@@ -1575,7 +1726,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
             <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1">
               <span className="w-2 h-2 rounded-full bg-indigo-500" />
               <span className="text-xs font-medium text-indigo-700">
-                Editing theme for template #{activeTemplateId}
+                {photobookId ? `Editing Album #${photobookId}` : 'Creating new album'}
               </span>
               {isLoadingSelectedTheme && (
                 <span className="ml-2 text-[10px] text-indigo-500">Loading...</span>
@@ -1637,7 +1788,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
               Saving covers...
             </>
           ) : (
-            'Next: Build album'
+            photobookId ? 'Save & Continue to Album' : 'Save & Create Album'
           )}
         </button>
       </div>
