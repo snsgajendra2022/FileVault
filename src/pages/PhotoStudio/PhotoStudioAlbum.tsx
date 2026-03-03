@@ -21,8 +21,6 @@ import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import DashboardLoading from '../../components/common/DashboardLoading';
 import toast from 'react-hot-toast';
-import { usePhotoBookStore } from '../../store/photobookStore';
-import { photobookTemplates } from '../../templates/photobookTemplates';
 
 interface Album {
   id: number;
@@ -522,7 +520,7 @@ const PhotoStudioAlbum: React.FC = () => {
     return blobToDataUrl(blob);
   };
 
-  const transferAlbumsToPhotoBook = useCallback(async (albumIds: number[], templateId: string) => {
+  const transferAlbumsToPhotoBook = useCallback(async (albumIds: number[], categorySlug: string) => {
     if (!albumIds.length) {
       toast.error('Please select at least one album');
       return;
@@ -530,17 +528,17 @@ const PhotoStudioAlbum: React.FC = () => {
     if (isTransferringToPhotoBook) return;
 
     setIsTransferringToPhotoBook(true);
-    const loadingToastId = toast.loading(`Transferring from ${albumIds.length} album(s) to PhotoBook...`);
 
     try {
       const selected = albums.filter((a) => albumIds.includes(a.id));
       if (!selected.length) {
-        toast.error('Selected albums not found', { id: loadingToastId });
+        toast.error('Selected albums not found');
         return;
       }
 
-      const seenUrls = new Set<string>();
-      const items: Array<{ name: string; dataUrl: string }> = [];
+      // Collect all image IDs from the selected albums
+      const imageIds: number[] = [];
+      const seenIds = new Set<number>();
 
       for (const album of selected) {
         const images = albumImages.get(album.id) || extractAlbumImages(album);
@@ -548,43 +546,38 @@ const PhotoStudioAlbum: React.FC = () => {
           const filename = getImageFilename(img);
           const ext = (filename.split('.').pop() || '').toLowerCase();
           if (!ext.match(/^(png|jpg|jpeg|gif|webp)$/)) continue;
-
-          const url = getImageUrl(img);
-          if (!url) continue;
-          if (seenUrls.has(url)) continue;
-          seenUrls.add(url);
-
-          try {
-            const dataUrl = await fetchAsDataUrl(url);
-            items.push({ name: filename, dataUrl });
-          } catch (e: any) {
-            console.error('PhotoBook transfer failed for url:', url, e);
+          if (img.id && !seenIds.has(img.id)) {
+            seenIds.add(img.id);
+            imageIds.push(img.id);
           }
         }
       }
 
-      if (items.length === 0) {
-        toast.error('No transferable images found in selected albums', { id: loadingToastId });
+      if (imageIds.length === 0) {
+        toast.error('No images found in the selected album(s)');
         return;
       }
 
-      const store = usePhotoBookStore.getState();
-      // New behavior: user picks template first, then we create a fresh photobook using that template.
-      store.resetAll();
-      store.startNewAlbum(templateId);
-      if (selected.length === 1) store.setTitle(selected[0]?.name || 'My Photo Book');
+      const albumName = selected.length === 1 ? (selected[0]?.name || 'My Album') : `${selected.length} Albums`;
 
-      await store.addPhotoDataUrls(items, { source: 'album' });
+      // Navigate to the covers page first (design cover & last page), then user can go to album
+      navigate(`/photo-themes/${categorySlug}`, {
+        state: {
+          fromStudioAlbum: true,
+          albumImageIds: imageIds,
+          albumName,
+          studioAlbumIds: albumIds,
+        },
+      });
 
-      toast.success(`Transferred ${items.length} image(s) to PhotoBook`, { id: loadingToastId });
-      navigate('/photobook/editor');
+      toast.success(`Opening covers page with ${imageIds.length} image(s) — design cover, then continue to album`);
     } catch (e: any) {
       console.error('PhotoBook transfer failed:', e);
-      toast.error(e?.message || 'Failed to transfer images to PhotoBook', { id: loadingToastId });
+      toast.error(e?.message || 'Failed to open album builder');
     } finally {
       setIsTransferringToPhotoBook(false);
     }
-  }, [albums, albumImages, extractAlbumImages, getImageFilename, getImageUrl, isTransferringToPhotoBook, navigate]);
+  }, [albums, albumImages, extractAlbumImages, getImageFilename, isTransferringToPhotoBook, navigate]);
 
   const toggleAlbumSelection = useCallback((albumId: number) => {
     setSelectedAlbums((prev) => {
@@ -1484,20 +1477,20 @@ const PhotoStudioAlbum: React.FC = () => {
         </div>
       )}
 
-      {/* Template chooser modal for PhotoBook transfer */}
+      {/* Album theme chooser modal */}
       {showTemplateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-200 p-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
               <div>
-                <div className="text-lg font-bold text-slate-900">Choose a PhotoBook template</div>
-                <div className="mt-1 text-sm text-slate-600">
-                  Selected albums: {pendingAlbumIds.length}
+                <div className="text-lg font-bold text-slate-900">Choose Album Theme</div>
+                <div className="mt-0.5 text-sm text-slate-500">
+                  Select a theme for your photo album
                 </div>
               </div>
               <button
                 type="button"
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
                 onClick={() => {
                   setShowTemplateModal(false);
                   setPendingAlbumIds([]);
@@ -1509,22 +1502,31 @@ const PhotoStudioAlbum: React.FC = () => {
 
             <div className="p-5">
               <div className="grid gap-3 sm:grid-cols-2">
-                {photobookTemplates.map((t) => (
+                {[
+                  { id: 'birthday', name: 'Birthday', desc: 'Celebrate special birthdays', icon: '🎂', color: 'from-pink-500 to-rose-500' },
+                  { id: 'wedding', name: 'Wedding', desc: 'Elegant wedding memories', icon: '💍', color: 'from-amber-500 to-orange-500' },
+                  { id: 'anniversary', name: 'Anniversary', desc: 'Romantic anniversary keepsake', icon: '❤️', color: 'from-red-500 to-pink-500' },
+                  { id: 'family', name: 'Family', desc: 'Family moments together', icon: '👨‍👩‍👧‍👦', color: 'from-emerald-500 to-teal-500' },
+                ].map((theme) => (
                   <button
-                    key={t.id}
+                    key={theme.id}
                     type="button"
-                    className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    className="group rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg hover:border-indigo-200"
                     onClick={() => {
                       const ids = pendingAlbumIds.slice();
                       setShowTemplateModal(false);
                       setPendingAlbumIds([]);
-                      void transferAlbumsToPhotoBook(ids, t.id);
+                      void transferAlbumsToPhotoBook(ids, theme.id);
                     }}
                   >
-                    <div className="text-base font-semibold text-slate-900">{t.name}</div>
-                    <div className="mt-1 text-sm text-slate-600">{t.description}</div>
-                    <div className="mt-3 text-xs text-slate-500">
-                      {t.defaultSpreads.length} starter spreads
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${theme.color} flex items-center justify-center text-lg shadow-sm`}>
+                        {theme.icon}
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-slate-800 group-hover:text-indigo-700 transition-colors">{theme.name}</div>
+                        <div className="text-xs text-slate-500">{theme.desc}</div>
+                      </div>
                     </div>
                   </button>
                 ))}

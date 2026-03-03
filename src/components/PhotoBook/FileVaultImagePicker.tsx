@@ -87,12 +87,15 @@ export function FileVaultImagePicker({
   allowMultiSelect = false,
   onDropFiles,
   maxInitial = 24,
+  filterImageIds,
 }: {
   onPick: (picked: PickedImage) => Promise<void> | void
   onPickMany?: (picked: PickedImage[]) => Promise<void> | void
   allowMultiSelect?: boolean
   onDropFiles?: (files: File[]) => Promise<void> | void
   maxInitial?: number
+  /** When provided, only images with these IDs are shown (album-scoped mode) */
+  filterImageIds?: number[]
 }) {
   const [limit, setLimit] = React.useState(maxInitial)
   const [busyUrl, setBusyUrl] = React.useState<string | null>(null)
@@ -117,7 +120,13 @@ export function FileVaultImagePicker({
     refetchOnWindowFocus: false,
   })
 
-  const images = (data?.images ?? []).filter((img) => img.fileType.toLowerCase().match(/^(png|jpg|jpeg|gif|webp)$/))
+  const filterSet = React.useMemo(() => filterImageIds ? new Set(filterImageIds) : null, [filterImageIds])
+
+  const images = (data?.images ?? []).filter((img) => {
+    if (!img.fileType.toLowerCase().match(/^(png|jpg|jpeg|gif|webp)$/)) return false
+    if (filterSet && !filterSet.has(img.id)) return false
+    return true
+  })
 
   return (
     <div>
@@ -160,7 +169,10 @@ export function FileVaultImagePicker({
         <>
           {/* Image count + refresh */}
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs text-slate-500 font-medium">{images.length} image{images.length !== 1 ? 's' : ''} in your library</span>
+            <span className="text-xs text-slate-500 font-medium">
+              {images.length} image{images.length !== 1 ? 's' : ''}
+              {filterSet ? ' from this album' : ' in your library'}
+            </span>
             <button type="button" onClick={() => refetch()} className="text-[10px] text-indigo-600 hover:underline font-semibold">Refresh</button>
           </div>
 

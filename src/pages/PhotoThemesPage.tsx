@@ -109,46 +109,95 @@ const fallbackThemes: ThemeCategory[] = fallbackTemplates
     };
   });
 
-const ThemeCard: React.FC<{ theme: ThemeCategory; onClick: (theme: ThemeCategory) => void }> = ({
-  theme,
-  onClick,
-}) => {
+type PhotobookProgress = {
+  id: number;
+  categorySlug: string;
+  status: string;
+  currentStep: string;
+  hasCovers: boolean;
+  savedPagesCount: number;
+  title?: string;
+};
+
+const stepLabel = (step?: string) =>
+  step === 'ALBUM' ? 'Album pages'
+  : step === 'PREVIEW' ? 'Preview'
+  : step === 'DONE' ? 'Completed'
+  : 'Cover';
+
+const ThemeCard: React.FC<{
+  theme: ThemeCategory;
+  onNewAlbum: (theme: ThemeCategory) => void;
+  onResume: (theme: ThemeCategory, pb: PhotobookProgress) => void;
+  progressList?: PhotobookProgress[];
+}> = ({ theme, onNewAlbum, onResume, progressList }) => {
   const Icon = theme.icon;
+  const albumList = progressList ?? [];
 
   return (
     <div
-      onClick={() => onClick(theme)}
-      className="group relative bg-white/95 rounded-2xl p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_18px_40px_-16px_rgba(15,23,42,0.35)] hover:shadow-[0_0_0_1px_rgba(56,189,248,0.6),0_22px_50px_-18px_rgba(15,23,42,0.6)] transform transition-all duration-300 hover:-translate-y-1.5 border border-slate-200/80 hover:border-cyan-400/70 overflow-hidden cursor-pointer backdrop-blur-sm"
+      className="group relative bg-white/95 rounded-2xl p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_18px_40px_-16px_rgba(15,23,42,0.35)] border border-slate-200/80 overflow-hidden backdrop-blur-sm"
     >
       <div
-        className={`absolute inset-0 bg-gradient-to-br ${theme.color} opacity-[0.03] group-hover:opacity-10 transition-opacity duration-300`}
+        className={`absolute inset-0 bg-gradient-to-br ${theme.color} opacity-[0.03]`}
       ></div>
-
-      <div className="absolute top-3 right-3 w-8 h-8 rounded-full bg-cyan-400/10 blur-xl group-hover:bg-cyan-400/20 transition-colors" />
 
       <div className="relative z-10">
         <div
-          className={`w-14 h-14 bg-gradient-to-br ${theme.color} rounded-2xl flex items-center justify-center mb-4 transform group-hover:scale-105 transition-transform duration-300 shadow-lg shadow-slate-900/20`}
+          className={`w-14 h-14 bg-gradient-to-br ${theme.color} rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-slate-900/20`}
         >
           <Icon className="h-8 w-8 text-white" />
         </div>
 
-        <h3 className="text-lg font-bold text-slate-900 mb-1.5 group-hover:text-cyan-700 transition-colors duration-300">
+        <h3 className="text-lg font-bold text-slate-900 mb-1.5">
           {theme.title}
         </h3>
         <p className="text-xs text-slate-500 mb-4 line-clamp-2">{theme.subtitle}</p>
 
-        <div className="flex items-center text-cyan-700 text-[11px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <span>Open theme</span>
-          <svg
-            className="w-3.5 h-3.5 ml-1.5 transform group-hover:translate-x-1 transition-transform duration-300"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        {/* Albums for this theme (from API by category) */}
+        {albumList.length > 0 && (
+          <div className="mb-3 space-y-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">YOUR ALBUMS</div>
+            {albumList.map((pb) => (
+              <button
+                key={pb.id}
+                type="button"
+                onClick={() => onResume(theme, pb)}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-50 to-indigo-50 border border-cyan-200/60 hover:border-cyan-400 hover:shadow-md transition-all duration-200 cursor-pointer"
+              >
+                <div className="flex flex-col items-start min-w-0">
+                  <span className="text-xs font-semibold text-slate-800 truncate w-full">
+                    {pb.title || `Album #${pb.id}`}
+                  </span>
+                  <span className="flex items-center gap-1.5 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    <span className="text-[10px] text-slate-500">{stepLabel(pb.currentStep)}</span>
+                    {pb.hasCovers && <span className="text-[9px] rounded-full bg-green-100 text-green-700 px-1.5 py-0.5">Covers</span>}
+                    {pb.savedPagesCount > 0 && <span className="text-[9px] rounded-full bg-indigo-100 text-indigo-700 px-1.5 py-0.5">{pb.savedPagesCount} pages</span>}
+                  </span>
+                </div>
+                <span className="text-xs font-bold text-cyan-600 shrink-0 flex items-center gap-1">
+                  Continue
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* New album button — always visible */}
+        <button
+          type="button"
+          onClick={() => onNewAlbum(theme)}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 text-white text-xs font-semibold shadow-lg hover:from-cyan-600 hover:to-indigo-600 hover:shadow-xl transition-all duration-200 cursor-pointer"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-        </div>
+          {albumList.length > 0 ? 'Create New Album' : 'Start Album'}
+        </button>
       </div>
 
       <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-indigo-300 transition-all duration-300" />
@@ -161,6 +210,7 @@ const PhotoThemesPage: React.FC = () => {
   const [loading, setLoading] = React.useState<boolean>(true);
   const [themes, setThemes] = React.useState<ThemeCategory[]>([]);
   const [error, setError] = React.useState<string | null>(null);
+  const [photobookProgress, setPhotobookProgress] = React.useState<Record<string, PhotobookProgress[]>>({});
   const [lastPreview, setLastPreview] = React.useState<{
     templateId: number;
     categorySlug: string;
@@ -308,13 +358,13 @@ const PhotoThemesPage: React.FC = () => {
           return;
         }
 
-        // If API didn't return anything mappable, fall back to static.
+        // If API didn't return anything mappable, use fallback so the 4 cards always show
         if (mapped.length > 0) {
           console.log('✅ Setting themes from API:', mapped.length, 'themes');
           setThemes(mapped);
         } else {
-          console.warn('⚠️ No mapped themes, using fallback');
-          // setThemes(fallbackThemes);
+          console.warn('⚠️ No mapped themes from API, using fallback themes');
+          setThemes(fallbackThemes);
         }
 
         // Load last saved preview (if any) from localStorage
@@ -378,7 +428,7 @@ const PhotoThemesPage: React.FC = () => {
         }
 
         setError('Unable to load templates from server. Showing default themes.');
-        // setThemes(fallbackThemes);
+        setThemes(fallbackThemes);
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -396,11 +446,54 @@ const PhotoThemesPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - only run once on mount
 
+  // Load albums per theme from API (dynamic: each card gets its list by category)
+  React.useEffect(() => {
+    const token = getStoredToken();
+    if (!token || themes.length === 0) return;
+    let isMounted = true;
+    const loadProgressByCategory = async () => {
+      try {
+        const map: Record<string, PhotobookProgress[]> = {};
+        await Promise.all(
+          themes.map(async (theme) => {
+            try {
+              const slug = encodeURIComponent(theme.id);
+              const res = await api.get<PhotobookProgress[]>(`/api/photobooks/by-category/${slug}`, {
+                headers: { 'X-API-KEY': token },
+              });
+              const list = Array.isArray(res.data) ? res.data : [];
+              if (isMounted) map[theme.id] = list;
+            } catch (e) {
+              if (isMounted) map[theme.id] = [];
+            }
+          })
+        );
+        if (isMounted) setPhotobookProgress((prev) => ({ ...prev, ...map }));
+      } catch (err) {
+        console.warn('Failed to load photobook progress by category:', err);
+      }
+    };
+    loadProgressByCategory();
+    return () => { isMounted = false; };
+  }, [themes]);
+
   const handleThemeClick = (theme: ThemeCategory) => {
-    // Directly go to theme category builder page (original behavior)
+    // Always go to cover page to start a new album
     navigate(`/photo-themes/${theme.id}`, {
       state: { templateId: theme.templateId },
     });
+  };
+
+  const handleResumePhotobook = (theme: ThemeCategory, pb: PhotobookProgress) => {
+    if (pb.currentStep === 'ALBUM' || pb.currentStep === 'PREVIEW') {
+      navigate(`/photo-themes/${theme.id}/album`, {
+        state: { dbTemplateId: theme.templateId, photobookId: pb.id },
+      });
+    } else {
+      navigate(`/photo-themes/${theme.id}`, {
+        state: { templateId: theme.templateId, photobookId: pb.id },
+      });
+    }
   };
 
   const handleLastPreviewClick = () => {
@@ -497,7 +590,13 @@ const PhotoThemesPage: React.FC = () => {
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {themes.map((theme) => (
-          <ThemeCard key={theme.id} theme={theme} onClick={handleThemeClick} />
+          <ThemeCard
+            key={theme.id}
+            theme={theme}
+            onNewAlbum={handleThemeClick}
+            onResume={handleResumePhotobook}
+            progressList={photobookProgress[theme.id]}
+          />
         ))}
       </div>
 

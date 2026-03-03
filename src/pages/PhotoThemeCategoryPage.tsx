@@ -215,7 +215,8 @@ const PageEditorCard: React.FC<{
   kind: PageKind;
   state: EditablePageState;
   onChange: (next: EditablePageState) => void;
-}> = ({ kind, state, onChange }) => {
+  filterImageIds?: number[];
+}> = ({ kind, state, onChange, filterImageIds }) => {
   const isCover = kind === 'cover';
   const title = isCover ? 'Front Cover' : 'Back Cover';
   const hint = isCover
@@ -1012,6 +1013,7 @@ const PageEditorCard: React.FC<{
             <div className="h-px w-full bg-slate-200 my-1" />
 
             <FileVaultImagePicker
+              filterImageIds={filterImageIds}
               onPick={async (picked) => {
                 const imgUrl = picked.imageId ? buildPreviewUrl(picked.imageId) : picked.dataUrl;
                 onChange({ ...state, imageDataUrl: imgUrl, imageId: picked.imageId });
@@ -1050,6 +1052,7 @@ const PageEditorCard: React.FC<{
           </div>
           <div className="p-4 overflow-y-auto flex-1 space-y-4">
             <FileVaultImagePicker
+              filterImageIds={filterImageIds}
               onPick={async (picked) => {
                 onChange({
                   ...state,
@@ -1074,8 +1077,30 @@ const PageEditorCard: React.FC<{
 const PhotoThemeCategoryPage: React.FC = () => {
   const { categorySlug = '' } = useParams<{ categorySlug: string }>();
   const navigate = useNavigate();
-  const location = useLocation() as { state?: { templateId?: number; photobookId?: number } };
+  const location = useLocation() as {
+    state?: { templateId?: number; photobookId?: number; albumImageIds?: number[]; albumName?: string };
+  };
   const { user } = useAuth();
+
+  // Persist studio album state when arriving from studio/albums (so album builder can filter images)
+  React.useEffect(() => {
+    if (categorySlug && location.state?.albumImageIds) {
+      sessionStorage.setItem(`studioAlbum_${categorySlug}`, JSON.stringify({
+        imageIds: location.state.albumImageIds,
+        albumName: location.state.albumName,
+      }));
+    }
+  }, [categorySlug, location.state?.albumImageIds, location.state?.albumName]);
+
+  // Read studio album image filter from sessionStorage (set when user comes from studio/albums)
+  const studioAlbumImageIds = React.useMemo<number[] | undefined>(() => {
+    if (location.state?.albumImageIds) return location.state.albumImageIds;
+    try {
+      const raw = sessionStorage.getItem(`studioAlbum_${categorySlug}`);
+      if (raw) return JSON.parse(raw)?.imageIds ?? undefined;
+    } catch { /* ignore */ }
+    return undefined;
+  }, [categorySlug, location.state?.albumImageIds]);
 
   const meta = THEME_META.find((m) => m.id === categorySlug) ?? {
     id: categorySlug || 'unknown',
@@ -1734,8 +1759,8 @@ const PhotoThemeCategoryPage: React.FC = () => {
             </div>
           </div>
         )}
-        <PageEditorCard kind="cover" state={coverPage} onChange={setCoverPage} />
-        <PageEditorCard kind="last" state={lastPage} onChange={setLastPage} />
+        <PageEditorCard kind="cover" state={coverPage} onChange={setCoverPage} filterImageIds={studioAlbumImageIds} />
+        <PageEditorCard kind="last" state={lastPage} onChange={setLastPage} filterImageIds={studioAlbumImageIds} />
       </div>
 
       {/* Save success message - Visible above button */}

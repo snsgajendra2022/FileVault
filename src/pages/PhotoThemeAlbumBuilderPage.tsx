@@ -247,8 +247,41 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation() as {
-    state?: { coverPage?: EditablePageState; lastPage?: EditablePageState; dbTemplateId?: number; photobookId?: number };
+    state?: {
+      coverPage?: EditablePageState; lastPage?: EditablePageState;
+      dbTemplateId?: number; photobookId?: number;
+      fromStudioAlbum?: boolean; albumImageIds?: number[]; albumName?: string;
+    };
   };
+
+  const STUDIO_ALBUM_KEY = `studioAlbum_${categorySlug}`;
+
+  // Persist studio album image IDs so they survive navigation to cover page and back
+  const studioAlbumImageIds: number[] | null = React.useMemo(() => {
+    if (location.state?.albumImageIds) {
+      sessionStorage.setItem(STUDIO_ALBUM_KEY, JSON.stringify({
+        imageIds: location.state.albumImageIds,
+        albumName: location.state.albumName,
+      }));
+      return location.state.albumImageIds;
+    }
+    try {
+      const raw = sessionStorage.getItem(STUDIO_ALBUM_KEY);
+      if (raw) return JSON.parse(raw)?.imageIds ?? null;
+    } catch { /* ignore */ }
+    return null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.albumImageIds, STUDIO_ALBUM_KEY]);
+
+  const studioAlbumName: string | undefined = React.useMemo(() => {
+    if (location.state?.albumName) return location.state.albumName;
+    try {
+      const raw = sessionStorage.getItem(STUDIO_ALBUM_KEY);
+      if (raw) return JSON.parse(raw)?.albumName;
+    } catch { /* ignore */ }
+    return undefined;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.albumName, STUDIO_ALBUM_KEY]);
 
   const PHOTOBOOK_KEY = `photobook_${categorySlug}`;
 
@@ -1567,6 +1600,19 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         </div>
       )}
 
+      {/* Studio album info banner */}
+      {studioAlbumImageIds && (
+        <div className="no-print rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200/60 px-4 py-3 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
+            <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+          </div>
+          <div className="text-xs text-indigo-700">
+            <span className="font-bold">{studioAlbumName || 'Studio Album'}</span>
+            <span className="text-indigo-500"> — {studioAlbumImageIds.length} images from your album are available for selection</span>
+          </div>
+        </div>
+      )}
+
       {/* Header (hidden in print) */}
       <div className="no-print relative overflow-hidden rounded-2xl border border-slate-200/60 bg-gradient-to-br from-slate-50 to-white p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.06),0_12px_40px_-10px_rgba(15,23,42,0.06)]">
         <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-500 rounded-t-2xl" />
@@ -2530,8 +2576,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                     </h3>
                     <p className="text-[11px] text-slate-500 mt-0.5">
                       {isMulti
-                        ? `Choose up to ${totalSlots} images from your library`
-                        : 'Click an image to select it'}
+                        ? `Choose up to ${totalSlots} images${studioAlbumImageIds ? ' from your album' : ' from your library'}`
+                        : `Click an image${studioAlbumImageIds ? ' from your album' : ''} to select it`}
                     </p>
                   </div>
                   <button
@@ -2547,6 +2593,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 <div className="p-4 overflow-y-auto flex-1">
                   <FileVaultImagePicker
                     allowMultiSelect={isMulti}
+                    filterImageIds={studioAlbumImageIds ?? undefined}
                     onPick={async (picked) => {
                       if (!isMulti) {
                         applySinglePick(picked);
