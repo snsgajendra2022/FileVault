@@ -186,7 +186,7 @@ function App() {
 
   // Enable inspect blocking (controlled by REACT_APP_BLOCK_INSPECT env variable)
   React.useEffect(() => {
-    enableInspectBlock();
+    // enableInspectBlock();
   }, []);
 
   return (

@@ -115,11 +115,12 @@ export default function FamilyTree() {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const initialToastShownRef = useRef(false);
 
   const root = useMemo(() => d3.hierarchy<Person>(rootData), [rootData]);
 
   // Fetch family data from API
-  const fetchFamilyData = async () => {
+  const fetchFamilyData = async (isInitial: boolean = false) => {
     try {
       setLoading(true);
       console.log('Fetching family data from API...');
@@ -132,7 +133,15 @@ export default function FamilyTree() {
         if (response.data.familyData) {
           const newRootData = convertFamilyDataToTree(response.data.familyData);
           setRootData(newRootData);
-          toast.success('Family data loaded successfully');
+
+          if (isInitial) {
+            if (!initialToastShownRef.current) {
+              toast.success('Family data loaded successfully');
+              initialToastShownRef.current = true;
+            }
+          } else {
+            toast.success('Family data loaded successfully');
+          }
         } else {
           console.error('API response missing familyData:', response.data);
           toast.error('Invalid data format received from server');
@@ -166,7 +175,7 @@ export default function FamilyTree() {
 
   // Fetch data on component mount
   useEffect(() => {
-    fetchFamilyData();
+    fetchFamilyData(true);
   }, []);
 
   // Layout computation
