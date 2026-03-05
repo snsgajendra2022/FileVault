@@ -354,7 +354,23 @@ const ClientImagesPage = () => {
   const [lightboxPreviewReady, setLightboxPreviewReady] = useState(false);
   const [lightboxPreviewFailed, setLightboxPreviewFailed] = useState(false);
   const [lightboxPreviewVisible, setLightboxPreviewVisible] = useState(false);
+  const [lightboxImageLoaded, setLightboxImageLoaded] = useState(false);
+  const [lightboxZoom, setLightboxZoom] = useState(1);
+  const [lightboxPan, setLightboxPan] = useState({ x: 0, y: 0 });
   const lightboxPreviewUrlRef = useRef<string | null>(null);
+  const lightboxZoomContainerRef = useRef<HTMLDivElement | null>(null);
+  const lightboxPanStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  const lightboxPanRafRef = useRef<number | null>(null);
+  const lightboxPendingPanRef = useRef<{ x: number; y: number } | null>(null);
+  const lightboxTouchStateRef = useRef<{
+    startDistance: number;
+    startCenter: { x: number; y: number };
+    startScale: number;
+    startPan: { x: number; y: number };
+    centerX: number;
+    centerY: number;
+  } | null>(null);
+  const [lightboxIsPanning, setLightboxIsPanning] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<FamilyRelationship | null>(null);
   const [viewMode, setViewMode] = useState<'my' | 'invited'>('my');
@@ -512,6 +528,10 @@ const ClientImagesPage = () => {
     if (!selectedImage || !isImageType(selectedImage.fileType)) return;
     const thumb = selectedImage.thumbnailUrl || selectedImage.previewUrl;
     const preview = selectedImage.previewUrl;
+    setLightboxImageLoaded(false);
+    setLightboxZoom(1);
+    setLightboxPan({ x: 0, y: 0 });
+    setLightboxIsPanning(false);
     setLightboxPreviewReady(false);
     setLightboxPreviewFailed(false);
     setLightboxPreviewVisible(false);
@@ -559,6 +579,179 @@ const ClientImagesPage = () => {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [closeLightbox]);
+
+  const LIGHTBOX_MIN_ZOOM = 1;
+  const LIGHTBOX_MAX_ZOOM = 5;
+  const LIGHTBOX_ZOOM_SENSITIVITY = 0.0012;
+
+  const handleLightboxWheel = useCallback(
+    (e: React.WheelEvent<HTMLDivElement>) => {
+      const el = lightboxZoomContainerRef.current;
+      if (!el) return;
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const mouseX = e.clientX;
+      const mouseY = e.clientY;
+      const delta = -e.deltaY * LIGHTBOX_ZOOM_SENSITIVITY;
+      setLightboxZoom((prev) => {
+        const next = Math.min(LIGHTBOX_MAX_ZOOM, Math.max(LIGHTBOX_MIN_ZOOM, prev * (1 + delta)));
+        setLightboxPan((p) => ({
+          x: mouseX - centerX - (mouseX - centerX - p.x) * (next / prev),
+          y: mouseY - centerY - (mouseY - centerY - p.y) * (next / prev),
+        }));
+        return next;
+      });
+    },
+    []
+  );
+
+  const handleLightboxMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || lightboxZoom <= 1) return;
+    e.preventDefault();
+    setLightboxIsPanning(true);
+    lightboxPanStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      panX: lightboxPan.x,
+      panY: lightboxPan.y,
+    };
+  }, [lightboxZoom, lightboxPan]);
+
+  const handleLightboxMouseMove = useCallback((e: MouseEvent) => {
+    const start = lightboxPanStartRef.current;
+    if (!start) return;
+    const nextPan = {
+      x: start.panX + (e.clientX - start.x),
+      y: start.panY + (e.clientY - start.y),
+    };
+    lightboxPendingPanRef.current = nextPan;
+    if (lightboxPanRafRef.current !== null) return;
+    lightboxPanRafRef.current = requestAnimationFrame(() => {
+      lightboxPanRafRef.current = null;
+      const pending = lightboxPendingPanRef.current;
+      if (pending) {
+        lightboxPendingPanRef.current = null;
+        setLightboxPan(pending);
+      }
+    });
+  }, []);
+
+  const handleLightboxMouseUp = useCallback(() => {
+    lightboxPanStartRef.current = null;
+    setLightboxIsPanning(false);
+  }, []);
+
+  useEffect(() => {
+    if (!lightboxPanStartRef.current) return;
+    window.addEventListener('mousemove', handleLightboxMouseMove);
+    window.addEventListener('mouseup', handleLightboxMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleLightboxMouseMove);
+      window.removeEventListener('mouseup', handleLightboxMouseUp);
+    };
+  }, [handleLightboxMouseMove, handleLightboxMouseUp]);
+
+  // Prevent wheel from scrolling page when zooming in lightbox (passive: false required)
+  useEffect(() => {
+    if (!selectedImage) return;
+    const el = lightboxZoomContainerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [selectedImage]);
+
+  // Prevent page scroll during pinch/touch in lightbox (passive: false so preventDefault works)
+  useEffect(() => {
+    if (!selectedImage) return;
+    const el = lightboxZoomContainerRef.current;
+    if (!el) return;
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && lightboxTouchStateRef.current) e.preventDefault();
+    };
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => el.removeEventListener('touchmove', onTouchMove);
+  }, [selectedImage]);
+
+  const handleLightboxDoubleClick = useCallback(() => {
+    setLightboxZoom(1);
+    setLightboxPan({ x: 0, y: 0 });
+  }, []);
+
+  const handleLightboxResetZoom = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLightboxZoom(1);
+    setLightboxPan({ x: 0, y: 0 });
+  }, []);
+
+  const getTouchCenter = useCallback((touches: React.TouchList) => {
+    const a = touches[0];
+    const b = touches[1];
+    return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+  }, []);
+  const getTouchDistance = useCallback((touches: React.TouchList) => {
+    const a = touches[0];
+    const b = touches[1];
+    return Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+  }, []);
+
+  const handleLightboxTouchStart = useCallback(
+    (e: React.TouchEvent<HTMLDivElement>) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const el = lightboxZoomContainerRef.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        lightboxTouchStateRef.current = {
+          startDistance: getTouchDistance(e.touches),
+          startCenter: getTouchCenter(e.touches),
+          startScale: lightboxZoom,
+          startPan: { ...lightboxPan },
+          centerX,
+          centerY,
+        };
+      }
+    },
+    [lightboxZoom, lightboxPan, getTouchDistance, getTouchCenter]
+  );
+
+  const handleLightboxTouchMove = useCallback(
+    (e: React.TouchEvent<HTMLDivElement>) => {
+      const state = lightboxTouchStateRef.current;
+      if (e.touches.length !== 2 || !state) return;
+      e.preventDefault();
+      const distance = getTouchDistance(e.touches);
+      const center = getTouchCenter(e.touches);
+      const scaleRatio = distance / state.startDistance;
+      const newScale = Math.min(
+        LIGHTBOX_MAX_ZOOM,
+        Math.max(LIGHTBOX_MIN_ZOOM, state.startScale * scaleRatio)
+      );
+      const ratio = newScale / state.startScale;
+      setLightboxZoom(newScale);
+      setLightboxPan({
+        x: center.x - state.centerX - (state.startCenter.x - state.centerX - state.startPan.x) * ratio,
+        y: center.y - state.centerY - (state.startCenter.y - state.centerY - state.startPan.y) * ratio,
+      });
+    },
+    [getTouchDistance, getTouchCenter]
+  );
+
+  const handleLightboxTouchEnd = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length < 2) lightboxTouchStateRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (lightboxPanRafRef.current !== null) cancelAnimationFrame(lightboxPanRafRef.current);
+    };
+  }, []);
 
   if (isLoading) {
     return (
@@ -835,139 +1028,177 @@ const ClientImagesPage = () => {
         </div>
       )}
 
-      {/* Lightbox */}
+      {/* Lightbox - full screen with dark blur overlay */}
       {selectedImage && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm transition-opacity duration-200"
           role="dialog"
           aria-modal="true"
           aria-label="Image preview"
-          onClick={(e) => e.target === e.currentTarget && closeLightbox()}
         >
-          <div
-            className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 flex justify-between items-center p-4 bg-white border-b border-gray-100 z-10">
-              <h3 className="text-lg font-medium text-gray-900 truncate pr-8">
-                {selectedImage.filename}
-              </h3>
+          {/* Overlay controls */}
+          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-3 pointer-events-none">
+            <h3 className="text-sm font-medium text-white/90 truncate max-w-[50%] drop-shadow-lg">
+              {selectedImage.filename}
+            </h3>
+            <div className="flex items-center gap-1 pointer-events-auto">
               <button
                 type="button"
                 onClick={() => handleDownload(selectedImage)}
-                className="absolute top-4 right-16 p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                aria-label="Close"
+                className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                aria-label="Download"
               >
-                <FiDownload className="h-6 w-6" />
+                <FiDownload className="h-5 w-5" />
               </button>
               <button
                 type="button"
                 onClick={closeLightbox}
-                className="absolute top-4 right-4 p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
                 aria-label="Close"
               >
-                <FaTimes className="h-6 w-6" />
+                <FaTimes className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-6">
-              {isImageType(selectedImage.fileType) ? (
-                (() => {
-                  const thumbUrl = selectedImage.thumbnailUrl || selectedImage.previewUrl;
-                  const previewUrl = selectedImage.previewUrl;
-                  const hasDistinctPreview =
-                    !!previewUrl &&
-                    previewUrl !== thumbUrl &&
-                    lightboxPreviewReady &&
-                    !lightboxPreviewFailed;
-                  const showingPreviewOverlay = hasDistinctPreview && lightboxPreviewVisible;
-                  return (
+          </div>
+          <div className="absolute inset-0 pt-14">
+            {isImageType(selectedImage.fileType) ? (
+              (() => {
+                const thumbUrl = selectedImage.thumbnailUrl || selectedImage.previewUrl;
+                const previewUrl = selectedImage.previewUrl;
+                const hasDistinctPreview =
+                  !!previewUrl &&
+                  previewUrl !== thumbUrl &&
+                  lightboxPreviewReady &&
+                  !lightboxPreviewFailed;
+                const showingPreviewOverlay = hasDistinctPreview && lightboxPreviewVisible;
+                const isLoadingPreview =
+                  !!previewUrl &&
+                  previewUrl !== thumbUrl &&
+                  !lightboxPreviewReady &&
+                  !lightboxPreviewFailed;
+                const isZoomed = lightboxZoom > 1;
+                return (
+                  <div
+                    ref={lightboxZoomContainerRef}
+                    className="relative flex justify-center items-center w-full h-full overflow-hidden select-none touch-none"
+                    style={{
+                      cursor: lightboxIsPanning ? 'grabbing' : isZoomed ? 'grab' : 'default',
+                      touchAction: 'none',
+                    }}
+                    onWheel={handleLightboxWheel}
+                    onMouseDown={handleLightboxMouseDown}
+                    onDoubleClick={handleLightboxDoubleClick}
+                    onTouchStart={handleLightboxTouchStart}
+                    onTouchMove={handleLightboxTouchMove}
+                    onTouchEnd={handleLightboxTouchEnd}
+                    role="presentation"
+                  >
                     <div
-                      className="relative flex justify-center items-center w-full rounded-lg overflow-hidden"
-                      style={{ minHeight: '70vh' }}
+                      className="absolute flex justify-center items-center w-full h-full"
+                      style={{
+                        willChange: 'transform',
+                        transform: `translate(50%, 50%) translate(${lightboxPan.x}px, ${lightboxPan.y}px) scale(${lightboxZoom}) translate(-50%, -50%)`,
+                        transition: lightboxIsPanning ? 'none' : 'transform 0.15s ease-out',
+                      }}
                     >
                       {selectedImage.fileType !== 'unknown' && (
-                        <img
-                        src={thumbUrl}
-                        alt={selectedImage.filename}
-                        className={`max-w-full max-h-[70vh] w-[100%] mx-auto rounded-lg object-contain transition-opacity duration-300 ${
-                          showingPreviewOverlay ? 'opacity-0' : 'opacity-100'
-                        }`}
+                        <>
+                          {/* Thumbnail as loading background - always visible until preview loads */}
+                          {/* <img
+                            src={thumbUrl}
+                            alt={selectedImage.filename}
+                            height={200}
+                            className={`absolute w-full h-full object-contain transition-opacity duration-300 ${
+                              showingPreviewOverlay ? 'opacity-0' : 'opacity-100'
+                            }`}
+                            // onLoad={() => setLightboxImageLoaded(true)}
+                            draggable={false}
+                            style={{
+                              transform: 'rotate(-90deg)',
+                            }}
+                            
+                          /> */}
+                          {/* ${
+                           showingPreviewOverlay ? 'opacity-0' : 'opacity-100'
+                          } */}
+                          <img
+                          src={thumbUrl}
+                          alt={selectedImage.filename}
+                          className={`absolute object-contain transition-opacity duration-300 ${
+                            showingPreviewOverlay ? 'opacity-0' : 'opacity-100'
+                           }`}
+                          style={{top: '20%', transform: 'rotate(-90deg)',height: '50%',width: 'auto',}}
+                          draggable={false}
                         />
+                          {/* Loading overlay on top of thumbnail - thumbnail stays visible as background */}
+                          {isLoadingPreview && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30">
+                              <LoadingSpinner size="lg" />
+                              <span className="mt-2 text-sm text-white">Loading...</span>
+                            </div>
+                          )}
+                        </>
                       )}
-                      {hasDistinctPreview && selectedImage.fileType !== 'unknown' &&(
+   
+                      {hasDistinctPreview && selectedImage.fileType !== 'unknown' && (
+                        
                         <img
                           src={previewUrl}
                           alt={selectedImage.filename}
-                          className={`absolute max-w-full max-h-[70vh] w-[100%] rounded-lg object-contain transition-opacity duration-300 ${
+                          className={`absolute w-full h-full object-contain transition-opacity duration-300 ${
                             lightboxPreviewVisible ? 'opacity-100' : 'opacity-0'
                           }`}
                           style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
-                        />
-                      )}
-                      {selectedImage.fileType === 'unknown' && (
-                        <video
-                          src={selectedImage.previewUrl}
-                          className="max-w-full max-h-[70vh] w-full rounded-lg object-contain"
-                          controls
-                          muted
-                          playsInline
-                          preload="auto"
+                          draggable={false}
                         />
                       )}
                     </div>
-                  );
-                })()
-              ) : isVideoType(selectedImage.fileType, selectedImage.filename) ? (
-                <div
-                  className="relative flex justify-center items-center w-full rounded-lg overflow-hidden"
-                  style={{ minHeight: '70vh' }}
-                >
-                  <video
-                    src={selectedImage.previewUrl}
-                    className="max-w-full max-h-[70vh] w-full rounded-lg object-contain"
-                    controls
-                    muted
-                    playsInline
-                    preload="auto"
-                  />
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-64 bg-gray-100 rounded-xl">
-                  <div className={`${getFileTypeColor(selectedImage.fileType, selectedImage.filename)} text-white rounded-xl p-8 text-6xl`} >
-                    {getFileTypeIcon(selectedImage.fileType, selectedImage.filename)}
+                    {isZoomed && (
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                        <p className="text-xs text-white/70 bg-black/50 px-3 py-1.5 rounded">
+                          Scroll to zoom · Drag to pan · Double-click to reset
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleLightboxResetZoom}
+                          className="text-xs font-medium text-white/90 bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded transition-colors"
+                          aria-label="Reset zoom"
+                        >
+                          Reset zoom
+                        </button>
+                      </div>
+                    )}
+                    {selectedImage.fileType === 'unknown' && (
+                      <video
+                        src={selectedImage.previewUrl}
+                        className="w-full h-full object-contain"
+                        controls
+                        muted
+                        playsInline
+                        preload="auto"
+                      />
+                    )}
                   </div>
+                );
+              })()
+            ) : isVideoType(selectedImage.fileType, selectedImage.filename) ? (
+              <div className="relative flex justify-center items-center w-full h-full">
+                <video
+                  src={selectedImage.previewUrl}
+                  className="w-full h-full object-contain"
+                  controls
+                  muted
+                  playsInline
+                  preload="auto"
+                />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center w-full h-full bg-gray-900">
+                <div className={`${getFileTypeColor(selectedImage.fileType, selectedImage.filename)} text-white rounded-xl p-8 text-6xl`}>
+                  {getFileTypeIcon(selectedImage.fileType, selectedImage.filename)}
                 </div>
-              )}
-              <p className="mt-4 text-sm text-gray-500 text-center">
-                {isVideoType(selectedImage.fileType, selectedImage.filename) ? 'VIDEO' : selectedImage.fileType.toUpperCase()} · {formatDate(selectedImage.uploadTime)}
-              </p>
-              {/* {Object.keys(selectedImage.enabledServices).length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                  {Object.entries(selectedImage.enabledServices).map(([service]) => (
-                    <span
-                      key={service}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
-                    >
-                      <FaCloud className="h-3 w-3 mr-1" />
-                      {service}
-                    </span>
-                  ))}
-                </div>
-              )} */}
-              {/* <div className="mt-6 flex justify-center gap-4"> */}
-  
-                {/* {viewMode === 'my' && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(selectedImage)}
-                    className="inline-flex items-center px-4 py-2 border border-red-300 text-red-700 font-medium rounded-lg hover:bg-red-50 transition-colors"
-                  >
-                    <FiTrash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </button>
-                )} */}
-              {/* </div> */}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       )}
