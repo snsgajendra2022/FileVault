@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <filter id="s" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="0.5" stdDeviation="0.35" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+  <!-- Small overlapping hearts above -->
+  <g transform="translate(16,8) scale(0.28)">
+    <path fill="#FF5DAF" d="M16 27C16 27 2 17 2 10a6 6 0 0 1 8-5.8A6 6 0 0 1 16 6a6 6 0 0 1 6-1.8A6 6 0 0 1 30 10c0 7-14 17-14 17z" transform="translate(-1,-0.8)"/>
+    <path fill="#FF3A5C" filter="url(#s)" d="M16 27C16 27 2 17 2 10a6 6 0 0 1 8-5.8A6 6 0 0 1 16 6a6 6 0 0 1 6-1.8A6 6 0 0 1 30 10c0 7-14 17-14 17z"/>
+  </g>
+  <!-- Om: main target, bold red -->
+  <text x="16" y="26" text-anchor="middle" fill="#FF3A5C" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="15">Om</text>
+</svg>
