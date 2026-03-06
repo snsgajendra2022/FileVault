@@ -54,7 +54,9 @@ import PaymentManagement from './components/admin/PaymentManagement';
 import PhotoThemesPage from './pages/PhotoThemesPage';
 import PhotoThemeCategoryPage from './pages/PhotoThemeCategoryPage';
 import PhotoThemeAlbumBuilderPage from './pages/PhotoThemeAlbumBuilderPage';
+import PhotoBook from './pages/PhotoBook';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import OMPrivacyPolicyPage from './pages/OMPrivacyPolicyPage';
 
 
 const queryClient = new QueryClient({
@@ -102,6 +104,7 @@ const AppRoutes = () => {
       {/* Public image view route */}
       <Route path="/view" element={<ViewImagePage />} />
       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+      <Route path="/our-memories-privacy-policy" element={<OMPrivacyPolicyPage />} />
       <Route path="/login" element={
         !isLoading && isAuthenticated ? 
           (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />) : 
@@ -166,6 +169,7 @@ const AppRoutes = () => {
         <Route path="create-client" element={<CreateClientInvitationForm onInvitationCreated={() => {}} />} />
         {/* Photo Themes */}
         <Route path="photo-themes" element={<PhotoThemesPage />} />
+        <Route path="photo-book" element={<PhotoBook />} />
         <Route path="photo-themes/:categorySlug" element={<PhotoThemeCategoryPage />} />
         <Route path="photo-themes/:categorySlug/album" element={<PhotoThemeAlbumBuilderPage />} />
         {/* Admin route with proper protection */}

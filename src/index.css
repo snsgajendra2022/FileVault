@@ -3,7 +3,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
+@import 'react-inner-image-zoom/lib/styles.min.css';
 @layer base {
   :root {
     --primary-50: #eff6ff;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import axios from 'axios';
 import {
@@ -570,7 +570,7 @@ const PhotoThemesPage: React.FC = () => {
           <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-slate-900/40">
             <FaPalette className="h-8 w-8 text-cyan-300" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
               Photo Themes
             </h1>
@@ -578,6 +578,12 @@ const PhotoThemesPage: React.FC = () => {
               Choose a theme for your front & back cover, then customize pages in the album builder.
             </p>
           </div>
+          <Link
+            to="/photo-book"
+            className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            My Photo Books
+          </Link>
         </div>
       </div>
 

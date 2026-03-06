@@ -89,6 +89,7 @@ declare module 'react-icons/fa' {
   export const FaClock: ComponentType<IconProps>;
   export const FaUserTag: ComponentType<IconProps>;
   export const FaImage: ComponentType<IconProps>;
+  export const FaBook: ComponentType<IconProps>;
   export const MdIcon: ComponentType<IconProps & { icon?: string }>;
 }
 

@@ -22,7 +22,8 @@ import {
   FaShare,
   FaFolder,
   FaRupeeSign,
-  FaPalette
+  FaPalette,
+  FaBook
 } from 'react-icons/fa';
 
 
@@ -66,21 +67,19 @@ const Sidebar = () => {
   
   // const studioNavigationItems = [];
   const studioNavigationItems = {'items':[
-    { name: 'Photo Book Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
+    { name: 'Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
     { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
     { name: 'My Images', href: '/client-images', icon: FaImages, enabled: true },
     { name: 'Photo Themes', href: '/photo-themes', icon: FaPalette, enabled: true },
+    { name: 'Photo Books', href: '/photo-book', icon: FaBook, enabled: true },
     { name: 'Album', href: '/studio/albums', icon: FaFolder, enabled: true },
     { name: 'Shared Albums', href: '/studio/shared-albums', icon: FaShare, enabled: true },
     { name: 'Select & Pay', href: '/studio/payments', icon: FaQrcode, enabled: true },
-    { name: 'Clients Tree', href: '/client-tree', icon: FaSitemap, enabled: true },
-    { name: 'Create Client', href: '/invitations', icon:FaUserPlus , enabled: true },
-    { name: 'Clients', href: '/studio/clients', icon: FaUsers, enabled: true },
-    
-    
-    { name: 'Services', href: '/services', icon: FaCloud, enabled: true },    //Services
-
+    { name: 'Members Tree', href: '/family-tree', icon: FaSitemap, enabled: true },
+    { name: 'Create Members', href: '/invitations', icon:FaUserPlus , enabled: true },
+    { name: 'Members', href: '/studio/clients', icon: FaUsers, enabled: true },
     { name: 'Payment Management', href: '/studio/payment-management', icon: FaRupeeSign, enabled: true },
+    // { name: 'Services', href: '/services', icon: FaCloud, enabled: true },    //Services
 
     
     // { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
@@ -128,7 +127,7 @@ console.log( studioNavigationItems.active === true && 2 );
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">ImageSecurity</h1>
                 )}
                 {user?.accountType == 'FREE' && menuFlags.studio === true && studioNavigationItems.active === true && (
-                <h1 className="text-xl font-bold text-white drop-shadow-lg">Our Memory</h1>
+                <h1 className="text-xl font-bold text-white drop-shadow-lg">Our Memories</h1>
                 )}
                 {user.accountType == 'ADMIN' && menuFlags.admin === true && adminNavigationItems.active === true && (
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">Admin Panel</h1>
@@ -179,17 +178,17 @@ console.log( studioNavigationItems.active === true && 2 );
                 ))}
               
               {/* Photo Book Section */}
-              {menuFlags.studio === true && studioNavigationItems.active === true
+              {/* {menuFlags.studio === true && studioNavigationItems.active === true
                &&  
               <div className=" pb-3">
                 <div className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border border-[#2731db]">
                   <FaCamera className="h-4 w-4 text-[#2731db] mr-2" />
                   <h3 className="text-xs font-bold text-[#2731db] uppercase tracking-wider">
-                  OurMemory Pro
+                  Our Memories Pro
                   </h3>
                 </div>
               </div>
-              }
+              } */}
               
               {menuFlags.studio === true && studioNavigationItems.active === true
                && 

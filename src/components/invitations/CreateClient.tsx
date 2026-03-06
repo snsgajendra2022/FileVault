@@ -10,6 +10,20 @@ interface CreateInvitationFormProps {
 
 const RELATIONSHIP_TYPES = [
   'CLIENT', 
+  'PARENT',
+  'MOTHER', 
+  'FATHER',
+  'CHILD',
+  'SON',
+  'DAUGHTER',
+  'SPOUSE',
+  'BROTHER',
+  'SISTER',
+  'GRANDPARENT',
+  'GRANDCHILD',
+  'UNCLE',
+  'AUNT',
+  'COUSIN'
 ];
 
 const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInvitationCreated }) => {
@@ -67,7 +81,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
           inviteeEmail: '',
           inviteeFirstName: '',
           inviteeLastName: '',
-          relationshipType: 'CLIENT',
+          relationshipType: '',
           relationshipNotes: '',
           expiresInDays: 30,
           canViewImages: true,
@@ -218,7 +232,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
       </div>
     );
   }
-
+  
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">

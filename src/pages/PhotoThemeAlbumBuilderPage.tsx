@@ -3,7 +3,22 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import HTMLFlipBook from 'react-pageflip';
 import { jsPDF } from 'jspdf';
-import { FaSave, FaCheck, FaSpinner, FaArrowLeft, FaEdit, FaChevronLeft, FaChevronRight, FaDownload } from 'react-icons/fa';
+import { DndContext, DragEndEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
+import {
+  FaSave,
+  FaCheck,
+  FaSpinner,
+  FaArrowLeft,
+  FaEdit,
+  FaChevronLeft,
+  FaChevronRight,
+  FaDownload,
+  FaSearch,
+  FaPlus,
+  FaTrash,
+  FaImages,
+  FaPalette,
+} from 'react-icons/fa';
 import { getPhotoBookTemplate } from '../templates/photobookTemplates';
 import { FileVaultImagePicker } from '../components/PhotoBook/FileVaultImagePicker';
 import type { EditablePageState } from './PhotoThemeCategoryPage';
@@ -149,23 +164,329 @@ function DraggableCropImage({
   );
 }
 
-const MULTI_IMAGE_LAYOUTS = ['Two Up', 'Three Grid', 'Four Grid', 'Hero + Two', 'Collage'];
-const MULTI_IMAGE_SLOT_COUNT: Record<string, number> = {
-  'Two Up': 2,
-  'Three Grid': 3,
-  'Four Grid': 4,
-  'Hero + Two': 3,
-  'Collage': 3,
-};
+/** Arrangement type: drives how slots are positioned (single, grid, hero, luxury, etc.) */
+type LayoutArrangement =
+  | 'single'
+  | 'cinematic'
+  | 'two-up'
+  | 'two-vertical'
+  | 'hero-two'
+  | 'hero-four'
+  | 'hero-left'
+  | 'hero-right'
+  | 'hero-top'
+  | 'hero-bottom'
+  | 'three-grid'
+  | 'three-stack'
+  | 'three-diagonal'
+  | 'four-grid'
+  | 'four-split'
+  | 'four-collage'
+  | 'collage'
+  | 'five-hero'
+  | 'six-grid'
+  | 'film-strip'
+  | 'polaroid'
+  | 'timeline'
+  | 'magazine'
+  | 'romantic'
+  | 'luxury'
+  | 'luxury-cover'
+  | 'luxury-inner'
+  | 'memory'
+  | 'story'
+  | 'diagonal'
+  | 'circle-focus'
 
-const PAGE_LAYOUT_OPTIONS = [
-  'Single Photo',
-  'Hero + Two',
-  'Two Up',
-  'Three Grid',
-  'Four Grid',
-  'Cinematic Spread',
+/** Single source of truth for page layout options — one unique layout per arrangement, no duplicates */
+const PAGE_LAYOUT_CONFIG: Array<{ id: string; shortLabel: string; slotCount: number; arrangement?: LayoutArrangement }> = [
+  // —— 1 photo (2 distinct styles) ——
+  { id: 'Single Full Bleed', shortLabel: 'Full bleed', slotCount: 1, arrangement: 'single' },
+  { id: 'Cinematic Love', shortLabel: 'Cinematic', slotCount: 1, arrangement: 'cinematic' },
+  // —— 2 photos (2 distinct styles) ——
+  { id: 'Love Side by Side', shortLabel: 'Side by side', slotCount: 2, arrangement: 'two-up' },
+  { id: 'Bride & Groom', shortLabel: 'Stacked', slotCount: 2, arrangement: 'two-vertical' },
+  // —— 3 photos (3 distinct styles) ——
+  { id: 'Hero + Memories', shortLabel: 'Hero + two', slotCount: 3, arrangement: 'hero-two' },
+  { id: 'Three Grid', shortLabel: 'Three grid', slotCount: 3, arrangement: 'three-grid' },
+  { id: 'Romantic Collage', shortLabel: 'Romantic collage', slotCount: 3, arrangement: 'collage' },
+  // —— 4 photos (4 distinct styles) ——
+  { id: 'Wedding Grid', shortLabel: 'Classic grid', slotCount: 4, arrangement: 'four-grid' },
+  { id: 'Memory Collage', shortLabel: 'Overlap collage', slotCount: 4, arrangement: 'collage' },
+  { id: 'Luxury Cover', shortLabel: 'Luxury cover', slotCount: 4, arrangement: 'luxury-cover' },
+  { id: 'Cinematic Inner', shortLabel: 'Hero + three', slotCount: 4, arrangement: 'luxury-inner' },
+  // —— 5 photos (1 style) ——
+  { id: 'Hero Wedding Story', shortLabel: 'Hero + four', slotCount: 5, arrangement: 'hero-four' },
+  // —— 6 photos (1 style) ——
+  { id: 'Memories Spread', shortLabel: 'Six grid', slotCount: 6, arrangement: 'six-grid' },
+  // Legacy IDs (backward compatibility for saved albums)
+  { id: 'Single Photo', shortLabel: 'Single', slotCount: 1, arrangement: 'single' },
+  { id: 'Hero + Two', shortLabel: 'Hero', slotCount: 3, arrangement: 'hero-two' },
+  { id: 'Two Up', shortLabel: 'Two up', slotCount: 2, arrangement: 'two-up' },
+  { id: 'Four Grid', shortLabel: 'Grid 4', slotCount: 4, arrangement: 'four-grid' },
+  { id: 'Cinematic Spread', shortLabel: 'Cinema', slotCount: 1, arrangement: 'cinematic' },
+  { id: 'Collage', shortLabel: 'Collage', slotCount: 3, arrangement: 'collage' },
 ];
+
+const PAGE_LAYOUT_OPTIONS = PAGE_LAYOUT_CONFIG.map((c) => c.id);
+
+/** Get arrangement for a layout id (for rendering); falls back to slotCount-based default */
+function getArrangementForLayoutId(layoutId: string): LayoutArrangement {
+  const config = PAGE_LAYOUT_CONFIG.find((c) => c.id === layoutId);
+  if (config?.arrangement) return config.arrangement;
+  const slotCount = getSlotCountForLayoutId(layoutId);
+  if (slotCount <= 1) return 'single';
+  if (slotCount === 2) return 'two-up';
+  if (slotCount === 3) return 'hero-two';
+  if (slotCount === 4) return 'four-grid';
+  if (slotCount === 5) return 'hero-four';
+  if (slotCount === 6) return 'six-grid';
+  return 'six-grid';
+}
+
+/** Get slot count for a layout id */
+function getSlotCountForLayoutId(layoutId: string): number {
+  const config = PAGE_LAYOUT_CONFIG.find((c) => c.id === layoutId);
+  if (config) return config.slotCount;
+  return 1;
+}
+
+/** Multi-image layouts: any config with slotCount > 1 (for picker logic) */
+const MULTI_IMAGE_LAYOUTS = PAGE_LAYOUT_OPTIONS;
+const MULTI_IMAGE_SLOT_COUNT: Record<string, number> = PAGE_LAYOUT_CONFIG.reduce(
+  (acc, c) => ({ ...acc, [c.id]: c.slotCount }),
+  {} as Record<string, number>
+);
+
+/** Dynamic layout thumbnail: shows current page images by arrangement */
+function LayoutOptionThumb({
+  layoutId,
+  slotCount,
+  urls,
+  isActive,
+  className = '',
+}: {
+  layoutId: string;
+  slotCount: number;
+  urls: string[];
+  isActive: boolean;
+  className?: string;
+}) {
+  const arrangement = getArrangementForLayoutId(layoutId);
+  const getSlotSrc = (i: number) => urls[i] ?? urls[0] ?? '';
+  const placeholder = (
+    <div className="w-full h-full bg-slate-200/80 rounded-[2px] flex items-center justify-center">
+      <svg className="w-1/2 h-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+      </svg>
+    </div>
+  );
+  const slot = (i: number, extraClass = '') => {
+    const src = getSlotSrc(i);
+    return (
+      <div key={i} className={`overflow-hidden rounded-[3px] bg-slate-100 ${extraClass}`}>
+        {src ? <img src={src} alt="" className="w-full h-full object-cover" /> : placeholder}
+      </div>
+    );
+  };
+
+  let inner: React.ReactNode;
+  switch (arrangement) {
+    case 'two-up':
+      inner = (
+        <div className="w-full h-full flex gap-[2px]">
+          {slot(0, 'flex-1')}
+          {slot(1, 'flex-1')}
+        </div>
+      );
+      break;
+    case 'two-vertical':
+      inner = (
+        <div className="w-full h-full flex flex-col gap-[2px]">
+          {slot(0, 'flex-1')}
+          {slot(1, 'flex-1')}
+        </div>
+      );
+      break;
+    case 'three-grid':
+      inner = (
+        <div className="w-full h-full grid gap-[2px]" style={{ gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }}>
+          <div className="row-span-2 overflow-hidden rounded-[3px] bg-slate-100">{getSlotSrc(0) ? <img src={getSlotSrc(0)} alt="" className="w-full h-full object-cover" /> : placeholder}</div>
+          {slot(1)}
+          {slot(2)}
+        </div>
+      );
+      break;
+    case 'hero-two':
+      inner = (
+        <div className="w-full h-full grid gap-[2px]" style={{ gridTemplateRows: '1.5fr 1fr' }}>
+          {slot(0, 'min-h-0')}
+          <div className="grid grid-cols-2 gap-[2px] min-h-0">
+            {slot(1)}
+            {slot(2)}
+          </div>
+        </div>
+      );
+      break;
+    case 'four-grid':
+      inner = (
+        <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[2px]">
+          {[0, 1, 2, 3].map((i) => slot(i))}
+        </div>
+      );
+      break;
+    case 'collage':
+      inner = (
+        <div className="w-full h-full relative">
+          {[
+            { i: 0, cls: 'absolute top-0 left-0 w-[55%] h-[60%] rounded-[3px] overflow-hidden bg-slate-100' },
+            { i: 1, cls: 'absolute bottom-0 right-0 w-[55%] h-[60%] rounded-[3px] overflow-hidden bg-slate-100' },
+            { i: 2, cls: 'absolute inset-0 m-auto w-[50%] h-[50%] z-10 rounded-[3px] overflow-hidden bg-slate-100' },
+          ].map(({ i, cls }) => (
+            <div key={i} className={cls}>
+              {getSlotSrc(i) ? <img src={getSlotSrc(i)} alt="" className="w-full h-full object-cover" /> : placeholder}
+            </div>
+          ))}
+        </div>
+      );
+      break;
+    case 'cinematic':
+      inner = (
+        <div className="w-full h-full bg-slate-800 rounded-[3px] flex items-center justify-center p-[3px]">
+          <div className="w-full rounded-[2px] overflow-hidden bg-slate-100" style={{ height: '42%' }}>
+            {getSlotSrc(0) ? <img src={getSlotSrc(0)} alt="" className="w-full h-full object-cover" /> : placeholder}
+          </div>
+        </div>
+      );
+      break;
+    case 'luxury-cover':
+      inner = (
+        <div className="w-full h-full flex gap-[2px]">
+          <div className="w-[38%] flex flex-col gap-[2px]">
+            {slot(0)}
+            {slot(1)}
+            {slot(2)}
+          </div>
+          <div className="flex-1 min-w-0">{slot(3, 'w-full h-full')}</div>
+        </div>
+      );
+      break;
+    case 'luxury-inner':
+      inner = (
+        <div className="w-full h-full grid gap-[2px]" style={{ gridTemplateRows: '1.4fr 1fr' }}>
+          {slot(0, 'min-h-0')}
+          <div className="grid grid-cols-3 gap-[2px] min-h-0">
+            {slot(1)}
+            {slot(2)}
+            {slot(3)}
+          </div>
+        </div>
+      );
+      break;
+    case 'hero-four':
+      inner = (
+        <div className="w-full h-full grid gap-[2px]" style={{ gridTemplateRows: '1.2fr 1fr' }}>
+          {slot(0, 'min-h-0')}
+          <div className="grid grid-cols-4 gap-[2px] min-h-0">
+            {[1, 2, 3, 4].map((i) => slot(i))}
+          </div>
+        </div>
+      );
+      break;
+    case 'six-grid':
+      inner = (
+        <div className="w-full h-full grid grid-cols-3 grid-rows-2 gap-[2px]">
+          {[0, 1, 2, 3, 4, 5].map((i) => slot(i))}
+        </div>
+      );
+      break;
+    default:
+      inner = slot(0, 'w-full h-full');
+  }
+
+  return (
+    <div
+      className={`w-full h-full min-h-[36px] rounded-[4px] overflow-hidden border border-slate-200/80 ${isActive ? 'ring-2 ring-amber-500/80 ring-offset-1 border-amber-400/60' : ''} ${className}`}
+    >
+      {inner}
+    </div>
+  );
+}
+
+/** Single slot in the album editor: draggable when filled, droppable, click to add/replace */
+function AlbumSlotCard({
+  id,
+  slotIndex,
+  url,
+  label,
+  onOpenPicker,
+  onRemove,
+}: {
+  id: string;
+  slotIndex: number;
+  url: string | undefined;
+  label: string;
+  onOpenPicker: () => void;
+  onRemove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+    id,
+    data: { slotIndex },
+    disabled: !url,
+  });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id, data: { slotIndex } });
+  const setRef = (node: HTMLDivElement | null) => {
+    setDragRef(node);
+    setDropRef(node);
+  };
+  return (
+    <div
+      ref={setRef}
+      className={`relative flex flex-col rounded-xl overflow-hidden transition-all border-2 flex-shrink-0 group/slot ${
+        url
+          ? 'border-amber-200/80 bg-white shadow-md hover:shadow-lg cursor-grab active:cursor-grabbing'
+          : 'border-dashed border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-slate-100 cursor-pointer'
+      } ${isDragging ? 'opacity-60 z-50' : ''} ${isOver ? 'ring-2 ring-amber-400 ring-offset-2 bg-amber-50/50' : ''}`}
+      style={{ width: 88, minWidth: 88, height: 88 }}
+      onClick={() => !url && onOpenPicker()}
+    >
+      <div className="absolute top-1 left-1.5 z-10">
+        <span className="text-[10px] font-bold text-white/90 bg-black/40 rounded-md px-1.5 py-0.5">{label}</span>
+      </div>
+      {url ? (
+        <>
+          <div
+            className="absolute inset-0 flex items-center justify-center"
+            onClick={(e) => { e.stopPropagation(); onOpenPicker(); }}
+            title="Click to replace · Drag to swap with another slot"
+          >
+            <img src={url} alt="" className="w-full h-full object-cover pointer-events-none" />
+            <div
+              className="absolute inset-0 bg-black/0 group-hover/slot:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover/slot:opacity-100 gap-2"
+              {...(attributes as object)}
+              {...(listeners as object)}
+            >
+              <span className="text-[10px] font-semibold text-white bg-black/50 rounded-lg px-2 py-1">Drag to swap</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            className="absolute top-1 right-1 z-10 w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center hover:bg-red-600 shadow opacity-0 group-hover/slot:opacity-100 transition-opacity"
+            aria-label="Remove photo"
+          >
+            ×
+          </button>
+        </>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-full gap-1" onClick={onOpenPicker}>
+          <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+          <span className="text-[10px] font-semibold text-slate-500">Add photo</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -251,6 +572,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       coverPage?: EditablePageState; lastPage?: EditablePageState;
       dbTemplateId?: number; photobookId?: number;
       fromStudioAlbum?: boolean; albumImageIds?: number[]; albumName?: string;
+      /** When set from PhotoBook page: open preview in big view (flip or page) */
+      openPreview?: 'flip' | 'page';
     };
   };
 
@@ -441,6 +764,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   const [pageImages, setPageImages] = React.useState<Record<number, PageImageState>>({});
   const [pageLayouts, setPageLayouts] = React.useState<Record<number, string>>({});
   const [currentStep, setCurrentStep] = React.useState(0);
+  const [layoutQuickFilter, setLayoutQuickFilter] = React.useState<number | 'all'>('all');
   const prevPhotobookIdRef = React.useRef(photobookId);
   React.useEffect(() => {
     if (prevPhotobookIdRef.current !== photobookId) {
@@ -460,6 +784,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   const [isZoomed, setIsZoomed] = React.useState(false);
   const [flipBookPage, setFlipBookPage] = React.useState(0);
   const flipBookRef = React.useRef<any>(null);
+  const stepperRef = React.useRef<HTMLDivElement>(null);
+  const slotDndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   type BookOrientation = 'landscape' | 'portrait';
   const [bookOrientation, setBookOrientation] = React.useState<BookOrientation>(
     () => (typeof window !== 'undefined' && window.innerWidth > window.innerHeight ? 'landscape' : 'portrait')
@@ -894,10 +1220,11 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   const renderPageInner = React.useCallback((
     page: AlbumPage,
     size: 'preview' | 'pdf',
-    editOpts?: { editable?: boolean; onCropChange?: (slot: number, pos: CropPos) => void },
+    editOpts?: { editable?: boolean; onCropChange?: (slot: number, pos: CropPos) => void; forceWhiteBackground?: boolean },
   ) => {
     const st = pageImages[page.index] ?? {};
     const layoutLabel = getPageLayoutLabel(page.index, page.layoutName);
+    const arrangement = getArrangementForLayoutId(layoutLabel);
     const isCover = page.type === 'cover';
     const isLast = page.type === 'last';
     const textState: EditablePageState | undefined = isCover
@@ -910,8 +1237,11 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     const getSrc = (i: number) => urls[i] ?? urls[0] ?? st.imageDataUrl ?? '';
     const hasImg = !!getSrc(0);
 
-    const pageBg =
-      categorySlug === 'wedding'
+    // Editor preview: clean white canvas for inner pages (photo album style)
+    const useWhiteCanvas = editOpts?.forceWhiteBackground && !isCover && !isLast;
+    const pageBg = useWhiteCanvas
+      ? '#ffffff'
+      : categorySlug === 'wedding'
         ? selectedWeddingTheme.gradient
         : categorySlug === 'anniversary'
         ? `linear-gradient(135deg, ${selectedTheme.colors[0]}, ${selectedTheme.colors[2]}, ${selectedTheme.colors[4]})`
@@ -949,44 +1279,36 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
 
     let imageContent: React.ReactNode = null;
     if (hasImg) {
-      switch (layoutLabel) {
-        case 'Two Up':
+      switch (arrangement) {
+        case 'two-up':
           imageContent = (
             <div className="absolute inset-0 grid grid-cols-2 gap-2 p-2" style={{ gridTemplateRows: '1fr' }}>
               {mkImg(0, 'rounded-md')}{mkImg(1, 'rounded-md')}
             </div>
           );
           break;
-        case 'Three Grid':
+        case 'two-vertical':
+          imageContent = (
+            <div className="absolute inset-0 grid grid-cols-1 gap-2 p-2" style={{ gridTemplateRows: '1fr 1fr' }}>
+              {mkImg(0, 'rounded-md')}{mkImg(1, 'rounded-md')}
+            </div>
+          );
+          break;
+        case 'three-grid':
           imageContent = (
             <div className="absolute inset-0 grid gap-2 p-2" style={{ gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }}>
               <div className="relative overflow-hidden rounded-md" style={{ gridRow: '1 / 3', minWidth: 0, minHeight: 0 }}>
                 {editOpts?.editable ? (
-                  <DraggableCropImage
-                    src={getSrc(0)}
-                    alt={`Page ${page.index + 1} img 1`}
-                    cropPos={crops[0] ?? { x: 50, y: 50 }}
-                    onCropChange={(p) => editOpts.onCropChange?.(0, p)}
-                    className="w-full h-full"
-                  />
+                  <DraggableCropImage src={getSrc(0)} alt={`Page ${page.index + 1} img 1`} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" />
                 ) : (
-                  <img src={getSrc(0)} alt={`Page ${page.index + 1} img 1`} draggable={false}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%` }} />
+                  <img src={getSrc(0)} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%` }} />
                 )}
               </div>
               {mkImg(1, 'rounded-md')}{mkImg(2, 'rounded-md')}
             </div>
           );
           break;
-        case 'Four Grid':
-          imageContent = (
-            <div className="absolute inset-0 grid gap-2 p-2" style={{ gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }}>
-              {[0,1,2,3].map(i => mkImg(i, 'rounded-md'))}
-            </div>
-          );
-          break;
-        case 'Hero + Two':
+        case 'hero-two':
           imageContent = (
             <div className="absolute inset-0 grid gap-2 p-2" style={{ gridTemplateRows: '1.5fr 1fr' }}>
               {mkImg(0, 'rounded-md')}
@@ -994,28 +1316,14 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             </div>
           );
           break;
-        case 'Cinematic Spread':
+        case 'four-grid':
           imageContent = (
-            <div className="absolute inset-0 bg-black flex items-center justify-center p-3">
-              <div className="relative w-full rounded-md overflow-hidden" style={{ aspectRatio: '2.35/1', maxHeight: '70%' }}>
-                {editOpts?.editable ? (
-                  <DraggableCropImage
-                    src={getSrc(0)}
-                    alt={`Page ${page.index + 1} img 1`}
-                    cropPos={crops[0] ?? { x: 50, y: 50 }}
-                    onCropChange={(p) => editOpts.onCropChange?.(0, p)}
-                    className="w-full h-full"
-                  />
-                ) : (
-                  <img src={getSrc(0)} alt={`Page ${page.index + 1} img 1`} draggable={false}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%` }} />
-                )}
-              </div>
+            <div className="absolute inset-0 grid gap-2 p-2" style={{ gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }}>
+              {[0,1,2,3].map(i => mkImg(i, 'rounded-md'))}
             </div>
           );
           break;
-        case 'Collage':
+        case 'collage':
           imageContent = (
             <div className="absolute inset-0">
               {[
@@ -1025,19 +1333,80 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               ].map(({ idx, cls }) => (
                 <div key={idx} className={cls}>
                   {editOpts?.editable ? (
-                    <DraggableCropImage
-                      src={getSrc(idx)}
-                      alt=""
-                      cropPos={crops[idx] ?? { x: 50, y: 50 }}
-                      onCropChange={(p) => editOpts.onCropChange?.(idx, p)}
-                      className="w-full h-full"
-                    />
+                    <DraggableCropImage src={getSrc(idx)} alt="" cropPos={crops[idx] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(idx, p)} className="w-full h-full" />
                   ) : (
-                    <img src={getSrc(idx)} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover"
-                      style={{ objectPosition: `${(crops[idx]?.x ?? 50)}% ${(crops[idx]?.y ?? 50)}%` }} />
+                    <img src={getSrc(idx)} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `${(crops[idx]?.x ?? 50)}% ${(crops[idx]?.y ?? 50)}%` }} />
                   )}
                 </div>
               ))}
+            </div>
+          );
+          break;
+        case 'cinematic':
+          imageContent = (
+            <div className="absolute inset-0 bg-black flex items-center justify-center p-3">
+              <div className="relative w-full rounded-md overflow-hidden" style={{ aspectRatio: '2.35/1', maxHeight: '70%' }}>
+                {editOpts?.editable ? (
+                  <DraggableCropImage src={getSrc(0)} alt={`Page ${page.index + 1} img 1`} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" />
+                ) : (
+                  <img src={getSrc(0)} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%` }} />
+                )}
+              </div>
+            </div>
+          );
+          break;
+        case 'luxury-cover':
+          imageContent = (
+            <div className="absolute inset-0 flex gap-3 p-3">
+              <div className="w-[38%] flex flex-col gap-3">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="flex-1 min-h-0 rounded-lg overflow-hidden shadow-md">
+                    {mkImg(i, 'w-full h-full')}
+                  </div>
+                ))}
+              </div>
+              <div className="flex-1 min-w-0 rounded-lg overflow-hidden shadow-lg">
+                {mkImg(3, 'w-full h-full')}
+              </div>
+            </div>
+          );
+          break;
+        case 'luxury-inner':
+          imageContent = (
+            <div className="absolute inset-0 grid gap-3 p-3" style={{ gridTemplateRows: '1.4fr 1fr' }}>
+              <div className="min-h-0 rounded-lg overflow-hidden shadow-md">
+                {mkImg(0, 'w-full h-full')}
+              </div>
+              <div className="grid grid-cols-3 gap-3 min-h-0">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="min-h-0 rounded-lg overflow-hidden shadow-md">
+                    {mkImg(i, 'w-full h-full')}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+          break;
+        case 'hero-four':
+          imageContent = (
+            <div className="absolute inset-0 grid gap-3 p-3" style={{ gridTemplateRows: '1.2fr 1fr' }}>
+              <div className="min-h-0 rounded-lg overflow-hidden shadow-md">
+                {mkImg(0, 'w-full h-full')}
+              </div>
+              <div className="grid grid-cols-4 gap-3 min-h-0">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="min-h-0 rounded-lg overflow-hidden shadow-md">
+                    {mkImg(i, 'w-full h-full')}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+          break;
+        case 'six-grid':
+          imageContent = (
+            <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 gap-2 p-2">
+              {[0, 1, 2, 3, 4, 5].map((i) => mkImg(i, 'rounded-md'))}
             </div>
           );
           break;
@@ -1045,17 +1414,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           imageContent = (
             <div className="absolute inset-0">
               {editOpts?.editable ? (
-                <DraggableCropImage
-                  src={getSrc(0)}
-                  alt={`Page ${page.index + 1}`}
-                  cropPos={crops[0] ?? { x: 50, y: 50 }}
-                  onCropChange={(p) => editOpts.onCropChange?.(0, p)}
-                  className="w-full h-full"
-                />
+                <DraggableCropImage src={getSrc(0)} alt={`Page ${page.index + 1}`} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" />
               ) : (
-                <img src={getSrc(0)} alt={`Page ${page.index + 1}`} draggable={false}
-                  className="w-full h-full object-cover"
-                  style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%` }} />
+                <img src={getSrc(0)} alt={`Page ${page.index + 1}`} draggable={false} className="w-full h-full object-cover" style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%` }} />
               )}
             </div>
           );
@@ -1237,6 +1598,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         const page = albumPages[i];
         const st = pageImages[page.index] ?? {};
         const layoutLabel = getPageLayoutLabel(page.index, page.layoutName);
+        const arrangement = getArrangementForLayoutId(layoutLabel);
         const isCover = page.type === 'cover';
         const isLast = page.type === 'last';
 
@@ -1253,16 +1615,15 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           : 'linear-gradient(135deg, #fafafa, #f1f5f9)';
         fillGradient(ctx, W, H, bgStr);
 
-        // Collect image sources
+        // Collect image sources — load up to 6 for six-grid / hero-four
         const urls = st.imageDataUrls ?? (st.imageDataUrl ? [st.imageDataUrl] : []);
         const getUrl = (idx: number) => urls[idx] ?? urls[0] ?? st.imageDataUrl ?? '';
 
-        // Load images
         const images: (HTMLImageElement | null)[] = [];
         const urlSet = new Set<string>();
-        for (let s = 0; s < 4; s++) {
+        for (let s = 0; s < 6; s++) {
           const u = getUrl(s);
-          if (u && !urlSet.has(u)) { urlSet.add(u); }
+          if (u && !urlSet.has(u)) urlSet.add(u);
           images[s] = u ? await loadImage(u) : null;
         }
 
@@ -1271,15 +1632,22 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         const getImg = (idx: number) => images[idx] ?? images[0];
 
         if (images[0]) {
-          switch (layoutLabel) {
-            case 'Two Up': {
+          switch (arrangement) {
+            case 'two-up': {
               const colW = (W - pad * 2 - gap) / 2;
               const h = H - pad * 2;
               drawCover(ctx, getImg(0)!, pad, pad, colW, h, crops[0], rad);
               drawCover(ctx, getImg(1)!, pad + colW + gap, pad, colW, h, crops[1], rad);
               break;
             }
-            case 'Three Grid': {
+            case 'two-vertical': {
+              const rowH = (H - pad * 2 - gap) / 2;
+              const fullW = W - pad * 2;
+              drawCover(ctx, getImg(0)!, pad, pad, fullW, rowH, crops[0], rad);
+              drawCover(ctx, getImg(1)!, pad, pad + rowH + gap, fullW, rowH, crops[1], rad);
+              break;
+            }
+            case 'three-grid': {
               const colW = (W - pad * 2 - gap) / 2;
               const rowH = (H - pad * 2 - gap) / 2;
               const fullH = H - pad * 2;
@@ -1288,7 +1656,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               drawCover(ctx, getImg(2)!, pad + colW + gap, pad + rowH + gap, colW, rowH, crops[2], rad);
               break;
             }
-            case 'Four Grid': {
+            case 'four-grid': {
               const colW = (W - pad * 2 - gap) / 2;
               const rowH = (H - pad * 2 - gap) / 2;
               for (let r = 0; r < 2; r++) {
@@ -1299,7 +1667,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               }
               break;
             }
-            case 'Hero + Two': {
+            case 'hero-two': {
               const heroH = Math.round((H - pad * 2 - gap) * 0.6);
               const btmH = H - pad * 2 - gap - heroH;
               const colW = (W - pad * 2 - gap) / 2;
@@ -1308,7 +1676,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               drawCover(ctx, getImg(2)!, pad + colW + gap, pad + heroH + gap, colW, btmH, crops[2], rad);
               break;
             }
-            case 'Cinematic Spread': {
+            case 'cinematic': {
               ctx.fillStyle = '#000000';
               ctx.fillRect(0, 0, W, H);
               const cinePad = 32;
@@ -1318,7 +1686,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               drawCover(ctx, getImg(0)!, cinePad, imgY, imgW, imgH, crops[0], rad);
               break;
             }
-            case 'Collage': {
+            case 'collage': {
               const cw = Math.round(W * 0.52), ch = Math.round(H * 0.56);
               ctx.save(); ctx.translate(pad, pad + 10); ctx.rotate(-3 * Math.PI / 180);
               drawCover(ctx, getImg(0)!, 0, 0, cw, ch, crops[0], rad); ctx.restore();
@@ -1326,6 +1694,47 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               drawCover(ctx, getImg(1)!, 0, 0, cw, ch, crops[1], rad); ctx.restore();
               const mw = Math.round(W * 0.56), mh = Math.round(H * 0.52);
               drawCover(ctx, getImg(2)!, (W - mw) / 2, (H - mh) / 2, mw, mh, crops[2], rad);
+              break;
+            }
+            case 'luxury-cover': {
+              const leftW = Math.round((W - pad * 2 - gap) * 0.38);
+              const rightW = W - pad * 2 - gap - leftW;
+              const rowH = (H - pad * 2 - gap * 2) / 3;
+              drawCover(ctx, getImg(0)!, pad, pad, leftW, rowH, crops[0], rad);
+              drawCover(ctx, getImg(1)!, pad, pad + rowH + gap, leftW, rowH, crops[1], rad);
+              drawCover(ctx, getImg(2)!, pad, pad + (rowH + gap) * 2, leftW, rowH, crops[2], rad);
+              drawCover(ctx, getImg(3)!, pad + leftW + gap, pad, rightW, H - pad * 2, crops[3], rad);
+              break;
+            }
+            case 'luxury-inner': {
+              const heroH = Math.round((H - pad * 2 - gap) * 0.58);
+              const btmH = H - pad * 2 - gap - heroH;
+              const colW = (W - pad * 2 - gap * 2) / 3;
+              drawCover(ctx, getImg(0)!, pad, pad, W - pad * 2, heroH, crops[0], rad);
+              drawCover(ctx, getImg(1)!, pad, pad + heroH + gap, colW, btmH, crops[1], rad);
+              drawCover(ctx, getImg(2)!, pad + colW + gap, pad + heroH + gap, colW, btmH, crops[2], rad);
+              drawCover(ctx, getImg(3)!, pad + (colW + gap) * 2, pad + heroH + gap, colW, btmH, crops[3], rad);
+              break;
+            }
+            case 'hero-four': {
+              const heroH = Math.round((H - pad * 2 - gap) * 0.55);
+              const btmH = H - pad * 2 - gap - heroH;
+              const colW = (W - pad * 2 - gap * 3) / 4;
+              drawCover(ctx, getImg(0)!, pad, pad, W - pad * 2, heroH, crops[0], rad);
+              for (let c = 0; c < 4; c++) {
+                drawCover(ctx, getImg(c + 1)!, pad + c * (colW + gap), pad + heroH + gap, colW, btmH, crops[c + 1], rad);
+              }
+              break;
+            }
+            case 'six-grid': {
+              const colW = (W - pad * 2 - gap * 2) / 3;
+              const rowH = (H - pad * 2 - gap) / 2;
+              for (let r = 0; r < 2; r++) {
+                for (let c = 0; c < 3; c++) {
+                  const idx = r * 3 + c;
+                  drawCover(ctx, getImg(idx)!, pad + c * (colW + gap), pad + r * (rowH + gap), colW, rowH, crops[idx], rad);
+                }
+              }
               break;
             }
             default:
@@ -1502,6 +1911,29 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [slideshowActive, showSinglePageView, albumPages.length, slideshowSpeed]);
 
+  // When navigated from PhotoBook with openPreview: open flip book or page view in big view
+  React.useEffect(() => {
+    const mode = location.state?.openPreview;
+    if (!mode || !albumPages.length || isLoading) return;
+    if (mode === 'flip') {
+      setShowFlipBook(true);
+    } else if (mode === 'page') {
+      setShowSinglePageView(true);
+      setSinglePageIndex(0);
+    }
+    const pathname = (location as { pathname?: string }).pathname ?? window.location.pathname;
+    navigate(pathname, { replace: true, state: { ...location.state, openPreview: undefined } });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [albumPages.length, isLoading, location.state?.openPreview]);
+
+  // Scroll active page thumb into view in the stepper
+  React.useEffect(() => {
+    const el = stepperRef.current;
+    if (!el) return;
+    const activeBtn = el.querySelector('[data-active-step="true"]');
+    activeBtn?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }, [currentStep, albumPages.length]);
+
   // Keyboard navigation: arrows for editor stepper + single-page view, Escape to close modals
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -1550,6 +1982,27 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showSinglePageView, showFlipBook, albumPages.length, isZoomed]);
 
+  // Collect all photo URLs used in the album (for left sidebar library)
+  const libraryPhotoUrls = React.useMemo(() => {
+    const urls: string[] = [];
+    const seen = new Set<string>();
+    albumPages.forEach((p) => {
+      const st = pageImages[p.index];
+      const list = st?.imageDataUrls ?? (st?.imageDataUrl ? [st.imageDataUrl] : []);
+      list.forEach((u) => {
+        if (u && !seen.has(u)) {
+          seen.add(u);
+          urls.push(u);
+        }
+      });
+    });
+    return urls;
+  }, [albumPages, pageImages]);
+
+  const [librarySearch, setLibrarySearch] = React.useState('');
+  const [libraryFilter, setLibraryFilter] = React.useState<'all' | 'recent'>('all');
+  const [canvasZoom, setCanvasZoom] = React.useState(100);
+
   if (!template) {
     return (
       <div className="space-y-4 w-full">
@@ -1561,8 +2014,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 w-full">
-      {/* Print styles to hide nav/header and keep only album pages */}
+    <div className="flex flex-col min-h-screen w-full bg-gradient-to-b from-slate-50/80 to-white">
+      {/* Print styles */}
       <style>{`
         @media print {
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -1570,7 +2023,6 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           .no-print { display: none !important; }
           html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
           main { padding: 0 !important; margin: 0 !important; }
-          /* Only images: 1 section = 1 page, no overflow to next page */
           .album-page-card { border: none !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; background: transparent !important; width: 100% !important; height: 100vh !important; max-height: 100vh !important; overflow: hidden !important; page-break-after: always !important; page-break-inside: avoid !important; display: flex !important; flex-direction: column !important; }
           .album-page-card:last-child { page-break-after: auto !important; }
           .album-page-card .album-card-no-print { display: none !important; }
@@ -1586,119 +2038,163 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         }
       `}</style>
 
-      {/* Loading overlay */}
       {isLoading && (
-        <div className="no-print rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 px-5 py-4 text-sm text-indigo-700 flex items-center gap-3">
-          <div className="relative w-5 h-5">
-            <div className="absolute inset-0 rounded-full border-2 border-indigo-200" />
-            <div className="absolute inset-0 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
-          </div>
-          <div>
-            <p className="font-semibold">Loading your album...</p>
-            <p className="text-xs text-indigo-500 mt-0.5">Restoring pages, images, and captions</p>
-          </div>
-        </div>
-      )}
-
-      {/* Studio album info banner */}
-      {studioAlbumImageIds && (
-        <div className="no-print rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200/60 px-4 py-3 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
-            <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-          </div>
-          <div className="text-xs text-indigo-700">
-            <span className="font-bold">{studioAlbumName || 'Studio Album'}</span>
-            <span className="text-indigo-500"> — {studioAlbumImageIds.length} images from your album are available for selection</span>
-          </div>
-        </div>
-      )}
-
-      {/* Header (hidden in print) */}
-      <div className="no-print relative overflow-hidden rounded-2xl border border-slate-200/60 bg-gradient-to-br from-slate-50 to-white p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.06),0_12px_40px_-10px_rgba(15,23,42,0.06)]">
-        <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-500 rounded-t-2xl" />
-        <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-400/5 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-sm">
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+        <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+          <div className="rounded-2xl border border-indigo-100 bg-white px-6 py-5 shadow-xl flex items-center gap-4">
+            <div className="relative w-10 h-10">
+              <div className="absolute inset-0 rounded-full border-2 border-indigo-200" />
+              <div className="absolute inset-0 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-slate-900 tracking-tight">Album Builder</h1>
-              <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
-                <span className="capitalize font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">{categorySlug || 'custom'}</span>
-                <span className="text-slate-300">·</span>
-                <span>{template.name}</span>
-                <span className="text-slate-300">·</span>
-                <span className="text-slate-400">{albumPages.length} pages</span>
-              </p>
+              <p className="font-semibold text-slate-800">Loading your album...</p>
+              <p className="text-xs text-slate-500 mt-0.5">Restoring pages and photos</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {studioAlbumImageIds && (
+        <div className="no-print mx-4 mt-2 rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200/60 px-4 py-2.5 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
+            <FaImages className="w-4 h-4 text-indigo-600" />
+          </div>
+          <span className="text-xs text-indigo-700">
+            <span className="font-bold">{studioAlbumName || 'Studio Album'}</span>
+            <span className="text-indigo-500"> — {studioAlbumImageIds.length} images available</span>
+          </span>
+        </div>
+      )}
+
+      {/* 1. Top Navigation Bar */}
+      <header className="no-print sticky top-0 z-30 flex items-center justify-between gap-4 px-4 py-3 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-4 min-w-0">
+          <button
+            type="button"
+            onClick={() => navigate(`/photo-themes/${categorySlug}`, { state: { templateId: dbTemplateId, photobookId } })}
+            className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+            aria-label="Back"
+          >
+            <FaArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="min-w-0">
+            <h1 className="text-base font-bold text-slate-900 truncate">
+              {studioAlbumName || template?.name || 'My Album'}
+            </h1>
+            <p className="text-xs text-slate-500 truncate">
+              {template?.name} · {albumPages.length} pages
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="hidden sm:flex items-center gap-1 rounded-lg bg-slate-100 p-1" title="Undo/Redo coming soon">
+            <button type="button" className="rounded-md px-2 py-1 text-[10px] font-semibold text-slate-400" disabled>Undo</button>
+            <button type="button" className="rounded-md px-2 py-1 text-[10px] font-semibold text-slate-400" disabled>Redo</button>
+          </div>
+          <div className="w-24 h-2 rounded-full bg-slate-200 overflow-hidden" title={`${albumPages.filter((p) => pageImages[p.index]?.imageDataUrl || (pageImages[p.index]?.imageDataUrls?.length ?? 0) > 0).length} of ${albumPages.length} pages filled`}>
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-300"
+              style={{ width: `${Math.round((albumPages.filter((p) => pageImages[p.index]?.imageDataUrl || (pageImages[p.index]?.imageDataUrls?.length ?? 0) > 0).length / Math.max(1, albumPages.length)) * 100)}%` }}
+            />
           </div>
           <button
             type="button"
-            onClick={() => navigate(`/photo-themes/${categorySlug}`, {
-              state: { templateId: dbTemplateId, photobookId },
-            })}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-colors"
+            onClick={handleOpenFlipBook}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
           >
-            <FaEdit className="w-3.5 h-3.5 text-indigo-500" />
-            Edit Covers
+            <FaImages className="w-3.5 h-3.5" /> Preview
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveAlbum}
+            disabled={isSaving}
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm"
+          >
+            {isSaving ? <FaSpinner className="w-3.5 h-3.5 animate-spin" /> : <FaSave className="w-3.5 h-3.5" />}
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            disabled={isGeneratingPdf}
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
+          >
+            {isGeneratingPdf ? <FaSpinner className="w-3.5 h-3.5 animate-spin" /> : <FaDownload className="w-3.5 h-3.5" />}
+            Export
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Album pages – in print only images; toolbar hidden in print */}
-      <div className="album-pages-section rounded-2xl border border-slate-200/80 bg-white/95 shadow-[0_4px_20px_rgba(15,23,42,0.06)] overflow-hidden backdrop-blur-sm print:shadow-none print:border-0 print:bg-transparent print:rounded-none">
-        <div className="no-print flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-5 rounded-full bg-indigo-500" />
-            <h2 className="text-sm font-bold text-slate-800 tracking-tight">Page Editor</h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {categorySlug === 'anniversary' && (
-              <select
-                className="rounded-lg border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
-                value={selectedColorTheme}
-                onChange={(e) => setSelectedColorTheme(e.target.value)}
-              >
-                {anniversaryColorThemes.map((theme) => (
-                  <option key={theme.id} value={theme.id}>{theme.name}</option>
-                ))}
-              </select>
-            )}
-            {categorySlug === 'wedding' && (
-              <select
-                className="rounded-lg border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 min-w-[8rem]"
-                value={selectedWeddingBackground}
-                onChange={(e) => setSelectedWeddingBackground(e.target.value)}
-              >
-                {weddingBackgroundThemes.map((theme) => (
-                  <option key={theme.id} value={theme.id}>{theme.name}</option>
-                ))}
-              </select>
-            )}
-            <select
-              className="rounded-lg border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
-              value={pageCount}
-              onChange={(e) => setPageCount(Number(e.target.value))}
-            >
-              {[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].map((n) => (
-                <option key={n} value={n}>{n} pages</option>
+      {/* 2. Main workspace: Left sidebar | Center canvas | Right sidebar */}
+      <div className="album-pages-section flex-1 flex min-h-0 no-print">
+        {/* Left Sidebar — Photo Library */}
+        <aside className="w-56 lg:w-64 shrink-0 border-r border-slate-200/80 bg-white flex flex-col overflow-hidden">
+          <div className="p-3 border-b border-slate-100">
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+              <FaImages className="w-3.5 h-3.5 text-indigo-500" />
+              Photo Library
+            </h2>
+            <div className="mt-2 relative">
+              <FaSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search photos..."
+                value={librarySearch}
+                onChange={(e) => setLibrarySearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50/50 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+              />
+            </div>
+            <div className="flex gap-1 mt-2">
+              {(['all', 'recent'] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setLibraryFilter(f)}
+                  className={`flex-1 rounded-lg py-1.5 text-[10px] font-semibold capitalize transition-colors ${
+                    libraryFilter === f ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                  }`}
+                >
+                  {f}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
-        </div>
+          <div className="flex-1 overflow-y-auto p-2">
+            <p className="text-[10px] text-slate-400 mb-2">Photos in this album ({libraryPhotoUrls.length})</p>
+            <div className="grid grid-cols-2 gap-2">
+              {libraryPhotoUrls.slice(0, 24).map((url, i) => (
+                <div key={`${url}-${i}`} className="aspect-square rounded-lg overflow-hidden border border-slate-200/80 bg-slate-50 shadow-sm">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="p-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                const idx = Math.min(currentStep, Math.max(0, albumPages.length - 1));
+                const p = albumPages[idx];
+                if (p) setPageImagePickerFor({ pageIndex: p.index, layout: getPageLayoutLabel(p.index, p.layoutName) });
+              }}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 text-xs font-semibold shadow-sm transition-colors"
+            >
+              <FaPlus className="w-3.5 h-3.5" />
+              Add from library
+            </button>
+          </div>
+        </aside>
 
-        {/* ── Step-by-step page editor ─────────────────────── */}
+        {/* Center + Right: canvas and settings (from step editor) */}
         {(() => {
           const safeStep = Math.min(currentStep, albumPages.length - 1);
           const page = albumPages[safeStep];
-          if (!page) return null;
+          if (!page) return <div className="flex-1 flex min-h-0" />;
           const state = pageImages[page.index] ?? {};
           const layoutLabel = getPageLayoutLabel(page.index, page.layoutName);
           const isCover = page.type === 'cover';
           const isLast = page.type === 'last';
-          const isMultiLayout = MULTI_IMAGE_LAYOUTS.includes(layoutLabel);
-          const slotCount = isMultiLayout ? (MULTI_IMAGE_SLOT_COUNT[layoutLabel] ?? 2) : 1;
+          const slotCount = getSlotCountForLayoutId(layoutLabel);
           const urls = state.imageDataUrls ?? (state.imageDataUrl ? [state.imageDataUrl] : []);
           const captions = state.slotCaptions ?? {};
 
@@ -1722,168 +2218,186 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             }));
           };
 
-          const filledPages = albumPages.filter(p => {
-            const s = pageImages[p.index];
-            return s && (s.imageDataUrl || (s.imageDataUrls?.length ?? 0) > 0);
-          }).length;
-          const progressPct = Math.round((filledPages / albumPages.length) * 100);
+          const handleSlotDragEnd = (event: DragEndEvent) => {
+            const { active, over } = event;
+            if (!over || active.id === over.id) return;
+            const a = String(active.id).match(/^slot-(\d+)-(\d+)$/);
+            const b = String(over.id).match(/^slot-(\d+)-(\d+)$/);
+            if (!a || !b || a[1] !== b[1]) return;
+            const pageIdx = Number(a[1]);
+            const fromSlot = Number(a[2]);
+            const toSlot = Number(b[2]);
+            setPageImages((prev) => {
+              const cur = prev[pageIdx] ?? {};
+              const urlList = [...(cur.imageDataUrls ?? (cur.imageDataUrl ? [cur.imageDataUrl] : []))];
+              const ids = [...(cur.imageIds ?? [])];
+              while (urlList.length <= Math.max(fromSlot, toSlot)) urlList.push('');
+              while (ids.length <= Math.max(fromSlot, toSlot)) ids.push(0);
+              [urlList[fromSlot], urlList[toSlot]] = [urlList[toSlot], urlList[fromSlot]];
+              [ids[fromSlot], ids[toSlot]] = [ids[toSlot], ids[fromSlot]];
+              return {
+                ...prev,
+                [pageIdx]: { ...cur, imageDataUrl: urlList[0] || '', imageDataUrls: urlList, imageIds: ids },
+              };
+            });
+          };
+
+          const filteredLayoutConfig = layoutQuickFilter === 'all'
+            ? PAGE_LAYOUT_CONFIG
+            : PAGE_LAYOUT_CONFIG.filter((c) => c.slotCount === layoutQuickFilter);
 
           return (
-            <div className="p-4 flex flex-col" style={{ minHeight: 'calc(100vh - 220px)' }}>
-              {/* ── Progress bar ── */}
-              <div className="flex items-center gap-3 mb-2">
-                <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500 ease-out"
-                    style={{
-                      width: `${progressPct}%`,
-                      background: progressPct === 100
-                        ? 'linear-gradient(90deg, #10b981, #059669)'
-                        : 'linear-gradient(90deg, #6366f1, #818cf8)',
-                    }}
-                  />
-                </div>
-                <span className={`text-[10px] font-bold ${progressPct === 100 ? 'text-emerald-600' : 'text-slate-400'}`}>
-                  {filledPages}/{albumPages.length}
-                </span>
-              </div>
-
-              {/* ── Horizontal stepper — thumbnail strip ── */}
-              <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-2 scrollbar-thin">
-                {albumPages.map((p, i) => {
-                  const pState = pageImages[p.index] ?? {};
-                  const hasImg = !!(pState.imageDataUrl || (pState.imageDataUrls?.length ?? 0) > 0);
-                  const active = i === safeStep;
-                  const pIsCover = p.type === 'cover';
-                  const pIsLast = p.type === 'last';
-                  return (
-                    <button
-                      key={p.index}
-                      type="button"
-                      onClick={() => setCurrentStep(i)}
-                      className={`flex-shrink-0 rounded-lg overflow-hidden transition-all border-2 ${
-                        active
-                          ? 'border-indigo-500 shadow-md shadow-indigo-200/50 scale-105'
-                          : hasImg
-                          ? 'border-emerald-300 hover:border-emerald-400'
-                          : 'border-slate-200 hover:border-slate-300 opacity-70 hover:opacity-100'
-                      }`}
-                      style={{ width: 44, height: 34 }}
-                      title={pIsCover ? 'Cover' : pIsLast ? 'Last Page' : `Page ${p.index + 1}`}
-                    >
-                      {hasImg && pState.imageDataUrl ? (
-                        <img src={pState.imageDataUrl} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className={`w-full h-full flex items-center justify-center text-[9px] font-bold ${
-                          active ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-50 text-slate-400'
-                        }`}>
-                          {pIsCover ? 'C' : pIsLast ? 'L' : p.index + 1}
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* ── Page header + visual layout picker ── */}
-              <div className="flex items-center justify-between gap-3 mb-2">
-                <div className="flex items-center gap-2">
-                  <span className={`text-[11px] font-bold uppercase tracking-wider rounded-lg px-2.5 py-1 ${
-                    isCover ? 'bg-cyan-100 text-cyan-800' : isLast ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+            <>
+              {/* 3. Center — Album Canvas */}
+              <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-gradient-to-b from-slate-50/50 to-white p-4">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <span className={`text-xs font-semibold uppercase tracking-wider rounded-lg px-3 py-1.5 ${
+                    isCover ? 'bg-amber-100 text-amber-900' : isLast ? 'bg-stone-100 text-stone-800' : 'bg-slate-100 text-slate-700'
                   }`}>
                     {isCover ? 'Cover' : isLast ? 'Back' : `Page ${page.index + 1}`}
                   </span>
+                  <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
+                    <button type="button" onClick={() => setCanvasZoom((z) => Math.max(50, z - 10))} className="rounded-md px-2 py-1 text-xs font-bold text-slate-600 hover:bg-white">−</button>
+                    <span className="text-[10px] font-semibold text-slate-500 min-w-[2.5rem] text-center">{canvasZoom}%</span>
+                    <button type="button" onClick={() => setCanvasZoom((z) => Math.min(150, z + 10))} className="rounded-md px-2 py-1 text-xs font-bold text-slate-600 hover:bg-white">+</button>
+                  </div>
                 </div>
-                <span className="text-[10px] text-slate-400 font-medium">{safeStep + 1} / {albumPages.length}</span>
-              </div>
-              {/* Visual layout thumbnails */}
-              <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1">
-                {PAGE_LAYOUT_OPTIONS.map((opt) => {
-                  const active = layoutLabel === opt;
-                  const miniLayout: Record<string, React.ReactNode> = {
-                    'Single Photo': <div className="w-full h-full bg-indigo-300 rounded-[2px]" />,
-                    'Two Up': <div className="w-full h-full flex gap-[1px]"><div className="flex-1 bg-indigo-300 rounded-l-[2px]" /><div className="flex-1 bg-indigo-400 rounded-r-[2px]" /></div>,
-                    'Three Grid': <div className="w-full h-full grid gap-[1px]" style={{ gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }}><div className="bg-indigo-300 rounded-tl-[2px]" style={{ gridRow: '1/3' }} /><div className="bg-indigo-400 rounded-tr-[2px]" /><div className="bg-indigo-500 rounded-br-[2px]" /></div>,
-                    'Four Grid': <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px]"><div className="bg-indigo-300 rounded-tl-[2px]" /><div className="bg-indigo-400 rounded-tr-[2px]" /><div className="bg-indigo-400 rounded-bl-[2px]" /><div className="bg-indigo-500 rounded-br-[2px]" /></div>,
-                    'Hero + Two': <div className="w-full h-full grid gap-[1px]" style={{ gridTemplateRows: '1.5fr 1fr' }}><div className="bg-indigo-300 rounded-t-[2px]" /><div className="flex gap-[1px]"><div className="flex-1 bg-indigo-400 rounded-bl-[2px]" /><div className="flex-1 bg-indigo-500 rounded-br-[2px]" /></div></div>,
-                    'Cinematic Spread': <div className="w-full h-full bg-slate-800 flex items-center justify-center p-[2px]"><div className="w-full bg-indigo-300 rounded-[1px]" style={{ height: '40%' }} /></div>,
-                  };
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      title={opt}
-                      onClick={() => {
-                        setPageLayouts((prev) => {
-                          setPageImages((prevImages) => ({
-                            ...prevImages,
-                            [page.index]: { ...(prevImages[page.index] ?? {}), layout: opt },
-                          }));
-                          return { ...prev, [page.index]: opt };
-                        });
+                <div className="flex-1 flex items-center justify-center min-h-0 gap-2">
+                  <button
+                    type="button"
+                    disabled={safeStep === 0}
+                    onClick={() => setCurrentStep((s) => Math.max(0, s - 1))}
+                    className="shrink-0 w-10 h-10 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Previous page"
+                  >
+                    <FaChevronLeft className="w-4 h-4" />
+                  </button>
+                  <div
+                    className="flex-1 flex items-center justify-center min-h-0 max-w-4xl"
+                    style={{ transform: `scale(${canvasZoom / 100})`, transformOrigin: 'center center' }}
+                  >
+                    <div
+                      className="relative w-full rounded-xl overflow-hidden bg-white border border-slate-200/80 shadow-lg"
+                      style={{
+                        aspectRatio: '4/3',
+                        maxHeight: 'calc(100vh - 280px)',
+                        boxShadow: '0 0 0 1px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.08)',
                       }}
-                      className={`shrink-0 flex flex-col items-center gap-1 rounded-lg p-1.5 transition-all ${
-                        active
-                          ? 'bg-indigo-50 ring-2 ring-indigo-400 shadow-sm'
-                          : 'bg-slate-50 hover:bg-slate-100 border border-slate-200/60'
-                      }`}
                     >
-                      <div className={`w-10 h-8 rounded-[3px] overflow-hidden ${active ? 'opacity-100' : 'opacity-60'}`}>
-                        {miniLayout[opt] ?? <div className="w-full h-full bg-slate-300 rounded-[2px]" />}
-                      </div>
-                      <span className={`text-[8px] font-bold leading-none ${active ? 'text-indigo-700' : 'text-slate-400'}`}>
-                        {opt === 'Cinematic Spread' ? 'Cinema' : opt === 'Single Photo' ? 'Single' : opt === 'Hero + Two' ? 'Hero' : opt}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* ── Page preview — paper-like with depth shadow ── */}
-              <div className="flex-1 min-h-0 flex items-center justify-center">
-                <div
-                  className="relative w-full rounded-xl overflow-hidden transition-shadow duration-300"
-                  style={{
-                    aspectRatio: '4/3',
-                    maxHeight: 'calc(100vh - 420px)',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.08), 0 24px 48px -12px rgba(0,0,0,0.12), inset 0 0 0 1px rgba(0,0,0,0.06)',
-                  }}
-                >
-                  {renderPageInner(page, 'preview', { editable: true, onCropChange: onCrop })}
+                      {renderPageInner(page, 'preview', { editable: true, onCropChange: onCrop, forceWhiteBackground: true })}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={safeStep >= albumPages.length - 1}
+                    onClick={() => setCurrentStep((s) => Math.min(albumPages.length - 1, s + 1))}
+                    className="shrink-0 w-10 h-10 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    aria-label="Next page"
+                  >
+                    <FaChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
-              </div>
+              </main>
 
-              {/* ── Controls below preview ── */}
-              <div className="space-y-3 pt-3 border-t border-slate-100">
-                {/* Image slots + Pick button */}
-                <div className="flex items-center gap-3">
-                  {/* Current images preview */}
-                  <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto">
-                    {Array.from({ length: slotCount }).map((_, si) => {
-                      const slotUrl = isMultiLayout ? urls[si] : (si === 0 ? state.imageDataUrl : undefined);
-                      return (
-                        <div key={si} className="relative flex-shrink-0 group/slot">
-                          <div className={`w-14 h-14 rounded-xl overflow-hidden transition-all ${
-                            slotUrl
-                              ? 'border-2 border-emerald-300 shadow-sm shadow-emerald-100'
-                              : 'border-2 border-dashed border-slate-300 bg-slate-50 hover:border-indigo-300 hover:bg-indigo-50/50'
-                          }`}>
-                            {slotUrl ? (
-                              <img src={slotUrl} alt={`Slot ${si + 1}`} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="flex flex-col items-center justify-center h-full gap-0.5">
-                                <svg className="w-4 h-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                                <span className="text-[8px] text-slate-400 font-bold">{si + 1}</span>
-                              </div>
-                            )}
-                          </div>
-                          {slotUrl && (
-                            <button
-                              type="button"
-                              onClick={() => {
+              {/* 4. Right Sidebar — Layout & Settings */}
+              <aside className="w-72 shrink-0 border-l border-slate-200/80 bg-white flex flex-col overflow-y-auto">
+                <div className="p-3 border-b border-slate-100">
+                  <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                    <FaPalette className="w-3.5 h-3.5 text-indigo-500" />
+                    Layout & Settings
+                  </h2>
+                </div>
+                <div className="p-3 space-y-4">
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Photo count</p>
+                    <div className="flex flex-wrap gap-1">
+                      {([1, 2, 3, 4, 5, 6, 'all'] as const).map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setLayoutQuickFilter(n === 'all' ? 'all' : n)}
+                          className={`rounded-lg px-2 py-1 text-[10px] font-semibold transition-colors ${
+                            layoutQuickFilter === n ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {n === 'all' ? 'All' : n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Page layout</p>
+                    <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto">
+                      {filteredLayoutConfig.map((config) => {
+                        const active = layoutLabel === config.id;
+                        return (
+                          <button
+                            key={config.id}
+                            type="button"
+                            title={config.id}
+                            onClick={() => {
+                              setPageLayouts((prev) => ({ ...prev, [page.index]: config.id }));
+                              setPageImages((prev) => ({ ...prev, [page.index]: { ...(prev[page.index] ?? {}), layout: config.id } }));
+                            }}
+                            className={`shrink-0 flex flex-col items-center gap-1 rounded-lg p-1.5 transition-all ${
+                              active ? 'bg-amber-50 ring-2 ring-amber-400/70 ring-offset-1 border border-amber-200/50' : 'bg-slate-50 hover:bg-slate-100 border border-slate-200/70'
+                            }`}
+                          >
+                            <div className="w-full aspect-[4/3] rounded overflow-hidden bg-white border border-slate-200/60">
+                              <LayoutOptionThumb layoutId={config.id} slotCount={config.slotCount} urls={urls} isActive={active} />
+                            </div>
+                            <span className="text-[8px] font-semibold leading-none text-slate-600 truncate w-full text-center">{config.shortLabel}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {categorySlug === 'anniversary' && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Theme</p>
+                      <select
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        value={selectedColorTheme}
+                        onChange={(e) => setSelectedColorTheme(e.target.value)}
+                      >
+                        {anniversaryColorThemes.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {categorySlug === 'wedding' && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Background</p>
+                      <select
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        value={selectedWeddingBackground}
+                        onChange={(e) => setSelectedWeddingBackground(e.target.value)}
+                      >
+                        {weddingBackgroundThemes.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Photo slots</p>
+                    <DndContext sensors={slotDndSensors} onDragEnd={handleSlotDragEnd}>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from({ length: slotCount }).map((_, si) => {
+                          const slotUrl = slotCount > 1 ? urls[si] : (si === 0 ? state.imageDataUrl : undefined);
+                          return (
+                            <AlbumSlotCard
+                              key={si}
+                              id={`slot-${page.index}-${si}`}
+                              slotIndex={si}
+                              url={slotUrl}
+                              label={String(si + 1)}
+                              onOpenPicker={() => setPageImagePickerFor({ pageIndex: page.index, layout: layoutLabel, slotIndex: si })}
+                              onRemove={() => {
                                 setPageImages(prev => {
                                   const cur = prev[page.index] ?? {};
-                                  if (isMultiLayout) {
+                                  if (slotCount > 1) {
                                     const u = [...(cur.imageDataUrls ?? [])];
                                     const ids = [...(cur.imageIds ?? [])];
                                     u[si] = '';
@@ -1893,90 +2407,81 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                                   return { ...prev, [page.index]: { ...cur, imageDataUrl: undefined, imageDataUrls: undefined, imageIds: undefined } };
                                 });
                               }}
-                              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center hover:bg-red-600 shadow-md opacity-0 group-hover/slot:opacity-100 transition-opacity z-10"
-                            >
-                              ×
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
+                            />
+                          );
+                        })}
+                        <button
+                          type="button"
+                          onClick={() => setPageImagePickerFor({ pageIndex: page.index, layout: layoutLabel })}
+                          className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 text-xs font-semibold transition-colors"
+                        >
+                          <FaPlus className="w-3 h-3" /> Add photo
+                        </button>
+                      </div>
+                    </DndContext>
                   </div>
-                  {/* Single pick button */}
-                  <button
-                    type="button"
-                    onClick={() => setPageImagePickerFor({ pageIndex: page.index, layout: layoutLabel })}
-                    className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 border border-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-sm shadow-indigo-500/25 hover:from-indigo-600 hover:to-indigo-700 transition-all"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    {isMultiLayout ? `Pick ${slotCount} Photos` : 'Pick Photo'}
-                  </button>
-                </div>
-
-                {/* Captions — only for inner pages */}
-                {!isCover && !isLast && (
-                  <div className="flex gap-2 flex-wrap items-center">
-                    <svg className="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" /></svg>
-                    {Array.from({ length: slotCount }).map((_, si) => (
-                      <input
-                        key={si}
-                        type="text"
-                        placeholder={slotCount > 1 ? `Caption ${si + 1}...` : 'Write a message for this page...'}
-                        value={captions[si] ?? ''}
-                        onChange={(e) => setCaption(si, e.target.value)}
-                        className="flex-1 min-w-[140px] rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {/* Cover/Last page hint */}
-                {(isCover || isLast) && (
-                  <div className="rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 px-4 py-3 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-                      <svg className="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                  {!isCover && !isLast && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Captions</p>
+                      <div className="space-y-2">
+                        {Array.from({ length: slotCount }).map((_, si) => (
+                          <input
+                            key={si}
+                            type="text"
+                            placeholder={`Caption ${si + 1}...`}
+                            value={captions[si] ?? ''}
+                            onChange={(e) => setCaption(si, e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                          />
+                        ))}
+                      </div>
                     </div>
-                    <div className="text-[11px] text-amber-800">
-                      <strong>{isCover ? 'Front Cover' : 'Back Cover'}</strong> — customize text, font, and background on the{' '}
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/photo-themes/${categorySlug}`, { state: { templateId: dbTemplateId, photobookId } })}
-                        className="underline font-bold text-amber-900 hover:text-orange-700 transition-colors"
-                      >
-                        Cover Editor
-                      </button>
+                  )}
+                  {(isCover || isLast) && (
+                    <div className="rounded-xl bg-stone-50 border border-stone-200/80 px-3 py-2 text-[11px] text-stone-700">
+                      <strong>{isCover ? 'Front Cover' : 'Back Cover'}</strong> — edit in{' '}
+                      <button type="button" onClick={() => navigate(`/photo-themes/${categorySlug}`, { state: { templateId: dbTemplateId, photobookId } })} className="underline font-semibold text-stone-900">Cover Editor</button>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {/* ── Navigation buttons with keyboard hints ── */}
-              <div className="flex items-center justify-between pt-3 mt-auto border-t border-slate-100">
-                <button
-                  type="button"
-                  disabled={safeStep === 0}
-                  onClick={() => setCurrentStep(s => Math.max(0, s - 1))}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <FaChevronLeft className="w-3 h-3" /> Previous
-                </button>
-                <div className="hidden sm:flex items-center gap-2 text-[9px] text-slate-400">
-                  <kbd className="px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50 font-mono">←</kbd>
-                  <span>navigate</span>
-                  <kbd className="px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50 font-mono">→</kbd>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  disabled={safeStep >= albumPages.length - 1}
-                  onClick={() => setCurrentStep(s => Math.min(albumPages.length - 1, s + 1))}
-                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  Next <FaChevronRight className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
+              </aside>
+            </>
           );
         })()}
+      </div>
+
+      {/* 5. Bottom Filmstrip — page thumbnails, add/delete page */}
+      <div className="no-print border-t border-slate-200/80 bg-white flex items-center gap-2 px-3 py-2 overflow-x-auto shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+        <div ref={stepperRef} className="flex items-center gap-2 overflow-x-auto scroll-smooth flex-1 min-w-0" style={{ scrollPaddingInline: '8px' }}>
+          {albumPages.map((p, i) => {
+            const pState = pageImages[p.index] ?? {};
+            const hasImg = !!(pState.imageDataUrl || (pState.imageDataUrls?.length ?? 0) > 0);
+            const active = i === Math.min(currentStep, albumPages.length - 1);
+            return (
+              <button
+                key={p.index}
+                type="button"
+                data-active-step={active ? 'true' : undefined}
+                onClick={() => setCurrentStep(i)}
+                className={`flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                  active ? 'border-indigo-500 shadow-md ring-2 ring-indigo-500/30' : hasImg ? 'border-slate-200 hover:border-slate-300' : 'border-slate-200 opacity-80'
+                }`}
+                style={{ width: 48, height: 36 }}
+                title={p.type === 'cover' ? 'Cover' : p.type === 'last' ? 'Back' : `Page ${p.index + 1}`}
+              >
+                {hasImg && pState.imageDataUrl ? (
+                  <img src={pState.imageDataUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className={`w-full h-full flex items-center justify-center text-[10px] font-semibold ${active ? 'bg-indigo-50 text-indigo-800' : 'bg-slate-100 text-slate-500'}`}>
+                    {p.type === 'cover' ? 'C' : p.type === 'last' ? 'B' : p.index + 1}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <button type="button" onClick={() => setPageCount((c) => Math.min(18, c + 1))} disabled={pageCount >= 18} className="shrink-0 rounded-lg border-2 border-dashed border-slate-300 w-10 h-9 flex items-center justify-center text-slate-400 hover:border-indigo-400 hover:text-indigo-500 disabled:opacity-50 transition-colors" title="Add page"><FaPlus className="w-3.5 h-3.5" /></button>
+        <button type="button" onClick={() => setPageCount((c) => Math.max(6, c - 1))} disabled={pageCount <= 6} className="shrink-0 rounded-lg border border-slate-200 w-10 h-9 flex items-center justify-center text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 transition-colors" title="Delete page"><FaTrash className="w-3.5 h-3.5" /></button>
       </div>
 
       {/* PDF generation overlay */}
@@ -2022,100 +2527,6 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         document.body
       )}
       <style>{`@keyframes slideDown { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-
-      {/* ── Action bar — visually grouped ── */}
-      <div className="no-print rounded-2xl border border-slate-200/80 bg-white/95 shadow-sm p-4 print:hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Left — navigation */}
-          <button
-            type="button"
-            onClick={() => navigate(`/photo-themes/${categorySlug}`, {
-              state: { templateId: dbTemplateId, photobookId },
-            })}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 hover:text-slate-800 hover:border-slate-300 transition-colors"
-          >
-            <FaArrowLeft className="w-3 h-3" />
-            Back to Covers
-          </button>
-
-          {/* Center — preview controls */}
-          <div className="flex items-center gap-1.5 bg-slate-50 rounded-xl p-1 border border-slate-100">
-            {/* Orientation toggle */}
-            <div className="flex items-center bg-white rounded-lg p-0.5 border border-slate-200/60">
-              <button
-                type="button"
-                onClick={() => setBookOrientation('landscape')}
-                className={`px-2 py-1.5 rounded-md text-[10px] font-bold transition-all ${
-                  bookOrientation === 'landscape'
-                    ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                ⬜ Landscape
-              </button>
-              <button
-                type="button"
-                onClick={() => setBookOrientation('portrait')}
-                className={`px-2 py-1.5 rounded-md text-[10px] font-bold transition-all ${
-                  bookOrientation === 'portrait'
-                    ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-600'
-                }`}
-              >
-                ▯ Portrait
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={handleOpenFlipBook}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-white hover:shadow-sm transition-all"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-              Flip Book
-            </button>
-            <button
-              type="button"
-              onClick={handleOpenSinglePageView}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-white hover:shadow-sm transition-all"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-              Page View
-            </button>
-          </div>
-
-          {/* Right — save & export */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleSaveAlbum}
-              disabled={isSaving}
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isSaving ? <FaSpinner className="w-3.5 h-3.5 animate-spin" /> : <FaSave className="w-3.5 h-3.5" />}
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadPdf}
-              disabled={isGeneratingPdf}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors relative overflow-hidden"
-            >
-              {isGeneratingPdf && pdfProgress && (
-                <div
-                  className="absolute inset-0 bg-emerald-500/30 transition-all duration-300"
-                  style={{ width: `${Math.round((pdfProgress.current / pdfProgress.total) * 100)}%` }}
-                />
-              )}
-              <span className="relative flex items-center gap-1.5">
-                {isGeneratingPdf ? <FaSpinner className="w-3.5 h-3.5 animate-spin" /> : <FaDownload className="w-3.5 h-3.5" />}
-                {isGeneratingPdf && pdfProgress
-                  ? `${pdfProgress.current}/${pdfProgress.total}`
-                  : 'PDF'}
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
 
       {/* Fullscreen book preview modal — landscape / portrait */}
       {showFlipBook &&
@@ -2509,14 +2920,32 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         (() => {
           const pickerPageIdx = pageImagePickerFor.pageIndex;
           const pickerLayout = pageImagePickerFor.layout;
-          const isMulti = MULTI_IMAGE_LAYOUTS.includes(pickerLayout);
-          const totalSlots = isMulti ? (MULTI_IMAGE_SLOT_COUNT[pickerLayout] ?? 2) : 1;
+          const totalSlots = getSlotCountForLayoutId(pickerLayout);
+          const isMulti = totalSlots > 1;
 
+          const targetSlotIndex = pageImagePickerFor.slotIndex;
           const applySinglePick = (picked: { name: string; dataUrl: string; imageId?: number }) => {
             const imgUrl = picked.imageId ? buildPreviewUrl(picked.imageId) : picked.dataUrl;
             const imgId = picked.imageId ?? 0;
             setPageImages((prev) => {
               const current = prev[pickerPageIdx] ?? {};
+              const existingUrls = [...(current.imageDataUrls ?? (current.imageDataUrl ? [current.imageDataUrl] : []))];
+              const existingIds = [...(current.imageIds ?? [])];
+              if (targetSlotIndex !== undefined) {
+                while (existingUrls.length <= targetSlotIndex) existingUrls.push('');
+                while (existingIds.length <= targetSlotIndex) existingIds.push(0);
+                existingUrls[targetSlotIndex] = imgUrl;
+                existingIds[targetSlotIndex] = imgId;
+                return {
+                  ...prev,
+                  [pickerPageIdx]: {
+                    ...current,
+                    imageDataUrl: existingUrls[0] || '',
+                    imageDataUrls: existingUrls,
+                    imageIds: existingIds,
+                  },
+                };
+              }
               return {
                 ...prev,
                 [pickerPageIdx]: {
@@ -2572,10 +3001,16 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-gradient-to-r from-indigo-50/80 to-white">
                   <div>
                     <h3 className="text-sm font-bold text-slate-800">
-                      {isMulti ? `Select ${totalSlots} Photos` : 'Select Photo'}
+                      {targetSlotIndex !== undefined
+                        ? `Replace slot ${targetSlotIndex + 1}`
+                        : isMulti
+                        ? `Select ${totalSlots} Photos`
+                        : 'Select Photo'}
                     </h3>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      {isMulti
+                      {targetSlotIndex !== undefined
+                        ? `Choose a photo for slot ${targetSlotIndex + 1}`
+                        : isMulti
                         ? `Choose up to ${totalSlots} images${studioAlbumImageIds ? ' from your album' : ' from your library'}`
                         : `Click an image${studioAlbumImageIds ? ' from your album' : ''} to select it`}
                     </p>
@@ -2595,28 +3030,29 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                     allowMultiSelect={isMulti}
                     filterImageIds={studioAlbumImageIds ?? undefined}
                     onPick={async (picked) => {
-                      if (!isMulti) {
+                      if (targetSlotIndex !== undefined || !isMulti) {
                         applySinglePick(picked);
-                      } else {
-                        // Single click in multi mode fills next empty slot
-                        const imgUrl = picked.imageId ? buildPreviewUrl(picked.imageId) : picked.dataUrl;
-                        const imgId = picked.imageId ?? 0;
-                        setPageImages((prev) => {
-                          const current = prev[pickerPageIdx] ?? {};
-                          const existingUrls = [...(current.imageDataUrls ?? (current.imageDataUrl ? [current.imageDataUrl] : []))];
-                          const existingIds = [...(current.imageIds ?? [])];
-                          while (existingUrls.length < totalSlots) existingUrls.push('');
-                          while (existingIds.length < totalSlots) existingIds.push(0);
-                          let fillSlot = existingUrls.findIndex((u) => !u);
-                          if (fillSlot === -1) fillSlot = 0;
-                          existingUrls[fillSlot] = imgUrl;
-                          existingIds[fillSlot] = imgId;
-                          return {
-                            ...prev,
-                            [pickerPageIdx]: { ...current, imageDataUrl: existingUrls[0] || imgUrl, imageDataUrls: existingUrls, imageIds: existingIds },
-                          };
-                        });
+                        return;
                       }
+                      // Multi layout, no specific slot: fill next empty slot
+                      const imgUrl = picked.imageId ? buildPreviewUrl(picked.imageId) : picked.dataUrl;
+                      const imgId = picked.imageId ?? 0;
+                      setPageImages((prev) => {
+                        const current = prev[pickerPageIdx] ?? {};
+                        const existingUrls = [...(current.imageDataUrls ?? (current.imageDataUrl ? [current.imageDataUrl] : []))];
+                        const existingIds = [...(current.imageIds ?? [])];
+                        while (existingUrls.length < totalSlots) existingUrls.push('');
+                        while (existingIds.length < totalSlots) existingIds.push(0);
+                        let fillSlot = existingUrls.findIndex((u) => !u);
+                        if (fillSlot === -1) fillSlot = 0;
+                        existingUrls[fillSlot] = imgUrl;
+                        existingIds[fillSlot] = imgId;
+                        return {
+                          ...prev,
+                          [pickerPageIdx]: { ...current, imageDataUrl: existingUrls[0] || imgUrl, imageDataUrls: existingUrls, imageIds: existingIds },
+                        };
+                      });
+                      setPageImagePickerFor(null);
                     }}
                     onPickMany={isMulti ? async (picks) => {
                       applyMultiPick(picks);

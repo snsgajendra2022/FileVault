@@ -17,6 +17,11 @@ type FamilyMember = {
   relation: string | null;
   isYou?: boolean;
   isElder?: boolean;
+  userId?: number;
+  username?: string;
+  email?: string;
+  /** Nested clients (API may return hierarchical structure) */
+  clients?: FamilyMember[] | null;
 };
 
 type FamilyData = {
@@ -27,6 +32,7 @@ type FamilyData = {
   cousins?: FamilyMember[] | null;
   grandparents?: FamilyMember[] | null;
   unclesAunts?: FamilyMember[] | null;
+  clients?: FamilyMember[] | null;
   spouse?: FamilyMember | null;
 };
 
@@ -64,6 +70,20 @@ function convertFamilyDataToTree(data: FamilyData): Person {
     });
   };
 
+  /** Build tree nodes from clients array; supports nested "clients": [...] */
+  const buildClientNodes = (list?: FamilyMember[] | null): Person[] => {
+    if (!list || list.length === 0) return [];
+    return list.map((m, idx) => {
+      const displayName = m.name || m.username || (typeof m.email === "string" ? m.email.split("@")[0] : "Client");
+      const childList = Array.isArray(m.clients) && m.clients.length > 0 ? buildClientNodes(m.clients) : undefined;
+      return {
+        id: `clients-${sanitizeIdPart(displayName)}-${idx}`,
+        name: displayName,
+        children: childList?.length ? childList : undefined,
+      };
+    });
+  };
+
   // Add spouse as its own node under root if present
   if (data?.spouse && data.spouse.name) {
     root.children!.push({
@@ -78,6 +98,16 @@ function convertFamilyDataToTree(data: FamilyData): Person {
   addGroup("Cousins", data?.cousins);
   addGroup("Grandparents", data?.grandparents);
   addGroup("Uncles & Aunts", data?.unclesAunts);
+
+  // Clients: support flat or nested "clients": [...] from API
+  const clientList = data?.clients;
+  if (clientList && clientList.length > 0) {
+    root.children!.push({
+      id: "grp-clients",
+      name: "Clients",
+      children: buildClientNodes(clientList),
+    });
+  }
 
   return root;
 }
@@ -110,6 +140,7 @@ export default function FamilyTree() {
       cousins: [],
       grandparents: [],
       unclesAunts: [],
+      clients: [],
       spouse: null,
     };
     return convertFamilyDataToTree(fallback);
@@ -133,7 +164,12 @@ export default function FamilyTree() {
       if (response.data.success) {
         // Check if the API response has the expected structure
         if (response.data.familyData) {
-          const newRootData = convertFamilyDataToTree(response.data.familyData);
+          const familyData = { ...response.data.familyData };
+          // Support top-level "clients": [...] when not inside familyData
+          if (Array.isArray(response.data.clients) && !familyData.clients?.length) {
+            familyData.clients = response.data.clients;
+          }
+          const newRootData = convertFamilyDataToTree(familyData);
           setRootData(newRootData);
 
           if (isInitial) {
@@ -301,7 +337,7 @@ export default function FamilyTree() {
           </div>
         </div>
       )}
-      <div className="absolute inset-0 bg-white shadow-sm ring-1 ring-gray-200 overflow-hidden">
+      <div className="absolute inset-0 bg-white shadow-sm ring-gray-200 overflow-hidden">
         <svg ref={svgRef} className="w-full h-full block select-none" aria-label="Family/Client Tree">
           <defs>
             <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">

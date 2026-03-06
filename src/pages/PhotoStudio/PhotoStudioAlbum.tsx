@@ -308,56 +308,62 @@ const PhotoStudioAlbum: React.FC = () => {
     },
   });
 
-  // Fetch clients for sharing
+  // Fetch all family members for sharing (you, parents, siblings, spouse, children, grandparents, unclesAunts, cousins, clients)
   const fetchClients = useCallback(async () => {
     setIsLoadingClients(true);
     try {
       const response = await api.get('/api/simple-invitations/family-relationships');
-      
-      const allClients: any[] = [];
-      
-      const flattenClients = (clients: any[]) => {
-        if (!Array.isArray(clients)) return;
-        
-        clients.forEach((client: any) => {
-          if (client && client.relation === "Client") {
-            allClients.push({
-              id: client.userId,
-              userId: client.userId,
-              firstName: client.name?.split(' ')[0] || client.name || '',
-              lastName: client.name?.split(' ').slice(1).join(' ') || '',
-              fullName: client.name || '',
-              email: client.email,
-              username: client.username,
-              relation: client.relation || 'Client'
-            });
-          }
-          
-          if (client && client.clients && Array.isArray(client.clients) && client.clients.length > 0) {
-            flattenClients(client.clients);
-          }
+      const allMembers: any[] = [];
+
+      const toMember = (m: any) => {
+        if (!m || (m.userId == null && !m.name && !m.email)) return null;
+        return {
+          id: m.userId ?? m.id,
+          userId: m.userId,
+          firstName: m.name?.split(' ')[0] || m.name || '',
+          lastName: m.name?.split(' ').slice(1).join(' ') || '',
+          fullName: m.name || '',
+          email: m.email,
+          username: m.username,
+          relation: m.relation || 'Member',
+        };
+      };
+
+      const addMember = (m: any) => {
+        const member = toMember(m);
+        if (member) allMembers.push(member);
+      };
+
+      const addList = (list: any[]) => {
+        if (!Array.isArray(list)) return;
+        list.forEach((m: any) => {
+          addMember(m);
+          if (m?.clients?.length) addList(m.clients);
         });
       };
-      
-      if (response && response.data) {
-        if (response.data.familyData && response.data.familyData.clients && Array.isArray(response.data.familyData.clients)) {
-          flattenClients(response.data.familyData.clients);
-        } else if (response.data.clients && Array.isArray(response.data.clients)) {
-          flattenClients(response.data.clients);
-        } else if (Array.isArray(response.data)) {
-          flattenClients(response.data);
-        }
+
+      const data = response?.data;
+      const fd = data?.familyData;
+      if (fd && typeof fd === 'object') {
+        if (fd.you) addMember(fd.you);
+        addList(fd.parents ?? []);
+        addList(fd.siblings ?? []);
+        if (fd.spouse) addMember(fd.spouse);
+        addList(fd.children ?? []);
+        addList(fd.grandparents ?? []);
+        addList(fd.unclesAunts ?? []);
+        addList(fd.cousins ?? []);
+        addList(fd.clients ?? []);
       }
-      
-      // Deduplicate clients by userId
-      const uniqueClients = allClients.filter((client, index, self) => 
-        index === self.findIndex((c) => c.id === client.id)
+      if (Array.isArray(data?.clients) && allMembers.length === 0) addList(data.clients);
+
+      const unique = allMembers.filter(
+        (c, i, self) => i === self.findIndex((x) => (x.id ?? x.userId) === (c.id ?? c.userId))
       );
-      
-      setClients(uniqueClients);
+      setClients(unique);
     } catch (error: any) {
-      console.error('Error fetching clients:', error);
-      toast.error('Failed to load clients');
+      console.error('Error fetching family members:', error);
+      toast.error('Failed to load members');
       setClients([]);
     } finally {
       setIsLoadingClients(false);
@@ -1369,17 +1375,17 @@ const PhotoStudioAlbum: React.FC = () => {
               ) : clients.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <FaUserFriends className="mx-auto mb-3 text-4xl text-gray-300" />
-                  <p className="text-lg font-medium mb-2">No clients available</p>
-                  <p className="text-sm">You don't have any clients to share with yet.</p>
+                  <p className="text-lg font-medium mb-2">No members available</p>
+                  <p className="text-sm">You don't have any family members or clients to share with yet.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <div className="mb-4">
                     <p className="text-sm font-medium text-gray-700 mb-2">
-                      Select clients to share this album with:
+                      Select members to share this album with (family & clients):
                     </p>
                     <p className="text-xs text-gray-500">
-                      Selected: {selectedClients.size} client{selectedClients.size !== 1 ? 's' : ''}
+                      Selected: {selectedClients.size} member{selectedClients.size !== 1 ? 's' : ''}
                     </p>
                   </div>
                   
@@ -1404,9 +1410,16 @@ const PhotoStudioAlbum: React.FC = () => {
                             {client.firstName?.charAt(0)?.toUpperCase() || client.fullName?.charAt(0)?.toUpperCase() || 'C'}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900 truncate">
-                              {client.fullName || `${client.firstName} ${client.lastName}`.trim() || 'Unknown Client'}
-                            </p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold text-gray-900 truncate">
+                                {client.fullName || `${client.firstName} ${client.lastName}`.trim() || 'Unknown'}
+                              </p>
+                              {client.relation && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 shrink-0">
+                                  {client.relation}
+                                </span>
+                              )}
+                            </div>
                             <div className="flex items-center space-x-3 mt-1">
                               {client.email && (
                                 <p className="text-xs text-gray-500 truncate">{client.email}</p>
@@ -1436,10 +1449,10 @@ const PhotoStudioAlbum: React.FC = () => {
                 <div className="text-sm text-gray-600">
                   {selectedClients.size > 0 ? (
                     <span className="font-medium text-purple-600">
-                      {selectedClients.size} client{selectedClients.size !== 1 ? 's' : ''} selected
+                      {selectedClients.size} member{selectedClients.size !== 1 ? 's' : ''} selected
                     </span>
                   ) : (
-                    <span>No clients selected</span>
+                    <span>No members selected</span>
                   )}
                 </div>
                 <div className="flex items-center space-x-3">
