@@ -23,6 +23,7 @@
     "html2canvas": "^1.4.1",
     "idb-keyval": "^6.2.2",
     "jspdf": "^4.2.0",
+    "jszip": "^3.10.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-dropzone": "^14.3.8",

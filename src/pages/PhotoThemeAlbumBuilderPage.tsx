@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import HTMLFlipBook from 'react-pageflip';
 import { jsPDF } from 'jspdf';
+import JSZip from 'jszip';
 import { DndContext, DragEndEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import {
   FaSave,
@@ -778,6 +779,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   const [showSinglePageView, setShowSinglePageView] = React.useState(false);
   const [singlePageIndex, setSinglePageIndex] = React.useState(0);
   const [isGeneratingPdf, setIsGeneratingPdf] = React.useState(false);
+  const [isGeneratingFlipbook, setIsGeneratingFlipbook] = React.useState(false);
+  const [isGeneratingZip, setIsGeneratingZip] = React.useState(false);
+  const [isGeneratingBase64, setIsGeneratingBase64] = React.useState(false);
   const [pdfProgress, setPdfProgress] = React.useState<{ current: number; total: number } | null>(null);
   const [slideshowActive, setSlideshowActive] = React.useState(false);
   const [slideshowSpeed, setSlideshowSpeed] = React.useState(4000);
@@ -1581,21 +1585,18 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     ctx.fillRect(0, 0, w, h);
   };
 
-  // PDF download — draws each page on Canvas then compiles to PDF (respects orientation)
-  const handleDownloadPdf = React.useCallback(async () => {
-    if (isGeneratingPdf || !albumPages.length) return;
-    setIsGeneratingPdf(true);
-    setPdfProgress({ current: 0, total: albumPages.length });
+  // Shared: render all album pages to image data URLs (same as PDF/flipbook content). Calls onProgress(current, total).
+  const renderAllPagesToDataUrls = React.useCallback(async (
+    onProgress: (current: number, total: number) => void
+  ): Promise<string[]> => {
+    const isLandscape = bookOrientation === 'landscape';
+    const W = isLandscape ? 1040 : 800;
+    const H = isLandscape ? 800 : 1040;
+    const dataUrls: string[] = [];
 
-    try {
-      const isLandscape = bookOrientation === 'landscape';
-      const W = isLandscape ? 1040 : 800;
-      const H = isLandscape ? 800 : 1040;
-      const pdf = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'px', format: [W, H] });
-
-      for (let i = 0; i < albumPages.length; i++) {
-        setPdfProgress({ current: i + 1, total: albumPages.length });
-        const page = albumPages[i];
+    for (let i = 0; i < albumPages.length; i++) {
+      onProgress(i + 1, albumPages.length);
+      const page = albumPages[i];
         const st = pageImages[page.index] ?? {};
         const layoutLabel = getPageLayoutLabel(page.index, page.layoutName);
         const arrangement = getArrangementForLayoutId(layoutLabel);
@@ -1607,13 +1608,19 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         canvas.height = H;
         const ctx = canvas.getContext('2d')!;
 
-        // Background
-        const bgStr = categorySlug === 'wedding'
-          ? selectedWeddingTheme.gradient
-          : categorySlug === 'anniversary'
-          ? `linear-gradient(135deg, ${selectedTheme.colors[0]}, ${selectedTheme.colors[2]}, ${selectedTheme.colors[4]})`
-          : 'linear-gradient(135deg, #fafafa, #f1f5f9)';
-        fillGradient(ctx, W, H, bgStr);
+        // Background — white inner pages (same as flipbook), theme for cover/last
+        const useWhitePage = !isCover && !isLast;
+        if (useWhitePage) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, W, H);
+        } else {
+          const bgStr = categorySlug === 'wedding'
+            ? selectedWeddingTheme.gradient
+            : categorySlug === 'anniversary'
+            ? `linear-gradient(135deg, ${selectedTheme.colors[0]}, ${selectedTheme.colors[2]}, ${selectedTheme.colors[4]})`
+            : 'linear-gradient(135deg, #fafafa, #f1f5f9)';
+          fillGradient(ctx, W, H, bgStr);
+        }
 
         // Collect image sources — load up to 6 for six-grid / hero-four
         const urls = st.imageDataUrls ?? (st.imageDataUrl ? [st.imageDataUrl] : []);
@@ -1853,10 +1860,28 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           ctx.fillText(`${page.index + 1}`, W / 2, H - 10);
         }
 
-        if (i > 0) pdf.addPage();
-        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, W, H);
+        dataUrls.push(canvas.toDataURL('image/jpeg', 0.92));
       }
 
+    return dataUrls;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [albumPages, pageImages, coverFromState, lastFromState, categorySlug, selectedWeddingTheme, selectedTheme, loadImage, bookOrientation]);
+
+  // PDF download — uses shared render, then compiles to PDF
+  const handleDownloadPdf = React.useCallback(async () => {
+    if (isGeneratingPdf || isGeneratingFlipbook || isGeneratingZip || isGeneratingBase64 || !albumPages.length) return;
+    setIsGeneratingPdf(true);
+    setPdfProgress({ current: 0, total: albumPages.length });
+    try {
+      const dataUrls = await renderAllPagesToDataUrls((cur, tot) => setPdfProgress({ current: cur, total: tot }));
+      const isLandscape = bookOrientation === 'landscape';
+      const W = isLandscape ? 1040 : 800;
+      const H = isLandscape ? 800 : 1040;
+      const pdf = new jsPDF({ orientation: isLandscape ? 'landscape' : 'portrait', unit: 'px', format: [W, H] });
+      for (let i = 0; i < dataUrls.length; i++) {
+        if (i > 0) pdf.addPage();
+        pdf.addImage(dataUrls[i], 'JPEG', 0, 0, W, H);
+      }
       pdf.save(`${categorySlug}-album.pdf`);
     } catch (err) {
       console.error('PDF generation failed:', err);
@@ -1865,8 +1890,148 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       setIsGeneratingPdf(false);
       setPdfProgress(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [albumPages, pageImages, coverFromState, lastFromState, categorySlug, selectedWeddingTheme, selectedTheme, isGeneratingPdf, loadImage, bookOrientation]);
+  }, [albumPages.length, bookOrientation, categorySlug, isGeneratingPdf, isGeneratingFlipbook, isGeneratingZip, isGeneratingBase64, renderAllPagesToDataUrls]);
+
+  // Flipbook download — same book as on screen, standalone HTML with touch/swipe flip
+  const handleDownloadFlipbook = React.useCallback(async () => {
+    if (isGeneratingPdf || isGeneratingFlipbook || isGeneratingZip || isGeneratingBase64 || !albumPages.length) return;
+    setIsGeneratingFlipbook(true);
+    setPdfProgress({ current: 0, total: albumPages.length });
+    try {
+      const dataUrls = await renderAllPagesToDataUrls((cur, tot) => setPdfProgress({ current: cur, total: tot }));
+      const isLandscape = bookOrientation === 'landscape';
+      const W = isLandscape ? 1040 : 800;
+      const H = isLandscape ? 800 : 1040;
+      const isLandscapeFlip = bookOrientation === 'landscape';
+      const bookW = isLandscapeFlip ? 700 : 500;
+      const bookH = isLandscapeFlip ? 500 : 700;
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Album Flipbook</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; background: linear-gradient(to bottom, #0f0f14, #16161d); touch-action: none; -webkit-tap-highlight-color: transparent; }
+    #view { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+    #book { width: 100%; height: 100%; }
+    #counter { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.5); font-size: 12px; z-index: 10; pointer-events: none; }
+    #hint { position: fixed; bottom: 44px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.4); font-size: 11px; z-index: 10; pointer-events: none; transition: opacity 0.6s; }
+    #hint.hide { opacity: 0; }
+  </style>
+  <script src="https://unpkg.com/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+</head>
+<body>
+  <div id="view"><div id="book"></div></div>
+  <div id="hint">Touch or drag to turn page</div>
+  <div id="counter">1 / ${dataUrls.length}</div>
+  <script>
+    var pages = ${JSON.stringify(dataUrls)};
+    var bookEl = document.getElementById('book');
+    var counter = document.getElementById('counter');
+    var hint = document.getElementById('hint');
+    var pageFlip = new St.PageFlip(bookEl, {
+      width: ${bookW},
+      height: ${bookH},
+      size: 'stretch',
+      minWidth: ${isLandscapeFlip ? 360 : 280},
+      maxWidth: ${isLandscapeFlip ? 1000 : 800},
+      minHeight: ${isLandscapeFlip ? 280 : 360},
+      maxHeight: ${isLandscapeFlip ? 720 : 1000},
+      maxShadowOpacity: 0.7,
+      showCover: true,
+      mobileScrollSupport: true,
+      drawShadow: true,
+      flippingTime: 700,
+      useMouseEvents: true,
+      swipeDistance: 30
+    });
+    pageFlip.loadFromImages(pages);
+    pageFlip.on('flip', function(e) {
+      counter.textContent = (e.data + 1) + ' / ' + pages.length;
+      if (hint) hint.classList.add('hide');
+    });
+    pageFlip.on('init', function() {
+      counter.textContent = '1 / ' + pages.length;
+    });
+  </script>
+</body>
+</html>`;
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${categorySlug}-flipbook.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Flipbook export failed:', err);
+      alert('Failed to create flipbook. Please try again.');
+    } finally {
+      setIsGeneratingFlipbook(false);
+      setPdfProgress(null);
+    }
+  }, [albumPages.length, bookOrientation, categorySlug, isGeneratingPdf, isGeneratingFlipbook, isGeneratingZip, isGeneratingBase64, renderAllPagesToDataUrls]);
+
+  // Download same book as ZIP of images (JPG per page) — easy to send, works on mobile (unzip & view in gallery)
+  const handleDownloadImagesZip = React.useCallback(async () => {
+    if (isGeneratingPdf || isGeneratingFlipbook || isGeneratingZip || isGeneratingBase64 || !albumPages.length) return;
+    setIsGeneratingZip(true);
+    setPdfProgress({ current: 0, total: albumPages.length });
+    try {
+      const dataUrls = await renderAllPagesToDataUrls((cur, tot) => setPdfProgress({ current: cur, total: tot }));
+      const zip = new JSZip();
+      dataUrls.forEach((dataUrl, i) => {
+        const base64 = dataUrl.indexOf(',') >= 0 ? dataUrl.split(',')[1] : dataUrl;
+        if (base64) zip.file(`page-${i + 1}.jpg`, base64, { base64: true });
+      });
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${categorySlug}-album-images.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('ZIP export failed:', err);
+      alert('Failed to create ZIP. Please try again.');
+    } finally {
+      setIsGeneratingZip(false);
+      setPdfProgress(null);
+    }
+  }, [albumPages.length, categorySlug, isGeneratingPdf, isGeneratingFlipbook, isGeneratingZip, isGeneratingBase64, renderAllPagesToDataUrls]);
+
+  // Download same book as Base64 (JSON with data URLs or raw base64) — easy to send as text, use in APIs
+  const handleDownloadBase64 = React.useCallback(async () => {
+    if (isGeneratingPdf || isGeneratingFlipbook || isGeneratingZip || isGeneratingBase64 || !albumPages.length) return;
+    setIsGeneratingBase64(true);
+    setPdfProgress({ current: 0, total: albumPages.length });
+    try {
+      const dataUrls = await renderAllPagesToDataUrls((cur, tot) => setPdfProgress({ current: cur, total: tot }));
+      const base64Only = dataUrls.map((url) => (url.indexOf(',') >= 0 ? url.split(',')[1] : url));
+      const payload = {
+        album: categorySlug,
+        pageCount: dataUrls.length,
+        pages: dataUrls,
+        base64: base64Only,
+      };
+      const json = JSON.stringify(payload, null, 0);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${categorySlug}-album-base64.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Base64 export failed:', err);
+      alert('Failed to create Base64 file. Please try again.');
+    } finally {
+      setIsGeneratingBase64(false);
+      setPdfProgress(null);
+    }
+  }, [albumPages.length, categorySlug, isGeneratingPdf, isGeneratingFlipbook, isGeneratingZip, isGeneratingBase64, renderAllPagesToDataUrls]);
 
   // Sync cover & last page images from coverFromState / lastFromState (source of truth for these pages).
   // Always overwrite — the cover editing page is the authority for first/last page images.
@@ -2485,7 +2650,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       </div>
 
       {/* PDF generation overlay */}
-      {isGeneratingPdf && pdfProgress && createPortal(
+      {((isGeneratingPdf || isGeneratingFlipbook || isGeneratingZip || isGeneratingBase64) && pdfProgress) && createPortal(
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
             <div className="relative w-16 h-16 mx-auto mb-4">
@@ -2495,7 +2660,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 <span className="text-sm font-bold text-emerald-600">{Math.round((pdfProgress.current / pdfProgress.total) * 100)}%</span>
               </div>
             </div>
-            <h3 className="text-base font-bold text-slate-800 mb-1">Generating your PDF</h3>
+            <h3 className="text-base font-bold text-slate-800 mb-1">{isGeneratingBase64 ? 'Creating Base64 file' : isGeneratingZip ? 'Creating images ZIP' : isGeneratingFlipbook ? 'Generating flipbook' : 'Generating PDF'}</h3>
             <p className="text-xs text-slate-500 mb-4">Rendering page {pdfProgress.current} of {pdfProgress.total}...</p>
             <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
               <div
@@ -2569,11 +2734,42 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                     Portrait
                   </button>
                 </div>
-                {/* Download button */}
+                {/* Download same book — multiple formats: flipbook, images ZIP, PDF, or Base64 JSON */}
+                <button
+                  type="button"
+                  onClick={handleDownloadFlipbook}
+                  disabled={isGeneratingPdf || isGeneratingFlipbook || isGeneratingZip || isGeneratingBase64}
+                  title="Same book as flipbook (HTML) — open in browser, touch to flip"
+                  className="rounded-lg bg-indigo-600/80 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-indigo-600 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
+                >
+                  {isGeneratingFlipbook ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaDownload className="w-3 h-3" />}
+                  Flipbook
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadImagesZip}
+                  disabled={isGeneratingPdf || isGeneratingFlipbook || isGeneratingZip || isGeneratingBase64}
+                  title="Same book as images in ZIP — easy to send, open on phone (unzip and view in gallery)"
+                  className="rounded-lg bg-amber-600/80 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-amber-600 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
+                >
+                  {isGeneratingZip ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaDownload className="w-3 h-3" />}
+                  Images (ZIP)
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadBase64}
+                  disabled={isGeneratingPdf || isGeneratingFlipbook || isGeneratingZip || isGeneratingBase64}
+                  title="Same book as Base64 JSON — pages in data URLs + raw base64, for APIs or sharing as text"
+                  className="rounded-lg bg-slate-600/80 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-slate-600 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
+                >
+                  {isGeneratingBase64 ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaDownload className="w-3 h-3" />}
+                  Base64
+                </button>
                 <button
                   type="button"
                   onClick={handleDownloadPdf}
-                  disabled={isGeneratingPdf}
+                  disabled={isGeneratingPdf || isGeneratingFlipbook || isGeneratingZip || isGeneratingBase64}
+                  title="Same book as PDF — easy to send, opens on any phone"
                   className="rounded-lg bg-emerald-600/80 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
                 >
                   {isGeneratingPdf ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaDownload className="w-3 h-3" />}
