@@ -81,7 +81,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
     { name: 'Create Members', href: '/invitations', icon:FaUserPlus , enabled: true },
     { name: 'Members', href: '/studio/clients', icon: FaUsers, enabled: true },
     { name: 'Payment Management', href: '/studio/payment-management', icon: FaRupeeSign, enabled: true },
-    // { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
+    { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
     // { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
     // { name: 'Photo Book Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
     // { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
