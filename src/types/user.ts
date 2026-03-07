@@ -40,6 +40,8 @@ export interface User {
   lastLoginAt?: string;
   hasFamilyAccess?: boolean;
   familyRelationships?: FamilyRelationship[];
+  /** When false, user is invited (e.g. from link) and uploads should use inviter's token. */
+  hasMobileApps?: boolean;
 }
 
 export interface UpdateProfileData {

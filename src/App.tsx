@@ -57,6 +57,7 @@ import PhotoThemeAlbumBuilderPage from './pages/PhotoThemeAlbumBuilderPage';
 import PhotoBook from './pages/PhotoBook';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import OMPrivacyPolicyPage from './pages/OMPrivacyPolicyPage';
+import UploadFamilyImagesPage from './pages/UploadFamilyImages/UploadPage';
 
 
 const queryClient = new QueryClient({
@@ -147,6 +148,7 @@ const AppRoutes = () => {
         <Route path="billing" element={<BillingPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="upload" element={<UploadPage />} />
+        <Route path="upload-family-images" element={<UploadFamilyImagesPage />} />
         <Route path="images" element={<ImagesPage />} />
         <Route path="client-images" element={<ClientImagesPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />

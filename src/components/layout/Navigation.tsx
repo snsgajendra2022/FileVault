@@ -70,7 +70,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
   // const studioNavigationItems = [];
   const studioNavigationItems = {'items':[
     { name: 'Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
-    { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
+    { name: 'Upload', href: '/upload-family-images', icon: FaUpload, enabled: true },
     { name: 'Images', href: '/client-images', icon: FaImages, enabled: true },
     { name: 'Album', href: '/studio/albums', icon: FaFolder, enabled: true },
     { name: 'Photo Themes', href: '/photo-themes', icon: FaPalette, enabled: true },
