@@ -79,7 +79,7 @@ const Sidebar = () => {
     { name: 'Create Members', href: '/invitations', icon:FaUserPlus , enabled: true },
     { name: 'Members', href: '/studio/clients', icon: FaUsers, enabled: true },
     { name: 'Payment Management', href: '/studio/payment-management', icon: FaRupeeSign, enabled: true },
-    // { name: 'Services', href: '/services', icon: FaCloud, enabled: true },    //Services
+     { name: 'Services', href: '/services', icon: FaCloud, enabled: true },    //Services
 
     
     // { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
