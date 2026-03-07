@@ -497,7 +497,7 @@ const RegisterPage = () => {
           <div className="mx-auto h-20 w-20 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-2xl mb-6">
             <FaUsers className="h-10 w-10 text-white" />
           </div>
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent mb-4">
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent mb-4 p-[1%]">
             Join ImageSecurity
           </h1>
           <p className="text-xl text-white/80 font-medium">

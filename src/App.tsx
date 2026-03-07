@@ -25,6 +25,7 @@ import ChangePasswordPage from './pages/ChangePasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import AcceptInvitationPage from './pages/AcceptInvitationPage';
 import InvitationsPage from './pages/InvitationsPage';
 import ServiceConfigPage from './pages/ServiceConfigPage';
@@ -116,6 +117,7 @@ const AppRoutes = () => {
           (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />) : 
           <RegisterPage />
       } />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       
       {/* Public invitation acceptance route */}
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />

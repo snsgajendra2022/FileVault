@@ -256,7 +256,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
             <div className="md:col-span-2">
               <label htmlFor="inviteeEmail" className="block text-sm font-medium text-gray-700 mb-2">
                 <FaEnvelope className="inline h-4 w-4 mr-2 text-blue-500" />
-                Invitee Email Address
+                Invite Email Address 
               </label>
               <input
                 type="email"

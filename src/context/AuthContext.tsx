@@ -19,6 +19,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   register: (userData: any) => Promise<void>;
   onSubmitUser: (userData: any) => Promise<any>;
+  forgotPassword: (email: string) => Promise<{ message: string }>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
 }
@@ -181,6 +182,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const forgotPassword = async (email: string) => {
+    const response = await api.post<{ message: string }>('/api/auth/forgot-password', { email });
+    return response.data;
+  };
+
   const logout = () => {
     console.log('Logout initiated...');
     
@@ -221,6 +227,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     onSubmitUser,
+    forgotPassword,
     logout,
     updateUser
   };

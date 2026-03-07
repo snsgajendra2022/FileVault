@@ -157,13 +157,14 @@ code {
   background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
 }
 
-/* Fix autofill background color */
+/* Fix autofill background color and make autofill text white */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 30px rgba(0, 0, 0, 0.1) inset !important;
-  -webkit-text-fill-color: inherit !important;
+  -webkit-text-fill-color: #ffffff !important;
+  color: #ffffff !important;
   background-color: rgba(0, 0, 0, 0.1) !important;
   transition: background-color 5000s ease-in-out 0s;
 }
@@ -186,7 +187,8 @@ input:-internal-autofill-selected {
   appearance: menulist-button;
   background-image: none !important;
   background-color: rgba(0, 0, 0, 0.1) !important;
-  color: inherit !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 .to-purple-600 {
     --tw-gradient-to: #2730db var(--tw-gradient-to-position) !important;

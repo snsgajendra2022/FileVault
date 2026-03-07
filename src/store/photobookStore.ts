@@ -218,7 +218,9 @@ export const usePhotoBookStore = create<PhotoBookState>()(
           if (!spread) return s
           const layout = getPhotoBookLayout(template, spread.layoutId)
           if (!layout) return s
-          const emptySlots = layout.slots.filter((slot) => !spread.slotPhotoIds[slot.id])
+          const emptySlots = layout.slots
+            .filter((slot) => !spread.slotPhotoIds[slot.id])
+            .sort((a, b) => (a.row !== b.row ? a.row - b.row : a.col - b.col))
           if (emptySlots.length === 0) return s
           const toAssign = s.selectedPhotoIds.slice(0, emptySlots.length)
           const spreads = s.album.spreads.map((sp, idx) => {
@@ -310,7 +312,14 @@ export const usePhotoBookStore = create<PhotoBookState>()(
           if (!s.album) return s
           const spreads = s.album.spreads.map((sp, idx) => {
             if (idx !== spreadIndex) return sp
-            return { ...sp, slotPhotoIds: { ...sp.slotPhotoIds, [slotId]: undefined } }
+            const nextSlotPhotoIds = { ...sp.slotPhotoIds, [slotId]: undefined }
+            const nextSlotImageAdjust = { ...sp.slotImageAdjust }
+            delete nextSlotImageAdjust[slotId]
+            return {
+              ...sp,
+              slotPhotoIds: nextSlotPhotoIds,
+              slotImageAdjust: Object.keys(nextSlotImageAdjust).length ? nextSlotImageAdjust : undefined,
+            }
           })
           return { album: { ...s.album, spreads, updatedAt: new Date().toISOString() } }
         }),

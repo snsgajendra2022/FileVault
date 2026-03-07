@@ -155,6 +155,7 @@ export function SpreadPreviewCanvas({
           {layout.slots.map((slot) => {
             const photoId = spread.slotPhotoIds[slot.id]
             const assignedPhoto = photoId ? photosById[photoId] ?? null : null
+            const photoPending = !!photoId && !assignedPhoto
             const adj = spread.slotImageAdjust?.[slot.id] ?? {}
             const scale = Math.min(3, Math.max(1, adj.scale ?? 1))
             const maxT = (scale - 1) * 50 // at scale=1 → 0, scale=3 → 100
@@ -255,6 +256,11 @@ export function SpreadPreviewCanvas({
                       />
                     </>
                   ) : null}
+                </div>
+              ) : photoPending ? (
+                <div className="flex flex-1 flex-col items-center justify-center gap-2 text-xs font-medium text-slate-400">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                  Loading…
                 </div>
               ) : (
                 <div className="flex flex-1 items-center justify-center text-xs font-medium text-slate-400">

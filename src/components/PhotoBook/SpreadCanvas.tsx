@@ -11,6 +11,7 @@ function Slot({
   spreadIndex,
   slotId,
   assignedPhoto,
+  photoPending = false,
   selectedPhotoId,
   onAssignSelected,
   onClear,
@@ -25,6 +26,7 @@ function Slot({
   spreadIndex: number
   slotId: string
   assignedPhoto: PhotoBookPhoto | null
+  photoPending?: boolean
   selectedPhotoId: string | null
   onAssignSelected: () => void
   onClear: () => void
@@ -137,6 +139,11 @@ function Slot({
             </div>
           ) : null}
         </>
+      ) : photoPending ? (
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-3 text-center text-xs font-medium text-slate-500">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+          <span>Loading photo…</span>
+        </div>
       ) : (
         <div className="flex h-full w-full items-center justify-center px-3 text-center text-xs font-medium text-slate-500">
           {selectedPhotoId ? 'Click to place selected photo' : 'Drop a photo here'}
@@ -256,6 +263,7 @@ export function SpreadCanvas({
               {layout.slots.map((slot) => {
                 const photoId = spread.slotPhotoIds[slot.id]
                 const assignedPhoto = photoId ? photosById[photoId] ?? null : null
+                const photoPending = !!photoId && !assignedPhoto
                 const imgAdj = spread.slotImageAdjust?.[slot.id]
                 return (
                   <div
@@ -276,6 +284,7 @@ export function SpreadCanvas({
                     spreadIndex={spreadIndex}
                     slotId={slot.id}
                     assignedPhoto={assignedPhoto}
+                    photoPending={photoPending}
                     selectedPhotoId={selectedPhotoId}
                     roundedClassName={isWedding && isWeddingCoverPage ? 'rounded-full ring-2 ring-white/70 shadow-sm' : undefined}
                     hideFooterOverlay={isWedding && isWeddingCoverPage}

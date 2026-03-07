@@ -6,8 +6,8 @@ import { FaEye, FaEyeSlash, FaLock, FaUser, FaShieldAlt, FaArrowRight } from 're
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
-    username: 'rohit123',
-    password: 'Rohit@123'
+    username: '',
+    password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -171,9 +171,9 @@ const LoginPage = () => {
               </div>
 
               <div className="text-sm">
-                <button type="button" className="font-medium text-purple-300 hover:text-purple-200 transition-colors">
+                <Link to="/forgot-password" className="font-medium text-purple-300 hover:text-purple-200 transition-colors">
                   Forgot password?
-                </button>
+                </Link>
               </div>
             </div>
 
