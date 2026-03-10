@@ -59,6 +59,9 @@ import PhotoBook from './pages/PhotoBook';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import OMPrivacyPolicyPage from './pages/OMPrivacyPolicyPage';
 import UploadFamilyImagesPage from './pages/UploadFamilyImages/UploadPage';
+import InvitationCodePage from './pages/InvitationCodePage';
+import InviteUserPage from './pages/InviteUserPage';
+import ConnectionsPage from './pages/ConnectionsPage';
 
 
 const queryClient = new QueryClient({
@@ -154,7 +157,11 @@ const AppRoutes = () => {
         <Route path="images" element={<ImagesPage />} />
         <Route path="client-images" element={<ClientImagesPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
+        {/* Invitation system */}
+        <Route path="invitation/code" element={<InvitationCodePage />} />
+        <Route path="invitation/invite" element={<InviteUserPage />} />
         <Route path="invitations" element={<InvitationsPage />} />
+        <Route path="connections" element={<ConnectionsPage />} />
         <Route path="services/config/:serviceId" element={<ServiceConfigPage />} />
         {/* PhotoStudio Pro Routes */}
         <Route path="studio/dashboard" element={<StudioDashboard />} />

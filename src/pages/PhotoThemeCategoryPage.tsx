@@ -1124,17 +1124,11 @@ const PhotoThemeCategoryPage: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categorySlug]);
 
-  const [coverPage, setCoverPage] = React.useState<EditablePageState>({
-    ...defaultPageState,
-    headline: meta.title,
-    subheadline: meta.subtitle,
-  });
-
-  const [lastPage, setLastPage] = React.useState<EditablePageState>({
-    ...defaultPageState,
-    headline: 'Thank you',
-    subheadline: 'Grateful for every moment captured here.',
-  });
+  // When creating a brand-new album we want a blank cover/last page
+  // (no default text or image). Saved albums will still load their
+  // own content via loadSavedCovers / handleContinueAlbum.
+  const [coverPage, setCoverPage] = React.useState<EditablePageState>({ ...defaultPageState });
+  const [lastPage, setLastPage] = React.useState<EditablePageState>({ ...defaultPageState });
 
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
@@ -1281,10 +1275,12 @@ const PhotoThemeCategoryPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, activeTemplateId]);
 
-  // Load saved covers from API when page loads
+  // Load saved covers from API when editing an existing album
   React.useEffect(() => {
     const loadSavedCovers = async () => {
-      if (!user?.id) return;
+      // Only load covers when we are working with an existing photobook
+      // (for "New Album" flows we keep pages blank).
+      if (!user?.id || !photobookId) return;
 
       setIsLoadingCovers(true);
       try {
@@ -1292,20 +1288,9 @@ const PhotoThemeCategoryPage: React.FC = () => {
         const headers = { ...(token ? { 'X-API-KEY': token } : {}) };
         let payload: any = null;
 
-        // Try photobook-scoped endpoint first, fall back to old (userId, templateId) endpoint
-        if (photobookId) {
-          const res = await api.get(`/api/photobooks/${photobookId}/covers`, { headers }).catch(() => null);
-          if (res?.data?.frontCover || res?.data?.backCover) payload = res.data;
-        }
-        if (!payload && activeTemplateId) {
-          const res = await api.get(
-            `/api/covers?userId=${user.id}&templateId=${activeTemplateId}`,
-            { headers },
-          ).catch(() => null);
-          if (res?.data) {
-            payload = Array.isArray(res.data) ? res.data[0] : res.data;
-          }
-        }
+        // For existing albums, prefer photobook-scoped covers
+        const res = await api.get(`/api/photobooks/${photobookId}/covers`, { headers }).catch(() => null);
+        if (res?.data?.frontCover || res?.data?.backCover) payload = res.data;
 
         if (payload) {
           const { frontCover, backCover } = payload;
@@ -1469,8 +1454,9 @@ const PhotoThemeCategoryPage: React.FC = () => {
 
   const handleCreateNewAlbum = () => {
     setPhotobookId(null);
-    setCoverPage({ ...defaultPageState, headline: meta.title, subheadline: meta.subtitle });
-    setLastPage({ ...defaultPageState, headline: 'Thank you', subheadline: 'Grateful for every moment captured here.' });
+    // Clear to a completely blank state for a fresh album
+    setCoverPage({ ...defaultPageState });
+    setLastPage({ ...defaultPageState });
     localStorage.removeItem(PHOTOBOOK_KEY);
     setSaveSuccess(false);
     setSaveError(null);
@@ -1817,102 +1803,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
           )}
         </button>
       </div>
-
-      {/* Your saved themes – futuristic section */}
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-gradient-to-b from-slate-50 via-white to-slate-50 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_18px_40px_-18px_rgba(15,23,42,0.4)]">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(56,189,248,0.12),transparent)] pointer-events-none" />
-        <div className="relative px-6 py-6 md:px-8 md:py-8">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-cyan-300 shadow-lg shadow-slate-900/40">
-                <FaFolderOpen className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight">
-                  Your saved themes
-                </h2>
-                <p className="text-xs md:text-sm text-slate-500 mt-0.5">
-                  Reopen a cover design you already created.
-                </p>
-              </div>
-            </div>
-            {isLoadingUserThemes && (
-              <span className="inline-flex items-center gap-2 rounded-full bg-cyan-50 px-3 py-1.5 text-xs font-medium text-cyan-700 border border-cyan-200/80">
-                <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Loading themes…
-              </span>
-            )}
-          </div>
-
-          {userThemesError && (
-            <div className="rounded-2xl border border-red-200 bg-red-50/80 px-5 py-4 text-sm text-red-700 flex items-center gap-3 mb-6">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600 text-sm font-semibold">
-                !
-              </span>
-              {userThemesError}
-            </div>
-          )}
-
-          {userCoverThemes.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {userCoverThemes.map((theme) => (
-                <button
-                  type="button"
-                  key={theme.templateId}
-                  onClick={() => handleEditTheme(theme.templateId)}
-                  className="group text-left rounded-2xl border border-slate-200/80 bg-white/95 p-0 overflow-hidden shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_14px_30px_-18px_rgba(15,23,42,0.35)] hover:shadow-[0_0_0_1px_rgba(56,189,248,0.6),0_20px_40px_-20px_rgba(15,23,42,0.7)] hover:border-cyan-400/70 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:ring-offset-2 backdrop-blur-sm"
-                >
-                  <div className="flex items-center justify-between px-4 pt-3 pb-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-cyan-700 bg-cyan-50 rounded-full px-2.5 py-0.5 border border-cyan-100">
-                      Template #{theme.templateId}
-                    </span>
-                    <span className="text-[11px] text-slate-400 group-hover:text-cyan-700 transition-colors font-medium">
-                      Open →
-                    </span>
-                  </div>
-                  {/* Mini book spread: front + back */}
-                  <div className="grid grid-cols-2 gap-px bg-slate-100/90 min-h-[110px]">
-                    <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-3 flex flex-col justify-end">
-                      <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">Front</p>
-                      <p className="font-semibold text-xs line-clamp-2 text-white">
-                        {theme.frontCover?.headline || 'Untitled'}
-                      </p>
-                      <p className="text-[11px] text-slate-300 line-clamp-1 mt-0.5">
-                        {theme.frontCover?.subheadline || '—'}
-                      </p>
-                    </div>
-                    <div className="bg-slate-50 text-slate-900 p-3 flex flex-col justify-end border-l border-slate-200/80">
-                      <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500 mb-0.5">Back</p>
-                      <p className="font-semibold text-xs line-clamp-2">
-                        {theme.backCover?.headline || '—'}
-                      </p>
-                      <p className="text-[11px] text-slate-600 line-clamp-1 mt-0.5">
-                        {theme.backCover?.subheadline || '—'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="px-4 py-2.5 bg-slate-50/90 border-t border-slate-100 text-[11px] text-slate-500 group-hover:bg-cyan-50/70 group-hover:text-cyan-800 transition-colors">
-                    Continue editing this cover
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : !isLoadingUserThemes ? (
-            <div className="rounded-2xl border-2 border-dashed border-slate-200/80 bg-slate-50/60 px-8 py-10 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900/90 text-slate-200 mb-4 shadow-md shadow-slate-900/40">
-                <FaFolderOpen className="h-7 w-7 text-cyan-300" />
-              </div>
-              <h3 className="text-sm font-semibold text-slate-800 mb-1">No saved themes yet</h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Design your cover and last page above, then choose &quot;Next: Build album&quot; to save this theme.
-              </p>
-            </div>
-          ) : null}
-        </div>
-      </section>
+      {/* "Your saved themes" section removed as per request */}
     </div>
   );
 };

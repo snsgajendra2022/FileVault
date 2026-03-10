@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { FaEnvelope, FaUsers, FaPlus } from 'react-icons/fa';
 import CreateInvitationForm from '../components/invitations/CreateInvitationForm';
@@ -6,22 +6,26 @@ import InvitationHistory from '../components/invitations/InvitationHistory';
 import SharedImages from '../components/invitations/SharedImages';
 import { toast } from 'react-hot-toast';
 import CreateClientInvitationForm from '../components/invitations/CreateClient';
+import InvitationCodeGenerator from '../components/invitations/InvitationCodeGenerator';
+import InviteExistingUserForm from '../components/invitations/InviteExistingUserForm';
+import InvitationsList from '../components/invitations/InvitationsList';
+import ConnectedAccountsList from '../components/invitations/ConnectedAccountsList';
 
-// import FamilyTree from '../components/invitations/FamilyTree';
-// import FamilyTree from '../components/invitations/FamilyTree';
-
-const InvitationsPage = () => {
+// Legacy + new invitation system combined as tabs
+const InvitationsPage: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('create');
-  const [invitations, setInvitations] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'create' | 'history' | 'shared' | 'global'>('create');
 
   const tabs = [
-    { id: 'create', name: 'Create Client Invitation', icon: FaPlus, color: 'bg-blue-500' },
-    { id: 'history', name: 'Client Invitation History', icon: FaUsers, color: 'bg-green-500' },
-    //  { id: 'family', name: 'Family Tree', icon: FaUsers, color: 'bg-purple-500' },
-    // { id: 'shared', name: 'Shared Images', icon: FaEnvelope, color: 'bg-orange-500' },
-  ];
+    { id: 'create', name: 'Create Client Invitation', icon: FaPlus },
+    { id: 'history', name: 'Client Invitation History', icon: FaUsers },
+    // { id: 'shared', name: 'Shared Images', icon: FaEnvelope },
+    { id: 'global', name: 'Global Invitation System', icon: FaEnvelope },
+  ] as const;
+
+  const handleInvitationCreated = () => {
+    toast.success('Invitation sent successfully!');
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -29,19 +33,23 @@ const InvitationsPage = () => {
         return <CreateClientInvitationForm onInvitationCreated={handleInvitationCreated} />;
       case 'history':
         return <InvitationHistory />;
-      // case 'family':
-      //   return <FamilyTree />;
       case 'shared':
         return <SharedImages />;
+      case 'global':
+        return (
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <InvitationCodeGenerator />
+              <InviteExistingUserForm />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <InvitationsList />
+              <ConnectedAccountsList />
+            </div>
+          </div>
+        );
       default:
         return <CreateInvitationForm onInvitationCreated={handleInvitationCreated} />;
-    }
-  };
-
-  const handleInvitationCreated = (newInvitation: any) => {
-    toast.success('Invitation sent successfully!');
-    if (activeTab === 'history') {
-      // Trigger refresh in InvitationHistory component
     }
   };
 
@@ -54,7 +62,7 @@ const InvitationsPage = () => {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Invitation System</h1>
               <p className="text-gray-600 mt-2">
-                Invite members to view and share images
+                Invite members to view and share images, or use the global invitation system.
               </p>
             </div>
             <div className="flex items-center space-x-3">
@@ -102,3 +110,4 @@ const InvitationsPage = () => {
 };
 
 export default InvitationsPage;
+

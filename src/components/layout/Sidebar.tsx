@@ -270,32 +270,7 @@ console.log( studioNavigationItems.active === true && 2 );
           )}
         </nav>
 
-        {/* Enhanced Footer */}
-        <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
-          <div className="bg-white rounded-xl p-3 shadow-lg border border-gray-200">
-            <div className="flex items-center">
-              <div className="relative">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-                  <span className="text-sm font-bold text-white">
-                    {user?.username?.charAt(0) || 'U'}
-                  </span>
-                </div>
-                {/* Status indicator */}
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
-              </div>
-              <div className="ml-3 flex-1">
-                <p className="text-sm font-semibold text-gray-900">{user?.firstName} {user?.lastName || 'User'}</p>
-                              <div className="flex items-center space-x-1">
-                <p className="text-xs text-blue-600 font-medium">{user?.accountType || 'User'}</p>
-              </div>
-              </div>
-              {/* <div className="flex items-center space-x-1">
-                <FaStar className="w-3 h-3 text-yellow-400" />
-                <span className="text-xs text-gray-500 font-medium">Online</span>
-              </div> */}
-            </div>
-          </div>
-        </div>
+        {/* Footer removed (user chip at bottom of desktop sidebar) */}
       </div>
     </div>
   );

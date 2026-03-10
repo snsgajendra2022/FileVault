@@ -525,8 +525,10 @@ const UploadPage = () => {
   const [isAddingFiles, setIsAddingFiles] = useState(false);
   const thumbnailUrlsRef = useRef<Map<string, string>>(new Map());
   const queueListRef = useRef<HTMLDivElement>(null);
-  /** Track imageIds we've already added to each album (so we don't double-call the API) */
+  /** Track imageIds we've already added to each album (so we don't double-call the API in this session) */
   const addedToAlbumRef = useRef<Map<number, Set<number>>>(new Map());
+  /** Skip auto-add side effect for items that were already completed before this page mounted */
+  const firstAutoAddRunRef = useRef(true);
 
   const { data: userProfile, isLoading: userLoading, error: userError } = useQuery({
     queryKey: ['userProfile'],
@@ -934,7 +936,9 @@ const UploadPage = () => {
     try {
       await api.post(`/api/albums/${selectedAlbumId}/images`, { imageIds: ids });
       const name = albums.find((a) => a.id === selectedAlbumId)?.name ?? 'album';
-      toast.success(`${ids.length} image(s) added to album "${name}"`);
+      // Images are now linked to the selected album; we intentionally skip a toast here
+      // to avoid duplicate "image(s) added to album" popups. The upload queue and UI
+      // already reflect the updated state.
       setUploadedImageIds((prev) => [...prev, ...ids]);
       if (!addedToAlbumRef.current.has(selectedAlbumId)) addedToAlbumRef.current.set(selectedAlbumId, new Set());
       ids.forEach((id) => addedToAlbumRef.current.get(selectedAlbumId)!.add(id));
@@ -960,18 +964,33 @@ const UploadPage = () => {
       if (!byAlbum.has(albumId)) byAlbum.set(albumId, []);
       byAlbum.get(albumId)!.push(id);
     }
+
+    // On first run after mount, just seed "already added" state so we don't
+    // re-add old completed uploads or show duplicate toasts when opening the page.
+    if (firstAutoAddRunRef.current) {
+      firstAutoAddRunRef.current = false;
+      byAlbum.forEach((imageIds, albumId) => {
+        if (!addedToAlbumRef.current.has(albumId)) {
+          addedToAlbumRef.current.set(albumId, new Set());
+        }
+        const setForAlbum = addedToAlbumRef.current.get(albumId)!;
+        imageIds.forEach((id) => setForAlbum.add(id));
+      });
+      return;
+    }
+
     byAlbum.forEach((imageIds, albumId) => {
       if (!addedToAlbumRef.current.has(albumId)) addedToAlbumRef.current.set(albumId, new Set());
       const alreadyAdded = addedToAlbumRef.current.get(albumId)!;
       const toAdd = imageIds.filter((id) => !alreadyAdded.has(id));
       if (toAdd.length === 0) return;
-      const albumName = albums.find((a) => a.id === albumId)?.name ?? 'album';
       api
         .post(`/api/albums/${albumId}/images`, { imageIds: toAdd })
         .then(() => {
           toAdd.forEach((id) => alreadyAdded.add(id));
           setUploadedImageIds((prev) => [...prev, ...toAdd]);
-          toast.success(`${toAdd.length} image(s) added to album "${albumName}"`);
+          // Intentionally NO toast here to avoid duplicate popups when visiting the page.
+          // User will only see a toast when they manually call "Add completed image(s) to this album".
         })
         .catch((err: unknown) => {
           const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to add to album';

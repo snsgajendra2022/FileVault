@@ -49,6 +49,12 @@ function resolveImageUrl(url: string | undefined | null): string | undefined {
   return `${API_BASE}${url}${token ? `${sep}token=${token}` : ''}`;
 }
 
+function extractImageIdFromUrl(url: string | undefined | null): number | null {
+  if (!url) return null;
+  const match = url.match(/\/api\/images\/(\d+)\/(preview|download|thumbnail)/);
+  return match ? Number(match[1]) : null;
+}
+
 type AlbumPage = {
   index: number;
   type: 'cover' | 'inner' | 'last';
@@ -199,6 +205,8 @@ type LayoutArrangement =
   | 'diagonal'
   | 'circle-focus'
 
+type LayoutSlotRect = { x: number; y: number; width: number; height: number };
+
 /** Single source of truth for page layout options — one unique layout per arrangement, no duplicates */
 const PAGE_LAYOUT_CONFIG: Array<{ id: string; shortLabel: string; slotCount: number; arrangement?: LayoutArrangement }> = [
   // —— 1 photo (2 distinct styles) ——
@@ -228,6 +236,98 @@ const PAGE_LAYOUT_CONFIG: Array<{ id: string; shortLabel: string; slotCount: num
   { id: 'Cinematic Spread', shortLabel: 'Cinema', slotCount: 1, arrangement: 'cinematic' },
   { id: 'Collage', shortLabel: 'Collage', slotCount: 3, arrangement: 'collage' },
 ];
+
+/** Optional JSON-style geometry for layouts (percent-based positions) */
+const LAYOUT_GEOMETRY: Record<string, LayoutSlotRect[]> = {
+  // 1-slot layouts: full page
+  'Single Full Bleed': [{ x: 0, y: 0, width: 100, height: 100 }],
+  'Single Photo': [{ x: 0, y: 0, width: 100, height: 100 }],
+  'Cinematic Love': [{ x: 5, y: 30, width: 90, height: 40 }],
+  'Cinematic Spread': [{ x: 5, y: 30, width: 90, height: 40 }],
+
+  // 2-slot layouts: side‑by‑side and stacked
+  'Love Side by Side': [
+    { x: 0, y: 0, width: 50, height: 100 },
+    { x: 50, y: 0, width: 50, height: 100 },
+  ],
+  'Two Up': [
+    { x: 0, y: 0, width: 50, height: 100 },
+    { x: 50, y: 0, width: 50, height: 100 },
+  ],
+  'Bride & Groom': [
+    { x: 0, y: 0, width: 100, height: 50 },
+    { x: 0, y: 50, width: 100, height: 50 },
+  ],
+
+  // 3-slot simple grid / hero layouts
+  'Three Grid': [
+    { x: 0, y: 0, width: 50, height: 100 },
+    { x: 50, y: 0, width: 50, height: 50 },
+    { x: 50, y: 50, width: 50, height: 50 },
+  ],
+  'Hero + Memories': [
+    { x: 0, y: 0, width: 100, height: 60 },
+    { x: 0, y: 60, width: 50, height: 40 },
+    { x: 50, y: 60, width: 50, height: 40 },
+  ],
+  'Hero + Two': [
+    { x: 0, y: 0, width: 100, height: 60 },
+    { x: 0, y: 60, width: 50, height: 40 },
+    { x: 50, y: 60, width: 50, height: 40 },
+  ],
+  'Romantic Collage': [
+    { x: 4, y: 6, width: 52, height: 58 },
+    { x: 44, y: 40, width: 52, height: 58 },
+    { x: 25, y: 20, width: 50, height: 55 },
+  ],
+  'Collage': [
+    { x: 4, y: 6, width: 52, height: 58 },
+    { x: 44, y: 40, width: 52, height: 58 },
+    { x: 25, y: 20, width: 50, height: 55 },
+  ],
+
+  // 4-slot grid layouts
+  'Wedding Grid': [
+    { x: 0, y: 0, width: 50, height: 50 },
+    { x: 50, y: 0, width: 50, height: 50 },
+    { x: 0, y: 50, width: 50, height: 50 },
+    { x: 50, y: 50, width: 50, height: 50 },
+  ],
+  'Four Grid': [
+    { x: 0, y: 0, width: 50, height: 50 },
+    { x: 50, y: 0, width: 50, height: 50 },
+    { x: 0, y: 50, width: 50, height: 50 },
+    { x: 50, y: 50, width: 50, height: 50 },
+  ],
+  'Memory Collage': [
+    { x: 0, y: 0, width: 50, height: 50 },
+    { x: 50, y: 0, width: 50, height: 50 },
+    { x: 0, y: 50, width: 50, height: 50 },
+    { x: 50, y: 50, width: 50, height: 50 },
+  ],
+  'Luxury Cover': [
+    { x: 0, y: 0, width: 38, height: 33 },
+    { x: 0, y: 33, width: 38, height: 33 },
+    { x: 0, y: 66, width: 38, height: 34 },
+    { x: 40, y: 0, width: 60, height: 100 },
+  ],
+  'Cinematic Inner': [
+    { x: 0, y: 0, width: 100, height: 58 },
+    { x: 0, y: 60, width: 33, height: 40 },
+    { x: 33, y: 60, width: 34, height: 40 },
+    { x: 67, y: 60, width: 33, height: 40 },
+  ],
+
+  // 6-slot grid
+  'Memories Spread': [
+    { x: 0, y: 0, width: 33, height: 50 },
+    { x: 33, y: 0, width: 34, height: 50 },
+    { x: 67, y: 0, width: 33, height: 50 },
+    { x: 0, y: 50, width: 33, height: 50 },
+    { x: 33, y: 50, width: 34, height: 50 },
+    { x: 67, y: 50, width: 33, height: 50 },
+  ],
+};
 
 const PAGE_LAYOUT_OPTIONS = PAGE_LAYOUT_CONFIG.map((c) => c.id);
 
@@ -1283,7 +1383,33 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
 
     let imageContent: React.ReactNode = null;
     if (hasImg) {
-      switch (arrangement) {
+      const geometry = LAYOUT_GEOMETRY[layoutLabel];
+
+      // JSON-based layout engine when geometry is defined
+      if (geometry && geometry.length > 0) {
+        imageContent = (
+          <div className="absolute inset-0">
+            {geometry.map((rect, idx) => (
+              <div
+                key={idx}
+                className="absolute overflow-hidden rounded-md"
+                style={{
+                  left: `${rect.x}%`,
+                  top: `${rect.y}%`,
+                  width: `${rect.width}%`,
+                  height: `${rect.height}%`,
+                  minWidth: 0,
+                  minHeight: 0,
+                }}
+              >
+                {mkImg(idx, 'w-full h-full')}
+              </div>
+            ))}
+          </div>
+        );
+      } else {
+        // Fallback: existing hand-tuned arrangements
+        switch (arrangement) {
         case 'two-up':
           imageContent = (
             <div className="absolute inset-0 grid grid-cols-2 gap-2 p-2" style={{ gridTemplateRows: '1fr' }}>
@@ -1418,12 +1544,25 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           imageContent = (
             <div className="absolute inset-0">
               {editOpts?.editable ? (
-                <DraggableCropImage src={getSrc(0)} alt={`Page ${page.index + 1}`} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" />
+                <DraggableCropImage
+                  src={getSrc(0)}
+                  alt={`Page ${page.index + 1}`}
+                  cropPos={crops[0] ?? { x: 50, y: 50 }}
+                  onCropChange={(p) => editOpts.onCropChange?.(0, p)}
+                  className="w-full h-full"
+                />
               ) : (
-                <img src={getSrc(0)} alt={`Page ${page.index + 1}`} draggable={false} className="w-full h-full object-cover" style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%` }} />
+                <img
+                  src={getSrc(0)}
+                  alt={`Page ${page.index + 1}`}
+                  draggable={false}
+                  className="w-full h-full object-cover"
+                  style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%` }}
+                />
               )}
             </div>
           );
+        }
       }
     }
 
@@ -2167,6 +2306,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   const [librarySearch, setLibrarySearch] = React.useState('');
   const [libraryFilter, setLibraryFilter] = React.useState<'all' | 'recent'>('all');
   const [canvasZoom, setCanvasZoom] = React.useState(100);
+  const [pendingLibraryImage, setPendingLibraryImage] = React.useState<{ url: string; imageId?: number } | null>(null);
 
   if (!template) {
     return (
@@ -2251,7 +2391,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
           <div className="hidden sm:flex items-center gap-1 rounded-lg bg-slate-100 p-1" title="Undo/Redo coming soon">
             <button type="button" className="rounded-md px-2 py-1 text-[10px] font-semibold text-slate-400" disabled>Undo</button>
             <button type="button" className="rounded-md px-2 py-1 text-[10px] font-semibold text-slate-400" disabled>Redo</button>
@@ -2325,13 +2465,40 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
-            <p className="text-[10px] text-slate-400 mb-2">Photos in this album ({libraryPhotoUrls.length})</p>
+            <p className="text-[10px] text-slate-400 mb-1.5 flex items-center justify-between">
+              <span>Photos in this album ({libraryPhotoUrls.length})</span>
+              {pendingLibraryImage && (
+                <span className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-[9px] font-semibold text-indigo-700 border border-indigo-200">
+                  Tap a slot to apply
+                </span>
+              )}
+            </p>
             <div className="grid grid-cols-2 gap-2">
-              {libraryPhotoUrls.slice(0, 24).map((url, i) => (
-                <div key={`${url}-${i}`} className="aspect-square rounded-lg overflow-hidden border border-slate-200/80 bg-slate-50 shadow-sm">
-                  <img src={url} alt="" className="w-full h-full object-cover" />
-                </div>
-              ))}
+              {libraryPhotoUrls.slice(0, 40).map((url, i) => {
+                const imageId = extractImageIdFromUrl(url);
+                const isActive = pendingLibraryImage?.url === url;
+                return (
+                  <button
+                    key={`${url}-${i}`}
+                    type="button"
+                    onClick={() => {
+                      setPendingLibraryImage({ url, imageId: imageId ?? undefined });
+                    }}
+                    className={`relative aspect-square rounded-lg overflow-hidden border bg-slate-50 shadow-sm transition-all ${
+                      isActive
+                        ? 'border-indigo-500 ring-2 ring-indigo-400/60 scale-[1.02]'
+                        : 'border-slate-200/80 hover:border-indigo-300 hover:shadow-md'
+                    }`}
+                  >
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    {isActive && (
+                      <span className="absolute bottom-1 left-1 right-1 mx-auto text-[9px] font-semibold text-white bg-black/60 rounded-full px-1.5 py-0.5 text-center">
+                        Selected · click a slot
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div className="p-2 border-t border-slate-100">
@@ -2421,10 +2588,57 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   }`}>
                     {isCover ? 'Cover' : isLast ? 'Back' : `Page ${page.index + 1}`}
                   </span>
-                  <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
-                    <button type="button" onClick={() => setCanvasZoom((z) => Math.max(50, z - 10))} className="rounded-md px-2 py-1 text-xs font-bold text-slate-600 hover:bg-white">−</button>
-                    <span className="text-[10px] font-semibold text-slate-500 min-w-[2.5rem] text-center">{canvasZoom}%</span>
-                    <button type="button" onClick={() => setCanvasZoom((z) => Math.min(150, z + 10))} className="rounded-md px-2 py-1 text-xs font-bold text-slate-600 hover:bg-white">+</button>
+                  <div className="flex items-center gap-2">
+                    {/* Zoom preset sizes: Small / Medium / Large */}
+                    <div className="hidden sm:flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setCanvasZoom(70)}
+                        className={`rounded-md px-2 py-1 text-[10px] font-semibold ${
+                          canvasZoom <= 80 ? 'bg-white text-slate-800' : 'text-slate-500 hover:bg-white/70'
+                        }`}
+                      >
+                        S
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCanvasZoom(100)}
+                        className={`rounded-md px-2 py-1 text-[10px] font-semibold ${
+                          canvasZoom > 80 && canvasZoom < 120 ? 'bg-white text-slate-800' : 'text-slate-500 hover:bg-white/70'
+                        }`}
+                      >
+                        M
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCanvasZoom(130)}
+                        className={`rounded-md px-2 py-1 text-[10px] font-semibold ${
+                          canvasZoom >= 120 ? 'bg-white text-slate-800' : 'text-slate-500 hover:bg-white/70'
+                        }`}
+                      >
+                        L
+                      </button>
+                    </div>
+                    {/* Fine zoom control */}
+                    <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setCanvasZoom((z) => Math.max(50, z - 10))}
+                        className="rounded-md px-2 py-1 text-xs font-bold text-slate-600 hover:bg-white"
+                      >
+                        −
+                      </button>
+                      <span className="text-[10px] font-semibold text-slate-500 min-w-[2.5rem] text-center">
+                        {canvasZoom}%
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setCanvasZoom((z) => Math.min(150, z + 10))}
+                        className="rounded-md px-2 py-1 text-xs font-bold text-slate-600 hover:bg-white"
+                      >
+                        +
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className="flex-1 flex items-center justify-center min-h-0 gap-2">
@@ -2440,6 +2654,16 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   <div
                     className="flex-1 flex items-center justify-center min-h-0 max-w-4xl"
                     style={{ transform: `scale(${canvasZoom / 100})`, transformOrigin: 'center center' }}
+                    onWheel={(e) => {
+                      // Allow zooming the page with the mouse wheel.
+                      // Scroll up = zoom in, scroll down = zoom out.
+                      e.preventDefault();
+                      const delta = e.deltaY < 0 ? 10 : -10;
+                      setCanvasZoom((z) => {
+                        const next = z + delta;
+                        return Math.min(150, Math.max(50, next));
+                      });
+                    }}
                   >
                     <div
                       className="relative w-full rounded-xl overflow-hidden bg-white border border-slate-200/80 shadow-lg"
@@ -2551,6 +2775,38 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                       <div className="flex flex-wrap gap-2">
                         {Array.from({ length: slotCount }).map((_, si) => {
                           const slotUrl = slotCount > 1 ? urls[si] : (si === 0 ? state.imageDataUrl : undefined);
+
+                          const handleOpenSlot = () => {
+                            // If user has picked an image from the left gallery, apply it directly to this slot.
+                            if (pendingLibraryImage) {
+                              const imgUrl = pendingLibraryImage.url;
+                              const imgId = pendingLibraryImage.imageId ?? 0;
+                              setPageImages(prev => {
+                                const cur = prev[page.index] ?? {};
+                                const existingUrls = [...(cur.imageDataUrls ?? (cur.imageDataUrl ? [cur.imageDataUrl] : []))];
+                                const existingIds = [...(cur.imageIds ?? [])];
+                                while (existingUrls.length <= si) existingUrls.push('');
+                                while (existingIds.length <= si) existingIds.push(0);
+                                existingUrls[si] = imgUrl;
+                                existingIds[si] = imgId;
+                                return {
+                                  ...prev,
+                                  [page.index]: {
+                                    ...cur,
+                                    imageDataUrl: existingUrls[0] || imgUrl,
+                                    imageDataUrls: existingUrls,
+                                    imageIds: existingIds,
+                                  },
+                                };
+                              });
+                              setPendingLibraryImage(null);
+                              return;
+                            }
+
+                            // Fallback: open FileVault picker for this specific slot.
+                            setPageImagePickerFor({ pageIndex: page.index, layout: layoutLabel, slotIndex: si });
+                          };
+
                           return (
                             <AlbumSlotCard
                               key={si}
@@ -2558,7 +2814,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                               slotIndex={si}
                               url={slotUrl}
                               label={String(si + 1)}
-                              onOpenPicker={() => setPageImagePickerFor({ pageIndex: page.index, layout: layoutLabel, slotIndex: si })}
+                              onOpenPicker={handleOpenSlot}
                               onRemove={() => {
                                 setPageImages(prev => {
                                   const cur = prev[page.index] ?? {};
@@ -3158,19 +3414,26 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           const applyMultiPick = (picks: { name: string; dataUrl: string; imageId?: number }[]) => {
             setPageImages((prev) => {
               const current = prev[pickerPageIdx] ?? {};
-              const newUrls: string[] = [];
-              const newIds: number[] = [];
-              for (let i = 0; i < totalSlots; i++) {
-                const p = picks[i];
-                if (p) {
-                  newUrls[i] = p.imageId ? buildPreviewUrl(p.imageId) : p.dataUrl;
-                  newIds[i] = p.imageId ?? 0;
-                } else {
-                  const existing = current.imageDataUrls ?? [];
-                  newUrls[i] = existing[i] ?? '';
-                  newIds[i] = current.imageIds?.[i] ?? 0;
-                }
-              }
+
+              // Start from existing slots so we don't wipe out other images
+              const existingUrls = current.imageDataUrls ?? (current.imageDataUrl ? [current.imageDataUrl] : []);
+              const newUrls: string[] = [...existingUrls];
+              const existingIds = current.imageIds ?? [];
+              const newIds: number[] = [...existingIds];
+
+              while (newUrls.length < totalSlots) newUrls.push('');
+              while (newIds.length < totalSlots) newIds.push(0);
+
+              // If user opened picker from a specific slot, start filling from there
+              const startSlot = targetSlotIndex ?? 0;
+
+              picks.forEach((p, idx) => {
+                const slot = startSlot + idx;
+                if (slot >= totalSlots) return;
+                newUrls[slot] = p.imageId ? buildPreviewUrl(p.imageId) : p.dataUrl;
+                newIds[slot] = p.imageId ?? 0;
+              });
+
               return {
                 ...prev,
                 [pickerPageIdx]: {

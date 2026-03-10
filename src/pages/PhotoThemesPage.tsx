@@ -478,7 +478,17 @@ const PhotoThemesPage: React.FC = () => {
   }, [themes]);
 
   const handleThemeClick = (theme: ThemeCategory) => {
-    // Always go to cover page to start a new album
+    // When user clicks "Start Album" / "Create New Album", we want a truly
+    // fresh album (no old covers or pages). Clear any stored photobook
+    // progress for this theme before navigating.
+    try {
+      const key = `photobook_${theme.id}`;
+      localStorage.removeItem(key);
+    } catch {
+      // ignore storage errors
+    }
+
+    // Always go to cover page to start a new album for this theme
     navigate(`/photo-themes/${theme.id}`, {
       state: { templateId: theme.templateId },
     });
