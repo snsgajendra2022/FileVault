@@ -32,6 +32,7 @@ const IMAGE_ROOT_MARGIN = '100px';
 // ---------------------------------------------------------------------------
 
 interface UserImage {
+  id?: number | string;
   previewUrl: string;
   filename: string;
   downloadUrl: string;
@@ -324,7 +325,7 @@ const ImageCard = memo(function ImageCard({
             <FiDownload className="h-3 w-3 mr-1" />
             Download
           </button>
-          {/* {viewMode === 'my' && (
+          {viewMode === 'my' && (
             <button
               type="button"
               onClick={() => onDelete(image)}
@@ -337,7 +338,7 @@ const ImageCard = memo(function ImageCard({
                 <FiTrash2 className="h-3 w-3" />
               )}
             </button>
-          )} */}
+          )}
         </div>
       </div>
     </div>
@@ -457,14 +458,21 @@ const ClientImagesPage = () => {
 
   const handleDelete = useCallback(
     (image: UserImage) => {
-      if (user?.accountType === 'FREE') {
-        setShowUpgradeModal(true);
-        return;
+      // Prefer id from API; otherwise parse from URL (e.g. .../api/images/123/download)
+      let imageId: string | undefined;
+      if (image.id != null && image.id !== '') {
+        imageId = String(image.id);
+      } else {
+        const match = image.downloadUrl.match(/\/api\/images\/(\d+)(?:\/|$|\?)/) ?? image.downloadUrl.match(/\/images\/(\d+)(?:\/|$|\?)/);
+        imageId = match ? match[1] : undefined;
       }
-      const imageId = image.downloadUrl.split('/').pop()?.split('?')[0];
-      if (imageId) deleteImageMutation.mutate(imageId);
+      if (imageId) {
+        deleteImageMutation.mutate(imageId);
+      } else {
+        toast.error('Unable to determine image ID for delete');
+      }
     },
-    [user?.accountType, deleteImageMutation]
+    [deleteImageMutation]
   );
 
   const handleUserSelect = useCallback((familyMember: FamilyRelationship) => {

@@ -13,7 +13,7 @@ const BLOCK_INSPECT = process.env.REACT_APP_BLOCK_INSPECT === undefined
 //   ? true 
 //   : process.env.REACT_APP_BLOCK_INSPECT === 'true';
 
-export const enableInspectBlocks = () => {
+export const enableInspectBlock = () => {
   if (!BLOCK_INSPECT) {
     console.log('Inspect blocking is disabled');
     return;
@@ -119,7 +119,7 @@ export const enableInspectBlocks = () => {
   console.log('Inspect blocking enabled');
 };
 
-export const enableInspectBlock = () => {
+export const enableInspectBlocks = () => {
   // Remove all event listeners would require storing references
   // For now, just log that it's disabled
   console.log('Inspect blocking disabled');
