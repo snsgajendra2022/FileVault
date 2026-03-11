@@ -3,8 +3,11 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { FaClock, FaCheck, FaTimes, FaUsers } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { acceptInvitation, getInvitations, Invitation, rejectInvitation } from '../../services/invitationService';
+import { getStoredUserData } from '../../utils/authUtils';
 
 const InvitationsList: React.FC = () => {
+  const currentUser = getStoredUserData();
+  const currentUserId = currentUser?.id ?? null;
   const { data, isLoading, refetch } = useQuery<Invitation[]>({
     queryKey: ['global-invitations'],
     queryFn: getInvitations,
@@ -93,24 +96,28 @@ const InvitationsList: React.FC = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => acceptMutation.mutate(inv.invitationId)}
-                        disabled={acceptMutation.status === 'pending'}
-                        className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 disabled:opacity-60"
-                      >
-                        <FaCheck className="w-3 h-3" />
-                        Accept
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => rejectMutation.mutate(inv.invitationId)}
-                        disabled={rejectMutation.status === 'pending'}
-                        className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 disabled:opacity-60"
-                      >
-                        <FaTimes className="w-3 h-3" />
-                        Reject
-                      </button>
+                      {inv.inviterId !== currentUserId && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => acceptMutation.mutate(inv.invitationId)}
+                            disabled={acceptMutation.status === 'pending'}
+                            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 disabled:opacity-60"
+                          >
+                            <FaCheck className="w-3 h-3" />
+                            Accept
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => rejectMutation.mutate(inv.invitationId)}
+                            disabled={rejectMutation.status === 'pending'}
+                            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 disabled:opacity-60"
+                          >
+                            <FaTimes className="w-3 h-3" />
+                            Reject
+                          </button>
+                        </>
+                      )}
                     </div>
                   </li>
                 ))}
