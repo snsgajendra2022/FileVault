@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../../context/AuthContext';
-import { getStoredToken } from '../../utils/authUtils';
+import { getStoredToken, getStoredUserData } from '../../utils/authUtils';
+import { FamilyRelationship } from '../../types/user';
 import api from '../../services/api';
 import imageService from '../../services/imageService';
 import toast from 'react-hot-toast';
@@ -50,6 +51,14 @@ export interface QueueItemMeta {
     otherUserLastName?: string;
     relationshipType?: string;
   };
+  /** When set, file is uploaded to each of these accounts (one by one). Each must have inviterApiToken. */
+  targetFamilyMembers?: Array<{
+    otherUserId: number;
+    otherUserFirstName: string;
+    otherUserLastName?: string;
+    relationshipType?: string;
+    inviterApiToken: string;
+  }>;
   imageId?: number | string;
   /** When set, this upload will be added to this album once it completes */
   targetAlbumId?: number;
@@ -221,7 +230,15 @@ class UploadManager {
     }
   }
 
-  async addFiles(files: File[], options?: { uploadDestination?: 'my-account' | 'family-account'; targetFamilyMember?: QueueItem['targetFamilyMember']; targetAlbumId?: number }): Promise<{ added: number; skipped: number; skippedDueToLimit: number }> {
+  async addFiles(
+    files: File[],
+    options?: {
+      uploadDestination?: 'my-account' | 'family-account';
+      targetFamilyMember?: QueueItem['targetFamilyMember'];
+      targetFamilyMembers?: QueueItemMeta['targetFamilyMembers'];
+      targetAlbumId?: number;
+    }
+  ): Promise<{ added: number; skipped: number; skippedDueToLimit: number }> {
     const existingKeys = new Set(this.items.map((i) => i.fileKey));
     let added = 0;
     let skipped = 0;
@@ -249,6 +266,7 @@ class UploadManager {
         retries: 0,
         uploadDestination: options?.uploadDestination ?? 'my-account',
         targetFamilyMember: options?.targetFamilyMember,
+        targetFamilyMembers: options?.targetFamilyMembers,
         targetAlbumId: options?.targetAlbumId,
         createdAt: Date.now(),
         file,
@@ -412,47 +430,94 @@ class UploadManager {
       }
     }
 
-    const formData = new FormData();
-    formData.append('file', currentItem.file);
-
-    const isFamily =
-      currentItem.uploadDestination === 'family-account' && currentItem.targetFamilyMember;
-    const url = isFamily ? '/api/images/upload-family' : '/api/images/upload';
-    if (isFamily && currentItem.targetFamilyMember) {
-      formData.append('familyMemberId', String(currentItem.targetFamilyMember.otherUserId));
-    }
-
-    const headers: Record<string, string> = { 'Content-Type': 'multipart/form-data' };
     const resolvedToken = this.uploadTokenResolver?.() ?? null;
-    if (resolvedToken) headers.Authorization = `Bearer ${resolvedToken}`;
+    const familyTargets = currentItem.targetFamilyMembers?.length
+      ? currentItem.targetFamilyMembers
+      : currentItem.uploadDestination === 'family-account' && currentItem.targetFamilyMember
+        ? [{
+            otherUserId: currentItem.targetFamilyMember.otherUserId,
+            otherUserFirstName: currentItem.targetFamilyMember.otherUserFirstName,
+            otherUserLastName: currentItem.targetFamilyMember.otherUserLastName,
+            relationshipType: currentItem.targetFamilyMember.relationshipType,
+            inviterApiToken: resolvedToken ?? '',
+          }]
+        : [];
+
+    const isFamily = familyTargets.length > 0;
+    const url = isFamily ? '/api/images/upload-family' : '/api/images/upload';
 
     try {
-      const response = await api.post(url, formData, {
-        headers,
-        timeout: UPLOAD_TIMEOUT_MS,
-        signal,
-        onUploadProgress: (ev) => {
-          if (ev.total && ev.total > 0) {
-            const pct = Math.round((ev.loaded / ev.total) * 100);
-            update({ progress: pct });
-          }
-        },
-      });
+      let lastData: unknown = null;
+      let lastImageId: number | string | undefined;
+      const totalTargets = Math.max(1, familyTargets.length);
+      const progressPerTarget = totalTargets > 1 ? Math.floor(100 / totalTargets) : 100;
 
-      const data = response?.data ?? response;
-      const imageId = data?.id ?? data?.image?.id ?? (data as { imageId?: number })?.imageId;
+      if (familyTargets.length === 0) {
+        const formData = new FormData();
+        formData.append('file', currentItem.file);
+        const headers: Record<string, string> = { 'Content-Type': 'multipart/form-data' };
+        if (resolvedToken) headers.Authorization = `Bearer ${resolvedToken}`;
+        const response = await api.post(url, formData, {
+          headers,
+          timeout: UPLOAD_TIMEOUT_MS,
+          signal,
+          onUploadProgress: (ev) => {
+            if (ev.total && ev.total > 0) {
+              const pct = Math.round((ev.loaded / ev.total) * 100);
+              update({ progress: pct });
+            }
+          },
+        });
+        lastData = response?.data ?? response;
+        const d = lastData as { id?: number; image?: { id?: number }; imageId?: number };
+        lastImageId = d?.id ?? d?.image?.id ?? d?.imageId;
+      } else {
+        for (let i = 0; i < familyTargets.length; i++) {
+          if (signal.aborted) {
+            update({ status: 'paused', progress: this.items.find((x) => x.id === item.id)?.progress ?? 0 });
+            return;
+          }
+          const member = familyTargets[i];
+          const formData = new FormData();
+          formData.append('file', currentItem.file);
+          formData.append('familyMemberId', String(member.otherUserId));
+          const headers: Record<string, string> = { 'Content-Type': 'multipart/form-data' };
+          if (member.inviterApiToken) headers.Authorization = `Bearer ${member.inviterApiToken}`;
+          else if (resolvedToken) headers.Authorization = `Bearer ${resolvedToken}`;
+
+          const response = await api.post(url, formData, {
+            headers,
+            timeout: UPLOAD_TIMEOUT_MS,
+            signal,
+            onUploadProgress: (ev) => {
+              if (ev.total && ev.total > 0) {
+                const pct = Math.round((ev.loaded / ev.total) * 100);
+                const base = i * progressPerTarget;
+                update({ progress: Math.min(99, base + Math.round((pct / 100) * progressPerTarget)) });
+              }
+            },
+          });
+          lastData = response?.data ?? response;
+          const d = lastData as { id?: number; image?: { id?: number }; imageId?: number };
+          lastImageId = d?.id ?? d?.image?.id ?? d?.imageId;
+        }
+        update({ progress: 100 });
+      }
+
       const message =
-        data?.message ??
-        (isFamily
-          ? `${currentItem.fileName} uploaded to ${currentItem.targetFamilyMember?.otherUserFirstName}'s account.`
-          : `${currentItem.fileName} uploaded successfully.`);
+        (lastData as { message?: string })?.message ??
+        (isFamily && familyTargets.length > 1
+          ? `${currentItem.fileName} uploaded to ${familyTargets.length} accounts.`
+          : isFamily && familyTargets.length === 1
+            ? `${currentItem.fileName} uploaded to ${familyTargets[0].otherUserFirstName}'s account.`
+            : `${currentItem.fileName} uploaded successfully.`);
 
       update({
         status: 'completed',
         progress: 100,
-        response: data,
+        response: lastData,
         successMessage: message,
-        imageId,
+        imageId: lastImageId,
         error: undefined,
       });
       setTimeout(() => this.notify(), 0);
@@ -529,6 +594,11 @@ const UploadFamilyImagesPage = () => {
   >([]);
   const [showUploadOptions, setShowUploadOptions] = useState(false);
   const [selectedFileForOptions, setSelectedFileForOptions] = useState<QueueItem | null>(null);
+  const [accountSearchQuery, setAccountSearchQuery] = useState('');
+  const [selectedAccountIdsForModal, setSelectedAccountIdsForModal] = useState<number[]>([]);
+  const [defaultUploadDestination, setDefaultUploadDestination] = useState<'my-account' | 'family-account'>('my-account');
+  const [defaultSelectedAccountIds, setDefaultSelectedAccountIds] = useState<number[]>([]);
+  const [defaultAccountSearch, setDefaultAccountSearch] = useState('');
   const [selectedAlbumId, setSelectedAlbumId] = useState<number | null>(null);
   const [uploadedImageIds, setUploadedImageIds] = useState<(number | string)[]>([]);
   const [showCreateAlbumModal, setShowCreateAlbumModal] = useState(false);
@@ -577,6 +647,43 @@ const UploadFamilyImagesPage = () => {
     if (albumsData && typeof albumsData === 'object' && 'albums' in albumsData) return (albumsData as { albums: Album[] }).albums;
     return [];
   }, [albumsData]);
+
+  /** Unified list of accounts to upload to (from user, profile, API). Each has inviterApiToken. */
+  const uploadTargetAccounts = useMemo(() => {
+    type Acc = { inviterId: number; inviterApiToken: string; inviterFirstName: string; inviterLastName: string; inviterUsername?: string; relationshipType: string };
+    const byId = new Map<number, Acc>();
+    const add = (r: {
+      inviterId?: number;
+      inviterApiToken?: string;
+      inviterFirstName?: string;
+      inviterLastName?: string;
+      inviterUsername?: string;
+      relationshipType?: string;
+      canUploadImages?: boolean;
+    }) => {
+      const id = r.inviterId ?? (r as { otherUserId?: number }).otherUserId;
+      const token = r.inviterApiToken as string | undefined;
+      if (id == null || !token) return;
+      if (r.canUploadImages === false) return;
+      byId.set(id, {
+        inviterId: id,
+        inviterApiToken: token,
+        inviterFirstName: r.inviterFirstName ?? (r as { otherUserFirstName?: string }).otherUserFirstName ?? '',
+        inviterLastName: r.inviterLastName ?? (r as { otherUserLastName?: string }).otherUserLastName ?? '',
+        inviterUsername: r.inviterUsername ?? (r as { otherUserUsername?: string }).otherUserUsername,
+        relationshipType: r.relationshipType ?? (r as { relationshipType?: string }).relationshipType ?? 'CLIENT',
+      });
+    };
+    (user?.familyRelationships ?? []).forEach(add);
+    const profileR = (userProfile as { familyRelationships?: unknown[] })?.familyRelationships ?? (userProfile as { user?: { familyRelationships?: unknown[] } })?.user?.familyRelationships;
+    if (Array.isArray(profileR)) profileR.forEach((r: unknown) => add(r as Acc));
+    (familyRelationshipsFromApi ?? []).forEach((r: { inviterApiToken?: string; [key: string]: unknown }) => add(r as Acc));
+    const stored = getStoredUserData() as { familyRelationships?: unknown[] } | null;
+    if (stored?.familyRelationships && Array.isArray(stored.familyRelationships)) {
+      stored.familyRelationships.forEach((r: unknown) => add(r as Acc));
+    }
+    return Array.from(byId.values());
+  }, [user?.familyRelationships, userProfile, familyRelationshipsFromApi]);
 
   useEffect(() => {
     uploadManager.loadFromPersisted();
@@ -746,7 +853,21 @@ const UploadFamilyImagesPage = () => {
       if (valid.length) {
         setIsAddingFiles(true);
         try {
+          const isFamily = defaultUploadDestination === 'family-account' && defaultSelectedAccountIds.length > 0;
+          const members = isFamily
+            ? uploadTargetAccounts
+                .filter((a) => defaultSelectedAccountIds.includes(a.inviterId))
+                .map((a) => ({
+                  otherUserId: a.inviterId,
+                  otherUserFirstName: a.inviterFirstName,
+                  otherUserLastName: a.inviterLastName,
+                  relationshipType: a.relationshipType,
+                  inviterApiToken: a.inviterApiToken,
+                }))
+            : undefined;
           const { added, skipped, skippedDueToLimit } = await uploadManager.addFiles(valid, {
+            uploadDestination: isFamily ? 'family-account' : 'my-account',
+            targetFamilyMembers: members?.length ? members : undefined,
             targetAlbumId: selectedAlbumId ?? undefined,
           });
           setQueueState(uploadManager.getState());
@@ -758,7 +879,7 @@ const UploadFamilyImagesPage = () => {
         }
       }
     },
-    [canUpload, isFileTypeAllowed, selectedAlbumId]
+    [canUpload, isFileTypeAllowed, selectedAlbumId, defaultUploadDestination, defaultSelectedAccountIds, uploadTargetAccounts]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -796,29 +917,64 @@ const UploadFamilyImagesPage = () => {
   const isVideoItem = (item: QueueItem): boolean => item.file.type.startsWith('video/');
 
   const setUploadDestination = useCallback(
-    (fileId: string, destination: 'my-account' | 'family-account', familyMember?: (typeof familyMembers)[0]) => {
+    (
+      fileId: string,
+      destination: 'my-account' | 'family-account',
+      familyMemberOrArray?: (typeof familyMembers)[0] | Array<{ otherUserId: number; otherUserFirstName: string; otherUserLastName?: string; relationshipType?: string; inviterApiToken: string }>
+    ) => {
+      if (destination === 'my-account') {
+        uploadManager.updateItemMeta(fileId, {
+          uploadDestination: 'my-account',
+          targetFamilyMember: undefined,
+          targetFamilyMembers: undefined,
+        }).then(() => {
+          if (selectedFileForOptions?.id === fileId) {
+            setSelectedFileForOptions(uploadManager.getState().items.find((i) => i.id === fileId) ?? null);
+          }
+          setShowUploadOptions(false);
+          setSelectedFileForOptions(null);
+        });
+        return;
+      }
+      const isArray = Array.isArray(familyMemberOrArray);
+      const members = isArray ? familyMemberOrArray : (familyMemberOrArray ? [familyMemberOrArray] : undefined);
+      const withToken = members?.map((m) => {
+        if ('inviterApiToken' in m && m.inviterApiToken) {
+          return {
+            otherUserId: m.otherUserId ?? (m as { inviterId?: number }).inviterId,
+            otherUserFirstName: m.otherUserFirstName ?? (m as { inviterFirstName?: string }).inviterFirstName ?? '',
+            otherUserLastName: m.otherUserLastName ?? (m as { inviterLastName?: string }).inviterLastName,
+            relationshipType: m.relationshipType ?? (m as { relationshipType?: string }).relationshipType,
+            inviterApiToken: m.inviterApiToken,
+          };
+        }
+        const fromList = uploadTargetAccounts.find((a) => a.inviterId === (m as { otherUserId?: number }).otherUserId);
+        return {
+          otherUserId: (m as { otherUserId?: number }).otherUserId ?? (m as { inviterId?: number }).inviterId!,
+          otherUserFirstName: (m as { otherUserFirstName?: string }).otherUserFirstName ?? (m as { inviterFirstName?: string }).inviterFirstName ?? '',
+          otherUserLastName: (m as { otherUserLastName?: string }).otherUserLastName ?? (m as { inviterLastName?: string }).inviterLastName,
+          relationshipType: (m as { relationshipType?: string }).relationshipType ?? '',
+          inviterApiToken: fromList?.inviterApiToken ?? '',
+        };
+      }).filter((m) => m.inviterApiToken) ?? undefined;
+
+      const single = withToken?.length === 1 ? withToken[0] : undefined;
       const meta: Partial<QueueItemMeta> = {
-        uploadDestination: destination,
-        targetFamilyMember: familyMember
-          ? {
-              otherUserId: familyMember.otherUserId,
-              otherUserFirstName: familyMember.otherUserFirstName,
-              otherUserLastName: familyMember.otherUserLastName,
-              relationshipType: familyMember.relationshipType,
-            }
-          : undefined,
+        uploadDestination: 'family-account',
+        targetFamilyMember: single ? { otherUserId: single.otherUserId, otherUserFirstName: single.otherUserFirstName, otherUserLastName: single.otherUserLastName, relationshipType: single.relationshipType } : undefined,
+        targetFamilyMembers: withToken?.length ? withToken : undefined,
       };
       uploadManager.updateItemMeta(fileId, meta).then(() => {
         if (selectedFileForOptions?.id === fileId) {
           setSelectedFileForOptions(uploadManager.getState().items.find((i) => i.id === fileId) ?? null);
         }
-        if (destination === 'my-account' || familyMember) {
+        if (withToken?.length) {
           setShowUploadOptions(false);
           setSelectedFileForOptions(null);
         }
       });
     },
-    [familyMembers, selectedFileForOptions?.id]
+    [familyMembers, selectedFileForOptions?.id, uploadTargetAccounts]
   );
 
   useEffect(() => {
@@ -829,11 +985,27 @@ const UploadFamilyImagesPage = () => {
     }
   }, [queueState.items]);
 
+  // When opening upload-options modal for family destination, init multi-select from item
+  useEffect(() => {
+    if (!showUploadOptions || !selectedFileForOptions) return;
+    if (selectedFileForOptions.uploadDestination !== 'family-account') return;
+    const ids = selectedFileForOptions.targetFamilyMembers?.map((m) => m.otherUserId)
+      ?? (selectedFileForOptions.targetFamilyMember ? [selectedFileForOptions.targetFamilyMember.otherUserId] : []);
+    setSelectedAccountIdsForModal(ids);
+    setAccountSearchQuery('');
+  }, [showUploadOptions, selectedFileForOptions?.id, selectedFileForOptions?.uploadDestination]);
+
   const getUploadDestinationText = (item: QueueItem) => {
+    if (item.uploadDestination === 'family-account' && item.targetFamilyMembers?.length) {
+      if (item.targetFamilyMembers.length === 1) {
+        return `👥 ${item.targetFamilyMembers[0].otherUserFirstName}'s Account`;
+      }
+      return `👥 ${item.targetFamilyMembers.length} accounts`;
+    }
     if (item.uploadDestination === 'family-account' && item.targetFamilyMember) {
       return `👥 ${item.targetFamilyMember.otherUserFirstName}'s Account`;
     }
-    if (item.uploadDestination === 'family-account') return '👥 Family Account (Select Member)';
+    if (item.uploadDestination === 'family-account') return '👥 Client Account (Select below)';
     return '🏠 My Account';
   };
 
@@ -1167,6 +1339,98 @@ const UploadFamilyImagesPage = () => {
           </div>
         )}
         <div className="p-10">
+          {/* Upload to: My Account / Client accounts — search + list (4 rows, scroll) */}
+          <div className="mb-6 rounded-2xl border border-purple-200 bg-purple-50/80 p-4">
+            <p className="text-sm font-semibold text-purple-900 mb-3">Upload to</p>
+            <div className="flex flex-wrap gap-4 mb-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="defaultUploadDestination"
+                  checked={defaultUploadDestination === 'my-account'}
+                  onChange={() => setDefaultUploadDestination('my-account')}
+                  className="text-indigo-600"
+                />
+                <span className="text-sm font-medium text-gray-800">My account</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="defaultUploadDestination"
+                  checked={defaultUploadDestination === 'family-account'}
+                  onChange={() => setDefaultUploadDestination('family-account')}
+                  className="text-purple-600"
+                  disabled={uploadTargetAccounts.length === 0}
+                />
+                <span className="text-sm font-medium text-gray-800">Client account(s)</span>
+              </label>
+            </div>
+            {defaultUploadDestination === 'family-account' && (
+              <>
+                <div className="mb-2">
+                  <input
+                    type="search"
+                    value={defaultAccountSearch}
+                    onChange={(e) => setDefaultAccountSearch(e.target.value)}
+                    placeholder="Search accounts..."
+                    className="w-full p-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                  />
+                </div>
+                <div className="border border-purple-200 rounded-lg bg-white overflow-hidden" style={{ maxHeight: '10.5rem' }}>
+                  <div className="overflow-y-auto p-1" style={{ maxHeight: '10rem' }}>
+                    {uploadTargetAccounts.length === 0 ? (
+                      <p className="text-sm text-gray-500 p-2">No client accounts. Accept an invitation to see them here.</p>
+                    ) : (() => {
+                      const q = defaultAccountSearch.trim().toLowerCase();
+                      const filtered = q
+                        ? uploadTargetAccounts.filter(
+                            (a) =>
+                              a.inviterFirstName?.toLowerCase().includes(q) ||
+                              a.inviterLastName?.toLowerCase().includes(q) ||
+                              a.inviterUsername?.toLowerCase().includes(q) ||
+                              a.relationshipType?.toLowerCase().includes(q)
+                          )
+                        : uploadTargetAccounts;
+                      return filtered.length === 0 ? (
+                        <p className="text-sm text-gray-500 p-2">No accounts match.</p>
+                      ) : (
+                        filtered.map((acc) => {
+                          const checked = defaultSelectedAccountIds.includes(acc.inviterId);
+                          return (
+                            <label
+                              key={acc.inviterId}
+                              className="flex items-center gap-3 p-2 rounded-md hover:bg-purple-50 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => {
+                                  setDefaultSelectedAccountIds((prev) =>
+                                    prev.includes(acc.inviterId) ? prev.filter((id) => id !== acc.inviterId) : [...prev, acc.inviterId]
+                                  );
+                                }}
+                                className="rounded border-purple-300 text-purple-600"
+                              />
+                              <span className="text-sm text-gray-900 truncate">
+                                {acc.inviterFirstName} {acc.inviterLastName}
+                                {acc.relationshipType ? ` · ${acc.relationshipType}` : ''}
+                              </span>
+                            </label>
+                          );
+                        })
+                      );
+                    })()}
+                  </div>
+                </div>
+                {defaultSelectedAccountIds.length > 0 && (
+                  <p className="text-xs text-purple-700 mt-2">
+                    {defaultSelectedAccountIds.length} account{defaultSelectedAccountIds.length !== 1 ? 's' : ''} selected — new files will upload to each.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
           <div
             {...getRootProps()}
             className={`border-3 border-dashed rounded-3xl p-16 text-center cursor-pointer transition-all duration-300 ${
@@ -1488,42 +1752,121 @@ const UploadFamilyImagesPage = () => {
                       </div>
                     </div>
                   </div>
-                  {familyMembers.length > 0 && (
-                    <div className="bg-purple-50 rounded-lg p-4 border-2 border-purple-200">
-                      <div className="flex items-center space-x-3 mb-3">
-                        <input
-                          type="radio"
-                          name="uploadDestination"
-                          checked={selectedFileForOptions.uploadDestination === 'family-account'}
-                          onChange={() => setUploadDestination(selectedFileForOptions.id, 'family-account')}
-                          className="text-purple-600"
-                        />
-                        <div>
-                          <label className="font-medium text-purple-900">👥 Client Account</label>
-                          <p className="text-sm text-purple-700">Store in client's account</p>
-                        </div>
+                  <div className="bg-purple-50 rounded-lg p-4 border-2 border-purple-200">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <input
+                        type="radio"
+                        name="uploadDestination"
+                        id="upload-dest-family"
+                        checked={selectedFileForOptions.uploadDestination === 'family-account'}
+                        onChange={() => setUploadDestination(selectedFileForOptions.id, 'family-account')}
+                        className="text-purple-600"
+                        disabled={uploadTargetAccounts.length === 0}
+                      />
+                      <div>
+                        <label htmlFor="upload-dest-family" className="font-medium text-purple-900 cursor-pointer">
+                          👥 Client Account
+                        </label>
+                        <p className="text-sm text-purple-700">
+                          {uploadTargetAccounts.length > 0
+                            ? 'Upload to one or more client accounts'
+                            : 'No client accounts available. Accept an invitation to see accounts here.'}
+                        </p>
                       </div>
-                      {selectedFileForOptions.uploadDestination === 'family-account' && (
-                        <div className="ml-6">
-                          <select
-                            value={selectedFileForOptions.targetFamilyMember?.otherUserId ?? ''}
-                            onChange={(e) => {
-                              const member = familyMembers.find((m) => m.otherUserId === Number(e.target.value));
-                              if (member) setUploadDestination(selectedFileForOptions.id, 'family-account', member);
-                            }}
-                            className="w-full p-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500"
-                          >
-                            <option value="">Select a client...</option>
-                            {familyMembers.map((member) => (
-                              <option key={member.id} value={member.otherUserId}>
-                                {member.otherUserFirstName} {member.otherUserLastName} ({member.relationshipType})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
                     </div>
-                  )}
+                    {selectedFileForOptions.uploadDestination === 'family-account' && (
+                      <div className="ml-6 space-y-2">
+                        {uploadTargetAccounts.length === 0 ? (
+                          <p className="text-sm text-gray-500 p-3 bg-white border border-purple-200 rounded-lg">
+                            No client accounts to show. Client accounts come from your profile and accepted invitations.
+                          </p>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-purple-700 shrink-0">Search</span>
+                              <input
+                                type="search"
+                                value={accountSearchQuery}
+                                onChange={(e) => setAccountSearchQuery(e.target.value)}
+                                placeholder="Search accounts..."
+                                className="flex-1 min-w-0 p-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                              />
+                            </div>
+                            <div className="border border-purple-200 rounded-lg overflow-hidden bg-white" style={{ maxHeight: '10.5rem' }}>
+                              <div className="overflow-y-auto p-1" style={{ maxHeight: '10rem' }}>
+                                {(() => {
+                                  const q = accountSearchQuery.trim().toLowerCase();
+                                  const filtered = q
+                                    ? uploadTargetAccounts.filter(
+                                        (a) =>
+                                          a.inviterFirstName?.toLowerCase().includes(q) ||
+                                          a.inviterLastName?.toLowerCase().includes(q) ||
+                                          a.inviterUsername?.toLowerCase().includes(q) ||
+                                          a.relationshipType?.toLowerCase().includes(q)
+                                      )
+                                    : uploadTargetAccounts;
+                                  return filtered.length === 0 ? (
+                                    <p className="text-sm text-gray-500 p-2">No accounts match.</p>
+                                  ) : (
+                                    filtered.map((acc) => {
+                                      const checked = selectedAccountIdsForModal.includes(acc.inviterId);
+                                      return (
+                                        <label
+                                          key={acc.inviterId}
+                                          className="flex items-center gap-3 p-2 rounded-md hover:bg-purple-50 cursor-pointer"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={() => {
+                                              setSelectedAccountIdsForModal((prev) =>
+                                                prev.includes(acc.inviterId)
+                                                  ? prev.filter((id) => id !== acc.inviterId)
+                                                  : [...prev, acc.inviterId]
+                                              );
+                                            }}
+                                            className="rounded border-purple-300 text-purple-600"
+                                          />
+                                          <span className="text-sm text-gray-900 truncate">
+                                            {acc.inviterFirstName} {acc.inviterLastName}
+                                            {acc.relationshipType ? ` · ${acc.relationshipType}` : ''}
+                                          </span>
+                                        </label>
+                                      );
+                                    })
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                            {selectedAccountIdsForModal.length > 0 && (
+                              <p className="text-xs text-purple-700">
+                                {selectedAccountIdsForModal.length} account{selectedAccountIdsForModal.length !== 1 ? 's' : ''} selected. File will be uploaded to each.
+                              </p>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const members = uploadTargetAccounts.filter((a) => selectedAccountIdsForModal.includes(a.inviterId));
+                                if (members.length) {
+                                  setUploadDestination(selectedFileForOptions.id, 'family-account', members.map((a) => ({
+                                    otherUserId: a.inviterId,
+                                    otherUserFirstName: a.inviterFirstName,
+                                    otherUserLastName: a.inviterLastName,
+                                    relationshipType: a.relationshipType,
+                                    inviterApiToken: a.inviterApiToken,
+                                  })));
+                                }
+                              }}
+                              disabled={selectedAccountIdsForModal.length === 0}
+                              className="w-full py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Done — Upload to {selectedAccountIdsForModal.length || '…'} account(s)
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-end pt-4">
                   <button
