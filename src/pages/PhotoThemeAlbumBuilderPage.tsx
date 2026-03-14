@@ -730,6 +730,13 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   const [dbTemplateId, setDbTemplateId] = React.useState<number | null>(getInitialTemplateId);
   const [photobookId, setPhotobookId] = React.useState<number | null>(getInitialPhotobookId);
 
+  // When navigating (e.g. Edit from Photo Book), sync from location state so we load the correct album
+  React.useEffect(() => {
+    const fromState = location.state as { photobookId?: number; dbTemplateId?: number } | null;
+    if (fromState?.photobookId != null) setPhotobookId(fromState.photobookId);
+    if (fromState?.dbTemplateId != null) setDbTemplateId(fromState.dbTemplateId);
+  }, [location.state?.photobookId, location.state?.dbTemplateId]);
+
   // Persist to localStorage whenever photobookId or dbTemplateId change
   React.useEffect(() => {
     if (photobookId && dbTemplateId) {
@@ -815,9 +822,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     Math.min(18, Math.max(6, basePages.length || 6)),
   );
 
-  // Keep pageCount in sync if basePages length changes
+  // Keep pageCount in sync if basePages length changes (new albums only; editing uses saved length)
   React.useEffect(() => {
-    if (!basePages.length) return;
+    if (!basePages.length || photobookId) return;
     setPageCount((prev) => {
       const min = 6;
       const max = 18;
@@ -825,14 +832,15 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       const next = prev || baseDefault;
       return Math.min(max, Math.max(min, next));
     });
-  }, [basePages.length]);
+  }, [basePages.length, photobookId]);
 
   const albumPages: AlbumPage[] = React.useMemo(() => {
     if (!basePages.length) return [];
 
     const min = 6;
     const max = 18;
-    const target = Math.min(max, Math.max(min, pageCount));
+    // Allow 1–18 so loaded albums with fewer pages (e.g. 3) display correctly
+    const target = Math.min(max, Math.max(1, pageCount));
 
     const cover = basePages[0];
     const last = basePages[basePages.length - 1];
@@ -1202,7 +1210,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
 
     setPageImages((prev) => ({ ...prev, ...newPageImages }));
     setPageLayouts((prev) => ({ ...prev, ...newPageLayouts }));
-    if (saved.length > 2) setPageCount(Math.min(18, Math.max(6, saved.length)));
+    // When loading saved album, use saved page count so we show the correct number of pages (e.g. 3 for cover+1+back)
+    if (saved.length >= 1) setPageCount((prev) => Math.min(18, Math.max(1, saved.length)));
   }, []);
 
   // Helper: apply loaded covers into state — maps ALL style fields from API
@@ -1288,7 +1297,41 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               coverData = Array.isArray(r.data) ? r.data[0] : r.data;
             } catch { /* fallback also failed */ }
           }
-          if (coverData) applyLoadedCovers(coverData);
+          if (coverData) {
+            applyLoadedCovers(coverData);
+            // Sync cover/back cover images into pageImages so cover and last page display correctly when editing
+            setPageImages((prev) => {
+              const next = { ...prev };
+              if (coverData?.frontCover) {
+                const url = coverData.frontCover.imageId
+                  ? buildPreviewUrl(coverData.frontCover.imageId)
+                  : (coverData.frontCover.imageUrl ? resolveImageUrl(coverData.frontCover.imageUrl) : '');
+                if (url) {
+                  next[0] = {
+                    ...next[0],
+                    imageDataUrl: url,
+                    imageDataUrls: [url],
+                    imageIds: coverData.frontCover.imageId ? [coverData.frontCover.imageId] : undefined,
+                  };
+                }
+              }
+              const lastIdx = pages.length > 0 ? pages.length - 1 : 0;
+              if (coverData?.backCover && lastIdx >= 0) {
+                const url = coverData.backCover.imageId
+                  ? buildPreviewUrl(coverData.backCover.imageId)
+                  : (coverData.backCover.imageUrl ? resolveImageUrl(coverData.backCover.imageUrl) : '');
+                if (url) {
+                  next[lastIdx] = {
+                    ...next[lastIdx],
+                    imageDataUrl: url,
+                    imageDataUrls: [url],
+                    imageIds: coverData.backCover.imageId ? [coverData.backCover.imageId] : undefined,
+                  };
+                }
+              }
+              return next;
+            });
+          }
         }
       } catch (err: any) {
         console.error('Failed to load album data:', err);
@@ -1338,7 +1381,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       : undefined;
 
     const urls = st.imageDataUrls ?? (st.imageDataUrl ? [st.imageDataUrl] : []);
-    const getSrc = (i: number) => urls[i] ?? urls[0] ?? st.imageDataUrl ?? '';
+    const coverOrLastUrl = (isCover && coverFromState?.imageDataUrl) || (isLast && lastFromState?.imageDataUrl) || '';
+    const getSrc = (i: number) => urls[i] ?? urls[0] ?? st.imageDataUrl ?? (i === 0 ? coverOrLastUrl : '') ?? '';
     const hasImg = !!getSrc(0);
 
     // Editor preview: clean white canvas for inner pages (photo album style)
