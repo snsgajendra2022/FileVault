@@ -147,10 +147,10 @@ class UploadManager {
   private listeners = new Set<Listener>();
   private activeUploads = new Map<string, AbortController>();
   private processing = false;
-  /** When set, upload requests use this token instead of the default auth (for invited users). */
-  private uploadTokenResolver: (() => string | null) | null = null;
+  /** When set, called per upload; can use item to e.g. use localStorage token for "my-account". */
+  private uploadTokenResolver: ((item?: QueueItem) => string | null) | null = null;
 
-  setUploadTokenResolver(fn: (() => string | null) | null): void {
+  setUploadTokenResolver(fn: ((item?: QueueItem) => string | null) | null): void {
     this.uploadTokenResolver = fn;
   }
 
@@ -430,7 +430,7 @@ class UploadManager {
       }
     }
 
-    const resolvedToken = this.uploadTokenResolver?.() ?? null;
+    const resolvedToken = this.uploadTokenResolver?.(currentItem) ?? null;
     const familyTargets = currentItem.targetFamilyMembers?.length
       ? currentItem.targetFamilyMembers
       : currentItem.uploadDestination === 'family-account' && currentItem.targetFamilyMember
@@ -727,17 +727,19 @@ const UploadFamilyImagesPage = () => {
     fetchFamilyMembers();
   }, []);
 
-  // Resolved token for upload API: invited users (hasMobileApps === false) use inviter's token
+  // Resolved token for upload API: "My account" always uses localStorage token; family/invited uses inviter token when applicable
   useEffect(() => {
-    uploadManager.setUploadTokenResolver(() => {
+    uploadManager.setUploadTokenResolver((item) => {
       const token = getStoredToken();
+      if (item?.uploadDestination === 'my-account') {
+        return token ?? null;
+      }
       const invitedUserToken =
         (user?.familyRelationships?.[0]?.inviterApiToken as string | undefined) ||
         (familyRelationshipsFromApi?.[0]?.inviterApiToken as string | undefined) ||
         (familyMembers?.[0]?.inviterApiToken as string | undefined);
       const hasMobileApps = user?.hasMobileApps;
-      const resolved =
-        hasMobileApps !== false ? token : (invitedUserToken || token);
+      const resolved = hasMobileApps !== false ? token : (invitedUserToken || token);
       return resolved ?? null;
     });
     return () => uploadManager.setUploadTokenResolver(null);
