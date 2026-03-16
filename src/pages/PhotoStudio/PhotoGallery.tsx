@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import QRCode from 'react-qr-code';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { Link, useNavigate } from 'react-router-dom';
@@ -84,29 +84,49 @@ const PhotoGallery: React.FC = () => {
     fileType: string;
   }
 
+  const GALLERY_PAGE_SIZE = 20;
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
   interface UserImagesResponse {
     totalImages: number;
     images: UserImage[];
+    page?: number;
+    size?: number;
+    totalPages?: number;
   }
 
-  // Fetch user images dynamically (same API flow as ImagesPage)
-  const { data: userImagesData, isLoading, error } = useQuery({
+  const {
+    data: userImagesData,
+    isLoading,
+    error,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
     queryKey: ['userImages-gallery'],
-    queryFn: async (): Promise<UserImagesResponse> => {
-      let token = localStorage.getItem('token');
-      const response = await api.get(`/api/images/user/all?token=${token}`);
+    queryFn: async ({ pageParam }): Promise<UserImagesResponse> => {
+      const token = localStorage.getItem('token');
+      const response = await api.get('/api/images/user/all', {
+        params: { token, page: pageParam, size: GALLERY_PAGE_SIZE },
+      });
       return response.data as UserImagesResponse;
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const page = lastPage?.page ?? 0;
+      const totalPages = lastPage?.totalPages ?? 1;
+      return page + 1 < totalPages ? page + 1 : undefined;
     },
     retry: 2,
     refetchInterval: 30000,
     enabled: true,
   });
 
-  // Map API images into gallery media items when data loads
   useEffect(() => {
     setLoading(isLoading);
-    if (!isLoading && userImagesData) {
-      const items: MediaItem[] = userImagesData.images.map((img, index) => {
+    if (!isLoading && userImagesData?.pages?.length) {
+      const allImages = userImagesData.pages.flatMap((p) => (p as UserImagesResponse).images ?? []);
+      const items: MediaItem[] = allImages.map((img, index) => {
         const lower = img.fileType?.toLowerCase?.() || '';
         const isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(lower);
         return {
@@ -125,17 +145,26 @@ const PhotoGallery: React.FC = () => {
         };
       });
       setMediaItems(items);
-      // Build simple client/session lists from items (unique by id)
-      const clientList: Client[] = [
-        { id: 'general', name: 'My Library' },
-      ];
+      const clientList: Client[] = [{ id: 'general', name: 'My Library' }];
       setClients(clientList);
-      const sessionList: Session[] = [
-        { id: 'general', name: 'General', clientId: 'general' },
-      ];
+      const sessionList: Session[] = [{ id: 'general', name: 'General', clientId: 'general' }];
       setSessions(sessionList);
     }
   }, [isLoading, userImagesData]);
+
+  // Infinite scroll: load more when sentinel is visible
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel || !hasNextPage || isFetchingNextPage) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) fetchNextPage();
+      },
+      { rootMargin: '200px', threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   useEffect(() => {
     filterItems();
@@ -683,6 +712,13 @@ const PhotoGallery: React.FC = () => {
               )}
             </div>
           ))
+        )}
+        {filteredItems.length > 0 && <div ref={loadMoreSentinelRef} style={{ height: 4 }} aria-hidden />}
+        {filteredItems.length > 0 && isFetchingNextPage && (
+          <div className="empty-state" style={{ padding: '1rem', textAlign: 'center' }}>
+            <span className="inline-block mb-2" style={{ fontSize: '1.5rem' }}><FaSpinner className="animate-spin" /></span>
+            <p>Loading more...</p>
+          </div>
         )}
       </div>
 

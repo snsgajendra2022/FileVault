@@ -6,7 +6,7 @@ import React, {
   useMemo,
   memo,
 } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import {
@@ -26,6 +26,7 @@ import { FamilyRelationship } from '../../types/user';
 const SCROLL_RESTORE_KEY = 'photo-studio-images-scroll';
 const ASPECT_RATIO = 4 / 3;
 const IMAGE_ROOT_MARGIN = '100px';
+const IMAGES_PAGE_SIZE = 20;
 
 // ---------------------------------------------------------------------------
 // API types
@@ -45,6 +46,9 @@ interface UserImage {
 interface UserImagesResponse {
   totalImages: number;
   images: UserImage[];
+  page?: number;
+  size?: number;
+  totalPages?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -378,20 +382,37 @@ const ClientImagesPage = () => {
   const [visibleIndices, setVisibleIndices] = useState<Set<number>>(new Set());
   const cardRefsMapRef = useRef<Map<number, HTMLDivElement | null>>(new Map());
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const scrollRestoredRef = useRef(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const familyRelationships = user?.familyRelationships || [];
 
-  const { data: userImagesData, isLoading, error, refetch } = useQuery({
-    queryKey: ['userImages', selectedUser?.inviterApiToken],
-    queryFn: async () => {
+  const {
+    data: userImagesData,
+    isLoading,
+    error,
+    refetch,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['userImages', selectedUser?.inviterApiToken, viewMode],
+    queryFn: async ({ pageParam }) => {
       let token = localStorage.getItem('token');
       if (selectedUser && viewMode === 'invited') {
         token = selectedUser.inviterApiToken;
       }
-      const response = await api.get(`/api/images/user/all?token=${token}`);
+      const response = await api.get(`/api/images/user/all`, {
+        params: { token, page: pageParam, size: IMAGES_PAGE_SIZE },
+      });
       return response.data as UserImagesResponse;
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const page = lastPage?.page ?? 0;
+      const totalPages = lastPage?.totalPages ?? 1;
+      return page + 1 < totalPages ? page + 1 : undefined;
     },
     retry: 2,
     refetchInterval: 30000,
@@ -413,7 +434,7 @@ const ClientImagesPage = () => {
   });
 
   const images = useMemo(
-    () => (userImagesData as UserImagesResponse)?.images ?? [],
+    () => userImagesData?.pages?.flatMap((p) => (p as UserImagesResponse).images ?? []) ?? [],
     [userImagesData]
   );
 
@@ -484,6 +505,20 @@ const ClientImagesPage = () => {
     setSelectedUser(null);
     setViewMode('my');
   }, []);
+
+  // Infinite scroll: when sentinel is visible, load next page
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel || !hasNextPage || isFetchingNextPage) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) fetchNextPage();
+      },
+      { rootMargin: '200px', threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Intersection Observer: track visible card indices (run after refs are attached)
   useEffect(() => {
@@ -904,7 +939,7 @@ const ClientImagesPage = () => {
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-500">Total Files</p>
               <p className="text-lg font-semibold text-gray-900">
-                {(userImagesData as UserImagesResponse)?.totalImages ?? 0}
+                {userImagesData?.pages?.[0]?.totalImages ?? images.length}
               </p>
             </div>
           </div>
@@ -974,23 +1009,31 @@ const ClientImagesPage = () => {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {images.map((image, index) => (
-            <div key={`${image.previewUrl}-${index}`}>
-              <ImageCard
-                image={image}
-                index={index}
-                isVisible={visibleIndices.has(index)}
-                onView={handleView}
-                onDownload={handleDownload}
-                onDelete={handleDelete}
-                viewMode={viewMode}
-                deletePending={deleteImageMutation.isPending}
-                cardRef={setCardRef(index)}
-              />
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {images.map((image, index) => (
+              <div key={`${image.previewUrl}-${index}`}>
+                <ImageCard
+                  image={image}
+                  index={index}
+                  isVisible={visibleIndices.has(index)}
+                  onView={handleView}
+                  onDownload={handleDownload}
+                  onDelete={handleDelete}
+                  viewMode={viewMode}
+                  deletePending={deleteImageMutation.isPending}
+                  cardRef={setCardRef(index)}
+                />
+              </div>
+            ))}
+          </div>
+          <div ref={loadMoreSentinelRef} className="h-4" aria-hidden />
+          {isFetchingNextPage && (
+            <div className="mt-4 flex justify-center py-4">
+              <LoadingSpinner size="md" text="Loading more..." />
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* Upgrade modal */}

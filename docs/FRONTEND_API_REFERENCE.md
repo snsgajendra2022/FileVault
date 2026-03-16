@@ -4,6 +4,12 @@ This document lists backend API names, endpoints, and request/response shapes fo
 
 **Auth:** Most endpoints use `Authorization: Bearer <token>` or `Authorization: Token <token>` or `X-API-KEY: <token>`. Query param `token` is used where noted.
 
+**Pagination:** The following list APIs support pagination. Always send `page` (0-based) and `size` (default **20**, max 100). Response bodies include:
+- `page`, `size`, `totalPages`
+- `total` (for albums) or `totalImages` (for images)
+
+Use these for "Load more" buttons or page-number UI. First page: `?page=0&size=20`.
+
 ---
 
 ## 1. Paginated APIs (Albums & Images)

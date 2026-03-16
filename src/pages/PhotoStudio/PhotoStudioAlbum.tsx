@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { 
   FaFolder, 
@@ -16,7 +16,7 @@ import {
   FaUserFriends
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import DashboardLoading from '../../components/common/DashboardLoading';
@@ -43,6 +43,9 @@ interface Album {
 interface UserImagesResponse {
   totalImages: number;
   images: UserImage[];
+  page?: number;
+  size?: number;
+  totalPages?: number;
 }
 interface AlbumImage {
   id: number;
@@ -98,6 +101,10 @@ const PhotoStudioAlbum: React.FC = () => {
   const [editPerPhotoPrice, setEditPerPhotoPrice] = useState('');
   const [editAlbumIsPublic, setEditAlbumIsPublic] = useState(false);
   const [albumSearch, setAlbumSearch] = useState('');
+  const ALBUMS_PAGE_SIZE = 20;
+  const USER_IMAGES_PAGE_SIZE = 20;
+  const loadMoreAlbumsRef = useRef<HTMLDivElement | null>(null);
+  const addImagesModalSentinelRef = useRef<HTMLDivElement | null>(null);
   const [albumImages, setAlbumImages] = useState<Map<number, AlbumImage[]>>(new Map());
   const [coverImageErrors, setCoverImageErrors] = useState<Set<number>>(new Set());
   const [fullScreenImage, setFullScreenImage] = useState<{ image: AlbumImage; albumId: number; index: number } | null>(null);
@@ -108,17 +115,29 @@ const PhotoStudioAlbum: React.FC = () => {
   useEffect(() => {
   }, [user, userId, authLoading]);
 
-  // Fetch all albums
-  const { data: albumsData, isLoading, isError, refetch, isFetching } = useQuery({
+  const {
+    data: albumsData,
+    isLoading,
+    isError,
+    refetch,
+    isFetchingNextPage: isFetchingMoreAlbums,
+    hasNextPage: hasMoreAlbums,
+    fetchNextPage: fetchMoreAlbums,
+  } = useInfiniteQuery({
     queryKey: ['albums'],
-    enabled: !authLoading, // Only wait for auth to load, don't require userId
-    queryFn: async () => {
-      try {
-        const response = await api.get('/api/albums');
-        return response.data as Album[] | { albums: Album[] };
-      } catch (error: any) {
-        throw error;
-      }
+    enabled: !authLoading,
+    queryFn: async ({ pageParam }) => {
+      const response = await api.get('/api/albums', {
+        params: { page: pageParam, size: ALBUMS_PAGE_SIZE },
+      });
+      return response.data as Album[] | { albums: Album[]; total?: number; page?: number; size?: number; totalPages?: number };
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const d = lastPage as { page?: number; totalPages?: number };
+      const page = d?.page ?? 0;
+      const totalPages = d?.totalPages ?? 1;
+      return page + 1 < totalPages ? page + 1 : undefined;
     },
     retry: 1,
     refetchOnWindowFocus: false,
@@ -126,15 +145,28 @@ const PhotoStudioAlbum: React.FC = () => {
 
   // Log query state
   useEffect(() => {
-  }, [isLoading, isFetching, isError, albumsData, authLoading, userId]);
+  }, [isLoading, isError, albumsData, authLoading, userId]);
 
-  // Fetch user images for adding to albums
-  const { data: userImagesData, error } = useQuery({
+  const {
+    data: userImagesData,
+    error,
+    isFetchingNextPage: isFetchingMoreUserImages,
+    hasNextPage: hasMoreUserImages,
+    fetchNextPage: fetchMoreUserImages,
+  } = useInfiniteQuery({
     queryKey: ['userImages-gallery'],
-    queryFn: async (): Promise<UserImagesResponse> => {
-      let token = localStorage.getItem('token');
-      const response = await api.get(`/api/images/user/all?token=${token}`);
+    queryFn: async ({ pageParam }): Promise<UserImagesResponse> => {
+      const token = localStorage.getItem('token');
+      const response = await api.get('/api/images/user/all', {
+        params: { token, page: pageParam, size: USER_IMAGES_PAGE_SIZE },
+      });
       return response.data as UserImagesResponse;
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const page = lastPage?.page ?? 0;
+      const totalPages = lastPage?.totalPages ?? 1;
+      return page + 1 < totalPages ? page + 1 : undefined;
     },
     retry: 2,
     refetchInterval: 300000,
@@ -142,11 +174,24 @@ const PhotoStudioAlbum: React.FC = () => {
   });
 
   const albums = useMemo(() => {
-    if (!albumsData) return [];
-    if (Array.isArray(albumsData)) return albumsData;
-    if (albumsData.albums) return albumsData.albums;
-    return [];
+    if (!albumsData?.pages?.length) return [];
+    return albumsData.pages.flatMap((p) => {
+      if (Array.isArray(p)) return p;
+      if (p && typeof p === 'object' && (p as { albums?: Album[] }).albums) return (p as { albums: Album[] }).albums;
+      return [];
+    });
   }, [albumsData]);
+
+  const albumsTotal = useMemo(() => {
+    const first = albumsData?.pages?.[0];
+    if (!first || Array.isArray(first)) return albums.length;
+    return (first as { total?: number }).total ?? albums.length;
+  }, [albumsData, albums.length]);
+
+  const userImages = useMemo(() => {
+    if (!userImagesData?.pages?.length) return [];
+    return userImagesData.pages.flatMap((p) => (p as UserImagesResponse).images ?? []);
+  }, [userImagesData]);
 
   const filteredAlbums = useMemo(() => {
     if (!albumSearch.trim()) return albums;
@@ -195,12 +240,30 @@ const PhotoStudioAlbum: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [fullScreenImage, albumImages, albums]);
 
-  const userImages = useMemo(() => {
-    if (!userImagesData) return [];
-    if (Array.isArray(userImagesData)) return userImagesData;
-    if (userImagesData.images) return userImagesData.images;
-    return [];
-  }, [userImagesData]);
+  // Infinite scroll: albums list
+  useEffect(() => {
+    const el = loadMoreAlbumsRef.current;
+    if (!el || !hasMoreAlbums || isFetchingMoreAlbums) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0]?.isIntersecting) fetchMoreAlbums(); },
+      { rootMargin: '200px', threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMoreAlbums, isFetchingMoreAlbums, fetchMoreAlbums]);
+
+  // Infinite scroll: Add Images modal (when modal is open)
+  useEffect(() => {
+    if (showAddImagesModal === null) return;
+    const el = addImagesModalSentinelRef.current;
+    if (!el || !hasMoreUserImages || isFetchingMoreUserImages) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0]?.isIntersecting) fetchMoreUserImages(); },
+      { rootMargin: '200px', threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [showAddImagesModal, hasMoreUserImages, isFetchingMoreUserImages, fetchMoreUserImages]);
 
   // Create album mutation
   const createAlbumMutation = useMutation({
@@ -703,9 +766,9 @@ const PhotoStudioAlbum: React.FC = () => {
 
       {/* Albums List */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-2">
-        <div className="text-left flex items-center space-x-2">
+        <div className="text-left flex flex-wrap items-center gap-2">
           <p className="text-sm text-gray-500">Total albums:</p>
-          <p className="text-2xl font-bold text-gray-900">{filteredAlbums.length}</p>
+          <p className="text-2xl font-bold text-gray-900">{albumsTotal}</p>
         </div>
         <div className="flex items-center space-x-2 max-w-sm w-full">
           <FaSearch className="text-gray-400" />
@@ -732,6 +795,7 @@ const PhotoStudioAlbum: React.FC = () => {
             </button>
           </div>
         ) : (
+          <>
           <div className="space-y-3">
             {filteredAlbums.map((album) => {
               const isExpanded = expandedAlbums.has(album.id);
@@ -849,7 +913,7 @@ const PhotoStudioAlbum: React.FC = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedImages(new Set()); // Reset selection when opening modal
+                          setSelectedImages(new Set());
                           setShowAddImagesModal(album.id);
                         }}
                         className="flex px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors text-sm"
@@ -977,6 +1041,13 @@ const PhotoStudioAlbum: React.FC = () => {
               );
             })}
           </div>
+          {filteredAlbums.length > 0 && <div ref={loadMoreAlbumsRef} className="h-4" aria-hidden />}
+          {filteredAlbums.length > 0 && isFetchingMoreAlbums && (
+            <div className="flex justify-center py-4">
+              <LoadingSpinner size="md" text="Loading more..." />
+            </div>
+          )}
+          </>
         )}
       </div>
 
@@ -1307,6 +1378,12 @@ const PhotoStudioAlbum: React.FC = () => {
                       </div>
                     );
                   })}
+                </div>
+              )}
+              {userImages.length > 0 && <div ref={addImagesModalSentinelRef} className="h-4" aria-hidden />}
+              {userImages.length > 0 && isFetchingMoreUserImages && (
+                <div className="flex justify-center py-4">
+                  <LoadingSpinner size="md" text="Loading more..." />
                 </div>
               )}
             </div>

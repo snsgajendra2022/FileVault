@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { 
   FaFolder, 
@@ -12,7 +12,7 @@ import {
   FaUser,
   FaUserFriends
 } from 'react-icons/fa';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import DashboardLoading from '../../components/common/DashboardLoading';
@@ -72,79 +72,137 @@ interface AlbumImage {
   [key: string]: any;
 }
 
+const PAGE_SIZE = 20;
+
+type SharedAlbumsApiResponse = {
+  success: boolean;
+  message: string;
+  sharedAlbums: SharedAlbumResponse[];
+  total?: number;
+  page?: number;
+  size?: number;
+  totalPages?: number;
+};
+
 const SharedAlbums: React.FC = () => {
   const { user, isLoading: authLoading } = useAuth();
+  const loadMoreAlbumsRef = useRef<HTMLDivElement | null>(null);
   const [expandedAlbums, setExpandedAlbums] = useState<Set<number>>(new Set());
   const [albumImages, setAlbumImages] = useState<Map<number, AlbumImage[]>>(new Map());
+  const [albumImagesMeta, setAlbumImagesMeta] = useState<Map<number, { page: number; totalImages: number; totalPages: number }>>(new Map());
+  const [loadingMoreAlbumId, setLoadingMoreAlbumId] = useState<number | null>(null);
   const [coverImageErrors, setCoverImageErrors] = useState<Set<number>>(new Set());
   const [fullScreenImage, setFullScreenImage] = useState<{ image: AlbumImage; albumId: number; index: number } | null>(null);
 
-  // Fetch shared albums
-  const { data: sharedAlbumsData, isLoading, isError, refetch, isFetching } = useQuery({
+  const {
+    data: sharedAlbumsData,
+    isLoading,
+    isError,
+    refetch,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
     queryKey: ['sharedAlbums'],
     enabled: !authLoading,
-    queryFn: async () => {
-      try {
-        const response = await api.get('/api/simple-invitations/shared-albums');
-        return response.data as { success: boolean; message: string; sharedAlbums: SharedAlbumResponse[] };
-      } catch (error: any) {
-        throw error;
-      }
+    queryFn: async ({ pageParam }) => {
+      const response = await api.get('/api/simple-invitations/shared-albums', {
+        params: { page: pageParam, size: PAGE_SIZE },
+      });
+      return response.data as SharedAlbumsApiResponse;
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const page = lastPage?.page ?? 0;
+      const totalPages = lastPage?.totalPages ?? 0;
+      return page + 1 < totalPages ? page + 1 : undefined;
     },
     retry: 1,
     refetchOnWindowFocus: false,
   });
 
-  // Transform API response to component format
   const sharedAlbums = useMemo(() => {
-    if (!sharedAlbumsData || !sharedAlbumsData.sharedAlbums) return [];
-    
-    return sharedAlbumsData.sharedAlbums.map((item: SharedAlbumResponse): SharedAlbum => ({
-      id: item.albumId,
-      name: item.albumName,
-      sharedBy: {
-        id: item.sharedByUserId,
-        username: item.sharedByUsername,
-        email: item.sharedByEmail,
-      },
-      sharedAt: item.sharedAt,
-      images: [], // Will be fetched when album is expanded
-    }));
+    if (!sharedAlbumsData?.pages?.length) return [];
+    return sharedAlbumsData.pages.flatMap((p) =>
+      (p.sharedAlbums ?? []).map((item: SharedAlbumResponse): SharedAlbum => ({
+        id: item.albumId,
+        name: item.albumName,
+        sharedBy: {
+          id: item.sharedByUserId,
+          username: item.sharedByUsername,
+          email: item.sharedByEmail,
+        },
+        sharedAt: item.sharedAt,
+        images: [],
+      }))
+    );
   }, [sharedAlbumsData]);
 
-  // Fetch album images when album is expanded
-  const fetchAlbumImages = async (albumId: number) => {
-    // Check if images are already loaded
-    if (albumImages.has(albumId)) {
-      return;
-    }
+  const sharedAlbumsTotal = useMemo(() => {
+    const first = sharedAlbumsData?.pages?.[0];
+    return first?.total ?? sharedAlbums.length;
+  }, [sharedAlbumsData, sharedAlbums.length]);
 
+  useEffect(() => {
+    const el = loadMoreAlbumsRef.current;
+    if (!el || !hasNextPage || isFetchingNextPage) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0]?.isIntersecting) fetchNextPage(); },
+      { rootMargin: '200px', threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const fetchAlbumImages = async (albumId: number, page: number = 0, append: boolean = false) => {
+    if (append) setLoadingMoreAlbumId(albumId);
     try {
-      const response = await api.get(`/api/simple-invitations/albums/${albumId}/images`);
-      const images = Array.isArray(response.data) ? response.data : (response.data?.images || []);
-      
+      const response = await api.get(`/api/simple-invitations/albums/${albumId}/images`, {
+        params: { page, size: PAGE_SIZE },
+      });
+      const data = response.data as { images?: AlbumImage[]; totalImages?: number; page?: number; totalPages?: number } | AlbumImage[];
+      const images = Array.isArray(data) ? data : (data?.images || []);
+      const totalImages = Array.isArray(data) ? images.length : (data as { totalImages?: number }).totalImages ?? images.length;
+      const totalPages = Array.isArray(data) ? 1 : (data as { totalPages?: number }).totalPages ?? 1;
+
+      setAlbumImagesMeta((prev) => {
+        const next = new Map(prev);
+        next.set(albumId, { page, totalImages, totalPages });
+        return next;
+      });
       setAlbumImages((prev) => {
         const next = new Map(prev);
-        next.set(albumId, images);
+        const existing = append ? (prev.get(albumId) || []) : [];
+        next.set(albumId, existing.concat(images));
         return next;
       });
     } catch (error: any) {
       console.error('Error fetching album images:', error);
       toast.error('Failed to load album images');
-      // Set empty array to prevent retrying
-      setAlbumImages((prev) => {
-        const next = new Map(prev);
-        next.set(albumId, []);
-        return next;
-      });
+      if (!append) {
+        setAlbumImages((prev) => {
+          const next = new Map(prev);
+          next.set(albumId, []);
+          return next;
+        });
+      }
+    } finally {
+      if (append) setLoadingMoreAlbumId(null);
     }
   };
 
-  // Fetch album images when album is expanded
+  const loadMoreAlbumImages = (albumId: number) => {
+    const meta = albumImagesMeta.get(albumId);
+    if (!meta || meta.page + 1 >= meta.totalPages) return;
+    fetchAlbumImages(albumId, meta.page + 1, true);
+  };
+
   useEffect(() => {
     expandedAlbums.forEach((albumId) => {
-      if (!albumImages.has(albumId)) {
-        fetchAlbumImages(albumId);
+      const meta = albumImagesMeta.get(albumId);
+      const loaded = albumImages.get(albumId)?.length ?? 0;
+      if (meta === undefined && loaded === 0) {
+        fetchAlbumImages(albumId, 0, false);
       }
     });
   }, [expandedAlbums]);
@@ -262,9 +320,9 @@ const SharedAlbums: React.FC = () => {
       </div>
 
       {/* Albums List */}
-      <div className="text-left flex items-center space-x-2 mb-4">
-        <p className="text-sm text-gray-500">Total shared albums:</p>
-        <p className="text-2xl font-bold text-gray-900">{sharedAlbums.length}</p>
+      <div className="text-left flex flex-wrap items-center gap-2 mb-4">
+        <p className="text-sm text-gray-500">Shared albums:</p>
+        <p className="text-2xl font-bold text-gray-900">{sharedAlbumsTotal}</p>
       </div>
 
       <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
@@ -417,8 +475,11 @@ const SharedAlbums: React.FC = () => {
                         
                         {(() => {
                           const images = albumImages.get(album.id) || extractAlbumImages(album);
+                          const meta = albumImagesMeta.get(album.id);
+                          const hasMore = meta && meta.totalPages > 1 && meta.page + 1 < meta.totalPages;
                           if (images.length > 0) {
                             return (
+                              <>
                               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                                 {images.map((image, index) => {
                                   const imageUrl = getImageUrl(image);
@@ -470,6 +531,19 @@ const SharedAlbums: React.FC = () => {
                                   );
                                 })}
                               </div>
+                              {hasMore && (
+                                <div className="mt-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => loadMoreAlbumImages(album.id)}
+                                    disabled={loadingMoreAlbumId === album.id}
+                                    className="px-4 py-2 rounded-lg border border-purple-300 text-purple-700 text-sm font-medium hover:bg-purple-50 disabled:opacity-50"
+                                  >
+                                    {loadingMoreAlbumId === album.id ? 'Loading…' : `Load more`}
+                                  </button>
+                                </div>
+                              )}
+                              </>
                             );
                           } else {
                             return (
@@ -486,6 +560,12 @@ const SharedAlbums: React.FC = () => {
                 </div>
               );
             })}
+          </div>
+        )}
+        {sharedAlbums.length > 0 && <div ref={loadMoreAlbumsRef} className="h-4" aria-hidden />}
+        {sharedAlbums.length > 0 && isFetchingNextPage && (
+          <div className="flex justify-center py-4">
+            <LoadingSpinner size="md" text="Loading more..." />
           </div>
         )}
       </div>

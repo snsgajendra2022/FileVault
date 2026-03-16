@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useEffect, useRef } from 'react';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { FaUpload, FaEye, FaLock, FaTimes, FaCloud, FaUsers, FaUser } from 'react-icons/fa';
@@ -24,6 +24,9 @@ interface UserImage {
 interface UserImagesResponse {
   totalImages: number;
   images: UserImage[];
+  page?: number;
+  size?: number;
+  totalPages?: number;
 }
 
 interface Image {
@@ -38,30 +41,44 @@ interface Image {
 
 // Using FamilyRelationship from types/user.ts instead of separate interface
 
+const IMAGES_PAGE_SIZE = 20;
+
 const ImagesPage = () => {
   const { user } = useAuth();
   const [selectedImage, setSelectedImage] = useState<UserImage | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<FamilyRelationship | null>(null);
   const [viewMode, setViewMode] = useState<'my' | 'invited'>('my');
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  // Get family relationships from user data (stored in localStorage)
   const familyRelationships = user?.familyRelationships || [];
 
-  // Fetch user images from API
-  const { data: userImagesData, isLoading, error, refetch } = useQuery({
-    queryKey: ['userImages', selectedUser?.inviterApiToken],
-    queryFn: async () => {
+  const {
+    data: userImagesData,
+    isLoading,
+    error,
+    refetch,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['userImages', selectedUser?.inviterApiToken, viewMode],
+    queryFn: async ({ pageParam }) => {
       let token = localStorage.getItem('token');
-      
-      // If viewing invited user's images, use their invitation token
       if (selectedUser && viewMode === 'invited') {
         token = selectedUser.inviterApiToken;
       }
-      
-      const response = await api.get(`/api/images/user/all?token=${token}`);
+      const response = await api.get('/api/images/user/all', {
+        params: { token, page: pageParam, size: IMAGES_PAGE_SIZE },
+      });
       return response.data as UserImagesResponse;
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const page = lastPage?.page ?? 0;
+      const totalPages = lastPage?.totalPages ?? 1;
+      return page + 1 < totalPages ? page + 1 : undefined;
     },
     retry: 2,
     refetchInterval: 30000,
@@ -202,6 +219,20 @@ const ImagesPage = () => {
     setViewMode('my');
   };
 
+  // Infinite scroll: load more when sentinel is visible
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel || !hasNextPage || isFetchingNextPage) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) fetchNextPage();
+      },
+      { rootMargin: '200px', threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -234,7 +265,7 @@ const ImagesPage = () => {
     );
   }
 
-  const images = (userImagesData as UserImagesResponse)?.images || [];
+  const images = userImagesData?.pages?.flatMap((p) => (p as UserImagesResponse).images ?? []) ?? [];
 
   return (
     <div className="p-6">
@@ -341,7 +372,7 @@ const ImagesPage = () => {
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-500">Total Files</p>
-              <p className="text-lg font-semibold text-gray-900">{(userImagesData as UserImagesResponse)?.totalImages || 0}</p>
+              <p className="text-lg font-semibold text-gray-900">{userImagesData?.pages?.[0]?.totalImages ?? images.length}</p>
             </div>
           </div>
         </div>
@@ -516,6 +547,13 @@ const ImagesPage = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {images.length > 0 && <div ref={loadMoreSentinelRef} className="h-4" aria-hidden />}
+      {images.length > 0 && isFetchingNextPage && (
+        <div className="mt-4 flex justify-center py-4">
+          <LoadingSpinner size="md" text="Loading more..." />
         </div>
       )}
 
