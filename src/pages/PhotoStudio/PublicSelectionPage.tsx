@@ -5,7 +5,7 @@ import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, Fa
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
-import { decryptImageIds } from '../../utils/encryption';
+import { decryptImageIds, decryptCheckoutPayload } from '../../utils/encryption';
 import { decompressFileList } from '../../utils/checkoutUrlEncoding';
 
 interface Album {
@@ -53,10 +53,59 @@ const PublicSelectionPage: React.FC = () => {
   /** When false, checkboxes are hidden; click "Select" to show them and enable selection */
   const [showSelectionMode, setShowSelectionMode] = useState(false);
 
+  const sid = searchParams.get('sid') || '';
+  const qParam = searchParams.get('q') || ''; // encrypted token+albumId (minimal link)
   const token = searchParams.get('token') || '';
+  const albumIdParam = searchParams.get('albumId') || ''; // optional: load single album by ID
   const filesParam = searchParams.get('files') || ''; // Legacy support
   const fParam = searchParams.get('f') || ''; // Compressed file list (short URL)
   const imageIdsParam = searchParams.get('imageIds') || '';
+  const albumId = albumIdParam ? parseInt(albumIdParam, 10) : null;
+  const hasValidAlbumId = albumId != null && !isNaN(albumId) && albumId > 0;
+
+  const payloadFromQ = useMemo(() => (qParam.trim() ? decryptCheckoutPayload(qParam.trim()) : null), [qParam]);
+  const qInvalid = qParam.trim() !== '' && payloadFromQ === null;
+
+  type ResolvedFromSid = { token: string; albumId: number | null; fileNames: string[] };
+  const [resolvedFromSid, setResolvedFromSid] = useState<ResolvedFromSid | null>(null);
+  const [sidLoading, setSidLoading] = useState(false);
+  const [sidError, setSidError] = useState(false);
+
+  useEffect(() => {
+    if (!sid.trim()) {
+      setResolvedFromSid(null);
+      setSidError(false);
+      return;
+    }
+    let cancelled = false;
+    setSidLoading(true);
+    setSidError(false);
+    api.get<{ token: string; albumId?: number | null; fileNames?: string[] }>(`/api/public/share-link/${encodeURIComponent(sid)}`)
+      .then((res) => {
+        if (cancelled) return;
+        const data = res.data;
+        const tokenVal = data?.token ?? '';
+        const raw = data?.albumId;
+        const n = raw != null ? Number(raw) : NaN;
+        const albumIdVal = Number.isFinite(n) ? n : null;
+        const fileNamesVal = Array.isArray(data?.fileNames) ? data.fileNames : [];
+        setResolvedFromSid({ token: tokenVal, albumId: albumIdVal, fileNames: fileNamesVal });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSidError(true);
+          setResolvedFromSid(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setSidLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [sid]);
+
+  const effectiveToken = resolvedFromSid?.token ?? payloadFromQ?.token ?? token;
+  const effectiveAlbumId = resolvedFromSid != null ? resolvedFromSid.albumId : (payloadFromQ != null ? payloadFromQ.albumId : albumId);
+  const effectiveHasValidAlbumId = effectiveAlbumId != null && !isNaN(effectiveAlbumId) && effectiveAlbumId > 0;
 
   const [decodedFilesFromF, setDecodedFilesFromF] = useState<string[]>([]);
   useEffect(() => {
@@ -78,15 +127,19 @@ const PublicSelectionPage: React.FC = () => {
     }
   }, [imageIdsParam, filesParam, fParam]);
 
-  // Fetch albums (pass URL token so backend authorizes when opened from another device)
+  // Fetch albums: single album by ID when albumId in URL (or from sid), otherwise all albums
   const { data: albumsData, isLoading, isError } = useQuery({
-    queryKey: ['publicSelectionAlbums', token],
-    enabled: !!token,
+    queryKey: ['publicSelectionAlbums', effectiveToken, effectiveHasValidAlbumId ? effectiveAlbumId : null],
+    enabled: !!effectiveToken && (!sid || !!resolvedFromSid || sidError),
     queryFn: async () => {
-      const response = await api.get('/api/albums', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        params: token ? { token } : {},
-      });
+      const headers = effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {};
+      const params = effectiveToken ? { token: effectiveToken } : {};
+      if (effectiveHasValidAlbumId && effectiveAlbumId != null) {
+        const response = await api.get(`/api/albums/${effectiveAlbumId}`, { headers, params });
+        const album = response.data as Album;
+        return album ? [album] : [];
+      }
+      const response = await api.get('/api/albums', { headers, params });
       return response.data as Album[] | { albums: Album[] };
     },
     retry: 1,
@@ -95,7 +148,7 @@ const PublicSelectionPage: React.FC = () => {
   const albums = useMemo(() => {
     if (!albumsData) return [];
     if (Array.isArray(albumsData)) return albumsData;
-    if (albumsData.albums) return albumsData.albums;
+    if (albumsData && typeof albumsData === 'object' && (albumsData as { albums?: Album[] }).albums) return (albumsData as { albums: Album[] }).albums;
     return [];
   }, [albumsData]);
 
@@ -122,12 +175,13 @@ const PublicSelectionPage: React.FC = () => {
     return [];
   }, [imageIdsParam]);
 
-  // Parse filenames: use decoded list from f= (short URL) or from files= (legacy)
+  // Parse filenames: from sid payload, or decoded f= (short URL), or files= (legacy)
   const targetFilenames = useMemo(() => {
+    if (resolvedFromSid?.fileNames?.length) return resolvedFromSid.fileNames;
     if (fParam) return decodedFilesFromF;
     if (!filesParam) return [];
     return filesParam.split(',').map(f => decodeURIComponent(f.trim())).filter(f => f);
-  }, [fParam, filesParam, decodedFilesFromF]);
+  }, [resolvedFromSid, fParam, filesParam, decodedFilesFromF]);
 
   // Auto-select albums and images based on image IDs or filenames from URL
   useEffect(() => {
@@ -366,7 +420,7 @@ const PublicSelectionPage: React.FC = () => {
       console.log('Submission response:', response.data);
 
       // Invalidate and refetch albums data after successful update
-      await queryClient.invalidateQueries({ queryKey: ['publicSelectionAlbums', token] });
+      await queryClient.invalidateQueries({ queryKey: ['publicSelectionAlbums', effectiveToken] });
 
       toast.success(
         `Successfully submitted ${allSelectedImages.length} photo${allSelectedImages.length !== 1 ? 's' : ''} for selection!`,
@@ -382,7 +436,43 @@ const PublicSelectionPage: React.FC = () => {
     }
   };
 
-  if (!token) {
+  if (sid && sidLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (sid && sidError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
+          <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Invalid or expired link</h1>
+          <p className="text-gray-600 text-sm">
+            This short link could not be loaded. It may have expired or been removed.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (qInvalid) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
+          <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Invalid link</h1>
+          <p className="text-gray-600 text-sm">
+            This link could not be read. Please use the link provided by your photographer.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!effectiveToken) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
@@ -516,9 +606,13 @@ const PublicSelectionPage: React.FC = () => {
           {albums.length === 0 ? (
             <div className="text-center py-16 text-gray-500">
               <FaImages className="mx-auto mb-3 text-4xl" />
-              <p className="text-lg font-medium mb-2">No albums available</p>
+              <p className="text-lg font-medium mb-2">
+                {effectiveHasValidAlbumId && !isLoading ? 'Album not found' : 'No albums available'}
+              </p>
               <p className="text-sm">
-                The albums list is empty. Please contact the photographer.
+                {effectiveHasValidAlbumId && !isLoading
+                  ? 'The album link may be invalid or the album was removed. Try the link without albumId or contact the photographer.'
+                  : 'The albums list is empty. Please contact the photographer.'}
               </p>
             </div>
           ) : (

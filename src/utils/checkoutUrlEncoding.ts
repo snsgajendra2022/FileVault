@@ -13,7 +13,20 @@ export function shouldUseCompressedFileList(fileNames: string[]): boolean {
   return joined.length > URL_LENGTH_THRESHOLD;
 }
 
-/** Compress file list to a short base64 string. Returns null if compression not supported. */
+/** Base64 → base64url (URL-safe, shorter in URLs: no + / so no %2B %2F). */
+function toBase64Url(base64: string): string {
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** Base64url → base64 for atob(). */
+function fromBase64Url(urlSafe: string): string {
+  let base64 = urlSafe.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = base64.length % 4;
+  if (pad) base64 += '='.repeat(4 - pad);
+  return base64;
+}
+
+/** Compress file list to a short base64url string (URL-safe, shorter when used in query). Returns null if compression not supported. */
 export async function compressFileList(fileNames: string[]): Promise<string | null> {
   const raw = fileNames.join(',');
   if (!raw) return '';
@@ -26,19 +39,21 @@ export async function compressFileList(fileNames: string[]): Promise<string | nu
     const bytes = new Uint8Array(compressed);
     let binary = '';
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-    return btoa(binary);
+    const base64 = btoa(binary);
+    return toBase64Url(base64);
   } catch {
     return null;
   }
 }
 
-/** Decompress file list from base64 gzip string. Returns [] on error or unsupported. */
+/** Decompress file list from base64url gzip string. Returns [] on error or unsupported. */
 export async function decompressFileList(encoded: string): Promise<string[]> {
   if (!encoded || !encoded.trim()) return [];
   try {
     const DecompressionStreamCtor = (globalThis as unknown as { DecompressionStream?: new (format: string) => TransformStream }).DecompressionStream;
     if (!DecompressionStreamCtor) return [];
-    const binary = atob(encoded.trim());
+    const base64 = fromBase64Url(encoded.trim());
+    const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStreamCtor('gzip'));

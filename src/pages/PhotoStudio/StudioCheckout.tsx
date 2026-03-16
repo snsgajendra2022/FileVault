@@ -6,6 +6,7 @@ import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { compressFileList, shouldUseCompressedFileList } from '../../utils/checkoutUrlEncoding';
+import { encryptCheckoutPayload } from '../../utils/encryption';
 
 interface Album {
   id: number;
@@ -399,46 +400,85 @@ const StudioCheckout: React.FC = () => {
 
   const baseUrl = window.location.origin;
   const tokenForUrl = typeof localStorage !== 'undefined' ? (localStorage.getItem('token') || '') : '';
+  const singleAlbumId = selectedAlbums.size === 1 ? Array.from(selectedAlbums)[0] : null;
+  const albumIdQuery = singleAlbumId != null ? `&albumId=${singleAlbumId}` : '';
 
   const longPublicCheckoutUrl = useMemo(() => {
     if (explicitlySelectedImages.length === 0) return '';
     const selectedFilenames = explicitlySelectedImages.map(img => getImageFilename(img)).join(',');
-    return `${baseUrl}/public/checkout?token=${encodeURIComponent(tokenForUrl)}&files=${encodeURIComponent(selectedFilenames)}`;
-  }, [explicitlySelectedImages, tokenForUrl, baseUrl]);
+    return `${baseUrl}/public/checkout?token=${encodeURIComponent(tokenForUrl)}${albumIdQuery}&files=${encodeURIComponent(selectedFilenames)}`;
+  }, [explicitlySelectedImages, tokenForUrl, baseUrl, albumIdQuery]);
 
   const longPublicSelectionUrl = useMemo(() => {
     if (explicitlySelectedImages.length === 0) return '';
     const selectedFilenames = explicitlySelectedImages.map(img => getImageFilename(img)).join(',');
-    return `${baseUrl}/public/selection?token=${encodeURIComponent(tokenForUrl)}&files=${encodeURIComponent(selectedFilenames)}`;
-  }, [explicitlySelectedImages, tokenForUrl, baseUrl]);
+    return `${baseUrl}/public/selection?token=${encodeURIComponent(tokenForUrl)}${albumIdQuery}&files=${encodeURIComponent(selectedFilenames)}`;
+  }, [explicitlySelectedImages, tokenForUrl, baseUrl, albumIdQuery]);
 
   const [shortCheckoutUrl, setShortCheckoutUrl] = useState('');
   const [shortSelectionUrl, setShortSelectionUrl] = useState('');
+  const [shareLinkId, setShareLinkId] = useState<string | null>(null);
 
   useEffect(() => {
     if (explicitlySelectedImages.length === 0) {
       setShortCheckoutUrl('');
       setShortSelectionUrl('');
+      setShareLinkId(null);
       return;
     }
     const fileNames = explicitlySelectedImages.map(img => getImageFilename(img));
-    if (!shouldUseCompressedFileList(fileNames)) {
-      setShortCheckoutUrl('');
-      setShortSelectionUrl('');
-      return;
-    }
     let cancelled = false;
-    compressFileList(fileNames).then((encoded) => {
+    (async () => {
+      try {
+        const res = await api.post<{ id?: string }>('/api/public/share-link', {
+          token: tokenForUrl,
+          albumId: singleAlbumId ?? undefined,
+          fileNames,
+        });
+        const id = res.data?.id;
+        if (!cancelled && id) {
+          setShareLinkId(id);
+          setShortCheckoutUrl(`${baseUrl}/public/checkout?sid=${encodeURIComponent(id)}`);
+          setShortSelectionUrl(`${baseUrl}/public/selection?sid=${encodeURIComponent(id)}`);
+          return;
+        }
+      } catch {
+        // Backend may not have share-link endpoint; fall back to long/compressed URL
+      }
+      setShareLinkId(null);
+      if (!shouldUseCompressedFileList(fileNames)) {
+        setShortCheckoutUrl('');
+        setShortSelectionUrl('');
+        return;
+      }
+      const encoded = await compressFileList(fileNames);
       if (cancelled || encoded === null) return;
-      const q = `token=${encodeURIComponent(tokenForUrl)}&f=${encodeURIComponent(encoded)}`;
+      const albumPart = singleAlbumId != null ? `albumId=${singleAlbumId}&` : '';
+      const q = `token=${encodeURIComponent(tokenForUrl)}&${albumPart}f=${encoded}`;
       setShortCheckoutUrl(`${baseUrl}/public/checkout?${q}`);
       setShortSelectionUrl(`${baseUrl}/public/selection?${q}`);
-    });
+    })();
     return () => { cancelled = true; };
-  }, [explicitlySelectedImages, tokenForUrl, baseUrl]);
+  }, [explicitlySelectedImages, tokenForUrl, baseUrl, singleAlbumId]);
 
-  const publicCheckoutUrl = shortCheckoutUrl || longPublicCheckoutUrl;
-  const publicSelectionUrl = shortSelectionUrl || longPublicSelectionUrl;
+  // When single album: use minimal URL with encrypted payload ?q= (token + albumId encrypted)
+  const minimalCheckoutUrl = useMemo(() => {
+    if (singleAlbumId == null || explicitlySelectedImages.length === 0) return '';
+    const q = encryptCheckoutPayload({ token: tokenForUrl, albumId: singleAlbumId });
+    return `${baseUrl}/public/checkout?q=${encodeURIComponent(q)}`;
+  }, [baseUrl, tokenForUrl, singleAlbumId, explicitlySelectedImages.length]);
+  const minimalSelectionUrl = useMemo(() => {
+    if (singleAlbumId == null || explicitlySelectedImages.length === 0) return '';
+    const q = encryptCheckoutPayload({ token: tokenForUrl, albumId: singleAlbumId });
+    return `${baseUrl}/public/selection?q=${encodeURIComponent(q)}`;
+  }, [baseUrl, tokenForUrl, singleAlbumId, explicitlySelectedImages.length]);
+
+  const publicCheckoutUrl = shareLinkId
+    ? `${baseUrl}/public/checkout?sid=${encodeURIComponent(shareLinkId)}`
+    : (minimalCheckoutUrl || shortCheckoutUrl || longPublicCheckoutUrl);
+  const publicSelectionUrl = shareLinkId
+    ? `${baseUrl}/public/selection?sid=${encodeURIComponent(shareLinkId)}`
+    : (minimalSelectionUrl || shortSelectionUrl || longPublicSelectionUrl);
   async function copyToClipboard(text) {
     // Modern API (works on HTTPS + supported browsers)
     if (navigator?.clipboard?.writeText) {

@@ -36,3 +36,38 @@ export function decryptImageIds(encryptedString: string): (number | string)[] {
   }
 }
 
+/** Payload for public checkout/selection (token + albumId). */
+export type CheckoutPayload = { token: string; albumId: number };
+
+function toBase64Url(binary: string): string {
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromBase64Url(encoded: string): string {
+  const padded = encoded.replace(/-/g, '+').replace(/_/g, '/');
+  return atob(padded + '==='.slice((padded.length + 3) % 4));
+}
+
+/** Encrypt token + albumId for use in ?q= URL param (single album minimal link). */
+export function encryptCheckoutPayload(payload: CheckoutPayload): string {
+  const raw = JSON.stringify({ t: payload.token, a: payload.albumId });
+  const encrypted = xorEncryptDecrypt(raw, XOR_KEY);
+  return toBase64Url(encrypted);
+}
+
+/** Decrypt ?q= param to { token, albumId }. Returns null if invalid. */
+export function decryptCheckoutPayload(encoded: string): CheckoutPayload | null {
+  if (!encoded || !encoded.trim()) return null;
+  try {
+    const decoded = fromBase64Url(encoded.trim());
+    const decrypted = xorEncryptDecrypt(decoded, XOR_KEY);
+    const parsed = JSON.parse(decrypted) as { t?: string; a?: number };
+    if (typeof parsed?.t === 'string' && typeof parsed?.a === 'number' && Number.isFinite(parsed.a)) {
+      return { token: parsed.t, albumId: parsed.a };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+

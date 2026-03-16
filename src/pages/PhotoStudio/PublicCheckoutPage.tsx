@@ -6,6 +6,7 @@ import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { decompressFileList } from '../../utils/checkoutUrlEncoding';
+import { decryptCheckoutPayload } from '../../utils/encryption';
 
 interface Album {
   id: number;
@@ -66,10 +67,59 @@ const PublicCheckoutPage: React.FC = () => {
   const [fullscreenImage, setFullscreenImage] = useState<AlbumImage | null>(null);
   const autoSelectedRef = useRef(false);
 
+  const sid = searchParams.get('sid') || ''; // short share link id
+  const qParam = searchParams.get('q') || ''; // encrypted token+albumId (minimal link)
   const token = searchParams.get('token') || '';
+  const albumIdParam = searchParams.get('albumId') || ''; // optional: load single album by ID
   const filesParam = searchParams.get('files') || '';
   const fParam = searchParams.get('f') || ''; // compressed file list (short URL)
   const downloadCode = searchParams.get('code') || '';
+  const albumId = albumIdParam ? parseInt(albumIdParam, 10) : null;
+  const hasValidAlbumId = albumId != null && !isNaN(albumId) && albumId > 0;
+
+  const payloadFromQ = useMemo(() => (qParam.trim() ? decryptCheckoutPayload(qParam.trim()) : null), [qParam]);
+  const qInvalid = qParam.trim() !== '' && payloadFromQ === null;
+
+  type ResolvedFromSid = { token: string; albumId: number | null; fileNames: string[] };
+  const [resolvedFromSid, setResolvedFromSid] = useState<ResolvedFromSid | null>(null);
+  const [sidLoading, setSidLoading] = useState(false);
+  const [sidError, setSidError] = useState(false);
+
+  useEffect(() => {
+    if (!sid.trim()) {
+      setResolvedFromSid(null);
+      setSidError(false);
+      return;
+    }
+    let cancelled = false;
+    setSidLoading(true);
+    setSidError(false);
+    api.get<{ token: string; albumId?: number | null; fileNames?: string[] }>(`/api/public/share-link/${encodeURIComponent(sid)}`)
+      .then((res) => {
+        if (cancelled) return;
+        const data = res.data;
+        const tokenVal = data?.token ?? '';
+        const raw = data?.albumId;
+        const n = raw != null ? Number(raw) : NaN;
+        const albumIdVal = Number.isFinite(n) ? n : null;
+        const fileNamesVal = Array.isArray(data?.fileNames) ? data.fileNames : [];
+        setResolvedFromSid({ token: tokenVal, albumId: albumIdVal, fileNames: fileNamesVal });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSidError(true);
+          setResolvedFromSid(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setSidLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [sid]);
+
+  const effectiveToken = resolvedFromSid?.token ?? payloadFromQ?.token ?? token;
+  const effectiveAlbumId = resolvedFromSid != null ? resolvedFromSid.albumId : (payloadFromQ != null ? payloadFromQ.albumId : albumId);
+  const effectiveHasValidAlbumId = effectiveAlbumId != null && !isNaN(effectiveAlbumId) && effectiveAlbumId > 0;
 
   const [decodedFilesFromF, setDecodedFilesFromF] = useState<string[]>([]);
 
@@ -85,31 +135,36 @@ const PublicCheckoutPage: React.FC = () => {
     return () => { cancelled = true; };
   }, [fParam]);
 
-  // Parse filenames: use decoded list from f= (short URL) or from files= (long URL)
+  // Parse filenames: from sid payload, or decoded f= (short URL), or files= (long URL)
   const targetFilenames = useMemo(() => {
+    if (resolvedFromSid?.fileNames?.length) return resolvedFromSid.fileNames;
     if (fParam) return decodedFilesFromF;
     if (!filesParam) return [];
     return filesParam.split(',').map(f => decodeURIComponent(f.trim())).filter(f => f);
-  }, [fParam, filesParam, decodedFilesFromF]);
+  }, [resolvedFromSid, fParam, filesParam, decodedFilesFromF]);
 
-  // Fetch albums (pass URL token so backend authorizes when opened from another device without localStorage)
+  // Fetch albums: single album by ID when albumId in URL (or from sid), otherwise all albums
   const { data: albumsData, isLoading, isError, refetch } = useQuery({
-    queryKey: ['publicCheckoutAlbums', token],
-    enabled: !!token,
+    queryKey: ['publicCheckoutAlbums', effectiveToken, effectiveHasValidAlbumId ? effectiveAlbumId : null],
+    enabled: !!effectiveToken && (!sid || !!resolvedFromSid || sidError),
     queryFn: async () => {
-      const response = await api.get('/api/albums', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        params: token ? { token } : {},
-      });
+      const headers = effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {};
+      const params = effectiveToken ? { token: effectiveToken } : {};
+      if (effectiveHasValidAlbumId && effectiveAlbumId != null) {
+        const response = await api.get(`/api/albums/${effectiveAlbumId}`, { headers, params });
+        const album = response.data as Album;
+        return album ? [album] : [];
+      }
+      const response = await api.get('/api/albums', { headers, params });
       return response.data as Album[] | { albums: Album[] };
     },
     retry: 1,
   });
 
-  const albums:any = useMemo(() => {
+  const albums: any = useMemo(() => {
     if (!albumsData) return [];
     if (Array.isArray(albumsData)) return albumsData;
-    if (albumsData.albums) return albumsData.albums;
+    if (albumsData && typeof albumsData === 'object' && (albumsData as { albums?: Album[] }).albums) return (albumsData as { albums: Album[] }).albums;
     return [];
   }, [albumsData]);
 
@@ -135,13 +190,13 @@ const PublicCheckoutPage: React.FC = () => {
 
   // Fetch UPI settings (pass URL token for public access)
   const { data: upiSettings } = useQuery({
-    queryKey: ['upiSettings', token],
-    enabled: !!token,
+    queryKey: ['upiSettings', effectiveToken],
+    enabled: !!effectiveToken,
     queryFn: async () => {
       try {
         const response = await api.get('/api/upi', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          params: token ? { token } : {},
+          headers: effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {},
+          params: effectiveToken ? { token: effectiveToken } : {},
         });
         return response.data as { upiId: string; perPhotoPrice: number };
       } catch (error: any) {
@@ -286,8 +341,8 @@ const PublicCheckoutPage: React.FC = () => {
       setShowQr(false); // Hide QR immediately when download code is detected
       try {
         const response = await api.get(`/api/payments/download/${downloadCode}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          params: token ? { token } : {},
+          headers: effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {},
+          params: effectiveToken ? { token: effectiveToken } : {},
         });
         console.log('Download code data:', response);
         setDownloadCodeData(response.data);
@@ -422,7 +477,7 @@ const PublicCheckoutPage: React.FC = () => {
             transactionId: txId,
             amount: totalAmount,
             imageCount: allSelectedImages.length,
-            token,
+            token: effectiveToken,
             timestamp: Date.now(),
             status: 'pending'
           };
@@ -435,7 +490,7 @@ const PublicCheckoutPage: React.FC = () => {
               amount: totalAmount,
               imageCount: allSelectedImages.length,
               imageIds: allSelectedImages.map(img => img.id),
-              token,
+              token: effectiveToken,
               timestamp: Date.now()
             });
 
@@ -734,8 +789,8 @@ const PublicCheckoutPage: React.FC = () => {
         otpEmail: email.trim()
       });
 
-      // Get auth token from localStorage or use token from URL
-      const authToken = localStorage.getItem('token') || token;
+      // Get auth token from localStorage or use token from URL (or resolved from sid)
+      const authToken = localStorage.getItem('token') || effectiveToken;
       
       const response = await api.post('/api/payments', formData, {
         headers: {
@@ -771,7 +826,43 @@ const PublicCheckoutPage: React.FC = () => {
     }
   };
 
-  if (!token) {
+  if (sid && sidLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  if (sid && sidError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
+          <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Invalid or expired link</h1>
+          <p className="text-gray-600 text-sm">
+            This short link could not be loaded. It may have expired or been removed.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (qInvalid) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
+          <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Invalid link</h1>
+          <p className="text-gray-600 text-sm">
+            This link could not be read. Please use the link provided by your photographer.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!effectiveToken) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
@@ -999,8 +1090,14 @@ const PublicCheckoutPage: React.FC = () => {
           {albums.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <FaImages className="mx-auto mb-3 text-4xl" />
-              <p className="text-lg font-medium mb-2">No albums available</p>
-              <p className="text-sm">Please check the link or contact the photographer.</p>
+              <p className="text-lg font-medium mb-2">
+                {effectiveHasValidAlbumId && !isLoading ? 'Album not found' : 'No albums available'}
+              </p>
+              <p className="text-sm">
+                {effectiveHasValidAlbumId && !isLoading
+                  ? 'The album link may be invalid or the album was removed. Try the link without albumId or contact the photographer.'
+                  : 'Please check the link or contact the photographer.'}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
