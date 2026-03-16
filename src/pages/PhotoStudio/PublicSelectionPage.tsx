@@ -523,12 +523,17 @@ const PublicSelectionPage: React.FC = () => {
             </div>
           ) : (
             <>
-              {/* Select button: toggles visibility of checkboxes */}
-              <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
+              {/* Select button: always visible, toggles checkboxes on/off */}
+              <div className="mb-5 p-4 rounded-xl bg-gray-50 border border-gray-200">
+                <p className="text-sm text-gray-600 mb-2">
+                  {showSelectionMode
+                    ? 'Click albums and images to select. Use the expand icon on each photo to view full screen.'
+                    : 'Click the button below to show checkboxes and select photos.'}
+                </p>
                 <button
                   type="button"
                   onClick={() => setShowSelectionMode((prev) => !prev)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm ${
                     showSelectionMode
                       ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                       : 'bg-[#2731db] text-white hover:bg-blue-700'
@@ -537,9 +542,6 @@ const PublicSelectionPage: React.FC = () => {
                   <FaCheck className="text-sm" />
                   {showSelectionMode ? 'Done selecting' : 'Select'}
                 </button>
-                {showSelectionMode && (
-                  <p className="text-sm text-gray-600">Click albums and images to select. Use the expand icon to view full screen.</p>
-                )}
               </div>
               {/* Filter Toggle */}
               {selectedAlbums.size > 0 && (
@@ -580,26 +582,27 @@ const PublicSelectionPage: React.FC = () => {
                   <div
                     key={album.id}
                     className={`border rounded-xl overflow-hidden transition-all ${
-                      isSelected ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50' : 'border-gray-200'
+                      showSelectionMode && isSelected ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50' : 'border-gray-200'
                     }`}
                   >
-                    {/* Album Header */}
-                    <div className="flex items-center justify-between p-4 bg-white">
-                      <div className="flex items-center space-x-4 flex-1">
+                    {/* Album Header - responsive for mobile and web */}
+                    <div className="flex items-center justify-between gap-3 p-3 sm:p-4 bg-white min-h-[4rem]">
+                      <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                         {showSelectionMode ? (
                           <button
                             onClick={() => toggleAlbum(album.id)}
-                            className={`w-6 h-6 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                            className={`w-7 h-7 sm:w-6 sm:h-6 rounded border-2 flex items-center justify-center flex-shrink-0 touch-manipulation ${
                               isSelected ? 'bg-[#2731db] border-[#2731db]' : 'border-gray-300'
                             }`}
+                            aria-label={isSelected ? 'Deselect album' : 'Select album'}
                           >
                             {isSelected && <FaCheck className="text-white text-xs" />}
                           </button>
                         ) : (
-                          <div className="w-6 h-6 flex-shrink-0" aria-hidden />
+                          <div className="w-7 h-7 sm:w-6 sm:h-6 flex-shrink-0" aria-hidden />
                         )}
 
-                        <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
                           {album.previewUrl ? (
                             <img
                               src={album.previewUrl}
@@ -610,18 +613,22 @@ const PublicSelectionPage: React.FC = () => {
                               }}
                             />
                           ) : (
-                            <FaFolder className="text-2xl text-gray-400" />
+                            <FaFolder className="text-xl sm:text-2xl text-gray-400" />
                           )}
                         </div>
 
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900">{album.name}</h3>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate" title={album.name}>
+                            {album.name}
+                          </h3>
                           {album.description && (
-                            <p className="text-sm text-gray-500">{album.description}</p>
+                            <p className="text-xs sm:text-sm text-gray-500 truncate mt-0.5" title={album.description}>
+                              {album.description}
+                            </p>
                           )}
-                          <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
+                          <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-xs sm:text-sm text-gray-500 mt-1">
                             <span>{albumImages.length} images</span>
-                            {albumImageIds.size > 0 && (
+                            {showSelectionMode && albumImageIds.size > 0 && (
                               <span className="text-[#2731db] font-medium">
                                 {albumImageIds.size} selected
                               </span>
@@ -632,15 +639,16 @@ const PublicSelectionPage: React.FC = () => {
 
                       <button
                         onClick={() => toggleAlbumExpand(album.id)}
-                        className="ml-4 px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-50"
+                        className="flex-shrink-0 min-w-[2.75rem] min-h-[2.75rem] sm:min-w-0 sm:min-h-0 ml-1 sm:ml-4 px-3 py-2.5 sm:py-2 rounded-lg border border-gray-300 hover:bg-gray-50 active:bg-gray-100 touch-manipulation flex items-center justify-center gap-1 sm:gap-2"
+                        aria-label={isExpanded ? 'Collapse album' : 'Expand album'}
                       >
                         {isExpanded ? (
-                          <FaFolderOpen className="text-[#2731db] text-xl" />
+                          <FaFolderOpen className="text-[#2731db] text-lg sm:text-xl" />
                         ) : (
-                          <FaFolder className="text-gray-400 text-xl" />
+                          <FaFolder className="text-gray-400 text-lg sm:text-xl" />
                         )}
                         <FaChevronRight
-                          className={`text-gray-400 transition-transform duration-200 ml-2 ${
+                          className={`text-gray-400 transition-transform duration-200 text-sm sm:text-base ${
                             isExpanded ? 'transform rotate-90' : ''
                           }`}
                         />
