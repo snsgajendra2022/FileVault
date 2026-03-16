@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -74,6 +74,22 @@ const queryClient = new QueryClient({
   },
 });
 
+/** Only render public page when URL has a share identifier (sid, q, or token). Otherwise redirect to home. */
+const PublicShareRoute = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const search = location.search || '';
+  const params = new URLSearchParams(search);
+  const hasShareId = !!(params.get('sid')?.trim() || params.get('q')?.trim() || params.get('token')?.trim());
+  React.useEffect(() => {
+    if (!hasShareId) {
+      navigate('/', { replace: true });
+    }
+  }, [hasShareId, navigate]);
+  if (!hasShareId) return null; // avoid flash before redirect
+  return <>{children}</>;
+};
+
 const ProtectedRoute = ({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) => {
   const { isAuthenticated, isAdmin, isLoading } = useAuth();
   
@@ -123,12 +139,12 @@ const AppRoutes = () => {
       } />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/public/checkout" element={<PublicCheckoutPage />} />
+      <Route path="/public/checkout" element={<PublicShareRoute><PublicCheckoutPage /></PublicShareRoute>} />
       {/* Public invitation acceptance route */}
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
       
-      {/* Public PhotoStudio routes - accessible without authentication */}
-      <Route path="/public/selection" element={<PublicSelectionPage />} />
+      {/* Public PhotoStudio routes - do not open without complete share URL (sid, q, or token) */}
+      <Route path="/public/selection" element={<PublicShareRoute><PublicSelectionPage /></PublicShareRoute>} />
   
       
       {/* PhotoStudio Pro Routes */}

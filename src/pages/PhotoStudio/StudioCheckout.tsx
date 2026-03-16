@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaCopy, FaShare, FaFolder, FaFolderOpen, FaChevronRight, FaCheck, FaCog, FaTrash, FaSave } from 'react-icons/fa';
+import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaCopy, FaShare, FaFolder, FaFolderOpen, FaChevronRight, FaCheck, FaCog, FaTrash, FaSave, FaTimes } from 'react-icons/fa';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -419,6 +419,19 @@ const StudioCheckout: React.FC = () => {
   const [shortSelectionUrl, setShortSelectionUrl] = useState('');
   const [shareLinkId, setShareLinkId] = useState<string | null>(null);
 
+  // Share modal (public URL verification – send link to contacts/email/SMS)
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareContactIds, setShareContactIds] = useState<Set<string>>(new Set());
+  const [shareNewEmails, setShareNewEmails] = useState('');
+  const [shareNewMobileCountryCode, setShareNewMobileCountryCode] = useState('+91');
+  const [shareNewMobiles, setShareNewMobiles] = useState('');
+  const [shareMessage, setShareMessage] = useState('');
+  const [shareChannels, setShareChannels] = useState<{ email: boolean; sms: boolean }>({ email: true, sms: true });
+  const [shareUrlType, setShareUrlType] = useState<'checkout' | 'selection'>('checkout');
+  const [shareSending, setShareSending] = useState(false);
+  const [shareContactSearch, setShareContactSearch] = useState('');
+  const [shareAlreadySent, setShareAlreadySent] = useState<{ email?: string; mobile?: string; alreadySent: boolean } | null>(null);
+
   useEffect(() => {
     if (explicitlySelectedImages.length === 0) {
       setShortCheckoutUrl('');
@@ -524,6 +537,119 @@ const StudioCheckout: React.FC = () => {
     }).catch(() => {
       toast.error('Failed to copy URL');
     });
+  };
+
+  // Fetch contacts for Share modal – doc: GET /api/public-share/contacts?search=...&limit=50&offset=0
+  const { data: shareContactsData } = useQuery({
+    queryKey: ['publicShareContacts', shareContactSearch],
+    queryFn: async () => {
+      try {
+        const params = new URLSearchParams();
+        if (shareContactSearch.trim()) params.set('search', shareContactSearch.trim());
+        params.set('limit', '50');
+        params.set('offset', '0');
+        const res = await api.get<{ contacts?: { id: string; email?: string; mobile?: string; countryCode?: string; displayName?: string }[]; total?: number }>(`/api/public-share/contacts?${params.toString()}`);
+        return res.data ?? { contacts: [] };
+      } catch {
+        return { contacts: [] };
+      }
+    },
+    enabled: showShareModal,
+    retry: 0,
+  });
+  const shareContacts = shareContactsData?.contacts ?? [];
+
+  // Check recipient (already sent?) – doc: GET /api/public-share/check-recipient?email=...&mobile=...&publicUrl=...
+  const checkRecipient = async (emailInput: string, mobileInput: string) => {
+    const firstEmail = emailInput.split(/[\s,]+/).map(e => e.trim()).filter(Boolean)[0] ?? '';
+    const firstPart = mobileInput.split(/[\s,]+/).map(m => m.trim()).filter(Boolean)[0] ?? '';
+    const m = firstPart ? (firstPart.startsWith('+') ? firstPart : `${shareNewMobileCountryCode.replace(/\s/g, '')}${firstPart}`) : '';
+    if (!firstEmail && !m) {
+      setShareAlreadySent(null);
+      return;
+    }
+    const urlToShare = shareUrlType === 'checkout' ? publicCheckoutUrl : publicSelectionUrl;
+    try {
+      const params = new URLSearchParams();
+      if (firstEmail) params.set('email', firstEmail);
+      if (m) params.set('mobile', m);
+      if (urlToShare) params.set('publicUrl', urlToShare);
+      const res = await api.get<{ alreadySent?: boolean; email?: string | null; mobile?: string | null }>(`/api/public-share/check-recipient?${params.toString()}`);
+      setShareAlreadySent({
+        email: res.data?.email ?? undefined,
+        mobile: res.data?.mobile ?? undefined,
+        alreadySent: !!res.data?.alreadySent,
+      });
+    } catch {
+      setShareAlreadySent(null);
+    }
+  };
+
+  const handleShareSend = async () => {
+    const urlToShare = shareUrlType === 'checkout' ? publicCheckoutUrl : publicSelectionUrl;
+    if (!urlToShare) {
+      toast.error('No URL to share. Please select images first.');
+      return;
+    }
+    const emails = shareNewEmails.split(/[\s,]+/).map(e => e.trim()).filter(Boolean);
+    const mobileParts = shareNewMobiles.split(/[\s,]+/).map(m => m.trim()).filter(Boolean);
+    const mobiles = mobileParts.map(part => (part.startsWith('+') ? part : `${shareNewMobileCountryCode.replace(/\s/g, '')}${part}`));
+    if (shareContactIds.size === 0 && emails.length === 0 && mobiles.length === 0) {
+      toast.error('Select at least one contact or enter email/mobile.');
+      return;
+    }
+    const channels: string[] = [];
+    if (shareChannels.email) channels.push('email');
+    if (shareChannels.sms) channels.push('sms');
+    if (channels.length === 0) {
+      toast.error('Select at least one channel (Email or SMS).');
+      return;
+    }
+    setShareSending(true);
+    try {
+      // Backend creates public_share_sent row per recipient and includes Share ID in email/SMS body (see PUBLIC_SHARE_SENT_RECORDS.md)
+      const res = await api.post<{
+        success?: boolean;
+        sent?: { email?: number; sms?: number };
+        failed?: unknown[];
+        shareIds?: { email?: number[]; sms?: number[] };
+      }>('/api/public-share/send', {
+        publicUrl: urlToShare,
+        message: shareMessage.trim() || undefined,
+        sendTo: {
+          contactIds: Array.from(shareContactIds),
+          emails,
+          mobiles,
+        },
+        channels,
+      });
+      if (res.data?.success) {
+        const emailCount = res.data.sent?.email ?? 0;
+        const smsCount = res.data.sent?.sms ?? 0;
+        const shareIds = res.data.shareIds;
+        const idList =
+          shareIds?.email?.length || shareIds?.sms?.length
+            ? ` Share ID(s): ${[...(shareIds?.email ?? []), ...(shareIds?.sms ?? [])].join(', ')}.`
+            : ' Each recipient gets a Share ID in the email/SMS for reference.';
+        toast.success(`Link sent (email: ${emailCount}, SMS: ${smsCount}).${idList}`);
+        setShowShareModal(false);
+        setShareContactIds(new Set());
+        setShareNewEmails('');
+        setShareNewMobiles('');
+        setShareMessage('');
+        setShareAlreadySent(null);
+      } else {
+        toast.error('Failed to send. Please try again.');
+      }
+    } catch (err: any) {
+      if (err.response?.status === 404 || err.response?.status === 501) {
+        toast.error('Share by email/SMS is not available yet. Use Copy link instead.');
+      } else {
+        toast.error(err.response?.data?.message || 'Failed to send share.');
+      }
+    } finally {
+      setShareSending(false);
+    }
   };
 
   const handleGenerateQr = () => {
@@ -860,7 +986,15 @@ const StudioCheckout: React.FC = () => {
             </div>
           )}
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 flex-wrap gap-2">
+            <button
+              onClick={() => setShowShareModal(true)}
+              disabled={allSelectedImages.length === 0}
+              className="flex items-center px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FaShare className="mr-2" />
+              Share link
+            </button>
             <button
               onClick={handleGenerateQr}
               disabled={allSelectedImages.length === 0}
@@ -923,6 +1057,162 @@ const StudioCheckout: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Share modal – send public URL to contacts / email / SMS */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Share link</h3>
+              <button
+                onClick={() => {
+                  setShowShareModal(false);
+                  setShareContactSearch('');
+                  setShareAlreadySent(null);
+                }}
+                className="p-1 rounded hover:bg-gray-100 text-gray-600"
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Which link to share</label>
+                <select
+                  value={shareUrlType}
+                  onChange={(e) => setShareUrlType(e.target.value as 'checkout' | 'selection')}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="checkout">Checkout URL</option>
+                  <option value="selection">Selection URL</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Existing contacts</label>
+                <input
+                  type="text"
+                  value={shareContactSearch}
+                  onChange={(e) => setShareContactSearch(e.target.value)}
+                  placeholder="Search by name, email, mobile..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2"
+                />
+                <div className="border border-gray-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
+                  {shareContacts.length === 0 ? (
+                    <p className="text-sm text-gray-500">No contacts yet. Add email or mobile below.</p>
+                  ) : (
+                    shareContacts.map((c) => (
+                      <label key={c.id} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={shareContactIds.has(c.id)}
+                          onChange={(e) => {
+                            const next = new Set(shareContactIds);
+                            if (e.target.checked) next.add(c.id); else next.delete(c.id);
+                            setShareContactIds(next);
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        <span className="text-sm">{c.displayName || c.email || c.mobile || c.id}</span>
+                        {(c.email || c.mobile) && <span className="text-xs text-gray-500">({[c.email, c.mobile].filter(Boolean).join(', ')})</span>}
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New recipients – email (comma separated)</label>
+                <input
+                  type="text"
+                  value={shareNewEmails}
+                  onChange={(e) => { setShareNewEmails(e.target.value); setShareAlreadySent(null); }}
+                  onBlur={() => checkRecipient(shareNewEmails, shareNewMobiles)}
+                  placeholder="e.g. a@example.com, b@example.com"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New recipients – mobile (comma separated)</label>
+                <div className="flex gap-2">
+                  <select
+                    value={shareNewMobileCountryCode}
+                    onChange={(e) => setShareNewMobileCountryCode(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 shrink-0"
+                  >
+                    <option value="+91">+91</option>
+                    <option value="+1">+1</option>
+                    <option value="+44">+44</option>
+                    <option value="+971">+971</option>
+                    <option value="+61">+61</option>
+                    <option value="+81">+81</option>
+                    <option value="+86">+86</option>
+                    <option value="+33">+33</option>
+                    <option value="+49">+49</option>
+                    <option value="+55">+55</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={shareNewMobiles}
+                    onChange={(e) => { setShareNewMobiles(e.target.value); setShareAlreadySent(null); }}
+                    onBlur={() => checkRecipient(shareNewEmails, shareNewMobiles)}
+                    placeholder="e.g. 9876543210, 9123456789"
+                    className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              {shareAlreadySent?.alreadySent && (
+                <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Already sent to this {shareAlreadySent.email ? 'email' : 'mobile'}. You can resend if needed.
+                </p>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Optional message</label>
+                <textarea
+                  value={shareMessage}
+                  onChange={(e) => setShareMessage(e.target.value)}
+                  placeholder="Add a short message to include in the email/SMS"
+                  rows={2}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={shareChannels.email}
+                    onChange={(e) => setShareChannels((c) => ({ ...c, email: e.target.checked }))}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm">Send via Email</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={shareChannels.sms}
+                    onChange={(e) => setShareChannels((c) => ({ ...c, sms: e.target.checked }))}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm">Send via SMS</span>
+                </label>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 p-4 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowShareModal(false);
+                  setShareContactSearch('');
+                  setShareAlreadySent(null);
+                }}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button onClick={handleShareSend} disabled={shareSending} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-sm font-semibold">
+                {shareSending ? 'Sending…' : 'Send'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Albums List */}
       <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">

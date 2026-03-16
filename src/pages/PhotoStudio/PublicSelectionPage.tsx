@@ -54,6 +54,9 @@ const PublicSelectionPage: React.FC = () => {
   const [showSelectionMode, setShowSelectionMode] = useState(false);
 
   const sid = searchParams.get('sid') || '';
+  const shareIdParam = searchParams.get('shareId') || ''; // optional: when set, sendNotification only if email/mobile is recipient for this share
+  const shareId = shareIdParam ? parseInt(shareIdParam, 10) : undefined;
+  const validShareId = shareId != null && !isNaN(shareId) && shareId > 0 ? shareId : undefined;
   const qParam = searchParams.get('q') || ''; // encrypted token+albumId (minimal link)
   const token = searchParams.get('token') || '';
   const albumIdParam = searchParams.get('albumId') || ''; // optional: load single album by ID
@@ -62,6 +65,9 @@ const PublicSelectionPage: React.FC = () => {
   const imageIdsParam = searchParams.get('imageIds') || '';
   const albumId = albumIdParam ? parseInt(albumIdParam, 10) : null;
   const hasValidAlbumId = albumId != null && !isNaN(albumId) && albumId > 0;
+
+  // Protect: do not open this page without a complete share URL (sid, q, or token)
+  const hasShareIdentifier = !!(sid.trim() || qParam.trim() || token.trim());
 
   const payloadFromQ = useMemo(() => (qParam.trim() ? decryptCheckoutPayload(qParam.trim()) : null), [qParam]);
   const qInvalid = qParam.trim() !== '' && payloadFromQ === null;
@@ -106,6 +112,177 @@ const PublicSelectionPage: React.FC = () => {
   const effectiveToken = resolvedFromSid?.token ?? payloadFromQ?.token ?? token;
   const effectiveAlbumId = resolvedFromSid != null ? resolvedFromSid.albumId : (payloadFromQ != null ? payloadFromQ.albumId : albumId);
   const effectiveHasValidAlbumId = effectiveAlbumId != null && !isNaN(effectiveAlbumId) && effectiveAlbumId > 0;
+
+  // Verification gate (OTP / existing user) – same as PublicCheckoutPage
+  const verifyStorageKey = useMemo(() => `public_selection_verified_${effectiveToken.slice(0, 24)}`, [effectiveToken]);
+  type VerifyStatus = 'idle' | 'checking' | 'skip' | 'existing_user' | 'show_message' | 'needs_input' | 'otp_sent' | 'verified';
+  const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>('idle');
+  const [verifyEmail, setVerifyEmail] = useState('');
+  const [verifyMobile, setVerifyMobile] = useState('');
+  const [verifyCountryCode, setVerifyCountryCode] = useState('+91');
+  const [verifyOtp, setVerifyOtp] = useState('');
+  const [verifySending, setVerifySending] = useState(false);
+  const [verifyError, setVerifyError] = useState('');
+  const [verifyInfoMessage, setVerifyInfoMessage] = useState('');
+  const [verifyUserId, setVerifyUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!effectiveToken) return;
+    const stored = sessionStorage.getItem(verifyStorageKey);
+    if (stored === '1') {
+      setVerifyStatus('verified');
+      return;
+    }
+    let cancelled = false;
+    setVerifyStatus('checking');
+    const publicUrl = typeof window !== 'undefined' ? window.location.href : '';
+    api.post<{ isExistingUser?: boolean; existingUser?: boolean; sendNotification?: boolean; userId?: string; message?: string }>('/api/public-verify/check-user', validShareId != null ? { id: validShareId } : {})
+      .then(async (res) => {
+        if (cancelled) return;
+        const isExisting = res.data?.isExistingUser === true || res.data?.existingUser === true;
+        const sendNotification = res.data?.sendNotification === true;
+        const userId = res.data?.userId;
+        if (isExisting && !sendNotification) {
+          setVerifyInfoMessage(res.data?.message || '');
+          setVerifyStatus('show_message');
+          return;
+        }
+        if (isExisting && sendNotification && userId) {
+          setVerifyUserId(userId);
+          try {
+            await api.post('/api/public-verify/send-otp', {
+              userId,
+              linkId: effectiveToken,
+              ...(validShareId != null ? { id: validShareId } : {}),
+            });
+            setVerifyStatus('otp_sent');
+            setVerifyOtp('');
+            toast.success('OTP sent. Check your email or phone.');
+          } catch {
+            setVerifyStatus('needs_input');
+          }
+          return;
+        }
+        setVerifyStatus('needs_input');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setVerifyStatus('needs_input'); // API failed or not implemented – still show verification page
+      });
+    return () => { cancelled = true; };
+  }, [effectiveToken, verifyStorageKey, validShareId]);
+
+  const handleVerifySubmit = async () => {
+    const email = verifyEmail.trim();
+    const mobile = verifyMobile.trim() ? `${verifyCountryCode.replace(/^\s+|\s+$/g, '')}${verifyMobile.trim().replace(/\s/g, '')}` : '';
+    if (!email && !mobile) {
+      setVerifyError('Enter email or mobile number.');
+      return;
+    }
+    setVerifyError('');
+    setVerifySending(true);
+    try {
+      const checkRes = await api.post<{ isExistingUser?: boolean; existingUser?: boolean; sendNotification?: boolean; message?: string }>('/api/public-verify/check-user', {
+        email: email || undefined,
+        mobile: mobile || undefined,
+        ...(validShareId != null ? { id: validShareId } : {}),
+      });
+      const isExisting = checkRes.data?.isExistingUser === true || checkRes.data?.existingUser === true;
+      const sendNotification = checkRes.data?.sendNotification === true;
+      if (isExisting && !sendNotification) {
+        setVerifyInfoMessage(checkRes.data?.message || '');
+        setVerifyStatus('show_message');
+        return;
+      }
+      if (isExisting && sendNotification) {
+        await api.post('/api/public-verify/send-otp', {
+          email: email || undefined,
+          mobile: mobile || undefined,
+          channel: mobile ? 'sms' : 'email',
+          linkId: effectiveToken,
+          ...(validShareId != null ? { id: validShareId } : {}),
+        });
+        setVerifyStatus('otp_sent');
+        setVerifyOtp('');
+        toast.success('OTP sent. Check your email or phone.');
+        return;
+      }
+      // Not existing → call send-otp and show OTP page
+      const sendOtpBody: { email?: string; mobile?: string; channel: string; linkId?: string; id?: number } = {
+        email: email || undefined,
+        mobile: mobile || undefined,
+        channel: mobile ? 'sms' : 'email',
+        linkId: effectiveToken,
+      };
+      if (validShareId != null) sendOtpBody.id = validShareId;
+      await api.post('/api/public-verify/send-otp', sendOtpBody);
+      setVerifyStatus('otp_sent');
+      setVerifyOtp('');
+      toast.success('OTP sent. Check your email or phone.');
+    } catch (err: any) {
+      if (err.response?.status === 404 || err.response?.status === 501) {
+        sessionStorage.setItem(verifyStorageKey, '1');
+        setVerifyStatus('verified');
+        toast.success('Verification skipped.');
+      } else {
+        setVerifyError(err.response?.data?.message || 'Something went wrong. Try again.');
+      }
+    } finally {
+      setVerifySending(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (verifyUserId) {
+      setVerifySending(true);
+      setVerifyError('');
+      try {
+        await api.post('/api/public-verify/send-otp', {
+          userId: verifyUserId,
+          linkId: effectiveToken,
+          ...(validShareId != null ? { id: validShareId } : {}),
+        });
+        setVerifyOtp('');
+        toast.success('OTP sent again.');
+      } catch (err: any) {
+        setVerifyError(err.response?.data?.message || 'Failed to resend OTP.');
+      } finally {
+        setVerifySending(false);
+      }
+    } else {
+      handleVerifySubmit();
+    }
+  };
+
+  const handleVerifyOtpSubmit = async () => {
+    if (!verifyOtp.trim()) {
+      setVerifyError('Enter the OTP.');
+      return;
+    }
+    setVerifyError('');
+    setVerifySending(true);
+    try {
+      const email = verifyEmail.trim();
+      const mobile = verifyMobile.trim() ? `${verifyCountryCode.replace(/^\s+|\s+$/g, '')}${verifyMobile.trim().replace(/\s/g, '')}` : '';
+      const res = await api.post<{ success?: boolean }>('/api/public-verify/verify-otp', {
+        ...(verifyUserId ? { userId: verifyUserId } : { email: email || undefined, mobile: mobile || undefined }),
+        otp: verifyOtp.trim(),
+        linkId: effectiveToken,
+        ...(validShareId != null ? { id: validShareId } : {}),
+      });
+      if (res.data?.success) {
+        sessionStorage.setItem(verifyStorageKey, '1');
+        setVerifyStatus('verified');
+        toast.success('Verified. Loading...');
+      } else {
+        setVerifyError('Invalid OTP. Try again.');
+      }
+    } catch (err: any) {
+      setVerifyError(err.response?.data?.message || 'Invalid OTP. Try again.');
+    } finally {
+      setVerifySending(false);
+    }
+  };
 
   const [decodedFilesFromF, setDecodedFilesFromF] = useState<string[]>([]);
   useEffect(() => {
@@ -436,6 +613,24 @@ const PublicSelectionPage: React.FC = () => {
     }
   };
 
+  // Incomplete URL – no sid, q, or token: do not show selection page, show error only
+  if (!hasShareIdentifier) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
+          <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Incomplete link</h1>
+          <p className="text-gray-600 text-sm mb-4">
+            This page only works with a complete share link. Do not open the public selection URL without the full link (with <code className="bg-gray-100 px-1 rounded">sid</code>, <code className="bg-gray-100 px-1 rounded">q</code>, or <code className="bg-gray-100 px-1 rounded">token</code>) provided by your photographer.
+          </p>
+          <a href="/" className="inline-block px-4 py-2 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">
+            Go to home
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   if (sid && sidLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -477,10 +672,83 @@ const PublicSelectionPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Missing access token</h1>
-          <p className="text-gray-600 text-sm">
-            This public link is invalid or incomplete. Please use the full link provided by your photographer.
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Invalid or expired link</h1>
+          <p className="text-gray-600 text-sm mb-4">
+            This selection link could not be loaded. Use the full link shared by your photographer.
           </p>
+          <a href="/" className="inline-block px-4 py-2 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">
+            Go to home
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (verifyStatus === 'idle' || verifyStatus === 'checking') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <LoadingSpinner size="lg" text="Verifying access..." />
+      </div>
+    );
+  }
+
+  if (verifyStatus === 'show_message') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Notice</h2>
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">{verifyInfoMessage || 'No message.'}</p>
+          <p className="text-xs text-gray-500">You are not being moved to another page.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (verifyStatus === 'needs_input' || verifyStatus === 'otp_sent') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Verify to continue</h2>
+          {verifyStatus === 'needs_input' && verifyInfoMessage ? (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">{verifyInfoMessage}</p>
+          ) : verifyStatus === 'needs_input' ? (
+            <p className="text-sm text-gray-600 mb-4">Enter your email or mobile to view this link.</p>
+          ) : null}
+          {verifyStatus === 'needs_input' ? (
+            <>
+              <div className="space-y-3 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input type="email" value={verifyEmail} onChange={(e) => setVerifyEmail(e.target.value)} placeholder="you@example.com" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mobile (with country code)</label>
+                  <div className="flex gap-2">
+                    <select value={verifyCountryCode} onChange={(e) => setVerifyCountryCode(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-2 text-sm w-24">
+                      <option value="+91">+91</option>
+                      <option value="+1">+1</option>
+                      <option value="+44">+44</option>
+                      <option value="+971">+971</option>
+                      <option value="+61">+61</option>
+                    </select>
+                    <input type="tel" value={verifyMobile} onChange={(e) => setVerifyMobile(e.target.value)} placeholder="9876543210" className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                  </div>
+                </div>
+              </div>
+              {verifyError && <p className="text-sm text-red-600 mb-2">{verifyError}</p>}
+              <button onClick={handleVerifySubmit} disabled={verifySending} className="w-full py-2 rounded-lg bg-[#2731db] text-white font-medium disabled:opacity-50">{verifySending ? 'Sending…' : 'Continue'}</button>
+            </>
+          ) : (
+            <>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Enter OTP</label>
+                <input type="text" inputMode="numeric" maxLength={6} value={verifyOtp} onChange={(e) => setVerifyOtp(e.target.value.replace(/\D/g, ''))} placeholder="123456" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              {verifyError && <p className="text-sm text-red-600 mb-2">{verifyError}</p>}
+              <button onClick={handleVerifyOtpSubmit} disabled={verifySending} className="w-full py-2 rounded-lg bg-[#2731db] text-white font-medium disabled:opacity-50 mb-2">{verifySending ? 'Verifying…' : 'Verify'}</button>
+              <button type="button" onClick={handleResendOtp} disabled={verifySending} className="w-full py-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50">Resend OTP</button>
+            </>
+          )}
         </div>
       </div>
     );
