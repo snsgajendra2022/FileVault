@@ -1,11 +1,12 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheckCircle, FaCheck, FaCopy, FaShare } from 'react-icons/fa';
+import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheckCircle, FaCheck, FaCopy, FaShare, FaTimes, FaExpandArrowsAlt } from 'react-icons/fa';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { decryptImageIds } from '../../utils/encryption';
+import { decompressFileList } from '../../utils/checkoutUrlEncoding';
 
 interface Album {
   id: number;
@@ -48,24 +49,44 @@ const PublicSelectionPage: React.FC = () => {
   const [userSelectedImages, setUserSelectedImages] = useState<Map<number, Set<number>>>(new Map()); // albumId -> Set of imageIds
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOnlySelected, setShowOnlySelected] = useState(false);
+  const [fullscreenImage, setFullscreenImage] = useState<AlbumImage | null>(null);
+  /** When false, checkboxes are hidden; click "Select" to show them and enable selection */
+  const [showSelectionMode, setShowSelectionMode] = useState(false);
 
   const token = searchParams.get('token') || '';
   const filesParam = searchParams.get('files') || ''; // Legacy support
+  const fParam = searchParams.get('f') || ''; // Compressed file list (short URL)
   const imageIdsParam = searchParams.get('imageIds') || '';
+
+  const [decodedFilesFromF, setDecodedFilesFromF] = useState<string[]>([]);
+  useEffect(() => {
+    if (!fParam.trim()) {
+      setDecodedFilesFromF([]);
+      return;
+    }
+    let cancelled = false;
+    decompressFileList(fParam).then((list) => {
+      if (!cancelled) setDecodedFilesFromF(list);
+    });
+    return () => { cancelled = true; };
+  }, [fParam]);
 
   // Auto-enable "show only selected" when imageIds or files are provided in URL
   useEffect(() => {
-    if ((imageIdsParam && imageIdsParam.trim().length > 0) || (filesParam && filesParam.trim().length > 0)) {
+    if ((imageIdsParam && imageIdsParam.trim().length > 0) || (filesParam && filesParam.trim().length > 0) || fParam.trim().length > 0) {
       setShowOnlySelected(true);
     }
-  }, [imageIdsParam, filesParam]);
+  }, [imageIdsParam, filesParam, fParam]);
 
-  // Fetch albums
+  // Fetch albums (pass URL token so backend authorizes when opened from another device)
   const { data: albumsData, isLoading, isError } = useQuery({
     queryKey: ['publicSelectionAlbums', token],
     enabled: !!token,
     queryFn: async () => {
-      const response = await api.get('/api/albums');
+      const response = await api.get('/api/albums', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        params: token ? { token } : {},
+      });
       return response.data as Album[] | { albums: Album[] };
     },
     retry: 1,
@@ -101,11 +122,12 @@ const PublicSelectionPage: React.FC = () => {
     return [];
   }, [imageIdsParam]);
 
-  // Parse filenames from URL parameter (legacy support)
+  // Parse filenames: use decoded list from f= (short URL) or from files= (legacy)
   const targetFilenames = useMemo(() => {
+    if (fParam) return decodedFilesFromF;
     if (!filesParam) return [];
     return filesParam.split(',').map(f => decodeURIComponent(f.trim())).filter(f => f);
-  }, [filesParam]);
+  }, [fParam, filesParam, decodedFilesFromF]);
 
   // Auto-select albums and images based on image IDs or filenames from URL
   useEffect(() => {
@@ -501,6 +523,24 @@ const PublicSelectionPage: React.FC = () => {
             </div>
           ) : (
             <>
+              {/* Select button: toggles visibility of checkboxes */}
+              <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSelectionMode((prev) => !prev)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                    showSelectionMode
+                      ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      : 'bg-[#2731db] text-white hover:bg-blue-700'
+                  }`}
+                >
+                  <FaCheck className="text-sm" />
+                  {showSelectionMode ? 'Done selecting' : 'Select'}
+                </button>
+                {showSelectionMode && (
+                  <p className="text-sm text-gray-600">Click albums and images to select. Use the expand icon to view full screen.</p>
+                )}
+              </div>
               {/* Filter Toggle */}
               {selectedAlbums.size > 0 && (
                 <div className="mb-4 flex items-center justify-between">
@@ -546,14 +586,18 @@ const PublicSelectionPage: React.FC = () => {
                     {/* Album Header */}
                     <div className="flex items-center justify-between p-4 bg-white">
                       <div className="flex items-center space-x-4 flex-1">
-                        <button
-                          onClick={() => toggleAlbum(album.id)}
-                          className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
-                            isSelected ? 'bg-[#2731db] border-[#2731db]' : 'border-gray-300'
-                          }`}
-                        >
-                          {isSelected && <FaCheck className="text-white text-xs" />}
-                        </button>
+                        {showSelectionMode ? (
+                          <button
+                            onClick={() => toggleAlbum(album.id)}
+                            className={`w-6 h-6 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                              isSelected ? 'bg-[#2731db] border-[#2731db]' : 'border-gray-300'
+                            }`}
+                          >
+                            {isSelected && <FaCheck className="text-white text-xs" />}
+                          </button>
+                        ) : (
+                          <div className="w-6 h-6 flex-shrink-0" aria-hidden />
+                        )}
 
                         <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
                           {album.previewUrl ? (
@@ -603,19 +647,21 @@ const PublicSelectionPage: React.FC = () => {
                       </button>
                     </div>
 
-                    {/* Album Images (shown when expanded) */}
-                    {isExpanded && albumImages.length > 0 && (!isSelected || albumImageIds.size > 0) && (
+                    {/* Album Images (shown when expanded) - show all images with checkbox and fullscreen view */}
+                    {isExpanded && albumImages.length > 0 && (
                       <div className="border-t border-gray-200 p-4 bg-gray-50">
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="text-sm font-semibold text-gray-900">
-                            {isSelected ? 'Selected Images' : 'Select Images'}
-                            {isSelected && albumImageIds.size > 0 && (
+                            {showSelectionMode
+                              ? (isSelected ? 'Selected Images' : 'Select Images')
+                              : 'Images'}
+                            {showSelectionMode && isSelected && albumImageIds.size > 0 && (
                               <span className="ml-2 text-[#2731db] font-medium">
                                 ({albumImageIds.size} of {albumImages.length})
                               </span>
                             )}
                           </h4>
-                          {isSelected && (
+                          {showSelectionMode && isSelected && (
                             <button
                               onClick={() => selectAllImagesInAlbum(album.id)}
                               className="text-xs text-[#2731db] hover:underline"
@@ -625,92 +671,103 @@ const PublicSelectionPage: React.FC = () => {
                           )}
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                          {(isSelected ? albumImages.filter(image => albumImageIds.has(image.id)) : albumImages).map((image) => {
-                              // Image is selected ONLY if:
-                              // 1. Album is selected AND
-                              // 2. The image ID exists in the userSelectedImages set for this album
-                              // Important: If albumImageIds is empty or doesn't contain the image, it's NOT selected
+                          {albumImages.map((image) => {
                               const isImageSelected = isSelected && albumImageIds.has(image.id);
-                            const imageUrl = getImageUrl(image);
-                            const filename = getImageFilename(image);
-                            const fileType = getFileType(image);
-                            const canView = imageUrl && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                              const imageUrl = getImageUrl(image);
+                              const filename = getImageFilename(image);
+                              const fileType = getFileType(image);
+                              const canView = imageUrl && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
 
-                            return (
-                              <div
-                                key={image.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // If album is not selected, select it first
-                                  if (!isSelected) {
-                                    toggleAlbum(album.id);
-                                  }
-                                  // Toggle this image selection
-                                  toggleImageSelection(album.id, image.id);
-                                }}
-                                className={`group relative rounded-xl overflow-hidden border cursor-pointer transition-all duration-200 ${
-                                  isImageSelected
-                                    ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50 shadow-lg'
-                                    : 'border-gray-200 bg-white shadow-sm hover:shadow-md'
-                                }`}
-                              >
-                                {/* Selection Checkbox - Always show when album is expanded */}
-                                <div className="absolute top-2 left-2 z-10">
-                                  <div
-                                    className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
-                                      isImageSelected
-                                        ? 'bg-[#2731db] text-white'
-                                        : isSelected
-                                        ? 'bg-white bg-opacity-80 border-2 border-gray-300'
-                                        : 'bg-white bg-opacity-60 border-2 border-gray-200'
-                                    }`}
-                                  >
-                                    {isImageSelected && <FaCheck className="text-xs" />}
-                                  </div>
-                                </div>
-
-                                <div className="h-48 bg-gray-100 overflow-hidden">
-                                  {canView ? (
-                                    <img
-                                      src={imageUrl!}
-                                      alt={filename}
-                                      className={`w-full h-full object-cover transition-transform duration-300 ${
-                                        isImageSelected ? 'opacity-90' : 'group-hover:scale-105'
-                                      }`}
-                                    />
-                                  ) : (
-                                    <div className="flex items-center justify-center h-full text-gray-500 text-sm">
-                                      {fileType.toUpperCase()}
+                              return (
+                                <div
+                                  key={image.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!showSelectionMode) return;
+                                    if (!isSelected) toggleAlbum(album.id);
+                                    toggleImageSelection(album.id, image.id);
+                                  }}
+                                  className={`group relative rounded-xl overflow-hidden border transition-all duration-200 ${
+                                    showSelectionMode ? 'cursor-pointer' : ''
+                                  } ${
+                                    isImageSelected
+                                      ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50 shadow-lg'
+                                      : 'border-gray-200 bg-white shadow-sm hover:shadow-md'
+                                  } ${showSelectionMode ? 'hover:shadow-md' : ''}`}
+                                >
+                                  {showSelectionMode && (
+                                    <div className="absolute top-2 left-2 z-10">
+                                      <div
+                                        className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+                                          isImageSelected
+                                            ? 'bg-[#2731db] border-[#2731db] text-white'
+                                            : isSelected
+                                            ? 'bg-white/90 border-gray-400'
+                                            : 'bg-white/60 border-gray-200'
+                                        }`}
+                                      >
+                                        {isImageSelected && <FaCheck className="text-xs" />}
+                                      </div>
                                     </div>
                                   )}
-                                </div>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setFullscreenImage(image);
+                                    }}
+                                    className="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-black/50 hover:bg-black/70 text-white flex items-center justify-center"
+                                    title="View full screen"
+                                  >
+                                    <FaExpandArrowsAlt className="text-sm" />
+                                  </button>
 
-                                <div className="p-3 bg-white">
-                                  <p className="text-sm font-medium text-gray-900 truncate" title={filename}>
-                                    {filename}
-                                  </p>
-                                  {image.uploadTime && (
-                                    <p className="text-xs text-gray-500 mt-1">
-                                      {new Date(image.uploadTime).toLocaleString()}
+                                  <div className="h-48 bg-gray-100 overflow-hidden">
+                                    {canView ? (
+                                      <img
+                                        src={imageUrl!}
+                                        alt={filename}
+                                        className={`w-full h-full object-cover transition-transform duration-300 ${
+                                          isImageSelected ? 'opacity-90' : 'group-hover:scale-105'
+                                        }`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setFullscreenImage(image);
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                                        {fileType.toUpperCase()}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="p-3 bg-white">
+                                    <p className="text-sm font-medium text-gray-900 truncate" title={filename}>
+                                      {filename}
                                     </p>
-                                  )}
-                                  <div className="mt-3 flex items-center justify-between">
-                                    <span className="text-xs text-gray-500">{fileType.toUpperCase()}</span>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDownload(image);
-                                      }}
-                                      className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-[#2731db] text-white hover:bg-blue-800"
-                                    >
-                                      <FaDownload className="mr-1" /> Download
-                                    </button>
+                                    {image.uploadTime && (
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        {new Date(image.uploadTime).toLocaleString()}
+                                      </p>
+                                    )}
+                                    <div className="mt-3 flex items-center justify-between">
+                                      <span className="text-xs text-gray-500">{fileType.toUpperCase()}</span>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDownload(image);
+                                        }}
+                                        className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-[#2731db] text-white hover:bg-blue-800"
+                                      >
+                                        <FaDownload className="mr-1" /> Download
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
                         </div>
                       </div>
                     )}
@@ -720,6 +777,44 @@ const PublicSelectionPage: React.FC = () => {
               </div>
             </>
           )}
+
+        {/* Full-screen image view modal */}
+        {fullscreenImage && (
+          <div
+            className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4"
+            onClick={() => setFullscreenImage(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="View image full screen"
+          >
+            <button
+              type="button"
+              onClick={() => setFullscreenImage(null)}
+              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"
+              aria-label="Close"
+            >
+              <FaTimes className="text-xl" />
+            </button>
+            <div
+              className="max-w-[90vw] max-h-[90vh] flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {getImageUrl(fullscreenImage) ? (
+                <img
+                  src={getImageUrl(fullscreenImage)!}
+                  alt={getImageFilename(fullscreenImage)}
+                  className="max-w-full max-h-[90vh] w-auto h-auto object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <p className="text-white">Image not available</p>
+              )}
+            </div>
+            <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-sm truncate max-w-[90vw]">
+              {getImageFilename(fullscreenImage)}
+            </p>
+          </div>
+        )}
         </main>
       </div>
     </div>

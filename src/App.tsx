@@ -123,13 +123,13 @@ const AppRoutes = () => {
       } />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
-
+      <Route path="/public/checkout" element={<PublicCheckoutPage />} />
       {/* Public invitation acceptance route */}
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
       
       {/* Public PhotoStudio routes - accessible without authentication */}
       <Route path="/public/selection" element={<PublicSelectionPage />} />
-      <Route path="/public/checkout" element={<PublicCheckoutPage />} />
+  
       
       {/* PhotoStudio Pro Routes */}
       <Route path="/studio" element={<StudioLanding />} />

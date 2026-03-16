@@ -1,10 +1,11 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheck, FaRedoAlt, FaTimes, FaUpload, FaFileImage } from 'react-icons/fa';
+import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheck, FaRedoAlt, FaTimes, FaUpload, FaFileImage, FaExpandArrowsAlt } from 'react-icons/fa';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { decompressFileList } from '../../utils/checkoutUrlEncoding';
 
 interface Album {
   id: number;
@@ -62,24 +63,44 @@ const PublicCheckoutPage: React.FC = () => {
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [downloadCodeData, setDownloadCodeData] = useState<any>(null);
   const [loadingDownloadCode, setLoadingDownloadCode] = useState(false);
+  const [fullscreenImage, setFullscreenImage] = useState<AlbumImage | null>(null);
   const autoSelectedRef = useRef(false);
 
   const token = searchParams.get('token') || '';
   const filesParam = searchParams.get('files') || '';
+  const fParam = searchParams.get('f') || ''; // compressed file list (short URL)
   const downloadCode = searchParams.get('code') || '';
 
-  // Parse filenames from URL parameter
+  const [decodedFilesFromF, setDecodedFilesFromF] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!fParam.trim()) {
+      setDecodedFilesFromF([]);
+      return;
+    }
+    let cancelled = false;
+    decompressFileList(fParam).then((list) => {
+      if (!cancelled) setDecodedFilesFromF(list);
+    });
+    return () => { cancelled = true; };
+  }, [fParam]);
+
+  // Parse filenames: use decoded list from f= (short URL) or from files= (long URL)
   const targetFilenames = useMemo(() => {
+    if (fParam) return decodedFilesFromF;
     if (!filesParam) return [];
     return filesParam.split(',').map(f => decodeURIComponent(f.trim())).filter(f => f);
-  }, [filesParam]);
+  }, [fParam, filesParam, decodedFilesFromF]);
 
-  // Fetch albums
+  // Fetch albums (pass URL token so backend authorizes when opened from another device without localStorage)
   const { data: albumsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['publicCheckoutAlbums', token],
     enabled: !!token,
     queryFn: async () => {
-      const response = await api.get('/api/albums');
+      const response = await api.get('/api/albums', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        params: token ? { token } : {},
+      });
       return response.data as Album[] | { albums: Album[] };
     },
     retry: 1,
@@ -112,12 +133,16 @@ const PublicCheckoutPage: React.FC = () => {
     return images;
   }, [selectedAlbums, selectedImages, albums]);
 
-  // Fetch UPI settings for default perPhotoPrice
+  // Fetch UPI settings (pass URL token for public access)
   const { data: upiSettings } = useQuery({
-    queryKey: ['upiSettings'],
+    queryKey: ['upiSettings', token],
+    enabled: !!token,
     queryFn: async () => {
       try {
-        const response = await api.get('/api/upi');
+        const response = await api.get('/api/upi', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          params: token ? { token } : {},
+        });
         return response.data as { upiId: string; perPhotoPrice: number };
       } catch (error: any) {
         if (error.response?.status === 404) {
@@ -260,7 +285,10 @@ const PublicCheckoutPage: React.FC = () => {
       setLoadingDownloadCode(true);
       setShowQr(false); // Hide QR immediately when download code is detected
       try {
-        const response = await api.get(`/api/payments/download/${downloadCode}`);
+        const response = await api.get(`/api/payments/download/${downloadCode}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          params: token ? { token } : {},
+        });
         console.log('Download code data:', response);
         setDownloadCodeData(response.data);
         setIsPaid(true);
@@ -1079,93 +1107,97 @@ const PublicCheckoutPage: React.FC = () => {
                               const fileType = getFileType(image);
                               const canView = imageUrl && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
                               
-                              // Calculate price for this image
                               const imagePrice = album.perPhotoPrice && album.perPhotoPrice > 0
                                 ? album.perPhotoPrice
                                 : (defaultPerPhotoPrice > 0 ? defaultPerPhotoPrice : PRICE_PER_IMAGE);
-                              
-                              // Check if all images in album are selected
                               const allImagesSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
 
-                            return (
-                              <>
-                             {isImageSelected && <div
-                                key={image.id}
-                                className={`relative rounded-lg overflow-hidden border cursor-pointer transition-all ${
-                                  isImageSelected
-                                    ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50'
-                                    : 'border-gray-200 hover:border-gray-300'
-                                }`}
-                                onClick={() => {
-                                  // Always toggle image selection, album checkbox is independent
-                                  if (!isSelected) {
-                                    // Select album first if not selected
-                                    toggleAlbum(album.id);
-                                    // Use setTimeout to ensure state updates before toggling image
-                                    setTimeout(() => {
+                              return (
+                                <div
+                                  key={image.id}
+                                  className={`relative rounded-lg overflow-hidden border cursor-pointer transition-all ${
+                                    isImageSelected
+                                      ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50'
+                                      : 'border-gray-200 hover:border-gray-300'
+                                  }`}
+                                  onClick={() => {
+                                    if (!isSelected) {
+                                      toggleAlbum(album.id);
+                                      setTimeout(() => toggleImageSelection(album.id, image.id), 0);
+                                    } else {
                                       toggleImageSelection(album.id, image.id);
-                                    }, 0);
-                                  } else {
-                                    toggleImageSelection(album.id, image.id);
-                                  }
-                                }}
-                              >
-                            { isImageSelected && <div className="aspect-square bg-gray-100 overflow-hidden relative">
-                                  {canView ? (
-                                    <>
-                                      <img
-                                        src={imageUrl!}
-                                        alt={filename}
-                                        className="w-full h-full object-cover"
-                                      />
-                                      <div className="absolute top-2 right-2">
-                                        <div
-                                          className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                                            isImageSelected
-                                              ? 'bg-[#2731db] text-white'
-                                              : 'bg-white bg-opacity-80 border-2 border-gray-300'
-                                          }`}
-                                        >
-                                          {isImageSelected && <FaCheck className="text-xs" />}
+                                    }
+                                  }}
+                                >
+                                  <div className="aspect-square bg-gray-100 overflow-hidden relative">
+                                    {canView ? (
+                                      <>
+                                        <img
+                                          src={imageUrl!}
+                                          alt={filename}
+                                          className="w-full h-full object-cover"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setFullscreenImage(image);
+                                          }}
+                                        />
+                                        <div className="absolute top-2 left-2">
+                                          <div
+                                            className={`w-6 h-6 rounded border-2 flex items-center justify-center ${
+                                              isImageSelected
+                                                ? 'bg-[#2731db] border-[#2731db] text-white'
+                                                : 'bg-white/90 border-gray-400'
+                                            }`}
+                                          >
+                                            {isImageSelected && <FaCheck className="text-xs" />}
+                                          </div>
                                         </div>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setFullscreenImage(image);
+                                          }}
+                                          className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-black/50 hover:bg-black/70 text-white flex items-center justify-center"
+                                          title="View full screen"
+                                        >
+                                          <FaExpandArrowsAlt className="text-sm" />
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <div className="flex items-center justify-center h-full text-gray-500 text-xs">
+                                        {fileType.toUpperCase()}
                                       </div>
-                                    </>
-                                  ) : (
-                                    <div className="flex items-center justify-center h-full text-gray-500 text-xs">
-                                      {fileType.toUpperCase()}
-                                    </div>
-                                  )}
-                                </div>}
-
-                                <div className="p-2 bg-white">
-                                  <p className="text-xs text-gray-900 truncate" title={filename}>
-                                    {filename}
-                                  </p>
-                                  <p className="text-xs text-gray-500 mt-1">{fileType.toUpperCase()}</p>
-                                  <div className="mt-2 flex items-center justify-between">
-                                    <span className="text-xs text-gray-500">
-                                      {allImagesSelected && album.perAlbumPrice && album.perAlbumPrice > 0
-                                        ? `₹${album.perAlbumPrice} (album)`
-                                        : imagePrice > 0 ? `₹${imagePrice}` : 'Free'}
-                                    </span>
-                                    {(isPaid || downloadCodeData) && (
-                                      <button
-                                        type="button"
-                                        onClick={e => {
-                                          e.stopPropagation();
-                                          handleDownload(image);
-                                        }}
-                                        className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-green-600 text-white hover:bg-green-700"
-                                      >
-                                        <FaDownload className="mr-1" /> Download
-                                      </button>
                                     )}
                                   </div>
+                                  <div className="p-2 bg-white">
+                                    <p className="text-xs text-gray-900 truncate" title={filename}>
+                                      {filename}
+                                    </p>
+                                    <p className="text-xs text-gray-500 mt-1">{fileType.toUpperCase()}</p>
+                                    <div className="mt-2 flex items-center justify-between">
+                                      <span className="text-xs text-gray-500">
+                                        {allImagesSelected && album.perAlbumPrice && album.perAlbumPrice > 0
+                                          ? `₹${album.perAlbumPrice} (album)`
+                                          : imagePrice > 0 ? `₹${imagePrice}` : 'Free'}
+                                      </span>
+                                      {(isPaid || downloadCodeData) && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownload(image);
+                                          }}
+                                          className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-green-600 text-white hover:bg-green-700"
+                                        >
+                                          <FaDownload className="mr-1" /> Download
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>}
-                              </>
-                            );
-                          })}
+                              );
+                            })}
                         </div>
                       </div>
                     )}
@@ -1175,6 +1207,44 @@ const PublicCheckoutPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Full-screen image view modal */}
+        {fullscreenImage && (
+          <div
+            className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4"
+            onClick={() => setFullscreenImage(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="View image full screen"
+          >
+            <button
+              type="button"
+              onClick={() => setFullscreenImage(null)}
+              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"
+              aria-label="Close"
+            >
+              <FaTimes className="text-xl" />
+            </button>
+            <div
+              className="max-w-[90vw] max-h-[90vh] flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {getImageUrl(fullscreenImage) ? (
+                <img
+                  src={getImageUrl(fullscreenImage)!}
+                  alt={getImageFilename(fullscreenImage)}
+                  className="max-w-full max-h-[90vh] w-auto h-auto object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <p className="text-white">Image not available</p>
+              )}
+            </div>
+            <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-sm truncate max-w-[90vw]">
+              {getImageFilename(fullscreenImage)}
+            </p>
+          </div>
+        )}
 
         {/* Payment Verification Modal */}
         {showPaymentModal && (

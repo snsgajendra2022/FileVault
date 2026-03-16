@@ -91,6 +91,8 @@ declare module 'react-icons/fa' {
   export const FaImage: ComponentType<IconProps>;
   export const FaBook: ComponentType<IconProps>;
   export const MdIcon: ComponentType<IconProps & { icon?: string }>;
+  export const FaExpand: ComponentType<IconProps>;
+  export const FaExpandArrowsAlt: ComponentType<IconProps>;
 }
 
 declare module 'react-icons/fi' {

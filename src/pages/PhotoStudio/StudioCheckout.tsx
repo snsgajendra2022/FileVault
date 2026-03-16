@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { compressFileList, shouldUseCompressedFileList } from '../../utils/checkoutUrlEncoding';
 
 interface Album {
   id: number;
@@ -396,21 +397,48 @@ const StudioCheckout: React.FC = () => {
     return encodeURIComponent(upiUrl);
   }, [allSelectedImages.length, totalAmount, upiId]);
 
-  const publicCheckoutUrl = useMemo(() => {
-    if (explicitlySelectedImages.length === 0) return '';
-    const token = localStorage.getItem('token') || '';
-    const selectedFilenames = explicitlySelectedImages.map(img => getImageFilename(img)).join(',');
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/public/checkout?token=${encodeURIComponent(token)}&files=${encodeURIComponent(selectedFilenames)}`;
-  }, [explicitlySelectedImages]);
+  const baseUrl = window.location.origin;
+  const tokenForUrl = typeof localStorage !== 'undefined' ? (localStorage.getItem('token') || '') : '';
 
-  const publicSelectionUrl = useMemo(() => {
+  const longPublicCheckoutUrl = useMemo(() => {
     if (explicitlySelectedImages.length === 0) return '';
-    const token = localStorage.getItem('token') || '';
     const selectedFilenames = explicitlySelectedImages.map(img => getImageFilename(img)).join(',');
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/public/selection?token=${encodeURIComponent(token)}&files=${encodeURIComponent(selectedFilenames)}`;
-  }, [explicitlySelectedImages]);
+    return `${baseUrl}/public/checkout?token=${encodeURIComponent(tokenForUrl)}&files=${encodeURIComponent(selectedFilenames)}`;
+  }, [explicitlySelectedImages, tokenForUrl, baseUrl]);
+
+  const longPublicSelectionUrl = useMemo(() => {
+    if (explicitlySelectedImages.length === 0) return '';
+    const selectedFilenames = explicitlySelectedImages.map(img => getImageFilename(img)).join(',');
+    return `${baseUrl}/public/selection?token=${encodeURIComponent(tokenForUrl)}&files=${encodeURIComponent(selectedFilenames)}`;
+  }, [explicitlySelectedImages, tokenForUrl, baseUrl]);
+
+  const [shortCheckoutUrl, setShortCheckoutUrl] = useState('');
+  const [shortSelectionUrl, setShortSelectionUrl] = useState('');
+
+  useEffect(() => {
+    if (explicitlySelectedImages.length === 0) {
+      setShortCheckoutUrl('');
+      setShortSelectionUrl('');
+      return;
+    }
+    const fileNames = explicitlySelectedImages.map(img => getImageFilename(img));
+    if (!shouldUseCompressedFileList(fileNames)) {
+      setShortCheckoutUrl('');
+      setShortSelectionUrl('');
+      return;
+    }
+    let cancelled = false;
+    compressFileList(fileNames).then((encoded) => {
+      if (cancelled || encoded === null) return;
+      const q = `token=${encodeURIComponent(tokenForUrl)}&f=${encodeURIComponent(encoded)}`;
+      setShortCheckoutUrl(`${baseUrl}/public/checkout?${q}`);
+      setShortSelectionUrl(`${baseUrl}/public/selection?${q}`);
+    });
+    return () => { cancelled = true; };
+  }, [explicitlySelectedImages, tokenForUrl, baseUrl]);
+
+  const publicCheckoutUrl = shortCheckoutUrl || longPublicCheckoutUrl;
+  const publicSelectionUrl = shortSelectionUrl || longPublicSelectionUrl;
   async function copyToClipboard(text) {
     // Modern API (works on HTTPS + supported browsers)
     if (navigator?.clipboard?.writeText) {

@@ -18,13 +18,17 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor
+// Response interceptor: redirect to login on 401 only when not on a public route
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      const path = window.location.pathname || '';
+      const isPublicRoute = path.startsWith('/public/checkout') || path.startsWith('/public/selection');
+      if (!isPublicRoute) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

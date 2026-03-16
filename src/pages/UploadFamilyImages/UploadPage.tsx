@@ -21,6 +21,7 @@ import {
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useQuery } from '@tanstack/react-query';
 import { getVideoDuration, trimVideoTo30Seconds, isVideoFile, VIDEO_TRIM_THRESHOLD_SECONDS } from '../../utils/videoTrim';
+import JSZip from 'jszip';
 
 // ---------------------------------------------------------------------------
 // Persistent queue types and IndexedDB (survives refresh/navigation)
@@ -130,6 +131,57 @@ function fileToKey(file: File): string {
   return `${file.name}-${file.size}-${(file as File & { lastModified?: number }).lastModified ?? Date.now()}`;
 }
 
+// ZIP extraction: images and videos only (for upload)
+// Browser must load the whole ZIP into memory; very large files may cause crashes or out-of-memory
+const MAX_ZIP_SIZE_BYTES = 100 * 1024 * 1024 * 1024; // 100 GB
+const MAX_ZIP_SIZE_GB = 100;
+const ZIP_IMAGE_EXT = new Set(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'heic']);
+const ZIP_VIDEO_EXT = new Set(['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
+function getMimeForExt(ext: string): string {
+  const m: Record<string, string> = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+    bmp: 'image/bmp', webp: 'image/webp', heic: 'image/heic',
+    mp4: 'video/mp4', mov: 'video/quicktime', avi: 'video/x-msvideo', mkv: 'video/x-matroska', webm: 'video/webm', m4v: 'video/x-m4v',
+  };
+  return m[ext] ?? 'application/octet-stream';
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)} MB`;
+  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
+
+/** Read a File to ArrayBuffer via FileReader (sometimes more reliable than file.arrayBuffer() after drop). */
+function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = () => reject(reader.error ?? new Error('FileReader failed'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+/** Extract images and videos from zip content. Pass ArrayBuffer to avoid File handle permission errors after drop. */
+async function extractImagesAndVideosFromZipBuffer(
+  arrayBuffer: ArrayBuffer,
+  _zipFileName: string
+): Promise<File[]> {
+  const zip = await JSZip.loadAsync(arrayBuffer);
+  const results: File[] = [];
+  for (const [path, entry] of Object.entries(zip.files)) {
+    if (entry.dir) continue;
+    if (path.includes('__MACOSX') || /(^|\/)\./.test(path) || path.endsWith('.DS_Store')) continue;
+    const base = path.replace(/^.*\//, '');
+    const ext = base.split('.').pop()?.toLowerCase() ?? '';
+    if (!ZIP_IMAGE_EXT.has(ext) && !ZIP_VIDEO_EXT.has(ext)) continue;
+    const blob = await entry.async('blob');
+    results.push(new File([blob], base, { type: getMimeForExt(ext) }));
+  }
+  return results;
+}
+
 // ---------------------------------------------------------------------------
 // Upload Manager (singleton – runs outside React, survives unmount)
 // ---------------------------------------------------------------------------
@@ -137,7 +189,7 @@ function fileToKey(file: File): string {
 const MAX_CONCURRENT = 3;
 const MAX_RETRIES = 3;
 const UPLOAD_TIMEOUT_MS = 0; // no timeout for large files
-const MAX_UPLOAD_QUEUE = 100;
+const MAX_UPLOAD_QUEUE = 10000;
 
 type Listener = () => void;
 
@@ -795,6 +847,9 @@ const UploadFamilyImagesPage = () => {
 
   const VIDEO_EXTENSIONS = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
 
+  const isZipFile = (file: File) =>
+    file.name.toLowerCase().endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed';
+
   const normalizeAllowedTypes = useCallback((allowedFileTypes: string) => {
     return allowedFileTypes
       .split(',')
@@ -836,6 +891,8 @@ const UploadFamilyImagesPage = () => {
       accept['application/msword'] = ['.doc'];
       accept['application/vnd.openxmlformats-officedocument.wordprocessingml.document'] = ['.docx'];
     }
+    // Allow ZIP: we extract images and videos from it and upload those
+    accept['application/zip'] = ['.zip'];
     return accept;
   }, [userProfile, normalizeAllowedTypes]);
 
@@ -845,9 +902,50 @@ const UploadFamilyImagesPage = () => {
         toast.error('You do not have permission to upload files');
         return;
       }
+      // Read all ZIPs into memory (skip ones over limit — browser cannot handle very large ZIPs)
+      const zipFiles = acceptedFiles.filter(isZipFile);
+      const zipTooBig = zipFiles.filter((f) => f.size > MAX_ZIP_SIZE_BYTES);
+      const zipOk = zipFiles.filter((f) => f.size <= MAX_ZIP_SIZE_BYTES);
+      if (zipTooBig.length) {
+        zipTooBig.forEach((f) =>
+          toast.error(`${f.name} is too large (${formatFileSize(f.size)}). Max ${MAX_ZIP_SIZE_GB} GB. Extract on your computer and upload the photos/videos directly.`)
+        );
+      }
+      const zipBuffers: { name: string; buffer: ArrayBuffer }[] = [];
+      if (zipOk.length) {
+        try {
+          const buffers = await Promise.all(zipOk.map((f) => readFileAsArrayBuffer(f)));
+          zipOk.forEach((f, i) => zipBuffers.push({ name: f.name, buffer: buffers[i] }));
+        } catch (e) {
+          console.error('ZIP read failed:', e);
+          toast.error(`Could not read ZIP file(s). ${e instanceof Error ? e.message : 'Use "Select ZIP" below if drag-and-drop fails.'}`);
+          return;
+        }
+      }
+      const zipCount = zipBuffers.length;
+      if (zipCount) toast.loading(`Extracting ${zipCount} ZIP file(s)...`, { id: 'zip-extract' });
+      const expanded: File[] = [];
+      const zipByName = new Map(zipBuffers.map((z) => [z.name, z]));
+      for (const file of acceptedFiles) {
+        if (isZipFile(file)) {
+          const z = zipByName.get(file.name);
+          if (!z) continue;
+          try {
+            const extracted = await extractImagesAndVideosFromZipBuffer(z.buffer, z.name);
+            if (extracted.length) expanded.push(...extracted);
+            else toast(`No images or videos found in "${file.name}"`, { id: 'zip-empty' });
+          } catch (e) {
+            console.error('ZIP extract failed:', e);
+            toast.error(`Failed to extract "${file.name}". ${e instanceof Error ? e.message : 'Invalid or corrupted ZIP.'}`);
+          }
+        } else {
+          expanded.push(file);
+        }
+      }
+      if (zipCount) toast.dismiss('zip-extract');
       const invalid: string[] = [];
       const valid: File[] = [];
-      acceptedFiles.forEach((file) => {
+      expanded.forEach((file) => {
         if (!isFileTypeAllowed(file)) invalid.push(`${file.name} - File type not allowed`);
         else valid.push(file);
       });
@@ -890,6 +988,78 @@ const UploadFamilyImagesPage = () => {
     multiple: true,
     disabled: !canUpload() || isAddingFiles,
   });
+
+  const zipInputRef = useRef<HTMLInputElement>(null);
+  const onZipInputChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files?.length || !canUpload()) return;
+      const zips = Array.from(files).filter((f) => isZipFile(f));
+      if (!zips.length) {
+        toast.error('Please select a .zip file');
+        e.target.value = '';
+        return;
+      }
+      const tooBig = zips.filter((f) => f.size > MAX_ZIP_SIZE_BYTES);
+      if (tooBig.length) {
+        tooBig.forEach((f) =>
+          toast.error(`${f.name} is too large (${formatFileSize(f.size)}). Max ${MAX_ZIP_SIZE_GB} GB. Extract on your computer and upload the photos/videos directly.`)
+        );
+      }
+      const zipsOk = zips.filter((f) => f.size <= MAX_ZIP_SIZE_BYTES);
+      if (!zipsOk.length) {
+        e.target.value = '';
+        return;
+      }
+      setIsAddingFiles(true);
+      try {
+        const expanded: File[] = [];
+        for (const zipFile of zipsOk) {
+          try {
+            const buffer = await readFileAsArrayBuffer(zipFile);
+            const extracted = await extractImagesAndVideosFromZipBuffer(buffer, zipFile.name);
+            if (extracted.length) expanded.push(...extracted);
+            else toast(`No images or videos in "${zipFile.name}"`);
+          } catch (err) {
+            console.error('ZIP extract failed:', err);
+            toast.error(`Failed to extract "${zipFile.name}". ${err instanceof Error ? err.message : 'Invalid ZIP.'}`);
+          }
+        }
+        if (expanded.length) {
+          const valid = expanded.filter((f) => isFileTypeAllowed(f));
+          const invalidCount = expanded.length - valid.length;
+          if (invalidCount) toast.error(`${invalidCount} file(s) skipped (type not allowed).`);
+          if (valid.length) {
+            const isFamily = defaultUploadDestination === 'family-account' && defaultSelectedAccountIds.length > 0;
+            const members = isFamily
+              ? uploadTargetAccounts
+                  .filter((a) => defaultSelectedAccountIds.includes(a.inviterId))
+                  .map((a) => ({
+                    otherUserId: a.inviterId,
+                    otherUserFirstName: a.inviterFirstName,
+                    otherUserLastName: a.inviterLastName,
+                    relationshipType: a.relationshipType,
+                    inviterApiToken: a.inviterApiToken,
+                  }))
+              : undefined;
+            const { added, skipped, skippedDueToLimit } = await uploadManager.addFiles(valid, {
+              uploadDestination: isFamily ? 'family-account' : 'my-account',
+              targetFamilyMembers: members?.length ? members : undefined,
+              targetAlbumId: selectedAlbumId ?? undefined,
+            });
+            setQueueState(uploadManager.getState());
+            if (added) toast.success(`${added} file(s) from ZIP added to queue`);
+            if (skipped) toast(`Skipped ${skipped} duplicate(s).`);
+            if (skippedDueToLimit) toast.error(`Queue limit reached. ${skippedDueToLimit} not added.`);
+          }
+        }
+      } finally {
+        setIsAddingFiles(false);
+        e.target.value = '';
+      }
+    },
+    [canUpload, isFileTypeAllowed, selectedAlbumId, defaultUploadDestination, defaultSelectedAccountIds, uploadTargetAccounts]
+  );
 
   const removeFromQueue = useCallback(async (id: string) => {
     const url = thumbnailUrlsRef.current.get(id);
@@ -1457,6 +1627,25 @@ const UploadFamilyImagesPage = () => {
                 <span className="w-3 h-3 bg-blue-400 rounded-full mr-3 animate-pulse" />
                 <span className="font-medium text-gray-700">Background upload · Survives refresh</span>
               </span>
+              <input
+                ref={zipInputRef}
+                type="file"
+                accept=".zip,application/zip,application/x-zip-compressed"
+                multiple
+                onChange={onZipInputChange}
+                className="hidden"
+                aria-hidden
+              />
+              <button
+                type="button"
+                onClick={() => zipInputRef.current?.click()}
+                disabled={!canUpload() || isAddingFiles}
+                className="flex items-center bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 px-4 py-2 rounded-full shadow-sm font-medium text-sm disabled:opacity-50 disabled:pointer-events-none transition-colors"
+                title={`ZIP is extracted in the browser; max ${MAX_ZIP_SIZE_GB} GB. Larger files: extract on your computer and upload the photos/videos.`}
+              >
+                <FaFolder className="mr-2 w-4 h-4" />
+                Select ZIP (max {MAX_ZIP_SIZE_GB} GB)
+              </button>
               {storageUsage && (
                 <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
                   <span className="w-3 h-3 bg-purple-400 rounded-full mr-3 animate-pulse" />
