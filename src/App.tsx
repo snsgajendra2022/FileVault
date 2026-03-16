@@ -50,6 +50,7 @@ import Tree from './pages/PhotoStudio/JsFile/Tree';
 import PhotoStudioAlbum from './pages/PhotoStudio/PhotoStudioAlbum';
 import PublicSelectionPage from './pages/PhotoStudio/PublicSelectionPage';
 import PublicCheckoutPage from './pages/PhotoStudio/PublicCheckoutPage';
+import PublicImagesDisplayPage from './pages/PhotoStudio/PublicImagesDisplayPage';
 import SharedAlbums from './pages/PhotoStudio/SharedAlbums';
 import PaymentManagement from './components/admin/PaymentManagement';
 // Photo Themes
@@ -145,8 +146,8 @@ const AppRoutes = () => {
       
       {/* Public PhotoStudio routes - do not open without complete share URL (sid, q, or token) */}
       <Route path="/public/selection" element={<PublicShareRoute><PublicSelectionPage /></PublicShareRoute>} />
-  
-      
+      <Route path="/public/images-display" element={<PublicShareRoute><PublicImagesDisplayPage /></PublicShareRoute>} />
+
       {/* PhotoStudio Pro Routes */}
       <Route path="/studio" element={<StudioLanding />} />
       <Route path="/studio/auth" element={<StudioAuthPage />} />

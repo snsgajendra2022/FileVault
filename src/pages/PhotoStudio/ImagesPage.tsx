@@ -6,7 +6,7 @@ import React, {
   useMemo,
   memo,
 } from 'react';
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import {
@@ -17,8 +17,11 @@ import {
   FaCloud,
   FaUsers,
   FaUser,
+  FaShare,
+  FaCheck,
 } from 'react-icons/fa';
 import { FiDownload, FiTrash2 } from 'react-icons/fi';
+import { compressFileList, shouldUseCompressedFileList } from '../../utils/checkoutUrlEncoding';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
@@ -173,6 +176,9 @@ interface ImageCardProps {
   viewMode: 'my' | 'invited';
   deletePending: boolean;
   cardRef: (el: HTMLDivElement | null) => void;
+  /** When set, show checkbox for share selection */
+  isSelected?: boolean;
+  onToggleSelect?: (image: UserImage) => void;
 }
 
 const ImageCard = memo(function ImageCard({
@@ -185,6 +191,8 @@ const ImageCard = memo(function ImageCard({
   viewMode,
   deletePending,
   cardRef,
+  isSelected,
+  onToggleSelect,
 }: ImageCardProps) {
   const [loadState, setLoadState] = useState<ImageLoadState>('idle');
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -282,7 +290,19 @@ const ImageCard = memo(function ImageCard({
               {showVideo ? 'VIDEO' : image.fileType.toUpperCase()}
             </span>
           </div>
-          <div className="absolute top-2 right-2">
+          <div className="absolute top-2 right-2 flex items-center gap-1">
+            {onToggleSelect && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onToggleSelect(image); }}
+                className={`flex-shrink-0 w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                  isSelected ? 'bg-[#2731db] border-[#2731db] text-white' : 'bg-white/90 border-gray-300 hover:border-[#2731db]'
+                }`}
+                aria-label={isSelected ? 'Deselect' : 'Select for share'}
+              >
+                {isSelected && <FaCheck className="w-3 h-3" />}
+              </button>
+            )}
             <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800">
               <FaCloud className="h-3 w-3 mr-1" />
               {getEnabledServicesCount(image.enabledServices)}
@@ -379,6 +399,18 @@ const ClientImagesPage = () => {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<FamilyRelationship | null>(null);
   const [viewMode, setViewMode] = useState<'my' | 'invited'>('my');
+  const [selectedImageIds, setSelectedImageIds] = useState<Set<string>>(new Set());
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareContactIds, setShareContactIds] = useState<Set<string>>(new Set());
+  const [shareNewEmails, setShareNewEmails] = useState('');
+  const [shareNewMobileCountryCode, setShareNewMobileCountryCode] = useState('+91');
+  const [shareNewMobiles, setShareNewMobiles] = useState('');
+  const [shareMessage, setShareMessage] = useState('');
+  const [shareChannels, setShareChannels] = useState<{ email: boolean; sms: boolean }>({ email: true, sms: true });
+  const [shareSending, setShareSending] = useState(false);
+  const [shareContactSearch, setShareContactSearch] = useState('');
+  const [shareAlreadySent, setShareAlreadySent] = useState<{ email?: string; mobile?: string; alreadySent: boolean } | null>(null);
+  const [publicShareUrl, setPublicShareUrl] = useState('');
   const [visibleIndices, setVisibleIndices] = useState<Set<number>>(new Set());
   const cardRefsMapRef = useRef<Map<number, HTMLDivElement | null>>(new Map());
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -437,6 +469,206 @@ const ClientImagesPage = () => {
     () => userImagesData?.pages?.flatMap((p) => (p as UserImagesResponse).images ?? []) ?? [],
     [userImagesData]
   );
+
+  const getImageKey = useCallback((image: UserImage) => {
+    if (image.id != null && image.id !== '') return String(image.id);
+    return image.previewUrl || image.filename || '';
+  }, []);
+
+  const selectedImages = useMemo(
+    () => images.filter((img) => selectedImageIds.has(getImageKey(img))),
+    [images, selectedImageIds, getImageKey]
+  );
+
+  const handleToggleSelect = useCallback(
+    (image: UserImage) => {
+      const key = getImageKey(image);
+      setSelectedImageIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        return next;
+      });
+    },
+    [getImageKey]
+  );
+
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const tokenForUrl = typeof localStorage !== 'undefined' ? (localStorage.getItem('token') || '') : '';
+
+  // Build public images-display URL for share modal – when we have imageIds, send this URL (token + imageIds) so recipients get imageIds
+  useEffect(() => {
+    if (!showShareModal || selectedImages.length === 0) {
+      setPublicShareUrl('');
+      return;
+    }
+    const fileNames = selectedImages.map((img) => img.filename);
+    const imageIds = selectedImages.map((img) => img.id).filter((id): id is number => typeof id === 'number');
+    if (imageIds.length > 0) {
+      setPublicShareUrl(`${baseUrl}/public/images-display?token=${encodeURIComponent(tokenForUrl)}&imageIds=${imageIds.join(',')}`);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.post<{ id?: string }>('/api/public/share-link', {
+          token: tokenForUrl,
+          fileNames,
+        });
+        const id = res.data?.id;
+        if (!cancelled && id) {
+          setPublicShareUrl(`${baseUrl}/public/images-display?token=${encodeURIComponent(tokenForUrl)}&imageIds=${imageIds.join(',')}`);
+
+          return;
+        }
+      } catch {
+        // fallback below
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showShareModal, selectedImages, tokenForUrl, baseUrl]);
+
+  const { data: shareContactsData } = useQuery({
+    queryKey: ['publicShareContacts', shareContactSearch],
+    queryFn: async () => {
+      try {
+        const params = new URLSearchParams();
+        if (shareContactSearch.trim()) params.set('search', shareContactSearch.trim());
+        params.set('limit', '50');
+        params.set('offset', '0');
+        const res = await api.get<{
+          contacts?: { id: string; email?: string; mobile?: string; countryCode?: string; displayName?: string }[];
+          total?: number;
+        }>(`/api/public-share/contacts?${params.toString()}`);
+        return res.data ?? { contacts: [] };
+      } catch {
+        return { contacts: [] };
+      }
+    },
+    enabled: showShareModal,
+    retry: 0,
+  });
+  const shareContacts = shareContactsData?.contacts ?? [];
+
+  const checkRecipient = useCallback(
+    async (emailInput: string, mobileInput: string) => {
+      const firstEmail = emailInput.split(/[\s,]+/).map((e) => e.trim()).filter(Boolean)[0] ?? '';
+      const firstPart = mobileInput.split(/[\s,]+/).map((m) => m.trim()).filter(Boolean)[0] ?? '';
+      const m = firstPart
+        ? firstPart.startsWith('+')
+          ? firstPart
+          : `${shareNewMobileCountryCode.replace(/\s/g, '')}${firstPart}`
+        : '';
+      if (!firstEmail && !m) {
+        setShareAlreadySent(null);
+        return;
+      }
+      try {
+        const params = new URLSearchParams();
+        if (firstEmail) params.set('email', firstEmail);
+        if (m) params.set('mobile', m);
+        if (publicShareUrl) params.set('publicUrl', publicShareUrl);
+        const res = await api.get<{
+          alreadySent?: boolean;
+          email?: string | null;
+          mobile?: string | null;
+        }>(`/api/public-share/check-recipient?${params.toString()}`);
+        setShareAlreadySent({
+          email: res.data?.email ?? undefined,
+          mobile: res.data?.mobile ?? undefined,
+          alreadySent: !!res.data?.alreadySent,
+        });
+      } catch {
+        setShareAlreadySent(null);
+      }
+    },
+    [publicShareUrl, shareNewMobileCountryCode]
+  );
+
+  const handleShareSend = useCallback(async () => {
+    if (!publicShareUrl) {
+      toast.error('No URL to share. Please select images first.');
+      return;
+    }
+    const emails = shareNewEmails
+      .split(/[\s,]+/)
+      .map((e) => e.trim())
+      .filter(Boolean);
+    const mobileParts = shareNewMobiles
+      .split(/[\s,]+/)
+      .map((m) => m.trim())
+      .filter(Boolean);
+    const mobiles = mobileParts.map((part) =>
+      part.startsWith('+') ? part : `${shareNewMobileCountryCode.replace(/\s/g, '')}${part}`
+    );
+    if (shareContactIds.size === 0 && emails.length === 0 && mobiles.length === 0) {
+      toast.error('Select at least one contact or enter email/mobile.');
+      return;
+    }
+    const channels: string[] = [];
+    if (shareChannels.email) channels.push('email');
+    if (shareChannels.sms) channels.push('sms');
+    if (channels.length === 0) {
+      toast.error('Select at least one channel (Email or SMS).');
+      return;
+    }
+    setShareSending(true);
+    try {
+      const res = await api.post<{
+        success?: boolean;
+        sent?: { email?: number; sms?: number };
+        failed?: unknown[];
+        shareIds?: { email?: number[]; sms?: number[] };
+      }>('/api/public-share/send', {
+        publicUrl: publicShareUrl,
+        message: shareMessage.trim() || undefined,
+        sendTo: {
+          contactIds: Array.from(shareContactIds),
+          emails,
+          mobiles,
+        },
+        channels,
+      });
+      if (res.data?.success) {
+        const emailCount = res.data.sent?.email ?? 0;
+        const smsCount = res.data.sent?.sms ?? 0;
+        const shareIds = res.data.shareIds;
+        const idList =
+          shareIds?.email?.length || shareIds?.sms?.length
+            ? ` Share ID(s): ${[...(shareIds?.email ?? []), ...(shareIds?.sms ?? [])].join(', ')}.`
+            : ' Each recipient gets a Share ID in the email/SMS for reference.';
+        toast.success(`Link sent (email: ${emailCount}, SMS: ${smsCount}).${idList}`);
+        setShowShareModal(false);
+        setShareContactIds(new Set());
+        setShareNewEmails('');
+        setShareNewMobiles('');
+        setShareMessage('');
+        setShareAlreadySent(null);
+        setSelectedImageIds(new Set());
+      } else {
+        toast.error('Failed to send. Please try again.');
+      }
+    } catch (err: unknown) {
+      const ax = err as { response?: { status?: number; data?: { message?: string } } };
+      if (ax.response?.status === 404 || ax.response?.status === 501) {
+        toast.error('Share by email/SMS is not available yet. Use Copy link instead.');
+      } else {
+        toast.error(ax.response?.data?.message || 'Failed to send share.');
+      }
+    } finally {
+      setShareSending(false);
+    }
+  }, [
+    publicShareUrl,
+    shareNewEmails,
+    shareNewMobiles,
+    shareNewMobileCountryCode,
+    shareContactIds,
+    shareChannels,
+    shareMessage,
+  ]);
 
   // Restore scroll position on mount
   useEffect(() => {
@@ -839,22 +1071,44 @@ const ClientImagesPage = () => {
     <div className="p-6">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <h1 className="text-2xl font-bold text-gray-900">
             {viewMode === 'my'
               ? 'My Images'
               : `${selectedUser?.inviterFirstName ?? ''} ${selectedUser?.inviterLastName ?? ''}'s Files`}
           </h1>
-          {viewMode === 'invited' && (
-            <button
-              type="button"
-              onClick={handleBackToMyFiles}
-              className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <FaUser className="h-4 w-4 mr-2" />
-              Back to My Files
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {viewMode === 'my' && selectedImageIds.size > 0 && (
+              <>
+                <span className="text-sm text-gray-500">{selectedImageIds.size} selected</span>
+                <button
+                  type="button"
+                  onClick={() => setShowShareModal(true)}
+                  className="inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold"
+                >
+                  <FaShare className="h-4 w-4 mr-2" />
+                  Share link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedImageIds(new Set())}
+                  className="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
+                >
+                  Clear selection
+                </button>
+              </>
+            )}
+            {viewMode === 'invited' && (
+              <button
+                type="button"
+                onClick={handleBackToMyFiles}
+                className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <FaUser className="h-4 w-4 mr-2" />
+                Back to My Files
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1023,6 +1277,8 @@ const ClientImagesPage = () => {
                   viewMode={viewMode}
                   deletePending={deleteImageMutation.isPending}
                   cardRef={setCardRef(index)}
+                  isSelected={viewMode === 'my' ? selectedImageIds.has(getImageKey(image)) : undefined}
+                  onToggleSelect={viewMode === 'my' ? handleToggleSelect : undefined}
                 />
               </div>
             ))}
@@ -1034,6 +1290,178 @@ const ClientImagesPage = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* Share modal – send public selection URL to contacts / email / SMS */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Share link</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowShareModal(false);
+                  setShareContactSearch('');
+                  setShareAlreadySent(null);
+                }}
+                className="p-1 rounded hover:bg-gray-100 text-gray-600"
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              {selectedImages.length > 0 && (
+                <p className="text-sm text-gray-600">
+                  Sharing link for <strong>{selectedImages.length}</strong> image{selectedImages.length !== 1 ? 's' : ''}.
+                </p>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Existing contacts</label>
+                <input
+                  type="text"
+                  value={shareContactSearch}
+                  onChange={(e) => setShareContactSearch(e.target.value)}
+                  placeholder="Search by name, email, mobile..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2"
+                />
+                <div className="border border-gray-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
+                  {shareContacts.length === 0 ? (
+                    <p className="text-sm text-gray-500">No contacts yet. Add email or mobile below.</p>
+                  ) : (
+                    shareContacts.map((c) => (
+                      <label key={c.id} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={shareContactIds.has(c.id)}
+                          onChange={(e) => {
+                            const next = new Set(shareContactIds);
+                            if (e.target.checked) next.add(c.id);
+                            else next.delete(c.id);
+                            setShareContactIds(next);
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        <span className="text-sm">{c.displayName || c.email || c.mobile || c.id}</span>
+                        {(c.email || c.mobile) && (
+                          <span className="text-xs text-gray-500">
+                            ({[c.email, c.mobile].filter(Boolean).join(', ')})
+                          </span>
+                        )}
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New recipients – email (comma separated)
+                </label>
+                <input
+                  type="text"
+                  value={shareNewEmails}
+                  onChange={(e) => {
+                    setShareNewEmails(e.target.value);
+                    setShareAlreadySent(null);
+                  }}
+                  onBlur={() => checkRecipient(shareNewEmails, shareNewMobiles)}
+                  placeholder="e.g. a@example.com, b@example.com"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New recipients – mobile (comma separated)
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={shareNewMobileCountryCode}
+                    onChange={(e) => setShareNewMobileCountryCode(e.target.value)}
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 shrink-0"
+                  >
+                    <option value="+91">+91</option>
+                    <option value="+1">+1</option>
+                    <option value="+44">+44</option>
+                    <option value="+971">+971</option>
+                    <option value="+61">+61</option>
+                    <option value="+81">+81</option>
+                    <option value="+86">+86</option>
+                    <option value="+33">+33</option>
+                    <option value="+49">+49</option>
+                    <option value="+55">+55</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={shareNewMobiles}
+                    onChange={(e) => {
+                      setShareNewMobiles(e.target.value);
+                      setShareAlreadySent(null);
+                    }}
+                    onBlur={() => checkRecipient(shareNewEmails, shareNewMobiles)}
+                    placeholder="e.g. 9876543210, 9123456789"
+                    className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              {shareAlreadySent?.alreadySent && (
+                <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Already sent to this {shareAlreadySent.email ? 'email' : 'mobile'}. You can resend if needed.
+                </p>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Optional message</label>
+                <textarea
+                  value={shareMessage}
+                  onChange={(e) => setShareMessage(e.target.value)}
+                  placeholder="Add a short message to include in the email/SMS"
+                  rows={2}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={shareChannels.email}
+                    onChange={(e) => setShareChannels((c) => ({ ...c, email: e.target.checked }))}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm">Send via Email</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={shareChannels.sms}
+                    onChange={(e) => setShareChannels((c) => ({ ...c, sms: e.target.checked }))}
+                    className="rounded border-gray-300"
+                  />
+                  <span className="text-sm">Send via SMS</span>
+                </label>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 p-4 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowShareModal(false);
+                  setShareContactSearch('');
+                  setShareAlreadySent(null);
+                }}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleShareSend}
+                disabled={shareSending || !publicShareUrl}
+                className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-sm font-semibold"
+              >
+                {shareSending ? 'Sending…' : 'Send'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Upgrade modal */}

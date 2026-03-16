@@ -37,6 +37,7 @@ interface AlbumImage {
   isPublic?: boolean;
   filename?: string;
   previewUrl?: string;
+  thumbnailUrl?: string;
   downloadUrl?: string;
   fileType?: string;
   [key: string]: any;
@@ -366,6 +367,13 @@ const StudioCheckout: React.FC = () => {
     });
   };
 
+  const getThumbnailUrl = (image: AlbumImage): string | null => {
+    if (image.thumbnailUrl) return image.thumbnailUrl;
+    if (image.previewUrl) return image.previewUrl;
+    if (image.downloadUrl) return image.downloadUrl;
+    return null;
+  };
+
   const getImageUrl = (image: AlbumImage): string | null => {
     if (image.previewUrl) return image.previewUrl;
     if (image.downloadUrl) return image.downloadUrl;
@@ -427,7 +435,7 @@ const StudioCheckout: React.FC = () => {
   const [shareNewMobiles, setShareNewMobiles] = useState('');
   const [shareMessage, setShareMessage] = useState('');
   const [shareChannels, setShareChannels] = useState<{ email: boolean; sms: boolean }>({ email: true, sms: true });
-  const [shareUrlType, setShareUrlType] = useState<'checkout' | 'selection'>('checkout');
+  const [shareUrlType, setShareUrlType] = useState<'checkout' | 'selection' | 'images_display'>('checkout');
   const [shareSending, setShareSending] = useState(false);
   const [shareContactSearch, setShareContactSearch] = useState('');
   const [shareAlreadySent, setShareAlreadySent] = useState<{ email?: string; mobile?: string; alreadySent: boolean } | null>(null);
@@ -492,6 +500,11 @@ const StudioCheckout: React.FC = () => {
   const publicSelectionUrl = shareLinkId
     ? `${baseUrl}/public/selection?sid=${encodeURIComponent(shareLinkId)}`
     : (minimalSelectionUrl || shortSelectionUrl || longPublicSelectionUrl);
+  const publicImagesDisplayUrl = useMemo(() => {
+    if (explicitlySelectedImages.length === 0) return '';
+    const ids = explicitlySelectedImages.map((img) => img.id).join(',');
+    return `${baseUrl}/public/images-display?token=${encodeURIComponent(tokenForUrl)}&imageIds=${ids}`;
+  }, [explicitlySelectedImages, baseUrl, tokenForUrl]);
   async function copyToClipboard(text) {
     // Modern API (works on HTTPS + supported browsers)
     if (navigator?.clipboard?.writeText) {
@@ -568,7 +581,7 @@ const StudioCheckout: React.FC = () => {
       setShareAlreadySent(null);
       return;
     }
-    const urlToShare = shareUrlType === 'checkout' ? publicCheckoutUrl : publicSelectionUrl;
+    const urlToShare = shareUrlType === 'checkout' ? publicCheckoutUrl : shareUrlType === 'images_display' ? publicImagesDisplayUrl : publicSelectionUrl;
     try {
       const params = new URLSearchParams();
       if (firstEmail) params.set('email', firstEmail);
@@ -586,7 +599,7 @@ const StudioCheckout: React.FC = () => {
   };
 
   const handleShareSend = async () => {
-    const urlToShare = shareUrlType === 'checkout' ? publicCheckoutUrl : publicSelectionUrl;
+    const urlToShare = shareUrlType === 'checkout' ? publicCheckoutUrl : shareUrlType === 'images_display' ? publicImagesDisplayUrl : publicSelectionUrl;
     if (!urlToShare) {
       toast.error('No URL to share. Please select images first.');
       return;
@@ -946,7 +959,7 @@ const StudioCheckout: React.FC = () => {
             </div>
           </div>
           
-          {allSelectedImages.length > 0 && (
+          {/* {allSelectedImages.length > 0 && (
             <div className="space-y-3">
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
@@ -984,7 +997,7 @@ const StudioCheckout: React.FC = () => {
                 </p>
               </div>
             </div>
-          )}
+          )} */}
 
           <div className="flex items-center space-x-3 flex-wrap gap-2">
             <button
@@ -1080,11 +1093,12 @@ const StudioCheckout: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Which link to share</label>
                 <select
                   value={shareUrlType}
-                  onChange={(e) => setShareUrlType(e.target.value as 'checkout' | 'selection')}
+                  onChange={(e) => setShareUrlType(e.target.value as 'checkout' | 'selection' | 'images_display')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 >
                   <option value="checkout">Checkout URL</option>
                   <option value="selection">Selection URL</option>
+                  <option value="images_display" disabled={!publicImagesDisplayUrl}>Images display (selected only)</option>
                 </select>
               </div>
               <div>
@@ -1332,9 +1346,10 @@ const StudioCheckout: React.FC = () => {
                         {albumImages.map((image) => {
                             const isImageSelected = albumImageIds.has(image.id);
                             const imageUrl = getImageUrl(image);
+                            const thumbUrl = getThumbnailUrl(image);
                             const filename = getImageFilename(image);
                             const fileType = getFileType(image);
-                            const canView = imageUrl && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                            const canView = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
                             
                             // Calculate price for this image
                             const imagePrice = album.perPhotoPrice && album.perPhotoPrice > 0
@@ -1377,7 +1392,7 @@ const StudioCheckout: React.FC = () => {
                                   {canView ? (
                                     <>
                                       <img
-                                        src={imageUrl!}
+                                        src={(thumbUrl || imageUrl)!}
                                         alt={filename}
                                         className="w-full h-full object-cover"
                                       />

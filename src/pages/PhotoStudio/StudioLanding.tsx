@@ -104,7 +104,7 @@ const StudioLanding: React.FC = () => {
         <section className="benefits-section">
           <div className="benefits-content">
             <div className="benefits-text">
-              <h2>Why Choose Photo Book Pro?</h2>
+              <h2>Why Choose Photo Book ?</h2>
               <p>
                 Built specifically for photo books, our platform provides 
                 everything you need to manage your business professionally.

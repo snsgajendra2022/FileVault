@@ -77,7 +77,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
     { name: 'Shared Albums', href: '/studio/shared-albums', icon: FaShare, enabled: true },
     { name: 'Select & Pay', href: '/studio/payments', icon: FaQrcode, enabled: true },
     { name: 'Members Tree', href: '/family-tree', icon: FaSitemap, enabled: true },
-    { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
+    // { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
     { name: 'Create Members', href: '/invitations', icon:FaUserPlus , enabled: true },
     { name: 'Members', href: '/studio/clients', icon: FaUsers, enabled: true },
     { name: 'Payment Management', href: '/studio/payment-management', icon: FaRupeeSign, enabled: true },
@@ -190,7 +190,7 @@ console.log( studioNavigationItems.active === true && 2 );
                 ))}
               
               {/* Photo Book Section */}
-              {menuFlags.studio === true && studioNavigationItems.active === true
+              {/* {menuFlags.studio === true && studioNavigationItems.active === true
                &&  
               <div className=" pb-3">
                 <div className="flex items-center px-4 py-2 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-200">
@@ -200,7 +200,7 @@ console.log( studioNavigationItems.active === true && 2 );
                   </h3>
                 </div>
               </div>
-              }
+              } */}
               
               {menuFlags.studio === true && studioNavigationItems.active === true
                && 

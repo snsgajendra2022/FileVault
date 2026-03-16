@@ -37,6 +37,7 @@ interface AlbumImage {
   isPublic?: boolean;
   filename?: string;
   previewUrl?: string;
+  thumbnailUrl?: string;
   downloadUrl?: string;
   fileType?: string;
   [key: string]: any;
@@ -493,6 +494,13 @@ const PublicCheckoutPage: React.FC = () => {
       next.set(albumId, allImageIds as Set<number>);
       return next;
     });
+  };
+
+  const getThumbnailUrl = (image: AlbumImage): string | null => {
+    if (image.thumbnailUrl) return image.thumbnailUrl;
+    if (image.previewUrl) return image.previewUrl;
+    if (image.downloadUrl) return image.downloadUrl;
+    return null;
   };
 
   const getImageUrl = (image: AlbumImage): string | null => {
@@ -1495,9 +1503,10 @@ const PublicCheckoutPage: React.FC = () => {
                           {albumImages.map((image) => {
                               const isImageSelected = albumImageIds.has(image.id);
                               const imageUrl = getImageUrl(image);
+                              const thumbUrl = getThumbnailUrl(image);
                               const filename = getImageFilename(image);
                               const fileType = getFileType(image);
-                              const canView = imageUrl && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                              const canView = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
                               
                               const imagePrice = album.perPhotoPrice && album.perPhotoPrice > 0
                                 ? album.perPhotoPrice
@@ -1525,7 +1534,7 @@ const PublicCheckoutPage: React.FC = () => {
                                     {canView ? (
                                       <>
                                         <img
-                                          src={imageUrl!}
+                                          src={(thumbUrl || imageUrl)!}
                                           alt={filename}
                                           className="w-full h-full object-cover"
                                           onClick={(e) => {

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheckCircle, FaCheck, FaCopy, FaShare, FaTimes, FaExpandArrowsAlt } from 'react-icons/fa';
 import api from '../../services/api';
@@ -34,6 +34,7 @@ interface AlbumImage {
   isPublic?: boolean;
   filename?: string;
   previewUrl?: string;
+  thumbnailUrl?: string;
   downloadUrl?: string;
   fileType?: string;
   [key: string]: any;
@@ -41,6 +42,7 @@ interface AlbumImage {
 
 const PublicSelectionPage: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const queryClient = useQueryClient();
   const [expandedAlbums, setExpandedAlbums] = useState<Set<number>>(new Set());
@@ -54,7 +56,8 @@ const PublicSelectionPage: React.FC = () => {
   const [showSelectionMode, setShowSelectionMode] = useState(false);
 
   const sid = searchParams.get('sid') || '';
-  const shareIdParam = searchParams.get('shareId') || ''; // optional: when set, sendNotification only if email/mobile is recipient for this share
+  // shareId is added by the backend when the link is sent via email/SMS (for verification/tracking). Not present when you copy the link in-app.
+  const shareIdParam = searchParams.get('shareId') || '';
   const shareId = shareIdParam ? parseInt(shareIdParam, 10) : undefined;
   const validShareId = shareId != null && !isNaN(shareId) && shareId > 0 ? shareId : undefined;
   const qParam = searchParams.get('q') || ''; // encrypted token+albumId (minimal link)
@@ -72,7 +75,7 @@ const PublicSelectionPage: React.FC = () => {
   const payloadFromQ = useMemo(() => (qParam.trim() ? decryptCheckoutPayload(qParam.trim()) : null), [qParam]);
   const qInvalid = qParam.trim() !== '' && payloadFromQ === null;
 
-  type ResolvedFromSid = { token: string; albumId: number | null; fileNames: string[] };
+  type ResolvedFromSid = { token: string; albumId: number | null; fileNames: string[]; imageIds?: number[] };
   const [resolvedFromSid, setResolvedFromSid] = useState<ResolvedFromSid | null>(null);
   const [sidLoading, setSidLoading] = useState(false);
   const [sidError, setSidError] = useState(false);
@@ -86,7 +89,7 @@ const PublicSelectionPage: React.FC = () => {
     let cancelled = false;
     setSidLoading(true);
     setSidError(false);
-    api.get<{ token: string; albumId?: number | null; fileNames?: string[] }>(`/api/public/share-link/${encodeURIComponent(sid)}`)
+    api.get<{ token: string; albumId?: number | null; fileNames?: string[]; imageIds?: number[] }>(`/api/public/share-link/${encodeURIComponent(sid)}`)
       .then((res) => {
         if (cancelled) return;
         const data = res.data;
@@ -95,7 +98,8 @@ const PublicSelectionPage: React.FC = () => {
         const n = raw != null ? Number(raw) : NaN;
         const albumIdVal = Number.isFinite(n) ? n : null;
         const fileNamesVal = Array.isArray(data?.fileNames) ? data.fileNames : [];
-        setResolvedFromSid({ token: tokenVal, albumId: albumIdVal, fileNames: fileNamesVal });
+        const imageIdsVal = Array.isArray(data?.imageIds) ? data.imageIds.filter((id): id is number => typeof id === 'number') : [];
+        setResolvedFromSid({ token: tokenVal, albumId: albumIdVal, fileNames: fileNamesVal, imageIds: imageIdsVal.length > 0 ? imageIdsVal : undefined });
       })
       .catch(() => {
         if (!cancelled) {
@@ -304,10 +308,63 @@ const PublicSelectionPage: React.FC = () => {
     }
   }, [imageIdsParam, filesParam, fParam]);
 
-  // Fetch albums: single album by ID when albumId in URL (or from sid), otherwise all albums
+  // Parse image IDs from URL parameter (preferred method)
+  const targetImageIds = useMemo(() => {
+    if (imageIdsParam) {
+      try {
+        const decrypted = decryptImageIds(imageIdsParam);
+        if (decrypted.length > 0) return decrypted;
+      } catch {
+        // fallback to plain
+      }
+      return imageIdsParam.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
+    }
+    return [];
+  }, [imageIdsParam]);
+
+  // Parse filenames: from sid payload, or decoded f= (short URL), or files= (legacy)
+  const targetFilenames = useMemo(() => {
+    if (resolvedFromSid?.fileNames?.length) return resolvedFromSid.fileNames;
+    if (fParam) return decodedFilesFromF;
+    if (!filesParam) return [];
+    return filesParam.split(',').map(f => decodeURIComponent(f.trim())).filter(f => f);
+  }, [resolvedFromSid, fParam, filesParam, decodedFilesFromF]);
+
+  // Image IDs for bulk fetch: from sid response (when share was created with imageIds) or from URL imageIds=
+  const bulkImageIds = useMemo(() => {
+    if (resolvedFromSid?.imageIds?.length) return resolvedFromSid.imageIds;
+    if (targetImageIds.length > 0) return targetImageIds;
+    return [];
+  }, [resolvedFromSid?.imageIds, targetImageIds]);
+
+  const isBulkMode = bulkImageIds.length > 0 && !!effectiveToken;
+
+  // Fetch selected images by IDs via GET /api/images/bulk (only selected images, no albums)
+  const { data: bulkImagesData, isLoading: bulkImagesLoading, isError: bulkImagesError } = useQuery({
+    queryKey: ['publicSelectionBulkImages', effectiveToken, bulkImageIds.join(',')],
+    queryFn: async () => {
+      const ids = bulkImageIds.join(',');
+      const res = await api.get<AlbumImage[] | { images?: AlbumImage[] }>(`/api/images/bulk`, {
+        params: { ids, token: effectiveToken },
+      });
+      const raw = res.data;
+      if (Array.isArray(raw)) return raw;
+      if (raw && typeof raw === 'object' && Array.isArray((raw as { images?: AlbumImage[] }).images)) return (raw as { images: AlbumImage[] }).images;
+      return [];
+    },
+    enabled: isBulkMode,
+    retry: 1,
+  });
+
+  const bulkImages: AlbumImage[] = useMemo(() => {
+    if (!bulkImagesData) return [];
+    return Array.isArray(bulkImagesData) ? bulkImagesData : [];
+  }, [bulkImagesData]);
+
+  // Fetch albums: single album by ID when albumId in URL (or from sid), otherwise all albums (skipped when we have image IDs and use bulk)
   const { data: albumsData, isLoading, isError } = useQuery({
     queryKey: ['publicSelectionAlbums', effectiveToken, effectiveHasValidAlbumId ? effectiveAlbumId : null],
-    enabled: !!effectiveToken && (!sid || !!resolvedFromSid || sidError),
+    enabled: !!effectiveToken && (!sid || !!resolvedFromSid || sidError) && !isBulkMode,
     queryFn: async () => {
       const headers = effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {};
       const params = effectiveToken ? { token: effectiveToken } : {};
@@ -332,33 +389,6 @@ const PublicSelectionPage: React.FC = () => {
   const getImageFilename = (image: AlbumImage): string => {
     return image.originalFilename || image.filename || 'Unknown';
   };
-
-  // Parse image IDs from URL parameter (preferred method)
-  const targetImageIds = useMemo(() => {
-    if (imageIdsParam) {
-      // Try to decrypt first (new encrypted format)
-      try {
-        const decrypted = decryptImageIds(imageIdsParam);
-        if (decrypted.length > 0) {
-          return decrypted;
-        }
-      } catch (error) {
-        // If decryption fails, try plain format (backward compatibility)
-        console.log('Trying plain format for imageIds');
-      }
-      // Fallback to plain comma-separated format (backward compatibility)
-      return imageIdsParam.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
-    }
-    return [];
-  }, [imageIdsParam]);
-
-  // Parse filenames: from sid payload, or decoded f= (short URL), or files= (legacy)
-  const targetFilenames = useMemo(() => {
-    if (resolvedFromSid?.fileNames?.length) return resolvedFromSid.fileNames;
-    if (fParam) return decodedFilesFromF;
-    if (!filesParam) return [];
-    return filesParam.split(',').map(f => decodeURIComponent(f.trim())).filter(f => f);
-  }, [resolvedFromSid, fParam, filesParam, decodedFilesFromF]);
 
   // Auto-select albums and images based on image IDs or filenames from URL
   useEffect(() => {
@@ -434,15 +464,13 @@ const PublicSelectionPage: React.FC = () => {
     }
   }, [albums, targetImageIds, targetFilenames]);
 
-  // Get all selected images
+  // Get all selected images (only those with checkboxes checked – for Submit Selection)
   const allSelectedImages = useMemo(() => {
     const images: AlbumImage[] = [];
     selectedAlbums.forEach(albumId => {
-      setSelectedAlbumId(albumId);
       const album = albums.find(a => a.id === albumId);
       if (album && album.images) {
         const imageIds = userSelectedImages.get(albumId);
-        // Only include images that are explicitly in the selected images set
         if (imageIds && imageIds.size > 0) {
           album.images.forEach(img => {
             if (imageIds.has(img.id)) {
@@ -450,12 +478,22 @@ const PublicSelectionPage: React.FC = () => {
             }
           });
         }
-        // If album is selected but no images in userSelectedImages, 
-        // it means all images were deselected, so don't include any
       }
     });
     return images;
   }, [selectedAlbums, userSelectedImages, albums]);
+
+  // Full album display: all images from every selected album (one grid when album is selected)
+  const fullAlbumImages = useMemo(() => {
+    const images: AlbumImage[] = [];
+    selectedAlbums.forEach(albumId => {
+      const album = albums.find(a => a.id === albumId);
+      if (album && album.images) {
+        album.images.forEach(img => images.push(img));
+      }
+    });
+    return images;
+  }, [selectedAlbums, albums]);
 
   const toggleAlbum = (albumId: number) => {
     setSelectedAlbums(prev => {
@@ -529,6 +567,13 @@ const PublicSelectionPage: React.FC = () => {
     });
   };
 
+  const getThumbnailUrl = (image: AlbumImage): string | null => {
+    if (image.thumbnailUrl) return image.thumbnailUrl;
+    if (image.previewUrl) return image.previewUrl;
+    if (image.downloadUrl) return image.downloadUrl;
+    return null;
+  };
+
   const getImageUrl = (image: AlbumImage): string | null => {
     if (image.previewUrl) return image.previewUrl;
     if (image.downloadUrl) return image.downloadUrl;
@@ -567,6 +612,16 @@ const PublicSelectionPage: React.FC = () => {
     }).catch(() => {
       toast.error('Failed to copy URL');
     });
+  };
+
+  const handleViewSelectedImagesOnly = () => {
+    if (allSelectedImages.length === 0) return;
+    const ids = allSelectedImages.map((img) => img.id).join(',');
+    const params = new URLSearchParams();
+    params.set('token', effectiveToken);
+    params.set('imageIds', ids);
+    if (validShareId != null) params.set('shareId', String(validShareId));
+    navigate(`/public/images-display?${params.toString()}`);
   };
 
   const handleSubmitSelection = async () => {
@@ -754,20 +809,25 @@ const PublicSelectionPage: React.FC = () => {
     );
   }
 
-  if (isLoading) {
+  const contentLoading = isBulkMode ? bulkImagesLoading : isLoading;
+  const contentError = isBulkMode ? bulkImagesError : isError;
+
+  if (contentLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <LoadingSpinner size="lg" text="Loading albums..." />
+        <LoadingSpinner size="lg" text={isBulkMode ? 'Loading images...' : 'Loading albums...'} />
       </div>
     );
   }
 
-  if (isError) {
+  if (contentError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Unable to load albums</h1>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">
+            {isBulkMode ? 'Unable to load images' : 'Unable to load albums'}
+          </h1>
           <p className="text-gray-600 text-sm">Please check the link or try again later.</p>
         </div>
       </div>
@@ -782,16 +842,20 @@ const PublicSelectionPage: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center">
               <FaImages className="mr-3 text-[#2731db]" />
-              Select Your Photos
+              {isBulkMode ? 'Shared Photos' : 'Select Your Photos'}
             </h1>
             <p className="text-gray-600 mt-2 text-sm sm:text-base">
-              Browse albums and select the photos you want. Click on an album to view images inside.
+              {isBulkMode
+                ? `Viewing ${bulkImages.length} shared photo${bulkImages.length !== 1 ? 's' : ''}.`
+                : 'Browse albums and select the photos you want. Click on an album to view images inside.'}
             </p>
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-500 uppercase tracking-wide">Secure Public Link</p>
             <p className="text-sm font-medium text-gray-800">
-              {albums.length} album{albums.length !== 1 ? 's' : ''} • {allSelectedImages.length} photo{allSelectedImages.length !== 1 ? 's' : ''} selected
+              {isBulkMode
+                ? `${bulkImages.length} photo${bulkImages.length !== 1 ? 's' : ''}`
+                : `${albums.length} album${albums.length !== 1 ? 's' : ''} • ${allSelectedImages.length} photo${allSelectedImages.length !== 1 ? 's' : ''} selected`}
             </p>
           </div>
         </header>
@@ -819,8 +883,8 @@ const PublicSelectionPage: React.FC = () => {
           </p>
         </div> */}
 
-        {/* Selection Summary Bar */}
-        {allSelectedImages.length > 0 ? (
+        {/* Selection Summary Bar (albums mode only) */}
+        {!isBulkMode && allSelectedImages.length > 0 ? (
           <div className="mb-6 bg-gradient-to-r from-[#2731db] to-blue-600 rounded-xl shadow-lg p-4 text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -834,7 +898,15 @@ const PublicSelectionPage: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-3 flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleViewSelectedImagesOnly}
+                  className="px-5 py-2 rounded-lg bg-white/20 hover:bg-white/30 text-white font-semibold transition-colors flex items-center gap-2 border border-white/40"
+                >
+                  <FaImages className="mr-1" />
+                  View selected images only
+                </button>
                 <button
                   onClick={handleSubmitSelection}
                   disabled={isSubmitting}
@@ -857,7 +929,7 @@ const PublicSelectionPage: React.FC = () => {
               </div>
             </div>
           </div>
-        ) : (
+        ) : !isBulkMode ? (
           <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -867,9 +939,167 @@ const PublicSelectionPage: React.FC = () => {
               </div>
             </div>
           </div>
+        ) : null}
+
+        {/* Full album display: when at least one album is selected, show all its images in one grid */}
+        {!isBulkMode && fullAlbumImages.length > 0 && (
+          <section className="mb-8">
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-5">
+              <h2 className="text-xl font-semibold text-gray-900 mb-1 flex items-center">
+                <FaImages className="mr-2 text-[#2731db]" />
+                Full album display
+              </h2>
+              <p className="text-sm text-gray-500 mb-4">
+                {fullAlbumImages.length} photo{fullAlbumImages.length !== 1 ? 's' : ''} from {selectedAlbums.size} selected album{selectedAlbums.size !== 1 ? 's' : ''}. Expand albums below to select which photos to submit.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                {fullAlbumImages.map((image, index) => {
+                  const imageUrl = getImageUrl(image);
+                  const thumbUrl = getThumbnailUrl(image);
+                  const filename = getImageFilename(image);
+                  const fileType = getFileType(image);
+                  const canView = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                  const isImageSelected = Array.from(selectedAlbums).some(
+                    (albumId) => userSelectedImages.get(albumId)?.has(image.id)
+                  );
+                  return (
+                    <div
+                      key={`full-${image.id}-${index}`}
+                      className={`rounded-xl overflow-hidden border bg-white shadow-sm hover:shadow-md transition-all relative ${
+                        isImageSelected ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50' : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="h-48 bg-gray-100 overflow-hidden relative">
+                        <button
+                          type="button"
+                          onClick={() => setFullscreenImage(image)}
+                          className="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-black/50 hover:bg-black/70 text-white flex items-center justify-center"
+                          title="View full screen"
+                        >
+                          <FaExpandArrowsAlt className="text-sm" />
+                        </button>
+                        {canView ? (
+                          <img
+                            src={(thumbUrl || imageUrl)!}
+                            alt={filename}
+                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
+                            onClick={() => setFullscreenImage(image)}
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                            {fileType.toUpperCase()}
+                          </div>
+                        )}
+                        {showSelectionMode && (
+                          <div className="absolute top-2 left-2 z-10">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isImageSelected ? 'bg-[#2731db] text-white' : 'bg-white/90 text-gray-600'}`}>
+                              {isImageSelected ? 'Selected' : '—'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3 bg-white">
+                        <p className="text-sm font-medium text-gray-900 truncate" title={filename}>
+                          {filename}
+                        </p>
+                        {image.uploadTime && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(image.uploadTime).toLocaleString()}
+                          </p>
+                        )}
+                        <div className="mt-3 flex items-center justify-between">
+                          <span className="text-xs text-gray-500">{fileType.toUpperCase()}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDownload(image)}
+                            className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-[#2731db] text-white hover:bg-blue-800"
+                          >
+                            <FaDownload className="mr-1" /> Download
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
         )}
 
-        {/* Albums List */}
+        {/* Bulk mode: grid of selected images only (from GET /api/images/bulk) */}
+        {isBulkMode && (
+          <main className="bg-white rounded-2xl shadow-lg border border-gray-100 p-5">
+            {bulkImages.length === 0 ? (
+              <div className="text-center py-16 text-gray-500">
+                <FaImages className="mx-auto mb-3 text-4xl" />
+                <p className="text-lg font-medium mb-2">No images found</p>
+                <p className="text-sm">The shared selection may be empty or the link may have expired.</p>
+              </div>
+            ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+              {bulkImages.map((image) => {
+                const imageUrl = getImageUrl(image);
+                const thumbUrl = getThumbnailUrl(image);
+                const filename = getImageFilename(image);
+                const fileType = getFileType(image);
+                const canView = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                return (
+                  <div
+                    key={image.id}
+                    className="rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all relative"
+                  >
+                    <div className="h-48 bg-gray-100 overflow-hidden relative">
+                      <button
+                        type="button"
+                        onClick={() => setFullscreenImage(image)}
+                        className="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-black/50 hover:bg-black/70 text-white flex items-center justify-center"
+                        title="View full screen"
+                      >
+                        <FaExpandArrowsAlt className="text-sm" />
+                      </button>
+                      {canView ? (
+                        <img
+                          src={(thumbUrl || imageUrl)!}
+                          alt={filename}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
+                          onClick={() => setFullscreenImage(image)}
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+                          {fileType.toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 bg-white">
+                      <p className="text-sm font-medium text-gray-900 truncate" title={filename}>
+                        {filename}
+                      </p>
+                      {image.uploadTime && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(image.uploadTime).toLocaleString()}
+                        </p>
+                      )}
+                      <div className="mt-3 flex items-center justify-between">
+                        <span className="text-xs text-gray-500">{fileType.toUpperCase()}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleDownload(image)}
+                          className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-[#2731db] text-white hover:bg-blue-800"
+                        >
+                          <FaDownload className="mr-1" /> Download
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            )}
+          </main>
+        )}
+
+        {/* Albums List (when not bulk mode) */}
+        {!isBulkMode && (
         <main className="bg-white rounded-2xl shadow-lg border border-gray-100 p-5">
           {albums.length === 0 ? (
             <div className="text-center py-16 text-gray-500">
@@ -1044,9 +1274,10 @@ const PublicSelectionPage: React.FC = () => {
                           {albumImages.map((image) => {
                               const isImageSelected = isSelected && albumImageIds.has(image.id);
                               const imageUrl = getImageUrl(image);
+                              const thumbUrl = getThumbnailUrl(image);
                               const filename = getImageFilename(image);
                               const fileType = getFileType(image);
-                              const canView = imageUrl && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                              const canView = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
 
                               return (
                                 <div
@@ -1095,7 +1326,7 @@ const PublicSelectionPage: React.FC = () => {
                                   <div className="h-48 bg-gray-100 overflow-hidden">
                                     {canView ? (
                                       <img
-                                        src={imageUrl!}
+                                        src={(thumbUrl || imageUrl)!}
                                         alt={filename}
                                         className={`w-full h-full object-cover transition-transform duration-300 ${
                                           isImageSelected ? 'opacity-90' : 'group-hover:scale-105'
@@ -1147,8 +1378,10 @@ const PublicSelectionPage: React.FC = () => {
               </div>
             </>
           )}
+        </main>
+        )}
 
-        {/* Full-screen image view modal */}
+        {/* Full-screen image view modal (used by both bulk grid and albums) */}
         {fullscreenImage && (
           <div
             className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4"
@@ -1185,7 +1418,6 @@ const PublicSelectionPage: React.FC = () => {
             </p>
           </div>
         )}
-        </main>
       </div>
     </div>
   );

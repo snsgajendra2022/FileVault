@@ -105,6 +105,25 @@ All list endpoints support **pagination** with query params `page` (0-based) and
 
 ---
 
+### 1.2b Bulk get images by IDs
+
+| API Name | Method | Path | Auth |
+|----------|--------|------|------|
+| Bulk get image info by IDs | GET | `/api/images/bulk` | Token in query |
+
+**Query params**
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `ids` | string | Yes | Comma-separated image IDs (e.g. `1,2,3`) |
+| `token` | string | Yes | API token |
+
+**Response (200):** Array of image objects (same shape as `GET /api/images/{id}` for each requested id). Only images the user can access are returned.
+
+**Frontend usage:** Used on the public selection page when the share link has image IDs (from `sid` or `imageIds=` URL param) to load only the shared images without loading all albums.
+
+---
+
 ### 1.3 Get Shared Albums
 
 | API Name | Method | Path | Auth |

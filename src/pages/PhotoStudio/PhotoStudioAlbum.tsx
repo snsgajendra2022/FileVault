@@ -59,6 +59,7 @@ interface AlbumImage {
   // Legacy fields for compatibility
   filename?: string;
   previewUrl?: string;
+  thumbnailUrl?: string;
   downloadUrl?: string;
   fileType?: string;
   [key: string]: any;
@@ -554,6 +555,13 @@ const PhotoStudioAlbum: React.FC = () => {
     return [];
   };
 
+  const getThumbnailUrl = (image: AlbumImage): string | null => {
+    if (image.thumbnailUrl) return image.thumbnailUrl;
+    if (image.previewUrl) return image.previewUrl;
+    if (image.downloadUrl) return image.downloadUrl;
+    return null;
+  };
+
   // Get image URL (prefer s3PublicUrl, fallback to b2PublicUrl, then googleDriveViewUrl)
   const getImageUrl = (image: AlbumImage): string | null => {
     if (image.previewUrl) return image.previewUrl;
@@ -975,9 +983,10 @@ const PhotoStudioAlbum: React.FC = () => {
                               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                                 {images.map((image, index) => {
                                   const imageUrl = getImageUrl(image);
+                                  const thumbUrl = getThumbnailUrl(image);
                                   const fileType = getFileType(image);
                                   const filename = getImageFilename(image);
-                                  const canViewFullScreen = imageUrl && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                                  const canViewFullScreen = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
                                   
                                   return (
                                     <div
@@ -995,7 +1004,7 @@ const PhotoStudioAlbum: React.FC = () => {
                                         {canViewFullScreen ? (
                                           <>
                                             <img
-                                              src={imageUrl!}
+                                              src={(thumbUrl || imageUrl)!}
                                               alt={filename}
                                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                               onError={(e) => {

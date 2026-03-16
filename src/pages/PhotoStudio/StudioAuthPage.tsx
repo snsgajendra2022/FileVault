@@ -56,13 +56,13 @@ const StudioAuthPage: React.FC = () => {
       </div>
       
       <div className="auth-content">
-        <div className="auth-header">
+        {/* <div className="auth-header">
           <div className="logo">
             <FaCamera className="logo-icon" />
             <h1>Photo Book Pro</h1>
           </div>
           <p className="tagline">Professional Photo Book Management</p>
-        </div>
+        </div> */}
 
         <div className="auth-card">
           <div className="auth-tabs">
