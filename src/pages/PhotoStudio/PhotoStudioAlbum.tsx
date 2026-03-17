@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { 
   FaFolder, 
@@ -76,6 +76,15 @@ interface UserImage {
   [key: string]: any;
 }
 
+// Normalize infinite-query cache so pages/pageParams are always arrays (prevents getNextPageParam .length crash)
+function normalizeInfiniteCache(old: unknown): { pages: unknown[]; pageParams: number[] } {
+  if (old == null || typeof old !== 'object') return { pages: [], pageParams: [0] };
+  const o = old as Record<string, unknown> & { pages?: unknown; pageParams?: unknown };
+  const pages = Array.isArray(o.pages) ? o.pages : [];
+  const pageParams = Array.isArray(o.pageParams) ? o.pageParams : [0];
+  return { ...o, pages, pageParams };
+}
+
 const PhotoStudioAlbum: React.FC = () => {
   const { user, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
@@ -131,9 +140,10 @@ const PhotoStudioAlbum: React.FC = () => {
 
   const userId = user?.id;
 
-  // Debug logging
-  useEffect(() => {
-  }, [user, userId, authLoading]);
+  const albumsInfiniteDefaults = useMemo(
+    () => ({ pages: [] as { albums: Album[]; page?: number; totalPages?: number }[], pageParams: [0] as number[] }),
+    []
+  );
 
   const {
     data: albumsData,
@@ -146,27 +156,40 @@ const PhotoStudioAlbum: React.FC = () => {
   } = useInfiniteQuery({
     queryKey: ['albums'],
     enabled: !authLoading,
-    queryFn: async ({ pageParam }): Promise<{ albums: Album[]; page?: number; totalPages?: number }> => {
+    queryFn: async ({ pageParam }): Promise<{ albums: Album[]; page: number; totalPages: number }> => {
       try {
         const response = await api.get('/api/albums', {
           params: { page: pageParam, size: ALBUMS_PAGE_SIZE },
         });
         const data = response?.data;
-        if (data == null) return { albums: [], page: 0, totalPages: 1 };
-        if (Array.isArray(data)) return { albums: data, page: Number(pageParam), totalPages: 1 };
-        const albums = Array.isArray((data as { albums?: Album[] }).albums) ? (data as { albums?: Album[] }).albums! : [];
-        return {
-          albums,
-          page: (data as { page?: number }).page ?? Number(pageParam),
-          totalPages: (data as { totalPages?: number }).totalPages ?? 1,
-        };
+        const fallback = { albums: [] as Album[], page: 0, totalPages: 1 };
+        if (data == null) return fallback;
+        let albums: Album[];
+        let page: number;
+        let totalPages: number;
+        if (Array.isArray(data)) {
+          albums = data.map((a: Album) => ({ ...a, images: Array.isArray(a?.images) ? a.images : [] }));
+          page = Number(pageParam) || 0;
+          totalPages = 1;
+        } else {
+          const raw = data as { albums?: Album[]; page?: number; totalPages?: number };
+          albums = Array.isArray(raw.albums) ? raw.albums.map((a: Album) => ({ ...a, images: Array.isArray(a?.images) ? a.images : [] })) : [];
+          page = Number(raw.page ?? pageParam);
+          totalPages = Number(raw.totalPages ?? 1);
+          if (!Number.isFinite(totalPages) || totalPages < 1) totalPages = 1;
+          if (!Number.isFinite(page)) page = Number(pageParam) || 0;
+        }
+        return { albums, page, totalPages };
       } catch {
-        return { albums: [], page: Number(pageParam), totalPages: 1 };
+        return { albums: [], page: Number(pageParam) || 0, totalPages: 1 };
       }
     },
     initialPageParam: 0,
-    initialData: () => ({ pages: [], pageParams: [0] as number[] }),
-    placeholderData: (prev) => prev ?? { pages: [], pageParams: [0] as number[] },
+    initialData: () => albumsInfiniteDefaults,
+    placeholderData: (prev) => {
+      if (prev && Array.isArray(prev?.pages) && Array.isArray(prev?.pageParams)) return prev;
+      return albumsInfiniteDefaults;
+    },
     getNextPageParam: (lastPage: unknown): number | undefined => {
       if (lastPage == null || typeof lastPage !== 'object') return undefined;
       const p = lastPage as { page?: number; totalPages?: number };
@@ -183,6 +206,11 @@ const PhotoStudioAlbum: React.FC = () => {
   useEffect(() => {
   }, [isLoading, isError, albumsData, authLoading, userId]);
 
+  const userImagesInfiniteDefaults = useMemo(
+    () => ({ pages: [] as UserImagesResponse[], pageParams: [0] as number[] }),
+    []
+  );
+
   const {
     data: userImagesData,
     error,
@@ -198,24 +226,28 @@ const PhotoStudioAlbum: React.FC = () => {
           params: { token, page: pageParam, size: USER_IMAGES_PAGE_SIZE },
         });
         const data = response?.data;
-        if (data == null) {
-          return { totalImages: 0, images: [], page: 0, totalPages: 1 };
-        }
+        const fallback: UserImagesResponse = { totalImages: 0, images: [], page: 0, totalPages: 1 };
+        if (data == null) return fallback;
         const out = data as UserImagesResponse;
         const images = Array.isArray(out?.images) ? out.images : [];
+        const page = Number(out?.page ?? pageParam);
+        const totalPages = Number(out?.totalPages ?? 1);
         return {
-          totalImages: out?.totalImages ?? images.length,
+          totalImages: Number(out?.totalImages) >= 0 ? Number(out.totalImages) : images.length,
           images,
-          page: out?.page ?? Number(pageParam),
-          totalPages: out?.totalPages ?? 1,
+          page: Number.isFinite(page) ? page : Number(pageParam) || 0,
+          totalPages: Number.isFinite(totalPages) && totalPages >= 1 ? totalPages : 1,
         };
       } catch {
-        return { totalImages: 0, images: [], page: Number(pageParam), totalPages: 1 };
+        return { totalImages: 0, images: [], page: Number(pageParam) || 0, totalPages: 1 };
       }
     },
     initialPageParam: 0,
-    initialData: () => ({ pages: [], pageParams: [0] as number[] }),
-    placeholderData: (prev) => prev ?? { pages: [], pageParams: [0] as number[] },
+    initialData: () => userImagesInfiniteDefaults,
+    placeholderData: (prev) => {
+      if (prev && Array.isArray(prev?.pages) && Array.isArray(prev?.pageParams)) return prev;
+      return userImagesInfiniteDefaults;
+    },
     getNextPageParam: (lastPage: unknown): number | undefined => {
       if (lastPage == null || typeof lastPage !== 'object') return undefined;
       const p = lastPage as { page?: number; totalPages?: number };
@@ -231,21 +263,21 @@ const PhotoStudioAlbum: React.FC = () => {
 
   const albums = useMemo(() => {
     const pages = albumsData?.pages;
-    if (!pages || !Array.isArray(pages) || pages.length === 0) return [];
+    if (!pages || !Array.isArray(pages) || pages?.length === 0) return [];
     return pages.flatMap((p) => (p && (p as { albums?: Album[] }).albums) ?? []);
   }, [albumsData]);
 
   const albumsTotal = useMemo(() => {
     const pages = albumsData?.pages;
-    if (!pages || !Array.isArray(pages) || pages.length === 0) return albums.length;
+    if (!pages || !Array.isArray(pages) || pages?.length === 0) return albums?.length;
     const first = pages[0] as { total?: number } | undefined;
-    if (!first) return albums.length;
-    return first.total ?? albums.length;
-  }, [albumsData, albums.length]);
+    if (!first) return albums?.length;
+    return first.total ?? albums?.length;
+  }, [albumsData, albums?.length]);
 
   const userImages = useMemo(() => {
     const pages = userImagesData?.pages;
-    if (!pages || !Array.isArray(pages) || pages.length === 0) return [];
+    if (!pages || !Array.isArray(pages) || pages?.length === 0) return [];
     return pages.flatMap((p) => (p as UserImagesResponse).images ?? []);
   }, [userImagesData]);
 
@@ -271,9 +303,9 @@ const PhotoStudioAlbum: React.FC = () => {
 
   // Populate album images from album data when albums are loaded
   useEffect(() => {
-    if (albums.length > 0) {
+    if (albums?.length > 0) {
       albums.forEach((album: Album) => {
-        if (album.images && Array.isArray(album.images) && album.images.length > 0) {
+        if (album?.images && Array.isArray(album?.images) && album.images?.length > 0) {
           setAlbumImages((prev) => {
             if (!prev.has(album.id)) {
               const next = new Map(prev);
@@ -294,7 +326,7 @@ const PhotoStudioAlbum: React.FC = () => {
     const { albumId, index } = fullScreenImage;
     const images = albumImages.get(albumId) || extractAlbumImages(albums.find(a => a.id === albumId) || {} as Album);
     const hasPrevious = index > 0;
-    const hasNext = index < images.length - 1;
+    const hasNext = index < images?.length - 1;
     
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -434,7 +466,7 @@ const PhotoStudioAlbum: React.FC = () => {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['albums'] });
-      toast.success(`Album shared successfully with ${variables.clientIds.length} client${variables.clientIds.length !== 1 ? 's' : ''}!`);
+      toast.success(`Album shared successfully with ${variables.clientIds?.length} client${variables.clientIds?.length !== 1 ? 's' : ''}!`);
       setShowShareModal(null);
       setSelectedClients(new Set());
     },
@@ -443,7 +475,7 @@ const PhotoStudioAlbum: React.FC = () => {
       const errorMessage = errorData?.message || 'Failed to share album';
       
       // Handle invalid client IDs specifically
-      if (errorData?.invalidClientIds && Array.isArray(errorData.invalidClientIds) && errorData.invalidClientIds.length > 0) {
+      if (errorData?.invalidClientIds && Array.isArray(errorData.invalidClientIds) && errorData.invalidClientIds?.length > 0) {
         const invalidIds = errorData.invalidClientIds.join(', ');
         toast.error(`${errorMessage} (Invalid client IDs: ${invalidIds})`, {
           duration: 6000,
@@ -510,7 +542,7 @@ const PhotoStudioAlbum: React.FC = () => {
         addList(fd.cousins ?? []);
         addList(fd.clients ?? []);
       }
-      if (Array.isArray(data?.clients) && allMembers.length === 0) addList(data.clients);
+      if (Array.isArray(data?.clients) && allMembers?.length === 0) addList(data.clients);
 
       const unique = allMembers.filter(
         (c, i, self) => i === self.findIndex((x) => (x.id ?? x.userId) === (c.id ?? c.userId))
@@ -527,10 +559,10 @@ const PhotoStudioAlbum: React.FC = () => {
 
   // Load clients when share modal opens
   useEffect(() => {
-    if (showShareModal !== null && clients.length === 0) {
+    if (showShareModal !== null && clients?.length === 0) {
       fetchClients();
     }
-  }, [showShareModal, clients.length, fetchClients]);
+  }, [showShareModal, clients?.length, fetchClients]);
 
   const handleShareAlbum = (album: Album) => {
     setShowShareModal(album.id);
@@ -826,14 +858,14 @@ const PhotoStudioAlbum: React.FC = () => {
     const emails = shareLinkNewEmails.split(/[\s,]+/).map((e) => e.trim()).filter(Boolean);
     const mobileParts = shareLinkNewMobiles.split(/[\s,]+/).map((m) => m.trim()).filter(Boolean);
     const mobiles = mobileParts.map((part) => (part.startsWith('+') ? part : `${shareLinkNewMobileCountryCode.replace(/\s/g, '')}${part}`));
-    if (shareLinkContactIds.size === 0 && emails.length === 0 && mobiles.length === 0) {
+    if (shareLinkContactIds.size === 0 && emails?.length === 0 && mobiles.length === 0) {
       toast.error('Select at least one contact or enter email/mobile.');
       return;
     }
     const channels: string[] = [];
     if (shareLinkChannels.email) channels.push('email');
     if (shareLinkChannels.sms) channels.push('sms');
-    if (channels.length === 0) {
+    if (channels?.length === 0) {
       toast.error('Select at least one channel (Email or SMS).');
       return;
     }
@@ -895,7 +927,7 @@ const PhotoStudioAlbum: React.FC = () => {
   };
 
   const transferAlbumsToPhotoBook = useCallback(async (albumIds: number[], categorySlug: string) => {
-    if (!albumIds.length) {
+    if (!albumIds?.length) {
       toast.error('Please select at least one album');
       return;
     }
@@ -905,7 +937,7 @@ const PhotoStudioAlbum: React.FC = () => {
 
     try {
       const selected = albums.filter((a) => albumIds.includes(a.id));
-      if (!selected.length) {
+      if (!selected?.length) {
         toast.error('Selected albums not found');
         return;
       }
@@ -1876,7 +1908,7 @@ const PhotoStudioAlbum: React.FC = () => {
                 </div>
               )}
               {userImages.length > 0 && <div ref={addImagesModalSentinelRef} className="h-4" aria-hidden />}
-              {userImages.length > 0 && isFetchingMoreUserImages && (
+              {userImages?.length > 0 && isFetchingMoreUserImages && (
                 <div className="flex justify-center py-4">
                   <LoadingSpinner size="md" text="Loading more..." />
                 </div>
@@ -1944,7 +1976,7 @@ const PhotoStudioAlbum: React.FC = () => {
                 <div className="flex flex-col items-center justify-center py-12">
                   <LoadingSpinner size="lg" text="Loading clients..." />
                 </div>
-              ) : clients.length === 0 ? (
+              ) : clients?.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <FaUserFriends className="mx-auto mb-3 text-4xl text-gray-300" />
                   <p className="text-lg font-medium mb-2">No members available</p>
@@ -2128,7 +2160,8 @@ const PhotoStudioAlbum: React.FC = () => {
         const imageUrl = getImageUrl(image);
         const filename = getImageFilename(image);
         const hasPrevious = index > 0;
-        const hasNext = index < images.length - 1;
+        const hasNext = index;
+        // const hasNext = index < images?.length - 1;
         
         const handlePrevious = () => {
           if (hasPrevious) {
@@ -2214,7 +2247,7 @@ const PhotoStudioAlbum: React.FC = () => {
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-center z-10 bg-black bg-opacity-50 rounded-lg px-4 py-2">
               <p className="text-sm font-medium">{filename}</p>
               <p className="text-xs text-gray-300 mt-1">
-                {index + 1} of {images.length}
+                {index + 1} of {images?.length}
               </p>
             </div>
           </div>
@@ -2224,4 +2257,26 @@ const PhotoStudioAlbum: React.FC = () => {
   );
 };
 
-export default PhotoStudioAlbum;
+// Wrapper: normalize infinite-query cache BEFORE mounting PhotoStudioAlbum so the library never sees undefined .pages
+function PhotoStudioAlbumWrapper() {
+  const [cacheReady, setCacheReady] = useState(false);
+  const queryClient = useQueryClient();
+  useLayoutEffect(() => {
+    queryClient.setQueryData(['albums'], normalizeInfiniteCache);
+    queryClient.setQueryData(['userImages-gallery'], normalizeInfiniteCache);
+    setCacheReady(true);
+  }, [queryClient]);
+  if (!cacheReady) {
+    return (
+      <DashboardLoading
+        title="Loading"
+        subtitle="Preparing albums..."
+        icon={FaFolder}
+        showFeatures={false}
+      />
+    );
+  }
+  return <PhotoStudioAlbum />;
+}
+
+export default PhotoStudioAlbumWrapper;
