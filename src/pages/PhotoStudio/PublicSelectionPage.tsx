@@ -1040,7 +1040,7 @@ const PublicSelectionPage: React.FC = () => {
         ) : null}
 
         {/* Full album display: when at least one album is selected, show all its images in one grid */}
-        {!isBulkMode && fullAlbumImages.length > 0 && (
+        {/* {!isBulkMode && fullAlbumImages.length > 0 && (
           <section className="mb-8">
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-5">
               <h2 className="text-xl font-semibold text-gray-900 mb-1 flex items-center">
@@ -1124,7 +1124,7 @@ const PublicSelectionPage: React.FC = () => {
               </div>
             </div>
           </section>
-        )}
+        )} */}
 
         {/* Bulk mode: grid of selected images only (from GET /api/images/bulk) */}
         {isBulkMode && (
