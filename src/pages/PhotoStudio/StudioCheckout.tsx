@@ -67,6 +67,7 @@ const StudioCheckout: React.FC = () => {
   const [expandedAlbums, setExpandedAlbums] = useState<Set<number>>(new Set());
   const [selectedImages, setSelectedImages] = useState<Map<number, Set<number>>>(new Map()); // albumId -> Set of imageIds
   const [albumImagesMap, setAlbumImagesMap] = useState<Map<number, AlbumImage[]>>(new Map()); // albumId -> AlbumImage[]
+  const [coverImageErrors, setCoverImageErrors] = useState<Set<number>>(new Set());
   const [showQr, setShowQr] = useState(false);
   const [isPaid, setIsPaid] = useState(false);
   const [showUpiSettings, setShowUpiSettings] = useState(false);
@@ -166,65 +167,46 @@ const StudioCheckout: React.FC = () => {
     }
   }, [albums]);
 
-  // Fetch album images when album is expanded
+  // Fetch album images when expanded (use album.images from list first; GET /api/albums/:id/images may return 405)
   const fetchAlbumImages = async (albumId: number) => {
-    // Check if images are already loaded
-    if (albumImagesMap.has(albumId)) {
+    if (albumImagesMap.has(albumId)) return;
+
+    const album = albums.find((a) => a.id === albumId);
+    if (album?.images && Array.isArray(album.images) && album.images.length > 0) {
+      setAlbumImagesMap((prev) => { const next = new Map(prev); next.set(albumId, album.images!); return next; });
       return;
     }
 
     try {
-      // Try different endpoints
       let images: AlbumImage[] = [];
-      
       try {
         const response = await api.get(`/api/albums/${albumId}/images`);
         images = Array.isArray(response.data) ? response.data : (response.data?.images || []);
-      } catch (error1) {
+      } catch (err: any) {
+        if (err?.response?.status === 405) {
+          setAlbumImagesMap((prev) => { const next = new Map(prev); next.set(albumId, []); return next; });
+          return;
+        }
         try {
           const response = await api.get(`/api/simple-invitations/albums/${albumId}/images`);
           images = Array.isArray(response.data) ? response.data : (response.data?.images || []);
-        } catch (error2) {
-          console.error('Error fetching album images:', error2);
-          toast.error('Failed to load album images');
+        } catch (err2: any) {
+          if (err2?.response?.status !== 405) toast.error('Failed to load album images');
+          setAlbumImagesMap((prev) => { const next = new Map(prev); next.set(albumId, []); return next; });
+          return;
         }
       }
-      
-      if (images.length > 0) {
-        setAlbumImagesMap((prev) => {
-          const next = new Map(prev);
-          next.set(albumId, images);
-          return next;
-        });
-      } else {
-        // Set empty array to prevent retrying
-        setAlbumImagesMap((prev) => {
-          const next = new Map(prev);
-          next.set(albumId, []);
-          return next;
-        });
-      }
-    } catch (error: any) {
-      console.error('Error fetching album images:', error);
-      toast.error('Failed to load album images');
-      // Set empty array to prevent retrying
-      setAlbumImagesMap((prev) => {
-        const next = new Map(prev);
-        next.set(albumId, []);
-        return next;
-      });
+      setAlbumImagesMap((prev) => { const next = new Map(prev); next.set(albumId, images); return next; });
+    } catch {
+      setAlbumImagesMap((prev) => { const next = new Map(prev); next.set(albumId, []); return next; });
     }
   };
 
-  // Fetch album images when album is expanded
   useEffect(() => {
     expandedAlbums.forEach((albumId) => {
-      if (!albumImagesMap.has(albumId)) {
-        fetchAlbumImages(albumId);
-      }
+      if (!albumImagesMap.has(albumId)) fetchAlbumImages(albumId);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expandedAlbums]);
+  }, [expandedAlbums, albums]);
 
   // Get all explicitly selected images from all selected albums (for display and total calculation)
   const allSelectedImages = useMemo(() => {
@@ -348,15 +330,15 @@ const StudioCheckout: React.FC = () => {
     });
   };
 
+  // Only one album's "Choose images" section open at a time; opening one closes others
   const toggleAlbumExpand = (albumId: number) => {
     setExpandedAlbums(prev => {
-      const next = new Set(prev);
-      if (next.has(albumId)) {
+      if (prev.has(albumId)) {
+        const next = new Set(prev);
         next.delete(albumId);
-      } else {
-        next.add(albumId);
+        return next;
       }
-      return next;
+      return new Set([albumId]);
     });
   };
 
@@ -431,6 +413,14 @@ const StudioCheckout: React.FC = () => {
     const filename = getImageFilename(image);
     const extension = filename.split('.').pop()?.toLowerCase() || '';
     return extension || image.fileType || 'unknown';
+  };
+
+  const getCoverImageUrl = (album: Album): string | null => {
+    if (album.coverImageUrl && !coverImageErrors.has(album.id)) return album.coverImageUrl;
+    const images = albumImagesMap.get(album.id) || album.images || [];
+    const first = images[0];
+    if (!first) return null;
+    return getThumbnailUrl(first) || getImageUrl(first);
   };
 
   const qrData = useMemo(() => {
@@ -1280,216 +1270,186 @@ const StudioCheckout: React.FC = () => {
         </div>
       )}
 
-      {/* Albums List */}
-      <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
+      {/* Albums Grid – same layout as PhotoStudioAlbum */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900">Select Albums & Images</h2>
           <p className="text-sm text-gray-500">
-            Click albums to select, expand to see images inside.
+            Select an album, then choose images for checkout.
           </p>
         </div>
 
         {albums.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            No albums available. Create albums first.
+          <div className="text-center py-16 text-gray-500">
+            <FaFolder className="mx-auto mb-4 text-5xl text-gray-300" />
+            <p className="text-lg font-medium mb-2">No albums available</p>
+            <p className="text-sm">Create albums first in Photo Albums.</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 items-start">
             {albums.map((album) => {
               const isSelected = selectedAlbums.has(album.id);
               const isExpanded = expandedAlbums.has(album.id);
               const albumImageIds = selectedImages.get(album.id) || new Set<number>();
-              // Use images from map if available, otherwise from album data
               const albumImages = albumImagesMap.get(album.id) || album.images || [];
               const allSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
-              // Check if another album is selected (disable this checkbox if another album is selected and this one is not)
               const hasOtherSelection = selectedAlbums.size > 0 && !isSelected;
               const isDisabled = hasOtherSelection;
+              const coverUrl = getCoverImageUrl(album);
 
               return (
                 <div
                   key={album.id}
-                  className={`border rounded-xl overflow-hidden transition-all ${
-                    isSelected ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50' : 'border-gray-200'
-                  } ${isDisabled ? 'opacity-50' : ''}`}
+                  className={`rounded-2xl border overflow-visible transition-all ${
+                    isSelected ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50 shadow-lg' : 'border-gray-100 shadow-sm hover:shadow-md'
+                  } ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}
                 >
-                  {/* Album Header */}
-                  <div className="flex items-center justify-between p-4 bg-white">
-                    <div className="flex items-center space-x-4 flex-1">
-                      <button
-                        onClick={() => toggleAlbum(album.id)}
-                        disabled={isDisabled}
-                        className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
-                          isSelected 
-                            ? 'bg-[#2731db] border-[#2731db]' 
-                            : isDisabled
-                            ? 'border-gray-200 bg-gray-100 cursor-not-allowed'
-                            : 'border-gray-300 hover:border-gray-400 cursor-pointer'
-                        }`}
-                      >
-                        {isSelected && <FaCheck className="text-white text-xs" />}
-                      </button>
-                      
-                      <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                        {album.coverImageUrl ? (
-                          <img
-                            src={album.coverImageUrl}
-                            alt={album.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        ) : (
-                          <FaFolder className="text-2xl text-gray-400" />
-                        )}
-                      </div>
-
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900">{album.name}</h3>
-                        {album.description && (
-                          <p className="text-sm text-gray-500">{album.description}</p>
-                        )}
-                        <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
-                          <span>{albumImages.length} images</span>
-                          {albumImageIds.size > 0 && (
-                            <span className="text-[#2731db] font-medium">
-                              {albumImageIds.size} selected
-                            </span>
-                          )}
+                  {/* Card: cover + name + count + expand */}
+                  <div className="overflow-hidden rounded-t-2xl">
+                    <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200">
+                      {coverUrl ? (
+                        <img
+                          src={coverUrl}
+                          alt={album.name}
+                          className="w-full h-full object-cover"
+                          onError={() => setCoverImageErrors((prev) => new Set(prev).add(album.id))}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <FaFolder className="text-5xl text-gray-300" />
                         </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                      <div className="absolute top-2 left-2">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); if (!isDisabled) toggleAlbum(album.id); }}
+                          className="p-1.5 rounded-lg bg-white/90 hover:bg-white shadow-sm"
+                          title={isSelected ? 'Unselect album' : 'Select album'}
+                        >
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${isSelected ? 'border-[#2731db] bg-[#2731db]' : 'border-gray-400 bg-white'}`}>
+                            {isSelected && <FaCheck className="h-2.5 w-2.5 text-white" />}
+                          </div>
+                        </button>
                       </div>
                     </div>
-
-                    <button
-                      onClick={() => toggleAlbumExpand(album.id)}
-                      className="ml-4 px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-50"
-                    >
-                      <FaChevronRight
-                        className={`text-gray-400 transition-transform duration-200 ${
-                          isExpanded ? 'transform rotate-90' : ''
-                        }`}
-                      />
-                    </button>
-                  </div>
-
-                  {/* Album Images (shown when expanded) - Show all images for selection */}
-                  {isExpanded && albumImages.length > 0 && (
-                    <div className="border-t border-gray-200 p-4 bg-gray-50">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-sm font-semibold text-gray-900">
-                          {isSelected ? 'Select Images' : 'Album Images'}
-                          {isSelected && albumImageIds.size > 0 && (
-                            <span className="ml-2 text-[#2731db] font-medium">
-                              ({albumImageIds.size} of {albumImages.length} selected)
-                            </span>
-                          )}
-                        </h4>
-                        {isSelected && (
-                          <button
-                            onClick={() => selectAllImagesInAlbum(album.id)}
-                            className="text-xs text-[#2731db] hover:underline"
-                          >
-                            {allSelected ? 'Deselect All' : 'Select All'}
-                          </button>
+                    <div className="p-4 bg-white">
+                      <h3 className="font-semibold text-gray-900 truncate capitalize">{album.name}</h3>
+                      <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
+                        <FaImages className="h-3.5 w-3 shrink-0" />
+                        {albumImages.length} {albumImages.length === 1 ? 'image' : 'images'}
+                        {albumImageIds.size > 0 && (
+                          <span className="text-[#2731db] font-medium ml-1">
+                            · {albumImageIds.size} selected
+                          </span>
                         )}
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                        {albumImages.map((image) => {
-                            const isImageSelected = albumImageIds.has(image.id);
-                            const imageUrl = getImageUrl(image);
-                            const thumbUrl = getThumbnailUrl(image);
-                            const filename = getImageFilename(image);
-                            const fileType = getFileType(image);
-                            const canView = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
-                            
-                            // Calculate price for this image
-                            const imagePrice = album.perPhotoPrice && album.perPhotoPrice > 0
-                              ? album.perPhotoPrice
-                              : (perPhotoPrice > 0 ? perPhotoPrice : PRICE_PER_IMAGE);
-                            
-                            // Check if all images in album are selected
-                            const allImagesSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
-
-                            return (
-                              <div
-                                key={image.id}
-                                className={`relative rounded-lg overflow-hidden border cursor-pointer transition-all ${
-                                  isImageSelected
-                                    ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50'
-                                    : 'border-gray-200'
-                                }`}
-                                onClick={() => {
-                                  if (!isSelected) {
-                                    // Select album first if not selected, then select only this image
-                                    setSelectedAlbums(prev => {
-                                      const next = new Set(prev);
-                                      next.add(album.id);
-                                      return next;
-                                    });
-                                    // Select only this specific image (not all images)
-                                    setSelectedImages(prev => {
-                                      const next = new Map(prev);
-                                      const imageSet = new Set<number>();
-                                      imageSet.add(image.id);
-                                      next.set(album.id, imageSet);
-                                      return next;
-                                    });
-                                  } else {
-                                    toggleImageSelection(album.id, image.id);
-                                  }
-                                }}
-                              >
-                                <div className="aspect-square bg-gray-100 overflow-hidden relative">
-                                  {canView ? (
-                                    <>
-                                      <img
-                                        src={(thumbUrl || imageUrl)!}
-                                        alt={filename}
-                                        className="w-full h-full object-cover"
-                                      />
-                                      <div className="absolute top-2 right-2">
-                                        <div
-                                          className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                                            isImageSelected
-                                              ? 'bg-[#2731db] text-white'
-                                              : 'bg-white bg-opacity-80 border-2 border-gray-300'
-                                          }`}
-                                        >
-                                          {isImageSelected && <FaCheck className="text-xs" />}
-                                        </div>
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <div className="flex items-center justify-center h-full text-gray-500 text-xs">
-                                      {fileType.toUpperCase()}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="p-2 bg-white">
-                                  <p className="text-xs text-gray-900 truncate" title={filename}>
-                                    {filename}
-                                  </p>
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    {(() => {
-                                      const allImagesSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
-                                      if (allImagesSelected && album.perAlbumPrice && album.perAlbumPrice > 0) {
-                                        return `₹${album.perAlbumPrice} (album)`;
-                                      }
-                                      return imagePrice > 0 ? `₹${imagePrice}` : 'Free';
-                                    })()}
-                                  </p>
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
+                      </p>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); if (!isDisabled) toggleAlbumExpand(album.id); }}
+                        className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-800 hover:bg-gray-50 hover:border-[#2731db]/30 transition-colors"
+                      >
+                        {isExpanded ? 'Hide images' : 'Choose images'}
+                        <FaChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                      </button>
                     </div>
-                  )}
+                  </div>
                 </div>
               );
             })}
           </div>
+
+          {/* Full-width Select images panel at bottom (when one album expanded) */}
+          {expandedAlbums.size === 1 && (() => {
+            const albumId = Array.from(expandedAlbums)[0];
+            const album = albums.find((a) => a.id === albumId);
+            if (!album) return null;
+            const albumImageIds = selectedImages.get(album.id) || new Set<number>();
+            const albumImages = albumImagesMap.get(album.id) || album.images || [];
+            const allSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
+            const isSelected = selectedAlbums.has(album.id);
+            return (
+              <div className="border-t border-gray-200 bg-gray-50 flex flex-col flex-shrink-0 w-full mt-4 h-full rounded-b-2xl overflow-hidden max-h-[min(55vh,420px)]">
+                <div className="flex-shrink-0 flex items-center justify-between gap-2 px-4 py-3 bg-white border-b border-gray-100">
+                  <h4 className="text-sm font-semibold text-gray-900">
+                    Select images – {album.name}
+                    {isSelected && albumImageIds.size > 0 && (
+                      <span className="ml-2 text-[#2731db] font-medium">({albumImageIds.size} of {albumImages.length})</span>
+                    )}
+                  </h4>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleAlbumExpand(album.id)}
+                      className="text-sm font-medium text-gray-600 hover:text-gray-900"
+                    >
+                      Hide
+                    </button>
+                    {isSelected && (
+                      <button type="button" onClick={() => selectAllImagesInAlbum(album.id)} className="text-sm text-[#2731db] hover:underline font-medium">
+                        {allSelected ? 'Deselect All' : 'Select All'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto p-4">
+                  {albumImages.length > 0 ? (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                      {albumImages.map((image) => {
+                        const isImageSelected = albumImageIds.has(image.id);
+                        const imageUrl = getImageUrl(image);
+                        const thumbUrl = getThumbnailUrl(image);
+                        const filename = getImageFilename(image);
+                        const fileType = getFileType(image);
+                        const canView = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                        const imagePrice = album.perPhotoPrice && album.perPhotoPrice > 0
+                          ? album.perPhotoPrice
+                          : (perPhotoPrice > 0 ? perPhotoPrice : PRICE_PER_IMAGE);
+                        return (
+                          <button
+                            key={image.id}
+                            type="button"
+                            onClick={() => {
+                              if (!isSelected) {
+                                setSelectedAlbums((prev) => { const next = new Set(prev); next.add(album.id); return next; });
+                                setSelectedImages((prev) => { const next = new Map(prev); next.set(album.id, new Set([image.id])); return next; });
+                              } else {
+                                toggleImageSelection(album.id, image.id);
+                              }
+                            }}
+                            className={`w-full text-left rounded-xl overflow-hidden bg-white p-2 border-2 transition-all hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2731db] ${
+                              isImageSelected ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-40 shadow-md' : 'border-transparent hover:border-gray-200 shadow-sm'
+                            }`}
+                          >
+                            <div className="aspect-square rounded-lg bg-gray-100 overflow-hidden relative mb-2">
+                              {canView ? (
+                                <>
+                                  <img src={(thumbUrl || imageUrl)!} alt={filename} className="w-full h-full object-cover" />
+                                  <div className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center shadow-sm ${isImageSelected ? 'bg-[#2731db] text-white' : 'bg-white/90 border-2 border-gray-300'}`}>
+                                    {isImageSelected && <FaCheck className="text-sm" />}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="flex items-center justify-center h-full text-gray-500 text-xs">{fileType.toUpperCase()}</div>
+                              )}
+                            </div>
+                            <p className="text-sm font-medium text-gray-900 truncate" style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }} title={filename}>{filename}</p>
+                            <p className="text-sm font-bold text-gray-700 mt-0.5">
+                              {allSelected && album.perAlbumPrice && album.perAlbumPrice > 0 ? `₹${album.perAlbumPrice} (album)` : imagePrice > 0 ? `₹${imagePrice}` : 'Free'}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500 text-sm">Loading images…</div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+          </>
         )}
       </div>
     </div>

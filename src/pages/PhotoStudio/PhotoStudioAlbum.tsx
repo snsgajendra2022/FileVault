@@ -14,7 +14,8 @@ import {
   FaEdit,
   FaShare,
   FaUserFriends,
-  FaCopy
+  FaCopy,
+  FaTrash
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -103,6 +104,9 @@ const PhotoStudioAlbum: React.FC = () => {
   const [editPerPhotoPrice, setEditPerPhotoPrice] = useState('');
   const [editAlbumIsPublic, setEditAlbumIsPublic] = useState(false);
   const [albumSearch, setAlbumSearch] = useState('');
+  const [viewingAlbumId, setViewingAlbumId] = useState<number | null>(null);
+  const [menuOpenAlbumId, setMenuOpenAlbumId] = useState<number | null>(null);
+  const [albumSort, setAlbumSort] = useState<'name' | 'date'>('date');
   const ALBUMS_PAGE_SIZE = 20;
   const USER_IMAGES_PAGE_SIZE = 20;
   const loadMoreAlbumsRef = useRef<HTMLDivElement | null>(null);
@@ -162,12 +166,13 @@ const PhotoStudioAlbum: React.FC = () => {
     },
     initialPageParam: 0,
     initialData: () => ({ pages: [], pageParams: [0] as number[] }),
+    placeholderData: (prev) => prev ?? { pages: [], pageParams: [0] as number[] },
     getNextPageParam: (lastPage: unknown): number | undefined => {
       if (lastPage == null || typeof lastPage !== 'object') return undefined;
       const p = lastPage as { page?: number; totalPages?: number };
-      const page = Number(p?.page ?? 0);
       const totalPages = Number(p?.totalPages ?? 1);
       if (!Number.isFinite(totalPages) || totalPages < 1) return undefined;
+      const page = Number(p?.page ?? 0);
       return page + 1 < totalPages ? page + 1 : undefined;
     },
     retry: 1,
@@ -210,12 +215,13 @@ const PhotoStudioAlbum: React.FC = () => {
     },
     initialPageParam: 0,
     initialData: () => ({ pages: [], pageParams: [0] as number[] }),
+    placeholderData: (prev) => prev ?? { pages: [], pageParams: [0] as number[] },
     getNextPageParam: (lastPage: unknown): number | undefined => {
       if (lastPage == null || typeof lastPage !== 'object') return undefined;
       const p = lastPage as { page?: number; totalPages?: number };
-      const page = Number(p?.page ?? 0);
       const totalPages = Number(p?.totalPages ?? 1);
       if (!Number.isFinite(totalPages) || totalPages < 1) return undefined;
+      const page = Number(p?.page ?? 0);
       return page + 1 < totalPages ? page + 1 : undefined;
     },
     retry: 2,
@@ -224,19 +230,23 @@ const PhotoStudioAlbum: React.FC = () => {
   });
 
   const albums = useMemo(() => {
-    if (!albumsData?.pages?.length) return [];
-    return albumsData.pages.flatMap((p) => (p && (p as { albums?: Album[] }).albums) ?? []);
+    const pages = albumsData?.pages;
+    if (!pages || !Array.isArray(pages) || pages.length === 0) return [];
+    return pages.flatMap((p) => (p && (p as { albums?: Album[] }).albums) ?? []);
   }, [albumsData]);
 
   const albumsTotal = useMemo(() => {
-    const first = albumsData?.pages?.[0] as { total?: number } | undefined;
+    const pages = albumsData?.pages;
+    if (!pages || !Array.isArray(pages) || pages.length === 0) return albums.length;
+    const first = pages[0] as { total?: number } | undefined;
     if (!first) return albums.length;
     return first.total ?? albums.length;
   }, [albumsData, albums.length]);
 
   const userImages = useMemo(() => {
-    if (!userImagesData?.pages?.length) return [];
-    return userImagesData.pages.flatMap((p) => (p as UserImagesResponse).images ?? []);
+    const pages = userImagesData?.pages;
+    if (!pages || !Array.isArray(pages) || pages.length === 0) return [];
+    return pages.flatMap((p) => (p as UserImagesResponse).images ?? []);
   }, [userImagesData]);
 
   const filteredAlbums = useMemo(() => {
@@ -244,6 +254,20 @@ const PhotoStudioAlbum: React.FC = () => {
     const q = albumSearch.toLowerCase();
     return albums.filter((album) => album.name.toLowerCase().includes(q));
   }, [albums, albumSearch]);
+
+  const filteredAndSortedAlbums = useMemo(() => {
+    const list = [...filteredAlbums];
+    if (albumSort === 'name') {
+      list.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+    } else {
+      list.sort((a, b) => {
+        const da = a.updatedAt || a.createdAt ? new Date(a.updatedAt || a.createdAt!).getTime() : 0;
+        const db = b.updatedAt || b.createdAt ? new Date(b.updatedAt || b.createdAt!).getTime() : 0;
+        return db - da;
+      });
+    }
+    return list;
+  }, [filteredAlbums, albumSort]);
 
   // Populate album images from album data when albums are loaded
   useEffect(() => {
@@ -374,6 +398,28 @@ const PhotoStudioAlbum: React.FC = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to update album');
+    },
+  });
+
+  // Delete album mutation
+  const deleteAlbumMutation = useMutation({
+    mutationFn: async (albumId: number) => {
+      const response = await api.delete(`/api/albums/${albumId}`);
+      return response.data;
+    },
+    onSuccess: (_, albumId) => {
+      queryClient.invalidateQueries({ queryKey: ['albums'] });
+      setAlbumImages((prev) => {
+        const next = new Map(prev);
+        next.delete(albumId);
+        return next;
+      });
+      setMenuOpenAlbumId(null);
+      setViewingAlbumId((id) => (id === albumId ? null : id));
+      toast.success('Album deleted');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete album');
     },
   });
 
@@ -625,6 +671,15 @@ const PhotoStudioAlbum: React.FC = () => {
     const extension = filename.split('.').pop()?.toLowerCase() || '';
     return extension || image.fileType || 'unknown';
   };
+
+  // Cover image: album.coverImageUrl or first image in album
+  const getCoverImageUrl = useCallback((album: Album): string | null => {
+    if (album.coverImageUrl && !coverImageErrors.has(album.id)) return album.coverImageUrl;
+    const images = albumImages.get(album.id) || extractAlbumImages(album);
+    const first = images[0];
+    if (!first) return null;
+    return getThumbnailUrl(first) || getImageUrl(first);
+  }, [albumImages, coverImageErrors, extractAlbumImages, getThumbnailUrl, getImageUrl]);
 
   // Share link: images from selected albums (for building public URLs)
   const shareLinkSelectedImages = useMemo((): AlbumImage[] => {
@@ -940,15 +995,28 @@ const PhotoStudioAlbum: React.FC = () => {
   }
   if (isLoading) {
     return (
-      <DashboardLoading 
-        title="Loading Albums"
-        subtitle="Fetching your photo collections..."
-        icon={FaFolder}
-        features={[
-          { icon: FaFolder, label: 'Albums' },
-          { icon: FaImages, label: 'Photos' }
-        ]}
-      />
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+              <FaFolder className="mr-3 text-[#2731db]" />
+              Photo Albums
+            </h1>
+            <p className="text-gray-600 mt-2">Create albums and organize your photos.</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="rounded-2xl overflow-hidden bg-white border border-gray-100 shadow-sm animate-pulse">
+              <div className="aspect-[4/3] bg-gray-200" />
+              <div className="p-4 space-y-2">
+                <div className="h-4 bg-gray-200 rounded w-3/4" />
+                <div className="h-3 bg-gray-100 rounded w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     );
   }
 
@@ -1220,293 +1288,263 @@ const PhotoStudioAlbum: React.FC = () => {
         </div>
       )}
 
-      {/* Albums List */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-2">
-        <div className="text-left flex flex-wrap items-center gap-2">
-          <p className="text-sm text-gray-500">Total albums:</p>
-          <p className="text-2xl font-bold text-gray-900">{albumsTotal}</p>
-        </div>
-        <div className="flex items-center space-x-2 max-w-sm w-full">
-          <FaSearch className="text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search albums by name..."
-            value={albumSearch}
-            onChange={(e) => setAlbumSearch(e.target.value)}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db] text-sm"
-          />
-        </div>
-      </div>
-      <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-        {filteredAlbums.length === 0 ? (
-          <div className="text-center py-16 text-gray-500">
-            <FaFolder className="mx-auto mb-4 text-5xl text-gray-300" />
-            <p className="text-lg font-medium mb-2">No albums found</p>
-            <p className="text-sm mb-4">Create your first album to get started.</p>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors"
-            >
-              Create Album
-            </button>
-          </div>
-        ) : (
-          <>
-          <div className="space-y-3">
-            {filteredAlbums.map((album) => {
-              const isExpanded = expandedAlbums.has(album.id);
-              const isSelectedAlbum = selectedAlbums.has(album.id);
-              return (
-                <div
-                  key={album.id}
-                  className="border border-gray-200 rounded-xl overflow-hidden bg-white hover:shadow-md transition-shadow"
+      {/* Album Grid (main) or Album Detail (single album) */}
+      {viewingAlbumId !== null ? (
+        /* Album Detail View – single album with back button and image grid */
+        (() => {
+          const album = albums.find((a) => a.id === viewingAlbumId);
+          if (!album) {
+            return (
+              <div className="flex flex-col items-center justify-center py-16 text-gray-500">
+                <p className="mb-4">Album not found.</p>
+                <button type="button" onClick={() => setViewingAlbumId(null)} className="px-4 py-2 rounded-xl bg-[#2731db] text-white">
+                  Back to albums
+                </button>
+              </div>
+            );
+          }
+          const images = albumImages.get(album.id) || extractAlbumImages(album);
+          return (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setViewingAlbumId(null)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium"
                 >
-                  {/* Album Header */}
-                  <div className="flex items-center justify-between p-4">
+                  <FaChevronLeft className="h-4 w-4" />
+                  Back to albums
+                </button>
+                <h2 className="text-xl font-semibold text-gray-900 truncate flex-1">{album.name}</h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedImages(new Set()); setShowAddImagesModal(album.id); }}
+                    className="px-4 py-2 rounded-xl bg-[#2731db] text-white hover:bg-blue-700 text-sm font-medium"
+                  >
+                    <FaPlus className="mr-1 inline" />
+                    Upload Images
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPendingAlbumIds([album.id]); setShowTemplateModal(true); }}
+                    disabled={isTransferringToPhotoBook}
+                    className="px-4 py-2 rounded-xl bg-[#111827] text-white hover:bg-slate-800 text-sm font-medium disabled:opacity-60"
+                  >
+                    <FaFolderOpen className="mr-1 inline" />
+                    PhotoBook
+                  </button>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                {images.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {images.map((image, index) => {
+                      const imageUrl = getImageUrl(image);
+                      const thumbUrl = getThumbnailUrl(image);
+                      const fileType = getFileType(image);
+                      const filename = getImageFilename(image);
+                      const canViewFullScreen = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                      return (
+                        <div
+                          key={image.id}
+                          className={`relative rounded-xl overflow-hidden border border-gray-100 bg-white shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200 group ${canViewFullScreen ? 'cursor-pointer' : ''}`}
+                          onClick={() => {
+                            if (canViewFullScreen) setFullScreenImage({ image, albumId: album.id, index });
+                          }}
+                        >
+                          <div className="aspect-square bg-gray-100 overflow-hidden relative">
+                            {canViewFullScreen ? (
+                              <>
+                                <img
+                                  src={(thumbUrl || imageUrl)!}
+                                  alt={filename}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                  <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium">View</span>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex items-center justify-center h-full text-gray-500 text-xs">{fileType.toUpperCase() || 'FILE'}</div>
+                            )}
+                          </div>
+                          <div className="p-2 bg-white">
+                            <p className="text-xs text-gray-700 truncate" title={filename}>{filename}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-16 text-gray-500">
+                    <FaImages className="mx-auto mb-3 text-5xl text-gray-300" />
+                    <p className="text-lg font-medium mb-2">No images in this album yet</p>
+                    <p className="text-sm mb-4">Upload images to get started.</p>
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleAlbumSelection(album.id);
-                      }}
-                      className="mr-3 flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50"
-                      title={isSelectedAlbum ? 'Unselect album' : 'Select album'}
+                      onClick={() => { setSelectedImages(new Set()); setShowAddImagesModal(album.id); }}
+                      className="px-4 py-2 rounded-xl bg-[#2731db] text-white hover:bg-blue-700"
                     >
-                      <div
-                        className={[
-                          'h-5 w-5 rounded border-2 transition-colors',
-                          isSelectedAlbum ? 'border-[#2731db] bg-[#2731db]' : 'border-gray-300 bg-white',
-                        ].join(' ')}
-                      >
-                        {isSelectedAlbum ? <FaCheck className="h-4 w-4 text-white" /> : null}
-                      </div>
+                      <FaPlus className="mr-1 inline" />
+                      Upload Images
                     </button>
-                    <button
-                      onClick={() => toggleAlbum(album.id)}
-                      className="flex-1 flex items-center space-x-4 text-left"
-                    >
-                      <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0 overflow-hidden relative">
-                        {album.coverImageUrl && !coverImageErrors.has(album.id) ? (
-                          <img
-                            src={album.coverImageUrl}
-                            alt={album.name}
-                            className="w-full h-full object-cover"
-                            onError={() => {
-                              setCoverImageErrors((prev) => new Set(prev).add(album.id));
-                            }}
-                          />
-                        ) : (
-                          <>
-                            {isExpanded ? (
-                              <FaFolderOpen className="text-2xl text-[#2731db]" />
-                            ) : (
-                              <FaFolder className="text-2xl text-gray-400" />
-                            )}
-                          </>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <h3 style={{ textTransform: 'capitalize' }} className=" text-lg font-semibold text-gray-900 mb-1">
-                          {album.name}
-                        </h3>
-                        {album.description && (
-                          <p className="text-sm text-gray-500 mb-2">{album.description}</p>
-                        )}
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
-                          {album.imageCount !== undefined && (
-                            <span className="flex items-center">
-                              <FaImages className="mr-1" />
-                              {album.imageCount} {album.imageCount === 1 ? 'image' : 'images'}
-                            </span>
-                          )}
-                          {album.createdAt && (
-                            <span>
-                              Created: {new Date(album.createdAt).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <FaChevronRight
-                        className={`text-gray-400 transition-transform duration-200 ${
-                          isExpanded ? 'transform rotate-90' : ''
-                        }`}
-                      />
-                    </button>
-                    <div className="flex items-center space-x-2 ml-4">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPendingAlbumIds([album.id]);
-                          setShowTemplateModal(true);
-                        }}
-                        disabled={isTransferringToPhotoBook}
-                        className="flex px-4 py-2 rounded-lg bg-[#111827] text-white hover:bg-slate-800 transition-colors text-sm disabled:opacity-60"
-                        title="Open in PhotoBook"
-                      >
-                        <FaFolderOpen className="mr-1" />
-                        PhotoBook
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditAlbum(album);
-                        }}
-                        className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors text-sm"
-                        title="Edit Album"
-                      >
-                        <FaEdit />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleShareAlbum(album);
-                        }}
-                        className="px-3 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors text-sm"
-                        title="Share Album"
-                      >
-                        <FaShare />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedImages(new Set());
-                          setShowAddImagesModal(album.id);
-                        }}
-                        className="flex px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors text-sm"
-                      >
-                        <FaPlus className="mr-1" />
-                        Add Images
-                      </button>
-                    </div>
                   </div>
-
-                  {/* Album Details (shown when expanded) */}
-                  {isExpanded && (
-                    <div className="border-t border-gray-200 p-4 bg-gray-50">
-                      {/* Album Info */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
-                        {album.createdAt && (
-                          <div>
-                            <p className="text-gray-500 mb-1">Created</p>
-                            <p className="text-gray-700">
-                              {new Date(album.createdAt).toLocaleString()}
-                            </p>
-                          </div>
-                        )}
-                        {album.updatedAt && (
-                          <div>
-                            <p className="text-gray-500 mb-1">Last Updated</p>
-                            <p className="text-gray-700">
-                              {new Date(album.updatedAt).toLocaleString()}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Album Images */}
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="mb-3 flex items-center justify-between gap-3">
-                          <h4 className="text-sm font-semibold text-gray-900 flex items-center">
-                            <FaImages className="mr-2 text-[#2731db]" />
-                            Images in Album
-                          </h4>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPendingAlbumIds([album.id]);
-                              setShowTemplateModal(true);
-                            }}
-                            disabled={isTransferringToPhotoBook}
-                            className="rounded-lg bg-[#111827] px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-60"
-                          >
-                            Transfer this album
-                          </button>
-                        </div>
-                        
-                        {(() => {
-                          const images = albumImages.get(album.id) || extractAlbumImages(album);
-                          if (images.length > 0) {
-                            return (
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                                {images.map((image, index) => {
-                                  const imageUrl = getImageUrl(image);
-                                  const thumbUrl = getThumbnailUrl(image);
-                                  const fileType = getFileType(image);
-                                  const filename = getImageFilename(image);
-                                  const canViewFullScreen = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
-                                  
-                                  return (
-                                    <div
-                                      key={image.id}
-                                      className={`relative rounded-lg overflow-hidden border border-gray-200 bg-white hover:shadow-md transition-shadow group ${
-                                        canViewFullScreen ? 'cursor-pointer' : ''
-                                      }`}
-                                      onClick={() => {
-                                        if (canViewFullScreen) {
-                                          setFullScreenImage({ image, albumId: album.id, index });
-                                        }
-                                      }}
-                                    >
-                                      <div className="aspect-square bg-gray-100 overflow-hidden relative">
-                                        {canViewFullScreen ? (
-                                          <>
-                                            <img
-                                              src={(thumbUrl || imageUrl)!}
-                                              alt={filename}
-                                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                              onError={(e) => {
-                                                (e.target as HTMLImageElement).style.display = 'none';
-                                              }}
-                                            />
-                                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity flex items-center justify-center">
-                                              <div className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-xl font-semibold">
-                                                View
-                                              </div>
-                                            </div>
-                                          </>
-                                        ) : (
-                                          <div className="flex items-center justify-center h-full text-gray-500 text-xs">
-                                            {fileType.toUpperCase() || 'FILE'}
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="p-2 bg-white">
-                                        <p className="text-xs text-gray-900 truncate" title={filename}>
-                                          {filename}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            );
-                          } else {
-                            return (
-                              <div className="text-center py-8 text-gray-500">
-                                <FaImages className="mx-auto mb-2 text-3xl text-gray-300" />
-                                <p className="text-sm">No images in this album yet</p>
-                                <p className="text-xs text-gray-400 mt-1">Click "Add Images" to add photos</p>
-                              </div>
-                            );
-                          }
-                        })()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          {filteredAlbums.length > 0 && <div ref={loadMoreAlbumsRef} className="h-4" aria-hidden />}
-          {filteredAlbums.length > 0 && isFetchingMoreAlbums && (
-            <div className="flex justify-center py-4">
-              <LoadingSpinner size="md" text="Loading more..." />
+                )}
+              </div>
             </div>
-          )}
-          </>
-        )}
-      </div>
+          );
+        })()
+      ) : (
+        /* Album Grid – card-based main view */
+        <>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm text-gray-500">Total albums:</p>
+              <p className="text-2xl font-bold text-gray-900">{albumsTotal}</p>
+              <div className="flex items-center gap-2 ml-2">
+                <select
+                  value={albumSort}
+                  onChange={(e) => setAlbumSort(e.target.value as 'name' | 'date')}
+                  className="border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-[#2731db] focus:border-[#2731db]"
+                >
+                  <option value="date">Sort by date</option>
+                  <option value="name">Sort by name</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 max-w-xs w-full sm:max-w-sm">
+              <FaSearch className="text-gray-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Search albums..."
+                value={albumSearch}
+                onChange={(e) => setAlbumSearch(e.target.value)}
+                className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2731db] text-sm"
+              />
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            {filteredAndSortedAlbums.length === 0 ? (
+              <div className="text-center py-20 text-gray-500">
+                <FaFolder className="mx-auto mb-4 text-6xl text-gray-300" />
+                <p className="text-xl font-medium mb-2">No Albums Found</p>
+                <p className="text-sm mb-6">Create your first album to get started.</p>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-5 py-2.5 rounded-xl bg-[#2731db] text-white hover:bg-blue-700 transition-colors font-medium shadow-sm"
+                >
+                  Create Album
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                  {filteredAndSortedAlbums.map((album) => {
+                    const coverUrl = getCoverImageUrl(album);
+                    const isMenuOpen = menuOpenAlbumId === album.id;
+                    const count = album.imageCount ?? (albumImages.get(album.id) || extractAlbumImages(album)).length;
+                    return (
+                      <div
+                        key={album.id}
+                        className="group relative bg-white rounded-2xl border border-gray-100 shadow-sm overflow-visible hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+                      >
+                        {/* Card click → open album detail */}
+                        <button
+                          type="button"
+                          className="w-full text-left block"
+                          onClick={() => {
+                            setAlbumImages((prev) => {
+                              const next = new Map(prev);
+                              next.set(album.id, extractAlbumImages(album));
+                              return next;
+                            });
+                            setViewingAlbumId(album.id);
+                            setMenuOpenAlbumId(null);
+                          }}
+                        >
+                          {/* Cover with gradient overlay */}
+                          <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden rounded-t-2xl">
+                            {coverUrl ? (
+                              <img
+                                src={coverUrl}
+                                alt={album.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                onError={() => setCoverImageErrors((prev) => new Set(prev).add(album.id))}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <FaFolder className="text-5xl text-gray-300" />
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                            {/* 3-dot menu (stops propagation) */}
+                            <div className="absolute top-2 right-2 flex flex-col items-end">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  setMenuOpenAlbumId((id) => (id === album.id ? null : album.id));
+                                }}
+                                className="p-2 rounded-full bg-white/90 hover:bg-white shadow-sm text-gray-700"
+                                aria-label="Menu"
+                              >
+                                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 16 16" aria-hidden><circle cx="8" cy="2" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="8" cy="14" r="1.5" /></svg>
+                              </button>
+                              {isMenuOpen && (
+                                <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] py-1 bg-white rounded-xl shadow-lg border border-gray-200">
+                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); setAlbumImages((prev) => { const n = new Map(prev); n.set(album.id, extractAlbumImages(album)); return n; }); setViewingAlbumId(album.id); setMenuOpenAlbumId(null); }}><FaFolderOpen className="h-4 w-4" /> View Album</button>
+                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); setSelectedImages(new Set()); setShowAddImagesModal(album.id); setMenuOpenAlbumId(null); }}><FaPlus className="h-4 w-4" /> Upload Images</button>
+                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); handleEditAlbum(album); setMenuOpenAlbumId(null); }}><FaEdit className="h-4 w-4" /> Rename Album</button>
+                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete "${album.name}"? This cannot be undone.`)) deleteAlbumMutation.mutate(album.id); setMenuOpenAlbumId(null); }}><FaTrash className="h-4 w-4" /> Delete Album</button>
+                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); handleShareAlbum(album); setMenuOpenAlbumId(null); }}><FaShare className="h-4 w-4" /> Share Album</button>
+                                </div>
+                              )}
+                            </div>
+                            {/* Selection checkbox (for Transfer/Share) */}
+                            <div className="absolute top-2 left-2" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleAlbumSelection(album.id);
+                                }}
+                                className="p-1.5 rounded-lg bg-white/90 hover:bg-white shadow-sm"
+                                title={selectedAlbums.has(album.id) ? 'Unselect' : 'Select'}
+                              >
+                                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${selectedAlbums.has(album.id) ? 'border-[#2731db] bg-[#2731db]' : 'border-gray-400 bg-white'}`}>
+                                  {selectedAlbums.has(album.id) && <FaCheck className="h-2.5 w-2.5 text-white" />}
+                                </div>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="p-4">
+                            <h3 className="font-semibold text-gray-900 truncate capitalize">{album.name}</h3>
+                            <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
+                              <FaImages className="h-3.5 w-3 shrink-0" />
+                              {count} {count === 1 ? 'Photo' : 'Photos'}
+                            </p>
+                          </div>
+                        </button>
+                        {/* Backdrop to close menu when open (for mobile tap-outside) */}
+                        {isMenuOpen && <div className="fixed inset-0 z-30" onClick={() => setMenuOpenAlbumId(null)} aria-hidden />}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div ref={loadMoreAlbumsRef} className="h-4" aria-hidden />
+                {isFetchingMoreAlbums && (
+                  <div className="flex justify-center py-6">
+                    <LoadingSpinner size="md" text="Loading more..." />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Edit Album Modal */}
       {showEditModal !== null && (
