@@ -119,7 +119,7 @@ const PhotoStudioAlbum: React.FC = () => {
   const [shareLinkNewMobiles, setShareLinkNewMobiles] = useState('');
   const [shareLinkMessage, setShareLinkMessage] = useState('');
   const [shareLinkChannels, setShareLinkChannels] = useState<{ email: boolean; sms: boolean }>({ email: true, sms: true });
-  const [shareLinkUrlType, setShareLinkUrlType] = useState<'checkout' | 'selection' | 'images_display'>('checkout');
+  const [shareLinkUrlType, setShareLinkUrlType] = useState<'checkout' | 'selection' | 'images_display'>('selection');
   const [shareLinkSending, setShareLinkSending] = useState(false);
   const [shareLinkContactSearch, setShareLinkContactSearch] = useState('');
   const [shareLinkAlreadySent, setShareLinkAlreadySent] = useState<{ email?: string; mobile?: string; alreadySent: boolean } | null>(null);
@@ -894,12 +894,11 @@ const PhotoStudioAlbum: React.FC = () => {
     }
   }, [albums, albumImages, extractAlbumImages, getImageFilename, isTransferringToPhotoBook, navigate]);
 
+  /** Single selection only: selecting an album replaces any previous selection. */
   const toggleAlbumSelection = useCallback((albumId: number) => {
     setSelectedAlbums((prev) => {
-      const next = new Set(prev);
-      if (next.has(albumId)) next.delete(albumId);
-      else next.add(albumId);
-      return next;
+      if (prev.has(albumId)) return new Set<number>();
+      return new Set([albumId]);
     });
   }, []);
 
@@ -1048,9 +1047,9 @@ const PhotoStudioAlbum: React.FC = () => {
                       onChange={(e) => setShareLinkUrlType(e.target.value as 'checkout' | 'selection' | 'images_display')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                     >
-                      {/* <option value="checkout">Checkout URL</option> */}
                       <option value="selection">Selection URL</option>
-                      <option value="images_display" disabled={!publicImagesDisplayUrl}>Images display (selected only)</option>
+                      <option value="checkout" disabled>Checkout URL</option>
+                      <option value="images_display" disabled>Images display (selected only)</option>
                     </select>
                   </div>
                   {/* <div>
