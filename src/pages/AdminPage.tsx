@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FaUsers, FaCloud, FaChartBar, FaCog, FaPlus, FaUser, FaShieldAlt, FaRupeeSign } from 'react-icons/fa';
+import { FaUsers, FaCloud, FaChartBar, FaCog, FaPlus, FaUser, FaShieldAlt, FaRupeeSign, FaFlag } from 'react-icons/fa';
 import UserManagement from '../components/admin/UserManagement';
 import ServiceManagement from '../components/admin/ServiceManagement';
 import PlanManagement from '../components/admin/PlanManagement';
+import PaymentManagement from '../components/admin/PaymentManagement';
+import FlagManagement from '../components/admin/FlagManagement';
 import UsageAnalytics from '../components/admin/UsageAnalytics';
 import SystemHealth from '../components/admin/SystemHealth';
-import PaymentManagement from '../components/admin/PaymentManagement';
 import adminService from '../services/adminService';
 import { toast } from 'react-hot-toast';
 
@@ -22,6 +23,7 @@ const AdminPage = () => {
     { id: 'services', name: 'Service Config', icon: FaCloud },
     { id: 'plans', name: 'Plan Management', icon: FaPlus },
     { id: 'payments', name: 'Payment Management', icon: FaRupeeSign },
+    { id: 'flags', name: 'Feature Flags', icon: FaFlag },
     { id: 'analytics', name: 'Usage Analytics', icon: FaChartBar },
     { id: 'health', name: 'System Health', icon: FaShieldAlt },
     { id: 'settings', name: 'Admin Settings', icon: FaCog }
@@ -52,6 +54,8 @@ const AdminPage = () => {
         return <PlanManagement />;
       case 'payments':
         return <PaymentManagement />;
+      case 'flags':
+        return <FlagManagement />;
       case 'analytics':
         return <UsageAnalytics />;
       case 'health':

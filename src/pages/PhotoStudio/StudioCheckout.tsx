@@ -48,6 +48,16 @@ interface UpiSettings {
   perPhotoPrice: number;
 }
 
+/** GET /api/flags – control visibility of email, phone, download, etc. */
+interface FlagItem {
+  name: string;
+  id: number;
+  value: boolean;
+}
+interface FlagsResponse {
+  flags?: FlagItem[];
+}
+
 const PRICE_PER_IMAGE = 0; // Fallback price
 
 const StudioCheckout: React.FC = () => {
@@ -79,6 +89,39 @@ const StudioCheckout: React.FC = () => {
     },
     retry: 1,
   });
+
+  // Feature flags: show/hide email and phone (GET /api/flags)
+  const { data: flagsData } = useQuery({
+    queryKey: ['flags'],
+    queryFn: async () => {
+      const res = await api.get<FlagsResponse>('/api/flags');
+      return res.data;
+    },
+    retry: 1,
+    staleTime: 60_000,
+  });
+  const showEmail = useMemo(() => {
+    const flags = flagsData?.flags;
+    if (!Array.isArray(flags)) return true;
+    const f = flags.find((x) => x.name === 'isEmail');
+    return f?.value ?? true;
+  }, [flagsData]);
+  const showPhone = useMemo(() => {
+    const flags = flagsData?.flags;
+    if (!Array.isArray(flags)) return true;
+    const f = flags.find((x) => x.name === 'isPhone');
+    return f?.value ?? true;
+  }, [flagsData]);
+
+  // When flags hide email/phone, disable those channels
+  useEffect(() => {
+    setShareChannels((c) => {
+      const next = { ...c };
+      if (!showEmail && c.email) next.email = false;
+      if (!showPhone && c.sms) next.sms = false;
+      return next.email === c.email && next.sms === c.sms ? c : next;
+    });
+  }, [showEmail, showPhone]);
 
   // Update local state when UPI settings are loaded
   useEffect(() => {
@@ -445,6 +488,7 @@ const StudioCheckout: React.FC = () => {
       setShortCheckoutUrl('');
       setShortSelectionUrl('');
       setShareLinkId(null);
+      setShareUrlType('selection')
       return;
     }
     const fileNames = explicitlySelectedImages.map(img => getImageFilename(img));
@@ -1089,7 +1133,7 @@ const StudioCheckout: React.FC = () => {
               </button>
             </div>
             <div className="p-4 space-y-4">
-              <div>
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Which link to share</label>
                 <select
                   value={shareUrlType}
@@ -1100,7 +1144,7 @@ const StudioCheckout: React.FC = () => {
                   <option value="selection">Selection URL</option>
                   <option value="images_display" disabled={!publicImagesDisplayUrl}>Images display (selected only)</option>
                 </select>
-              </div>
+              </div> */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Existing contacts</label>
                 <input
@@ -1133,46 +1177,50 @@ const StudioCheckout: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">New recipients – email (comma separated)</label>
-                <input
-                  type="text"
-                  value={shareNewEmails}
-                  onChange={(e) => { setShareNewEmails(e.target.value); setShareAlreadySent(null); }}
-                  onBlur={() => checkRecipient(shareNewEmails, shareNewMobiles)}
-                  placeholder="e.g. a@example.com, b@example.com"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">New recipients – mobile (comma separated)</label>
-                <div className="flex gap-2">
-                  <select
-                    value={shareNewMobileCountryCode}
-                    onChange={(e) => setShareNewMobileCountryCode(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 shrink-0"
-                  >
-                    <option value="+91">+91</option>
-                    <option value="+1">+1</option>
-                    <option value="+44">+44</option>
-                    <option value="+971">+971</option>
-                    <option value="+61">+61</option>
-                    <option value="+81">+81</option>
-                    <option value="+86">+86</option>
-                    <option value="+33">+33</option>
-                    <option value="+49">+49</option>
-                    <option value="+55">+55</option>
-                  </select>
+              {showEmail && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">New recipients – email (comma separated)</label>
                   <input
                     type="text"
-                    value={shareNewMobiles}
-                    onChange={(e) => { setShareNewMobiles(e.target.value); setShareAlreadySent(null); }}
+                    value={shareNewEmails}
+                    onChange={(e) => { setShareNewEmails(e.target.value); setShareAlreadySent(null); }}
                     onBlur={() => checkRecipient(shareNewEmails, shareNewMobiles)}
-                    placeholder="e.g. 9876543210, 9123456789"
-                    className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    placeholder="e.g. a@example.com, b@example.com"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                   />
                 </div>
-              </div>
+              )}
+              {showPhone && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">New recipients – mobile (comma separated)</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={shareNewMobileCountryCode}
+                      onChange={(e) => setShareNewMobileCountryCode(e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 shrink-0"
+                    >
+                      <option value="+91">+91</option>
+                      <option value="+1">+1</option>
+                      <option value="+44">+44</option>
+                      <option value="+971">+971</option>
+                      <option value="+61">+61</option>
+                      <option value="+81">+81</option>
+                      <option value="+86">+86</option>
+                      <option value="+33">+33</option>
+                      <option value="+49">+49</option>
+                      <option value="+55">+55</option>
+                    </select>
+                    <input
+                      type="text"
+                      value={shareNewMobiles}
+                      onChange={(e) => { setShareNewMobiles(e.target.value); setShareAlreadySent(null); }}
+                      onBlur={() => checkRecipient(shareNewEmails, shareNewMobiles)}
+                      placeholder="e.g. 9876543210, 9123456789"
+                      className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+              )}
               {shareAlreadySent?.alreadySent && (
                 <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
                   Already sent to this {shareAlreadySent.email ? 'email' : 'mobile'}. You can resend if needed.
@@ -1189,24 +1237,28 @@ const StudioCheckout: React.FC = () => {
                 />
               </div>
               <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={shareChannels.email}
-                    onChange={(e) => setShareChannels((c) => ({ ...c, email: e.target.checked }))}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="text-sm">Send via Email</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={shareChannels.sms}
-                    onChange={(e) => setShareChannels((c) => ({ ...c, sms: e.target.checked }))}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="text-sm">Send via SMS</span>
-                </label>
+                {showEmail && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shareChannels.email}
+                      onChange={(e) => setShareChannels((c) => ({ ...c, email: e.target.checked }))}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm">Send via Email</span>
+                  </label>
+                )}
+                {showPhone && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shareChannels.sms}
+                      onChange={(e) => setShareChannels((c) => ({ ...c, sms: e.target.checked }))}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm">Send via SMS</span>
+                  </label>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-2 p-4 border-t border-gray-200">

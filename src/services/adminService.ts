@@ -262,6 +262,22 @@ class AdminService {
     const response = await api.put('/api/auth/change-password', passwordData);
     return response.data;
   }
+
+  // Flags (feature flags – e.g. isEmail, isPhone, isDownload)
+  async getFlags(): Promise<{ flags: Array<{ id: number; name: string; value: boolean }> }> {
+    const response = await api.get('/api/flags');
+    return response.data;
+  }
+
+  async createFlag(data: { name: string; value: boolean }) {
+    const response = await api.post('/api/flags', data);
+    return response.data;
+  }
+
+  async updateFlag(name: string, value: boolean) {
+    const response = await api.put(`/api/flags/${encodeURIComponent(name)}`, { value });
+    return response.data;
+  }
 }
 
 export default new AdminService();

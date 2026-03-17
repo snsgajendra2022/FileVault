@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheck, FaRedoAlt, FaTimes, FaUpload, FaFileImage, FaExpandArrowsAlt } from 'react-icons/fa';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -44,6 +44,8 @@ interface AlbumImage {
 }
 
 const PRICE_PER_IMAGE = 0;
+const ALBUMS_PAGE_SIZE = 20;
+const IMAGES_PAGE_SIZE = 20; // images to show per album (then "Load more")
 
 const PublicCheckoutPage: React.FC = () => {
   const location = useLocation();
@@ -66,7 +68,10 @@ const PublicCheckoutPage: React.FC = () => {
   const [downloadCodeData, setDownloadCodeData] = useState<any>(null);
   const [loadingDownloadCode, setLoadingDownloadCode] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState<AlbumImage | null>(null);
+  /** Per album: how many images to show (pagination). Key = albumId, value = count (default IMAGES_PAGE_SIZE). */
+  const [albumImagesShownCount, setAlbumImagesShownCount] = useState<Map<number, number>>(new Map());
   const autoSelectedRef = useRef(false);
+  const loadMoreAlbumsRef = useRef<HTMLDivElement | null>(null);
 
   const sid = searchParams.get('sid') || ''; // short share link id
   const shareIdParam = searchParams.get('shareId') || ''; // optional: when set, sendNotification only if email/mobile is recipient for this share
@@ -321,30 +326,65 @@ const PublicCheckoutPage: React.FC = () => {
     return filesParam.split(',').map(f => decodeURIComponent(f.trim())).filter(f => f);
   }, [resolvedFromSid, fParam, filesParam, decodedFilesFromF]);
 
-  // Fetch albums: single album by ID when albumId in URL (or from sid), otherwise all albums
-  const { data: albumsData, isLoading, isError, refetch } = useQuery({
+  // Fetch albums: single album by ID when albumId in URL (or from sid), otherwise paginated albums
+  const {
+    data: albumsData,
+    isLoading,
+    isError,
+    refetch,
+    isFetchingNextPage: albumsFetchingNextPage,
+    hasNextPage: albumsHasNextPage,
+    fetchNextPage: albumsFetchNextPage,
+  } = useInfiniteQuery({
     queryKey: ['publicCheckoutAlbums', effectiveToken, effectiveHasValidAlbumId ? effectiveAlbumId : null],
     enabled: !!effectiveToken && (!sid || !!resolvedFromSid || sidError),
-    queryFn: async () => {
+    queryFn: async ({ pageParam }) => {
       const headers = effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {};
-      const params = effectiveToken ? { token: effectiveToken } : {};
+      const params: Record<string, string | number> = effectiveToken ? { token: effectiveToken } : {};
       if (effectiveHasValidAlbumId && effectiveAlbumId != null) {
         const response = await api.get(`/api/albums/${effectiveAlbumId}`, { headers, params });
         const album = response.data as Album;
-        return album ? [album] : [];
+        return { albums: album ? [album] : [], page: 0, totalPages: 1 };
       }
-      const response = await api.get('/api/albums', { headers, params });
-      return response.data as Album[] | { albums: Album[] };
+      const response = await api.get('/api/albums', {
+        headers,
+        params: { ...params, page: pageParam, size: ALBUMS_PAGE_SIZE },
+      });
+      const data = response.data;
+      if (data == null) return { albums: [], page: Number(pageParam), totalPages: 1 };
+      if (Array.isArray(data)) return { albums: data, page: Number(pageParam), totalPages: 1 };
+      const typed = data as { albums?: Album[]; page?: number; totalPages?: number };
+      return {
+        albums: typed.albums ?? [],
+        page: typed.page ?? Number(pageParam),
+        totalPages: typed.totalPages ?? 1,
+      };
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const page = Number((lastPage as { page?: number }).page ?? 0);
+      const totalPages = Number((lastPage as { totalPages?: number }).totalPages ?? 1);
+      return page + 1 < totalPages ? page + 1 : undefined;
     },
     retry: 1,
   });
 
   const albums: any = useMemo(() => {
-    if (!albumsData) return [];
-    if (Array.isArray(albumsData)) return albumsData;
-    if (albumsData && typeof albumsData === 'object' && (albumsData as { albums?: Album[] }).albums) return (albumsData as { albums: Album[] }).albums;
-    return [];
+    if (!albumsData?.pages?.length) return [];
+    return albumsData.pages.flatMap((p) => (p && (p as { albums?: Album[] }).albums) ?? []);
   }, [albumsData]);
+
+  // Infinite scroll: albums list
+  useEffect(() => {
+    const el = loadMoreAlbumsRef.current;
+    if (!el || !albumsHasNextPage || albumsFetchingNextPage) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0]?.isIntersecting) albumsFetchNextPage(); },
+      { rootMargin: '200px', threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [albumsHasNextPage, albumsFetchingNextPage, albumsFetchNextPage]);
 
   // Get all explicitly selected images from all selected albums
   const allSelectedImages = useMemo(() => {
@@ -1403,6 +1443,7 @@ const PublicCheckoutPage: React.FC = () => {
               </p>
             </div>
           ) : (
+            <>
             <div className="space-y-3">
               {albums.map((album) => {
                 const isSelected = selectedAlbums.has(album.id);
@@ -1478,8 +1519,12 @@ const PublicCheckoutPage: React.FC = () => {
                       </button>
                     </div>
 
-                    {/* Album Images (shown when expanded) - Show all images for selection */}
-                    {isExpanded && albumImages.length > 0 && (
+                    {/* Album Images (shown when expanded) - Show 20 at a time, then "Load more" */}
+                    {isExpanded && albumImages.length > 0 && (() => {
+                      const showCount = albumImagesShownCount.get(album.id) ?? IMAGES_PAGE_SIZE;
+                      const visibleImages = albumImages.slice(0, showCount);
+                      const hasMore = albumImages.length > showCount;
+                      return (
                       <div className="border-t border-gray-200 p-4 bg-gray-50">
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="text-sm font-semibold text-gray-900">
@@ -1500,7 +1545,7 @@ const PublicCheckoutPage: React.FC = () => {
                           )}
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
-                          {albumImages.map((image) => {
+                          {visibleImages.map((image) => {
                               const isImageSelected = albumImageIds.has(image.id);
                               const imageUrl = getImageUrl(image);
                               const thumbUrl = getThumbnailUrl(image);
@@ -1600,12 +1645,35 @@ const PublicCheckoutPage: React.FC = () => {
                               );
                             })}
                         </div>
+                        {hasMore && (
+                          <div className="mt-4 flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => setAlbumImagesShownCount((prev) => {
+                                const next = new Map(prev);
+                                next.set(album.id, (prev.get(album.id) ?? IMAGES_PAGE_SIZE) + IMAGES_PAGE_SIZE);
+                                return next;
+                              })}
+                              className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                            >
+                              Load more ({albumImages.length - showCount} remaining)
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 );
               })}
             </div>
+            <div ref={loadMoreAlbumsRef} className="h-4" aria-hidden />
+            {albumsFetchingNextPage && (
+              <div className="mt-4 flex justify-center py-4">
+                <LoadingSpinner size="md" text="Loading more..." />
+              </div>
+            )}
+            </>
           )}
         </div>
 

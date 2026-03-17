@@ -1,6 +1,6 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { FaImages, FaDownload, FaExclamationTriangle, FaTimes, FaExpandArrowsAlt } from 'react-icons/fa';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -17,6 +17,8 @@ interface DisplayImage {
   fileType?: string;
   [key: string]: unknown;
 }
+
+const IMAGES_PAGE_SIZE = 20;
 
 const PublicImagesDisplayPage: React.FC = () => {
   const location = useLocation();
@@ -111,6 +113,7 @@ const PublicImagesDisplayPage: React.FC = () => {
   const [verifyInfoMessage, setVerifyInfoMessage] = useState('');
   const [verifyUserId, setVerifyUserId] = useState<string | null>(null);
   const [fullscreenImage, setFullscreenImage] = useState<DisplayImage | null>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!effectiveToken) return;
@@ -118,12 +121,12 @@ const PublicImagesDisplayPage: React.FC = () => {
     const stored = sessionStorage.getItem(verifyStorageKey);
     if (stored === '1') {
       setVerifyStatus('verified');
-      queryClient.refetchQueries({ queryKey: ['publicImagesDisplayBulk'] });
+      queryClient.invalidateQueries({ queryKey: ['publicImagesDisplayBulk'] });
       return;
     }
     if (validShareId == null) {
       setVerifyStatus('verified');
-      queryClient.refetchQueries({ queryKey: ['publicImagesDisplayBulk'] });
+      queryClient.invalidateQueries({ queryKey: ['publicImagesDisplayBulk'] });
       return;
     }
     setVerifyStatus('needs_input');
@@ -241,7 +244,7 @@ const PublicImagesDisplayPage: React.FC = () => {
         sessionStorage.setItem(verifyStorageKey, '1');
         setVerifyStatus('verified');
         toast.success('Verified. Loading images...');
-        queryClient.refetchQueries({ queryKey: ['publicImagesDisplayBulk'] });
+        queryClient.invalidateQueries({ queryKey: ['publicImagesDisplayBulk'] });
       } else {
         setVerifyError('Invalid OTP. Try again.');
       }
@@ -256,30 +259,57 @@ const PublicImagesDisplayPage: React.FC = () => {
   const hasIds = bulkIds.length > 0 && bulkIdsQuery.length > 0;
   const allOkToCallBulk = verifyStatus === 'verified' && hasToken && hasIds;
 
-  const bulkQueryFn = React.useCallback(async () => {
-    if (!bulkIdsQuery.trim() || !effectiveToken.trim()) return [];
-    const res = await api.get<DisplayImage[] | { images?: DisplayImage[] }>('/api/images/bulk', {
-      params: { ids: bulkIdsQuery, token: effectiveToken },
-    });
-    const raw = res.data;
-    if (Array.isArray(raw)) return raw;
-    if (raw && typeof raw === 'object' && Array.isArray((raw as { images?: DisplayImage[] }).images)) {
-      return (raw as { images: DisplayImage[] }).images;
-    }
-    return [];
-  }, [bulkIdsQuery, effectiveToken]);
-
-  const { data: bulkData, isLoading: bulkLoading, isError: bulkError } = useQuery({
+  const {
+    data: bulkData,
+    isLoading: bulkLoading,
+    isError: bulkError,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
     queryKey: ['publicImagesDisplayBulk', effectiveToken, bulkIdsQuery, verifyStatus],
-    queryFn: bulkQueryFn,
+    queryFn: async ({ pageParam }) => {
+      const start = pageParam * IMAGES_PAGE_SIZE;
+      const chunk = bulkIds.slice(start, start + IMAGES_PAGE_SIZE);
+      if (chunk.length === 0) return [];
+      const ids = chunk.join(',');
+      const res = await api.get<DisplayImage[] | { images?: DisplayImage[] }>('/api/images/bulk', {
+        params: { ids, token: effectiveToken },
+      });
+      const raw = res.data;
+      if (Array.isArray(raw)) return raw;
+      if (raw && typeof raw === 'object' && Array.isArray((raw as { images?: DisplayImage[] }).images)) {
+        return (raw as { images: DisplayImage[] }).images;
+      }
+      return [];
+    },
+    initialPageParam: 0,
+    getNextPageParam: (_lastPage, allPages) => {
+      const loadedCount = allPages.reduce((acc, p) => acc + (Array.isArray(p) ? p.length : 0), 0);
+      return loadedCount < bulkIds.length ? allPages.length : undefined;
+    },
     enabled: allOkToCallBulk,
     retry: 1,
   });
 
   const images = useMemo(() => {
-    if (!bulkData) return [];
-    return Array.isArray(bulkData) ? bulkData : [];
+    if (!bulkData?.pages) return [];
+    return bulkData.pages.flatMap((p) => (Array.isArray(p) ? p : []));
   }, [bulkData]);
+
+  // Infinite scroll: load more when sentinel is visible
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel || !hasNextPage || isFetchingNextPage || !allOkToCallBulk) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) fetchNextPage();
+      },
+      { rootMargin: '200px', threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, allOkToCallBulk]);
 
   const getImageFilename = (img: DisplayImage) =>
     img.originalFilename || img.filename || 'Image';
@@ -500,8 +530,9 @@ const PublicImagesDisplayPage: React.FC = () => {
               <p className="text-sm">The bulk API was called with {bulkIds.length} ID(s). The selection may be empty or the link may have expired.</p>
             </div>
           ) : (
+            <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-              {images.map((img) => {
+              {images.map((img: DisplayImage) => {
                 const imageUrl = getImageUrl(img);
                 const thumbUrl = getThumbnailUrl(img);
                 const filename = getImageFilename(img);
@@ -558,6 +589,13 @@ const PublicImagesDisplayPage: React.FC = () => {
                 );
               })}
             </div>
+            <div ref={loadMoreSentinelRef} className="h-4" aria-hidden />
+            {isFetchingNextPage && (
+              <div className="mt-4 flex justify-center py-4">
+                <LoadingSpinner size="md" text="Loading more..." />
+              </div>
+            )}
+            </>
           )}
         </main>
 

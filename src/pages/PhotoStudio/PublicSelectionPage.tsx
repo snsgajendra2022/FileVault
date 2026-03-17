@@ -1,6 +1,6 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheckCircle, FaCheck, FaCopy, FaShare, FaTimes, FaExpandArrowsAlt } from 'react-icons/fa';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -40,6 +40,20 @@ interface AlbumImage {
   [key: string]: any;
 }
 
+const IMAGES_PAGE_SIZE = 20;
+const ALBUMS_PAGE_SIZE = 20;
+const ALBUM_IMAGES_PAGE_SIZE = 20; // images to show per album (then "Load more")
+
+/** GET /api/flags response: controls visibility of email, phone, download, etc. */
+interface FlagItem {
+  name: string;
+  id: number;
+  value: boolean;
+}
+interface FlagsResponse {
+  flags?: FlagItem[];
+}
+
 const PublicSelectionPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -54,6 +68,10 @@ const PublicSelectionPage: React.FC = () => {
   const [fullscreenImage, setFullscreenImage] = useState<AlbumImage | null>(null);
   /** When false, checkboxes are hidden; click "Select" to show them and enable selection */
   const [showSelectionMode, setShowSelectionMode] = useState(false);
+  /** Per album: how many images to show (pagination). Key = albumId, value = count. */
+  const [albumImagesShownCount, setAlbumImagesShownCount] = useState<Map<number, number>>(new Map());
+  const loadMoreBulkSentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreAlbumsRef = useRef<HTMLDivElement | null>(null);
 
   const sid = searchParams.get('sid') || '';
   // shareId is added by the backend when the link is sent via email/SMS (for verification/tracking). Not present when you copy the link in-app.
@@ -339,11 +357,21 @@ const PublicSelectionPage: React.FC = () => {
 
   const isBulkMode = bulkImageIds.length > 0 && !!effectiveToken;
 
-  // Fetch selected images by IDs via GET /api/images/bulk (only selected images, no albums)
-  const { data: bulkImagesData, isLoading: bulkImagesLoading, isError: bulkImagesError } = useQuery({
+  // Fetch selected images by IDs via GET /api/images/bulk with pagination (chunked ids)
+  const {
+    data: bulkImagesData,
+    isLoading: bulkImagesLoading,
+    isError: bulkImagesError,
+    isFetchingNextPage: bulkFetchingNextPage,
+    hasNextPage: bulkHasNextPage,
+    fetchNextPage: bulkFetchNextPage,
+  } = useInfiniteQuery({
     queryKey: ['publicSelectionBulkImages', effectiveToken, bulkImageIds.join(',')],
-    queryFn: async () => {
-      const ids = bulkImageIds.join(',');
+    queryFn: async ({ pageParam }) => {
+      const start = pageParam * IMAGES_PAGE_SIZE;
+      const chunk = bulkImageIds.slice(start, start + IMAGES_PAGE_SIZE);
+      if (chunk.length === 0) return [];
+      const ids = chunk.join(',');
       const res = await api.get<AlbumImage[] | { images?: AlbumImage[] }>(`/api/images/bulk`, {
         params: { ids, token: effectiveToken },
       });
@@ -352,39 +380,109 @@ const PublicSelectionPage: React.FC = () => {
       if (raw && typeof raw === 'object' && Array.isArray((raw as { images?: AlbumImage[] }).images)) return (raw as { images: AlbumImage[] }).images;
       return [];
     },
+    initialPageParam: 0,
+    getNextPageParam: (_lastPage, allPages) => {
+      const loadedCount = allPages.reduce((acc, p) => acc + (Array.isArray(p) ? p.length : 0), 0);
+      return loadedCount < bulkImageIds.length ? allPages.length : undefined;
+    },
     enabled: isBulkMode,
     retry: 1,
   });
 
   const bulkImages: AlbumImage[] = useMemo(() => {
-    if (!bulkImagesData) return [];
-    return Array.isArray(bulkImagesData) ? bulkImagesData : [];
+    if (!bulkImagesData?.pages) return [];
+    return bulkImagesData.pages.flatMap((p) => (Array.isArray(p) ? p : []));
   }, [bulkImagesData]);
 
-  // Fetch albums: single album by ID when albumId in URL (or from sid), otherwise all albums (skipped when we have image IDs and use bulk)
-  const { data: albumsData, isLoading, isError } = useQuery({
+  // Infinite scroll: bulk images grid
+  useEffect(() => {
+    const sentinel = loadMoreBulkSentinelRef.current;
+    if (!sentinel || !bulkHasNextPage || bulkFetchingNextPage || !isBulkMode) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0]?.isIntersecting) bulkFetchNextPage(); },
+      { rootMargin: '200px', threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [bulkHasNextPage, bulkFetchingNextPage, bulkFetchNextPage, isBulkMode]);
+
+  // Fetch albums: single album by ID when albumId in URL, otherwise paginated albums
+  const {
+    data: albumsData,
+    isLoading,
+    isError,
+    isFetchingNextPage: albumsFetchingNextPage,
+    hasNextPage: albumsHasNextPage,
+    fetchNextPage: albumsFetchNextPage,
+  } = useInfiniteQuery({
     queryKey: ['publicSelectionAlbums', effectiveToken, effectiveHasValidAlbumId ? effectiveAlbumId : null],
     enabled: !!effectiveToken && (!sid || !!resolvedFromSid || sidError) && !isBulkMode,
-    queryFn: async () => {
+    queryFn: async ({ pageParam }) => {
       const headers = effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {};
-      const params = effectiveToken ? { token: effectiveToken } : {};
+      const params: Record<string, string | number> = effectiveToken ? { token: effectiveToken } : {};
       if (effectiveHasValidAlbumId && effectiveAlbumId != null) {
         const response = await api.get(`/api/albums/${effectiveAlbumId}`, { headers, params });
         const album = response.data as Album;
-        return album ? [album] : [];
+        return { albums: album ? [album] : [], page: 0, totalPages: 1 };
       }
-      const response = await api.get('/api/albums', { headers, params });
-      return response.data as Album[] | { albums: Album[] };
+      const response = await api.get('/api/albums', {
+        headers,
+        params: { ...params, page: pageParam, size: ALBUMS_PAGE_SIZE },
+      });
+      const data = response.data;
+      if (data == null) return { albums: [], page: Number(pageParam), totalPages: 1 };
+      if (Array.isArray(data)) return { albums: data, page: Number(pageParam), totalPages: 1 };
+      const typed = data as { albums?: Album[]; page?: number; totalPages?: number };
+      return {
+        albums: typed.albums ?? [],
+        page: typed.page ?? Number(pageParam),
+        totalPages: typed.totalPages ?? 1,
+      };
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => {
+      const page = Number((lastPage as { page?: number }).page ?? 0);
+      const totalPages = Number((lastPage as { totalPages?: number }).totalPages ?? 1);
+      return page + 1 < totalPages ? page + 1 : undefined;
     },
     retry: 1,
   });
 
   const albums = useMemo(() => {
-    if (!albumsData) return [];
-    if (Array.isArray(albumsData)) return albumsData;
-    if (albumsData && typeof albumsData === 'object' && (albumsData as { albums?: Album[] }).albums) return (albumsData as { albums: Album[] }).albums;
-    return [];
+    if (!albumsData?.pages?.length) return [];
+    return albumsData.pages.flatMap((p) => (p && (p as { albums?: Album[] }).albums) ?? []);
   }, [albumsData]);
+
+  // Infinite scroll: albums list
+  useEffect(() => {
+    const el = loadMoreAlbumsRef.current;
+    if (!el || !albumsHasNextPage || albumsFetchingNextPage || isBulkMode) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0]?.isIntersecting) albumsFetchNextPage(); },
+      { rootMargin: '200px', threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [albumsHasNextPage, albumsFetchingNextPage, albumsFetchNextPage, isBulkMode]);
+
+  // Feature flags: show/hide download (GET /api/flags)
+  const { data: flagsData } = useQuery({
+    queryKey: ['flags', effectiveToken],
+    queryFn: async () => {
+      const res = await api.get<FlagsResponse>('/api/flags', {
+        headers: effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {},
+      });
+      return res.data;
+    },
+    retry: 1,
+    staleTime: 60_000,
+  });
+  const showDownload = useMemo(() => {
+    const flags = flagsData?.flags;
+    if (!Array.isArray(flags)) return true;
+    const isDownload = flags.find((f) => f.name === 'isDownload');
+    return isDownload?.value ?? true;
+  }, [flagsData]);
 
   const getImageFilename = (image: AlbumImage): string => {
     return image.originalFilename || image.filename || 'Unknown';
@@ -1009,13 +1107,15 @@ const PublicSelectionPage: React.FC = () => {
                         )}
                         <div className="mt-3 flex items-center justify-between">
                           <span className="text-xs text-gray-500">{fileType.toUpperCase()}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleDownload(image)}
-                            className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-[#2731db] text-white hover:bg-blue-800"
-                          >
-                            <FaDownload className="mr-1" /> Download
-                          </button>
+                          {showDownload && (
+                            <button
+                              type="button"
+                              onClick={() => handleDownload(image)}
+                              className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-[#2731db] text-white hover:bg-blue-800"
+                            >
+                              <FaDownload className="mr-1" /> Download
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1036,6 +1136,7 @@ const PublicSelectionPage: React.FC = () => {
                 <p className="text-sm">The shared selection may be empty or the link may have expired.</p>
               </div>
             ) : (
+            <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               {bulkImages.map((image) => {
                 const imageUrl = getImageUrl(image);
@@ -1081,19 +1182,28 @@ const PublicSelectionPage: React.FC = () => {
                       )}
                       <div className="mt-3 flex items-center justify-between">
                         <span className="text-xs text-gray-500">{fileType.toUpperCase()}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleDownload(image)}
-                          className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-[#2731db] text-white hover:bg-blue-800"
-                        >
-                          <FaDownload className="mr-1" /> Download
-                        </button>
+                        {showDownload && (
+                          <button
+                            type="button"
+                            onClick={() => handleDownload(image)}
+                            className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-[#2731db] text-white hover:bg-blue-800"
+                          >
+                            <FaDownload className="mr-1" /> Download
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
                 );
               })}
             </div>
+            <div ref={loadMoreBulkSentinelRef} className="h-4" aria-hidden />
+            {bulkFetchingNextPage && (
+              <div className="mt-4 flex justify-center py-4">
+                <LoadingSpinner size="md" text="Loading more..." />
+              </div>
+            )}
+            </>
             )}
           </main>
         )}
@@ -1247,8 +1357,12 @@ const PublicSelectionPage: React.FC = () => {
                       </button>
                     </div>
 
-                    {/* Album Images (shown when expanded) - show all images with checkbox and fullscreen view */}
-                    {isExpanded && albumImages.length > 0 && (
+                    {/* Album Images (shown when expanded) - show 20 at a time, then "Load more" */}
+                    {isExpanded && albumImages.length > 0 && (() => {
+                      const showCount = albumImagesShownCount.get(album.id) ?? ALBUM_IMAGES_PAGE_SIZE;
+                      const visibleImages = albumImages.slice(0, showCount);
+                      const hasMore = albumImages.length > showCount;
+                      return (
                       <div className="border-t border-gray-200 p-4 bg-gray-50">
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="text-sm font-semibold text-gray-900">
@@ -1271,7 +1385,7 @@ const PublicSelectionPage: React.FC = () => {
                           )}
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                          {albumImages.map((image) => {
+                          {visibleImages.map((image) => {
                               const isImageSelected = isSelected && albumImageIds.has(image.id);
                               const imageUrl = getImageUrl(image);
                               const thumbUrl = getThumbnailUrl(image);
@@ -1354,28 +1468,52 @@ const PublicSelectionPage: React.FC = () => {
                                     )}
                                     <div className="mt-3 flex items-center justify-between">
                                       <span className="text-xs text-gray-500">{fileType.toUpperCase()}</span>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDownload(image);
-                                        }}
-                                        className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-[#2731db] text-white hover:bg-blue-800"
-                                      >
-                                        <FaDownload className="mr-1" /> Download
-                                      </button>
+                                      {showDownload && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDownload(image);
+                                          }}
+                                          className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-[#2731db] text-white hover:bg-blue-800"
+                                        >
+                                          <FaDownload className="mr-1" /> Download
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
                               );
                             })}
                         </div>
+                        {hasMore && (
+                          <div className="mt-4 flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => setAlbumImagesShownCount((prev) => {
+                                const next = new Map(prev);
+                                next.set(album.id, (prev.get(album.id) ?? ALBUM_IMAGES_PAGE_SIZE) + ALBUM_IMAGES_PAGE_SIZE);
+                                return next;
+                              })}
+                              className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                            >
+                              Load more ({albumImages.length - showCount} remaining)
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 );
               })}
               </div>
+              <div ref={loadMoreAlbumsRef} className="h-4" aria-hidden />
+              {albumsFetchingNextPage && (
+                <div className="mt-4 flex justify-center py-4">
+                  <LoadingSpinner size="md" text="Loading more..." />
+                </div>
+              )}
             </>
           )}
         </main>

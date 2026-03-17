@@ -21,7 +21,8 @@ import {
   FaPalette,
   FaFolder,
   FaShare,
-  FaRupeeSign
+  FaRupeeSign,
+  FaFlag
 } from 'react-icons/fa';
 
 interface NavigationProps {
@@ -102,6 +103,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
     { name: 'User Management', href: '/admin?tab=users', icon: FaUsers, enabled: true },
     { name: 'Service Config', href: '/admin?tab=services', icon: FaCloud, enabled: true },
     { name: 'Plan Management', href: '/admin?tab=plans', icon: FaPlus, enabled: true },
+    { name: 'Feature Flags', href: '/admin?tab=flags', icon: FaFlag, enabled: true },
     { name: 'Usage Analytics', href: '/admin?tab=analytics', icon: FaChartBar, enabled: true },
     { name: 'System Health', href: '/admin?tab=health', icon: FaShieldAlt, enabled: true },
   ],active:true};

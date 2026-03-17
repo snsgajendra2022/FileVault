@@ -161,13 +161,15 @@ const PhotoStudioAlbum: React.FC = () => {
       }
     },
     initialPageParam: 0,
-    getNextPageParam: (lastPage) => {
+    initialData: () => ({ pages: [], pageParams: [0] as number[] }),
+    getNextPageParam: (lastPage: unknown): number | undefined => {
       if (lastPage == null || typeof lastPage !== 'object') return undefined;
-      const page = Number((lastPage as { page?: number }).page ?? 0);
-      const totalPages = Number((lastPage as { totalPages?: number }).totalPages ?? 1);
+      const p = lastPage as { page?: number; totalPages?: number };
+      const page = Number(p?.page ?? 0);
+      const totalPages = Number(p?.totalPages ?? 1);
+      if (!Number.isFinite(totalPages) || totalPages < 1) return undefined;
       return page + 1 < totalPages ? page + 1 : undefined;
     },
-    placeholderData: (prev) => prev ?? { pages: [], pageParams: [0] },
     retry: 1,
     refetchOnWindowFocus: false,
   });
@@ -207,13 +209,15 @@ const PhotoStudioAlbum: React.FC = () => {
       }
     },
     initialPageParam: 0,
-    getNextPageParam: (lastPage) => {
+    initialData: () => ({ pages: [], pageParams: [0] as number[] }),
+    getNextPageParam: (lastPage: unknown): number | undefined => {
       if (lastPage == null || typeof lastPage !== 'object') return undefined;
-      const page = Number(lastPage.page ?? 0);
-      const totalPages = Number(lastPage.totalPages ?? 1);
+      const p = lastPage as { page?: number; totalPages?: number };
+      const page = Number(p?.page ?? 0);
+      const totalPages = Number(p?.totalPages ?? 1);
+      if (!Number.isFinite(totalPages) || totalPages < 1) return undefined;
       return page + 1 < totalPages ? page + 1 : undefined;
     },
-    placeholderData: (prev) => prev ?? { pages: [], pageParams: [0] },
     retry: 2,
     refetchInterval: 300000,
     enabled: true,
@@ -1040,7 +1044,7 @@ const PhotoStudioAlbum: React.FC = () => {
                 </p>
               ) : (
                 <>
-                  <div>
+                  {/* <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Which link to share</label>
                     <select
                       value={shareLinkUrlType}
@@ -1051,7 +1055,7 @@ const PhotoStudioAlbum: React.FC = () => {
                       <option value="checkout" disabled>Checkout URL</option>
                       <option value="images_display" disabled>Images display (selected only)</option>
                     </select>
-                  </div>
+                  </div> */}
                   {/* <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Copy link</label>
                     <div className="flex gap-2">
