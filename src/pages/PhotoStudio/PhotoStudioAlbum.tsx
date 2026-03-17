@@ -119,10 +119,11 @@ const PhotoStudioAlbum: React.FC = () => {
   const [shareLinkNewMobiles, setShareLinkNewMobiles] = useState('');
   const [shareLinkMessage, setShareLinkMessage] = useState('');
   const [shareLinkChannels, setShareLinkChannels] = useState<{ email: boolean; sms: boolean }>({ email: true, sms: true });
-  const [shareLinkUrlType, setShareLinkUrlType] = useState<'checkout' | 'selection' | 'images_display'>('selection');
+  const [shareLinkUrlType, setShareLinkUrlType] = useState<'checkout' | 'selection' | 'images_display'>('checkout');
   const [shareLinkSending, setShareLinkSending] = useState(false);
   const [shareLinkContactSearch, setShareLinkContactSearch] = useState('');
   const [shareLinkAlreadySent, setShareLinkAlreadySent] = useState<{ email?: string; mobile?: string; alreadySent: boolean } | null>(null);
+  const [shareLinkId, setShareLinkId] = useState<string | null>(null);
 
   const userId = user?.id;
 
@@ -643,17 +644,50 @@ const PhotoStudioAlbum: React.FC = () => {
   const shareLinkSingleAlbumId = selectedAlbums.size === 1 ? Array.from(selectedAlbums)[0] : null;
   const shareLinkAlbumIdQuery = shareLinkSingleAlbumId != null ? `&albumId=${shareLinkSingleAlbumId}` : '';
 
-  const publicSelectionUrl = useMemo(() => {
+  const longPublicSelectionUrl = useMemo(() => {
     if (shareLinkSelectedImages.length === 0) return '';
     const fileNames = shareLinkSelectedImages.map((img) => getImageFilename(img)).join(',');
     return `${baseUrl}/public/selection?token=${encodeURIComponent(tokenForUrl)}${shareLinkAlbumIdQuery}&files=${encodeURIComponent(fileNames)}`;
   }, [shareLinkSelectedImages, tokenForUrl, baseUrl, shareLinkAlbumIdQuery]);
 
-  const publicCheckoutUrl = useMemo(() => {
+  const longPublicCheckoutUrl = useMemo(() => {
     if (shareLinkSelectedImages.length === 0) return '';
     const fileNames = shareLinkSelectedImages.map((img) => getImageFilename(img)).join(',');
     return `${baseUrl}/public/checkout?token=${encodeURIComponent(tokenForUrl)}${shareLinkAlbumIdQuery}&files=${encodeURIComponent(fileNames)}`;
   }, [shareLinkSelectedImages, tokenForUrl, baseUrl, shareLinkAlbumIdQuery]);
+
+  // Generate short share link (sid) via API – same as StudioCheckout
+  useEffect(() => {
+    if (shareLinkSelectedImages.length === 0) {
+      setShareLinkId(null);
+      return;
+    }
+    let cancelled = false;
+    const fileNames = shareLinkSelectedImages.map((img) => getImageFilename(img));
+    api
+      .post<{ id?: string }>('/api/public/share-link', {
+        token: tokenForUrl,
+        albumId: shareLinkSingleAlbumId ?? undefined,
+        fileNames,
+      })
+      .then((res) => {
+        const id = res.data?.id;
+        if (!cancelled && id) setShareLinkId(id);
+      })
+      .catch(() => {
+        if (!cancelled) setShareLinkId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shareLinkSelectedImages, tokenForUrl, shareLinkSingleAlbumId]);
+
+  const publicCheckoutUrl = shareLinkId
+    ? `${baseUrl}/public/checkout?sid=${encodeURIComponent(shareLinkId)}`
+    : longPublicCheckoutUrl;
+  const publicSelectionUrl = shareLinkId
+    ? `${baseUrl}/public/selection?sid=${encodeURIComponent(shareLinkId)}`
+    : longPublicSelectionUrl;
 
   const publicImagesDisplayUrl = useMemo(() => {
     if (shareLinkSelectedImages.length === 0) return '';
@@ -759,7 +793,12 @@ const PhotoStudioAlbum: React.FC = () => {
       if (res.data?.success) {
         const emailCount = res.data.sent?.email ?? 0;
         const smsCount = res.data.sent?.sms ?? 0;
-        toast.success(`Link sent (email: ${emailCount}, SMS: ${smsCount}).`);
+        const shareIds = res.data.shareIds;
+        const idList =
+          shareIds?.email?.length || shareIds?.sms?.length
+            ? ` Share ID(s): ${[...(shareIds?.email ?? []), ...(shareIds?.sms ?? [])].join(', ')}.`
+            : ' Each recipient gets a Share ID in the email/SMS for reference.';
+        toast.success(`Link sent (email: ${emailCount}, SMS: ${smsCount}).${idList}`);
         setShowShareLinkModal(false);
         setShareLinkContactIds(new Set());
         setShareLinkNewEmails('');
@@ -1009,8 +1048,8 @@ const PhotoStudioAlbum: React.FC = () => {
                       onChange={(e) => setShareLinkUrlType(e.target.value as 'checkout' | 'selection' | 'images_display')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                     >
+                      {/* <option value="checkout">Checkout URL</option> */}
                       <option value="selection">Selection URL</option>
-                      <option value="checkout">Checkout URL</option>
                       <option value="images_display" disabled={!publicImagesDisplayUrl}>Images display (selected only)</option>
                     </select>
                   </div>
