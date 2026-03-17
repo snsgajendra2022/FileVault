@@ -13,7 +13,8 @@ import {
   FaSearch,
   FaEdit,
   FaShare,
-  FaUserFriends
+  FaUserFriends,
+  FaCopy
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -110,6 +111,19 @@ const PhotoStudioAlbum: React.FC = () => {
   const [coverImageErrors, setCoverImageErrors] = useState<Set<number>>(new Set());
   const [fullScreenImage, setFullScreenImage] = useState<{ image: AlbumImage; albumId: number; index: number } | null>(null);
 
+  // Share link modal (public URL – send to contacts / email / SMS, same as StudioCheckout)
+  const [showShareLinkModal, setShowShareLinkModal] = useState(false);
+  const [shareLinkContactIds, setShareLinkContactIds] = useState<Set<string>>(new Set());
+  const [shareLinkNewEmails, setShareLinkNewEmails] = useState('');
+  const [shareLinkNewMobileCountryCode, setShareLinkNewMobileCountryCode] = useState('+91');
+  const [shareLinkNewMobiles, setShareLinkNewMobiles] = useState('');
+  const [shareLinkMessage, setShareLinkMessage] = useState('');
+  const [shareLinkChannels, setShareLinkChannels] = useState<{ email: boolean; sms: boolean }>({ email: true, sms: true });
+  const [shareLinkUrlType, setShareLinkUrlType] = useState<'checkout' | 'selection' | 'images_display'>('selection');
+  const [shareLinkSending, setShareLinkSending] = useState(false);
+  const [shareLinkContactSearch, setShareLinkContactSearch] = useState('');
+  const [shareLinkAlreadySent, setShareLinkAlreadySent] = useState<{ email?: string; mobile?: string; alreadySent: boolean } | null>(null);
+
   const userId = user?.id;
 
   // Debug logging
@@ -127,19 +141,32 @@ const PhotoStudioAlbum: React.FC = () => {
   } = useInfiniteQuery({
     queryKey: ['albums'],
     enabled: !authLoading,
-    queryFn: async ({ pageParam }) => {
-      const response = await api.get('/api/albums', {
-        params: { page: pageParam, size: ALBUMS_PAGE_SIZE },
-      });
-      return response.data as Album[] | { albums: Album[]; total?: number; page?: number; size?: number; totalPages?: number };
+    queryFn: async ({ pageParam }): Promise<{ albums: Album[]; page?: number; totalPages?: number }> => {
+      try {
+        const response = await api.get('/api/albums', {
+          params: { page: pageParam, size: ALBUMS_PAGE_SIZE },
+        });
+        const data = response?.data;
+        if (data == null) return { albums: [], page: 0, totalPages: 1 };
+        if (Array.isArray(data)) return { albums: data, page: Number(pageParam), totalPages: 1 };
+        const albums = Array.isArray((data as { albums?: Album[] }).albums) ? (data as { albums?: Album[] }).albums! : [];
+        return {
+          albums,
+          page: (data as { page?: number }).page ?? Number(pageParam),
+          totalPages: (data as { totalPages?: number }).totalPages ?? 1,
+        };
+      } catch {
+        return { albums: [], page: Number(pageParam), totalPages: 1 };
+      }
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
-      const d = lastPage as { page?: number; totalPages?: number };
-      const page = d?.page ?? 0;
-      const totalPages = d?.totalPages ?? 1;
+      if (lastPage == null || typeof lastPage !== 'object') return undefined;
+      const page = Number((lastPage as { page?: number }).page ?? 0);
+      const totalPages = Number((lastPage as { totalPages?: number }).totalPages ?? 1);
       return page + 1 < totalPages ? page + 1 : undefined;
     },
+    placeholderData: (prev) => prev ?? { pages: [], pageParams: [0] },
     retry: 1,
     refetchOnWindowFocus: false,
   });
@@ -157,18 +184,35 @@ const PhotoStudioAlbum: React.FC = () => {
   } = useInfiniteQuery({
     queryKey: ['userImages-gallery'],
     queryFn: async ({ pageParam }): Promise<UserImagesResponse> => {
-      const token = localStorage.getItem('token');
-      const response = await api.get('/api/images/user/all', {
-        params: { token, page: pageParam, size: USER_IMAGES_PAGE_SIZE },
-      });
-      return response.data as UserImagesResponse;
+      try {
+        const token = localStorage.getItem('token');
+        const response = await api.get('/api/images/user/all', {
+          params: { token, page: pageParam, size: USER_IMAGES_PAGE_SIZE },
+        });
+        const data = response?.data;
+        if (data == null) {
+          return { totalImages: 0, images: [], page: 0, totalPages: 1 };
+        }
+        const out = data as UserImagesResponse;
+        const images = Array.isArray(out?.images) ? out.images : [];
+        return {
+          totalImages: out?.totalImages ?? images.length,
+          images,
+          page: out?.page ?? Number(pageParam),
+          totalPages: out?.totalPages ?? 1,
+        };
+      } catch {
+        return { totalImages: 0, images: [], page: Number(pageParam), totalPages: 1 };
+      }
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
-      const page = lastPage?.page ?? 0;
-      const totalPages = lastPage?.totalPages ?? 1;
+      if (lastPage == null || typeof lastPage !== 'object') return undefined;
+      const page = Number(lastPage.page ?? 0);
+      const totalPages = Number(lastPage.totalPages ?? 1);
       return page + 1 < totalPages ? page + 1 : undefined;
     },
+    placeholderData: (prev) => prev ?? { pages: [], pageParams: [0] },
     retry: 2,
     refetchInterval: 300000,
     enabled: true,
@@ -176,17 +220,13 @@ const PhotoStudioAlbum: React.FC = () => {
 
   const albums = useMemo(() => {
     if (!albumsData?.pages?.length) return [];
-    return albumsData.pages.flatMap((p) => {
-      if (Array.isArray(p)) return p;
-      if (p && typeof p === 'object' && (p as { albums?: Album[] }).albums) return (p as { albums: Album[] }).albums;
-      return [];
-    });
+    return albumsData.pages.flatMap((p) => (p && (p as { albums?: Album[] }).albums) ?? []);
   }, [albumsData]);
 
   const albumsTotal = useMemo(() => {
-    const first = albumsData?.pages?.[0];
-    if (!first || Array.isArray(first)) return albums.length;
-    return (first as { total?: number }).total ?? albums.length;
+    const first = albumsData?.pages?.[0] as { total?: number } | undefined;
+    if (!first) return albums.length;
+    return first.total ?? albums.length;
   }, [albumsData, albums.length]);
 
   const userImages = useMemo(() => {
@@ -581,6 +621,165 @@ const PhotoStudioAlbum: React.FC = () => {
     return extension || image.fileType || 'unknown';
   };
 
+  // Share link: images from selected albums (for building public URLs)
+  const shareLinkSelectedImages = useMemo((): AlbumImage[] => {
+    const out: AlbumImage[] = [];
+    const seenIds = new Set<number>();
+    selectedAlbums.forEach((albumId) => {
+      const album = albums.find((a) => a.id === albumId);
+      const images = album ? (albumImages.get(albumId) || extractAlbumImages(album)) : [];
+      images.forEach((img) => {
+        if (img.id && !seenIds.has(img.id)) {
+          seenIds.add(img.id);
+          out.push(img);
+        }
+      });
+    });
+    return out;
+  }, [selectedAlbums, albums, albumImages]);
+
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const tokenForUrl = typeof localStorage !== 'undefined' ? (localStorage.getItem('token') || '') : '';
+  const shareLinkSingleAlbumId = selectedAlbums.size === 1 ? Array.from(selectedAlbums)[0] : null;
+  const shareLinkAlbumIdQuery = shareLinkSingleAlbumId != null ? `&albumId=${shareLinkSingleAlbumId}` : '';
+
+  const publicSelectionUrl = useMemo(() => {
+    if (shareLinkSelectedImages.length === 0) return '';
+    const fileNames = shareLinkSelectedImages.map((img) => getImageFilename(img)).join(',');
+    return `${baseUrl}/public/selection?token=${encodeURIComponent(tokenForUrl)}${shareLinkAlbumIdQuery}&files=${encodeURIComponent(fileNames)}`;
+  }, [shareLinkSelectedImages, tokenForUrl, baseUrl, shareLinkAlbumIdQuery]);
+
+  const publicCheckoutUrl = useMemo(() => {
+    if (shareLinkSelectedImages.length === 0) return '';
+    const fileNames = shareLinkSelectedImages.map((img) => getImageFilename(img)).join(',');
+    return `${baseUrl}/public/checkout?token=${encodeURIComponent(tokenForUrl)}${shareLinkAlbumIdQuery}&files=${encodeURIComponent(fileNames)}`;
+  }, [shareLinkSelectedImages, tokenForUrl, baseUrl, shareLinkAlbumIdQuery]);
+
+  const publicImagesDisplayUrl = useMemo(() => {
+    if (shareLinkSelectedImages.length === 0) return '';
+    const ids = shareLinkSelectedImages.map((img) => img.id).join(',');
+    return `${baseUrl}/public/images-display?token=${encodeURIComponent(tokenForUrl)}&imageIds=${ids}`;
+  }, [shareLinkSelectedImages, tokenForUrl, baseUrl]);
+
+  const copyToClipboard = useCallback((text: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.top = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand('copy');
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  }, []);
+
+  // Fetch contacts for Share link modal
+  const { data: shareLinkContactsData } = useQuery({
+    queryKey: ['publicShareContacts', shareLinkContactSearch],
+    queryFn: async () => {
+      try {
+        const params = new URLSearchParams();
+        if (shareLinkContactSearch.trim()) params.set('search', shareLinkContactSearch.trim());
+        params.set('limit', '50');
+        params.set('offset', '0');
+        const res = await api.get<{ contacts?: { id: string; email?: string; mobile?: string; countryCode?: string; displayName?: string }[]; total?: number }>(`/api/public-share/contacts?${params.toString()}`);
+        return res.data ?? { contacts: [] };
+      } catch {
+        return { contacts: [] };
+      }
+    },
+    enabled: showShareLinkModal,
+    retry: 0,
+  });
+  const shareLinkContacts = shareLinkContactsData?.contacts ?? [];
+
+  const checkShareLinkRecipient = useCallback(async (emailInput: string, mobileInput: string) => {
+    const firstEmail = emailInput.split(/[\s,]+/).map((e) => e.trim()).filter(Boolean)[0] ?? '';
+    const firstPart = mobileInput.split(/[\s,]+/).map((m) => m.trim()).filter(Boolean)[0] ?? '';
+    const m = firstPart ? (firstPart.startsWith('+') ? firstPart : `${shareLinkNewMobileCountryCode.replace(/\s/g, '')}${firstPart}`) : '';
+    if (!firstEmail && !m) {
+      setShareLinkAlreadySent(null);
+      return;
+    }
+    const urlToShare = shareLinkUrlType === 'checkout' ? publicCheckoutUrl : shareLinkUrlType === 'images_display' ? publicImagesDisplayUrl : publicSelectionUrl;
+    try {
+      const params = new URLSearchParams();
+      if (firstEmail) params.set('email', firstEmail);
+      if (m) params.set('mobile', m);
+      if (urlToShare) params.set('publicUrl', urlToShare);
+      const res = await api.get<{ alreadySent?: boolean; email?: string | null; mobile?: string | null }>(`/api/public-share/check-recipient?${params.toString()}`);
+      setShareLinkAlreadySent({
+        email: res.data?.email ?? undefined,
+        mobile: res.data?.mobile ?? undefined,
+        alreadySent: !!res.data?.alreadySent,
+      });
+    } catch {
+      setShareLinkAlreadySent(null);
+    }
+  }, [shareLinkUrlType, publicCheckoutUrl, publicSelectionUrl, publicImagesDisplayUrl, shareLinkNewMobileCountryCode]);
+
+  const handleShareLinkSend = useCallback(async () => {
+    const urlToShare = shareLinkUrlType === 'checkout' ? publicCheckoutUrl : shareLinkUrlType === 'images_display' ? publicImagesDisplayUrl : publicSelectionUrl;
+    if (!urlToShare) {
+      toast.error('No URL to share. Select at least one album first.');
+      return;
+    }
+    const emails = shareLinkNewEmails.split(/[\s,]+/).map((e) => e.trim()).filter(Boolean);
+    const mobileParts = shareLinkNewMobiles.split(/[\s,]+/).map((m) => m.trim()).filter(Boolean);
+    const mobiles = mobileParts.map((part) => (part.startsWith('+') ? part : `${shareLinkNewMobileCountryCode.replace(/\s/g, '')}${part}`));
+    if (shareLinkContactIds.size === 0 && emails.length === 0 && mobiles.length === 0) {
+      toast.error('Select at least one contact or enter email/mobile.');
+      return;
+    }
+    const channels: string[] = [];
+    if (shareLinkChannels.email) channels.push('email');
+    if (shareLinkChannels.sms) channels.push('sms');
+    if (channels.length === 0) {
+      toast.error('Select at least one channel (Email or SMS).');
+      return;
+    }
+    setShareLinkSending(true);
+    try {
+      const res = await api.post<{ success?: boolean; sent?: { email?: number; sms?: number }; shareIds?: { email?: number[]; sms?: number[] } }>('/api/public-share/send', {
+        publicUrl: urlToShare,
+        message: shareLinkMessage.trim() || undefined,
+        sendTo: {
+          contactIds: Array.from(shareLinkContactIds),
+          emails,
+          mobiles,
+        },
+        channels,
+      });
+      if (res.data?.success) {
+        const emailCount = res.data.sent?.email ?? 0;
+        const smsCount = res.data.sent?.sms ?? 0;
+        toast.success(`Link sent (email: ${emailCount}, SMS: ${smsCount}).`);
+        setShowShareLinkModal(false);
+        setShareLinkContactIds(new Set());
+        setShareLinkNewEmails('');
+        setShareLinkNewMobiles('');
+        setShareLinkMessage('');
+        setShareLinkAlreadySent(null);
+      } else {
+        toast.error('Failed to send. Please try again.');
+      }
+    } catch (err: any) {
+      if (err.response?.status === 404 || err.response?.status === 501) {
+        toast.error('Share by email/SMS is not available yet. Use Copy link instead.');
+      } else {
+        toast.error(err.response?.data?.message || 'Failed to send share.');
+      }
+    } finally {
+      setShareLinkSending(false);
+    }
+  }, [shareLinkUrlType, publicCheckoutUrl, publicSelectionUrl, publicImagesDisplayUrl, shareLinkNewEmails, shareLinkNewMobiles, shareLinkNewMobileCountryCode, shareLinkContactIds, shareLinkChannels, shareLinkMessage]);
+
   const blobToDataUrl = (blob: Blob) => {
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
@@ -665,8 +864,6 @@ const PhotoStudioAlbum: React.FC = () => {
     });
   }, []);
 
-
-  console.log(userImages);
   const toggleAlbum = (albumId: number) => {
     setExpandedAlbums((prev) => {
       const next = new Set(prev);
@@ -763,6 +960,15 @@ const PhotoStudioAlbum: React.FC = () => {
             Transfer to PhotoBook {selectedAlbums.size > 0 ? `(${selectedAlbums.size})` : ''}
           </button>
           <button
+            onClick={() => setShowShareLinkModal(true)}
+            disabled={selectedAlbums.size === 0}
+            className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center disabled:opacity-60 disabled:cursor-not-allowed"
+            title="Share public link (selection/checkout) for selected albums"
+          >
+            <FaShare className="mr-2" />
+            Share link {selectedAlbums.size > 0 ? `(${selectedAlbums.size})` : ''}
+          </button>
+          <button
             onClick={() => setShowCreateModal(true)}
             className="px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors flex items-center"
           >
@@ -771,6 +977,206 @@ const PhotoStudioAlbum: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Share link modal – send public URL to contacts / email / SMS (same as StudioCheckout) */}
+      {showShareLinkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Share link</h3>
+              <button
+                onClick={() => {
+                  setShowShareLinkModal(false);
+                  setShareLinkContactSearch('');
+                  setShareLinkAlreadySent(null);
+                }}
+                className="p-1 rounded hover:bg-gray-100 text-gray-600"
+              >
+                <FaTimes className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              {shareLinkSelectedImages.length === 0 ? (
+                <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Select at least one album above to generate a shareable link.
+                </p>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Which link to share</label>
+                    <select
+                      value={shareLinkUrlType}
+                      onChange={(e) => setShareLinkUrlType(e.target.value as 'checkout' | 'selection' | 'images_display')}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    >
+                      <option value="selection">Selection URL</option>
+                      <option value="checkout">Checkout URL</option>
+                      <option value="images_display" disabled={!publicImagesDisplayUrl}>Images display (selected only)</option>
+                    </select>
+                  </div>
+                  {/* <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Copy link</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={shareLinkUrlType === 'checkout' ? publicCheckoutUrl : shareLinkUrlType === 'images_display' ? publicImagesDisplayUrl : publicSelectionUrl}
+                        className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono truncate"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = shareLinkUrlType === 'checkout' ? publicCheckoutUrl : shareLinkUrlType === 'images_display' ? publicImagesDisplayUrl : publicSelectionUrl;
+                          if (url) {
+                            copyToClipboard(url);
+                            toast.success('Link copied to clipboard');
+                          }
+                        }}
+                        className="shrink-0 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+                      >
+                        <FaCopy className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div> */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Existing contacts</label>
+                    <input
+                      type="text"
+                      value={shareLinkContactSearch}
+                      onChange={(e) => setShareLinkContactSearch(e.target.value)}
+                      placeholder="Search by name, email, mobile..."
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2"
+                    />
+                    <div className="border border-gray-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
+                      {shareLinkContacts.length === 0 ? (
+                        <p className="text-sm text-gray-500">No contacts yet. Add email or mobile below.</p>
+                      ) : (
+                        shareLinkContacts.map((c) => (
+                          <label key={c.id} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={shareLinkContactIds.has(c.id)}
+                              onChange={(e) => {
+                                const next = new Set(shareLinkContactIds);
+                                if (e.target.checked) next.add(c.id);
+                                else next.delete(c.id);
+                                setShareLinkContactIds(next);
+                              }}
+                              className="rounded border-gray-300"
+                            />
+                            <span className="text-sm">{c.displayName || c.email || c.mobile || c.id}</span>
+                            {(c.email || c.mobile) && (
+                              <span className="text-xs text-gray-500">
+                                ({[c.email, c.mobile].filter(Boolean).join(', ')})
+                              </span>
+                            )}
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">New recipients – email (comma separated)</label>
+                    <input
+                      type="text"
+                      value={shareLinkNewEmails}
+                      onChange={(e) => { setShareLinkNewEmails(e.target.value); setShareLinkAlreadySent(null); }}
+                      onBlur={() => checkShareLinkRecipient(shareLinkNewEmails, shareLinkNewMobiles)}
+                      placeholder="e.g. a@example.com, b@example.com"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">New recipients – mobile (comma separated)</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={shareLinkNewMobileCountryCode}
+                        onChange={(e) => setShareLinkNewMobileCountryCode(e.target.value)}
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 shrink-0"
+                      >
+                        <option value="+91">+91</option>
+                        <option value="+1">+1</option>
+                        <option value="+44">+44</option>
+                        <option value="+971">+971</option>
+                        <option value="+61">+61</option>
+                        <option value="+81">+81</option>
+                        <option value="+86">+86</option>
+                        <option value="+33">+33</option>
+                        <option value="+49">+49</option>
+                        <option value="+55">+55</option>
+                      </select>
+                      <input
+                        type="text"
+                        value={shareLinkNewMobiles}
+                        onChange={(e) => { setShareLinkNewMobiles(e.target.value); setShareLinkAlreadySent(null); }}
+                        onBlur={() => checkShareLinkRecipient(shareLinkNewEmails, shareLinkNewMobiles)}
+                        placeholder="e.g. 9876543210, 9123456789"
+                        className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                  {shareLinkAlreadySent?.alreadySent && (
+                    <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      Already sent to this {shareLinkAlreadySent.email ? 'email' : 'mobile'}. You can resend if needed.
+                    </p>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Optional message</label>
+                    <textarea
+                      value={shareLinkMessage}
+                      onChange={(e) => setShareLinkMessage(e.target.value)}
+                      placeholder="Add a short message to include in the email/SMS"
+                      rows={2}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={shareLinkChannels.email}
+                        onChange={(e) => setShareLinkChannels((c) => ({ ...c, email: e.target.checked }))}
+                        className="rounded border-gray-300"
+                      />
+                      <span className="text-sm">Send via Email</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={shareLinkChannels.sms}
+                        onChange={(e) => setShareLinkChannels((c) => ({ ...c, sms: e.target.checked }))}
+                        className="rounded border-gray-300"
+                      />
+                      <span className="text-sm">Send via SMS</span>
+                    </label>
+                  </div>
+                </>
+              )}
+            </div>
+            {shareLinkSelectedImages.length > 0 && (
+              <div className="flex justify-end gap-2 p-4 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    setShowShareLinkModal(false);
+                    setShareLinkContactSearch('');
+                    setShareLinkAlreadySent(null);
+                  }}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleShareLinkSend}
+                  disabled={shareLinkSending}
+                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-sm font-semibold"
+                >
+                  {shareLinkSending ? 'Sending…' : 'Send'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Albums List */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-2">
