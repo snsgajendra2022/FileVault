@@ -405,7 +405,7 @@ export default function FamilyTree() {
       </div>
 
       {selected && (
-        <aside className="fixed right-4 top-4 bottom-4 w-80 rounded-2xl bg-white ring-1 ring-gray-200 shadow-lg p-4 flex flex-col z-50">
+        <aside className="fixed right-4 top-4 bottom-4 w-80 rounded-2xl bg-white ring-gray-200 shadow-lg p-4 flex flex-col z-50">
           <div className="flex items-center gap-3 border-b pb-3">
             <div className="w-10 h-10 rounded-full bg-gray-100 grid place-items-center text-gray-600">
               <svg viewBox="0 0 24 24" width="20" height="20">{AVATAR_SILHOUETTE}</svg>

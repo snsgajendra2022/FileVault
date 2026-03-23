@@ -278,6 +278,11 @@ class AdminService {
     const response = await api.put(`/api/flags/${encodeURIComponent(name)}`, { value });
     return response.data;
   }
+
+  async createMobileAppAccess(data: { appNameId: string; userId: number }) {
+    const response = await api.post('/api/mobile-apps', data);
+    return response.data;
+  }
 }
 
 export default new AdminService();

@@ -24,6 +24,7 @@ const InvitationHistory: React.FC = () => {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'expired'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchInvitations();
@@ -75,8 +76,28 @@ const InvitationHistory: React.FC = () => {
   };
 
   const getFilteredInvitations = () => {
-    if (filter === 'all') return invitations;
-    return invitations.filter(inv => inv.status === filter.toUpperCase());
+    const byStatus =
+      filter === 'all'
+        ? invitations
+        : invitations.filter((inv) => inv.status === filter.toUpperCase());
+
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return byStatus;
+
+    return byStatus.filter((inv) => {
+      const fullName = `${inv.inviteeFirstName} ${inv.inviteeLastName}`.toLowerCase();
+      const email = (inv.inviteeEmail || '').toLowerCase();
+      const relationship = (inv.relationshipType || '').toLowerCase();
+      const notes = (inv.relationshipNotes || '').toLowerCase();
+      const status = (inv.status || '').toLowerCase();
+      return (
+        fullName.includes(q) ||
+        email.includes(q) ||
+        relationship.includes(q) ||
+        notes.includes(q) ||
+        status.includes(q)
+      );
+    });
   };
 
   const copyInvitationLink = (invitation: Invitation) => {
@@ -162,6 +183,17 @@ const InvitationHistory: React.FC = () => {
               {label} ({count})
             </button>
           ))}
+        </div>
+
+        {/* Search */}
+        <div className="mt-4">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, email, relationship, notes, status..."
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
         </div>
       </div>
 

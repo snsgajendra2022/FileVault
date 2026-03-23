@@ -16,6 +16,7 @@ const UserManagement = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [mobileAccessByUser, setMobileAccessByUser] = useState<Record<number, boolean>>({});
 
   const queryClient = useQueryClient();
 
@@ -97,6 +98,18 @@ const UserManagement = () => {
     onError: () => toast.error('Failed to create user')
   });
 
+  const createMobileAccessMutation = useMutation({
+    mutationFn: ({ userId, appNameId }: { userId: number; appNameId: string }) =>
+      adminService.createMobileAppAccess({ userId, appNameId }),
+    onSuccess: (_data, variables) => {
+      setMobileAccessByUser((prev) => ({ ...prev, [variables.userId]: true }));
+      toast.success('Mobile app access enabled');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Failed to enable mobile app access');
+    },
+  });
+
   const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
     setCurrentPage(0);
@@ -122,6 +135,18 @@ const UserManagement = () => {
         }
         break;
     }
+  };
+
+  const handleMobileAccessToggle = (user: AdminUser, checked: boolean) => {
+    if (!checked) {
+      toast('Disable API is not available yet');
+      return;
+    }
+    if (mobileAccessByUser[user.id]) return;
+    createMobileAccessMutation.mutate({
+      userId: user.id,
+      appNameId: user.username || `user-${user.id}`,
+    });
   };
 
   const getStatusBadge = (status: string) => {
@@ -281,6 +306,9 @@ const UserManagement = () => {
                   Last Login
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Mobile App
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -288,13 +316,13 @@ const UserManagement = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {usersLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
                     Loading users...
                   </td>
                 </tr>
               ) : usersData?.users?.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
                     No users found
                   </td>
                 </tr>
@@ -328,6 +356,21 @@ const UserManagement = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <label className="inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={!!mobileAccessByUser[user.id]}
+                          onChange={(e) => handleMobileAccessToggle(user, e.target.checked)}
+                          disabled={createMobileAccessMutation.isPending && !mobileAccessByUser[user.id]}
+                        />
+                        <div className="relative w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:bg-blue-600 transition-colors" />
+                        <span className="ml-2 text-xs text-gray-600">
+                          {mobileAccessByUser[user.id] ? 'Enabled' : 'Enable'}
+                        </span>
+                      </label>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">

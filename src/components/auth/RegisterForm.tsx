@@ -51,6 +51,7 @@ const RegisterForm = () => {
       if (response.ok) {
         const newUser = JSON.parse(result);
       try {
+        await api.post(`/api/mobile-apps${newUser.id}`,{"appNameId": newUser.username, "userId": newUser.id});
         await api.put(`/api/auth/admin/users/${newUser.id}/verify`);
         console.log('User auto-verified after registration');
       } catch (verifyError: any) {

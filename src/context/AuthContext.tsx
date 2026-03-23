@@ -17,6 +17,8 @@ interface AuthContextType {
   isAdmin: boolean;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
+  requestLoginOtp: (payload: { email?: string; phone?: string }) => Promise<{ message?: string }>;
+  verifyLoginOtp: (payload: { email?: string; phone?: string; otp: string }) => Promise<void>;
   register: (userData: any) => Promise<void>;
   onSubmitUser: (userData: any) => Promise<any>;
   forgotPassword: (email: string) => Promise<{ message: string }>;
@@ -108,6 +110,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const applyAuthResponse = (data: any) => {
+    const apiToken = data?.apiToken || data?.accessToken || data?.token;
+    const rawUser = data?.user ? data.user : data;
+    const userData =
+      rawUser && typeof rawUser === 'object'
+        ? (({ apiToken: _a, accessToken: _b, token: _c, ...rest }) => rest)(rawUser)
+        : null;
+
+    if (!apiToken || !userData) {
+      throw new Error('Invalid authentication response');
+    }
+
+    setStoredToken(apiToken);
+    setStoredUserData(userData);
+    api.defaults.headers.common['Authorization'] = `Bearer ${apiToken}`;
+    setUser(userData);
+    logAuthState();
+  };
+
   const login = async (username: string, password: string) => {
     try {
       // console.log('Attempting login with username:', username);
@@ -115,28 +136,61 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await api.post('/api/auth/login', { username, password });
       // console.log('Login response:', response.data);
       
-      const { apiToken, ...userData } = response.data;
-      
-      // console.log('Login - Extracted user data:', userData);
-      // console.log('Login - User account type:', userData.accountType);
-      // console.log('Login - Is admin?', userData.accountType === 'ADMIN');
-      
-      // Store token and user data using utility functions
-      setStoredToken(apiToken);
-      setStoredUserData(userData);
-      
-      // Set authorization header for future requests
-      api.defaults.headers.common['Authorization'] = `Bearer ${apiToken}`;
-      
-      // Store user data in state
-      setUser(userData);
-      
-      // console.log('Login successful:', { user: userData, token: apiToken });
-      logAuthState();
+      applyAuthResponse(response.data);
     } catch (error: any) {
       console.error('Login failed:', error);
       console.error('Error response:', error.response?.data);
       throw new Error(error.response?.data?.message || error.response?.data?.error || 'Login failed');
+    }
+  };
+
+  const requestLoginOtp = async (payload: { email?: string; phone?: string }) => {
+    const email = payload.email?.trim();
+    const phone = payload.phone?.trim();
+
+    if (!email && !phone) {
+      throw new Error('Please provide email or phone');
+    }
+
+    // New login OTP API:
+    // POST /api/auth/login/otp/send
+    // Body: { email?, mobile?, channel: 'email' | 'sms' }
+    const body = email
+      ? { email, channel: 'email' as const }
+      : { mobile: phone, channel: 'sms' as const };
+
+    try {
+      const response = await api.post('/api/auth/login/otp/send', body);
+      return response.data || {};
+    } catch (error: any) {
+      throw new Error(error?.response?.data?.message || error?.response?.data?.error || 'Failed to send OTP');
+    }
+  };
+
+  const verifyLoginOtp = async (payload: { email?: string; phone?: string; otp: string }) => {
+    const email = payload.email?.trim();
+    const phone = payload.phone?.trim();
+    const otp = payload.otp.trim();
+
+    if (!otp) {
+      throw new Error('Please enter OTP');
+    }
+    if (!email && !phone) {
+      throw new Error('Please provide email or phone');
+    }
+
+    // New login OTP verify API:
+    // POST /api/auth/login/otp/verify
+    // Verifies against login_otp_history (SENT + not expired), then marks VERIFIED.
+    const body = email
+      ? { email, otp, channel: 'email' as const }
+      : { mobile: phone, otp, channel: 'sms' as const };
+
+    try {
+      const response = await api.post('/api/auth/login/otp/verify', body);
+      applyAuthResponse(response.data);
+    } catch (error: any) {
+      throw new Error(error?.response?.data?.message || error?.response?.data?.error || 'OTP verification failed');
     }
   };
 
@@ -225,6 +279,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAdmin,
     isLoading,
     login,
+    requestLoginOtp,
+    verifyLoginOtp,
     register,
     onSubmitUser,
     forgotPassword,
