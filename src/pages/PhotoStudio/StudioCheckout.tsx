@@ -64,6 +64,7 @@ const StudioCheckout: React.FC = () => {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [selectedAlbums, setSelectedAlbums] = useState<Set<number>>(new Set());
+  const [selectedAlbumsName, setSelectedAlbumsName] = useState<any>();
   const [expandedAlbums, setExpandedAlbums] = useState<Set<number>>(new Set());
   const [selectedImages, setSelectedImages] = useState<Map<number, Set<number>>>(new Map()); // albumId -> Set of imageIds
   const [albumImagesMap, setAlbumImagesMap] = useState<Map<number, AlbumImage[]>>(new Map()); // albumId -> AlbumImage[]
@@ -287,7 +288,8 @@ const StudioCheckout: React.FC = () => {
     return total;
   }, [selectedAlbums, selectedImages, albums, perPhotoPrice]);
 
-  const toggleAlbum = (albumId: number) => {
+  const toggleAlbum = (albumId: number,albumName:any) => {
+    setSelectedAlbumsName(albumName)
     setSelectedAlbums(prev => {
       const next = new Set(prev);
       if (next.has(albumId)) {
@@ -668,6 +670,7 @@ const StudioCheckout: React.FC = () => {
           emails,
           mobiles,
         },
+        albumName: selectedAlbumsName,
         channels,
       });
       if (res.data?.success) {
@@ -1324,7 +1327,7 @@ const StudioCheckout: React.FC = () => {
                       <div className="absolute top-2 left-2">
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); if (!isDisabled) toggleAlbum(album.id); }}
+                          onClick={(e) => { e.stopPropagation(); if (!isDisabled) toggleAlbum(album.id,album.name); }}
                           className="p-1.5 rounded-lg bg-white/90 hover:bg-white shadow-sm"
                           title={isSelected ? 'Unselect album' : 'Select album'}
                         >
