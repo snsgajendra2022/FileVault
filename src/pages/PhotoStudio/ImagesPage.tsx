@@ -490,6 +490,18 @@ const ClientImagesPage = () => {
     [images, selectedImageIds, getImageKey]
   );
 
+  /** Same as StudioCheckout / PhotoStudioAlbum: label for POST /api/public-share/send */
+  const shareAlbumName = useMemo(() => {
+    if (viewMode === 'invited' && selectedUser) {
+      const name = [selectedUser.inviterFirstName, selectedUser.inviterLastName]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+      return name ? `${name}'s images` : 'Shared images';
+    }
+    return 'My images';
+  }, [viewMode, selectedUser]);
+
   const handleToggleSelect = useCallback(
     (image: UserImage) => {
       const key = getImageKey(image);
@@ -672,6 +684,7 @@ const ClientImagesPage = () => {
           emails,
           mobiles,
         },
+        albumName: shareAlbumName,
         channels,
       });
       if (res.data?.success) {
@@ -711,6 +724,7 @@ const ClientImagesPage = () => {
     shareContactIds,
     shareChannels,
     shareMessage,
+    shareAlbumName,
   ]);
 
   // Restore scroll position on mount

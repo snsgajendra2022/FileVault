@@ -91,8 +91,6 @@ const PhotoStudioAlbum: React.FC = () => {
   const navigate = useNavigate();
   const [expandedAlbums, setExpandedAlbums] = useState<Set<number>>(new Set());
   const [selectedAlbums, setSelectedAlbums] = useState<Set<number>>(new Set());
-  const [selectedAlbumsName, setSelectedAlbumsName] = useState<any>();
-
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddImagesModal, setShowAddImagesModal] = useState<number | null>(null);
   const [showEditModal, setShowEditModal] = useState<number | null>(null);
@@ -302,6 +300,13 @@ const PhotoStudioAlbum: React.FC = () => {
     }
     return list;
   }, [filteredAlbums, albumSort]);
+
+  const selectedAlbumsName = useMemo(() => {
+    const selected = albums.filter((a) => selectedAlbums.has(a.id));
+    if (selected.length === 0) return 'My Album';
+    if (selected.length === 1) return selected[0]?.name || 'My Album';
+    return `${selected.length} Albums`;
+  }, [albums, selectedAlbums]);
 
   // Populate album images from album data when albums are loaded
   useEffect(() => {
@@ -872,8 +877,7 @@ const PhotoStudioAlbum: React.FC = () => {
       return;
     }
     setShareLinkSending(true);
-    console.log(selectedAlbumsName[0]);
-    
+
     try {
       const res = await api.post<{ success?: boolean; sent?: { email?: number; sms?: number }; shareIds?: { email?: number[]; sms?: number[] } }>('/api/public-share/send', {
         publicUrl: urlToShare,
@@ -991,14 +995,11 @@ const PhotoStudioAlbum: React.FC = () => {
   }, [albums, albumImages, extractAlbumImages, getImageFilename, isTransferringToPhotoBook, navigate]);
 
   /** Single selection only: selecting an album replaces any previous selection. */
-  const toggleAlbumSelection = useCallback((albumId: number,albumName:any) => {
+  const toggleAlbumSelection = useCallback((albumId: number) => {
     setSelectedAlbums((prev) => {
       if (prev.has(albumId)) return new Set<number>();
       return new Set([albumId]);
     });
-    
-    setSelectedAlbumsName(albumName);
-
   }, []);
 
   const toggleAlbum = (albumId: number) => {
@@ -1549,7 +1550,7 @@ const PhotoStudioAlbum: React.FC = () => {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  toggleAlbumSelection(album.id,album.name);
+                                  toggleAlbumSelection(album.id);
                                 }}
                                 className="p-1.5 rounded-lg bg-white/90 hover:bg-white shadow-sm"
                                 title={selectedAlbums.has(album.id) ? 'Unselect' : 'Select'}

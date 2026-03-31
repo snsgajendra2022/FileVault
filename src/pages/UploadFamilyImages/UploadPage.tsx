@@ -134,7 +134,7 @@ function fileToKey(file: File): string {
 // ZIP extraction: images and videos only (for upload)
 // Browser must load the whole ZIP into memory; very large files may cause crashes or out-of-memory
 const MAX_ZIP_SIZE_BYTES = 100 * 1024 * 1024 * 1024; // 100 GB
-const MAX_ZIP_SIZE_GB = 100;
+const MAX_ZIP_SIZE_GB = 1;
 const ZIP_IMAGE_EXT = new Set(['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'heic']);
 const ZIP_VIDEO_EXT = new Set(['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
 function getMimeForExt(ext: string): string {
@@ -189,7 +189,7 @@ async function extractImagesAndVideosFromZipBuffer(
 const MAX_CONCURRENT = 3;
 const MAX_RETRIES = 3;
 const UPLOAD_TIMEOUT_MS = 0; // no timeout for large files
-const MAX_UPLOAD_QUEUE = 10000;
+const MAX_UPLOAD_QUEUE = 1000;
 
 type Listener = () => void;
 

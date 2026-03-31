@@ -537,7 +537,7 @@ const PublicImagesDisplayPage: React.FC = () => {
                 const thumbUrl = getThumbnailUrl(img);
                 const filename = getImageFilename(img);
                 const fileType = getFileType(img);
-                const canView = (thumbUrl || imageUrl) && /^(png|jpg|jpeg|gif|webp)$/i.test(fileType);
+                const canView = (thumbUrl || imageUrl) && /^(png|jpg|jpeg|gif|webp|MP4|mp4)$/i.test(fileType);
                 return (
                   <div
                     key={img.id}
@@ -553,12 +553,28 @@ const PublicImagesDisplayPage: React.FC = () => {
                         <FaExpandArrowsAlt className="text-sm" />
                       </button>
                       {canView ? (
-                        <img
+                        <>
+                       {fileType == 'mp4' && <video src={imageUrl}   
+                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
+                       controls
+                       muted
+                       playsInline
+                       preload="auto"
+                       onClick={() => setFullscreenImage(img)} />}
+
+                       {fileType !== 'mp4' && <img
+                        src={(thumbUrl || imageUrl)!}
+                        alt={filename}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
+                        onClick={() => setFullscreenImage(img)}
+                      />}
+                        {/* <img
                           src={(thumbUrl || imageUrl)!}
                           alt={filename}
                           className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
                           onClick={() => setFullscreenImage(img)}
-                        />
+                        /> */}
+                        </>
                       ) : (
                         <div className="flex items-center justify-center h-full text-gray-500 text-sm">
                           {fileType.toUpperCase()}
@@ -574,7 +590,7 @@ const PublicImagesDisplayPage: React.FC = () => {
                           {new Date(img.uploadTime).toLocaleString()}
                         </p>
                       )}
-                      <div className="mt-3 flex items-center justify-between">
+                      {/* <div className="mt-3 flex items-center justify-between">
                         <span className="text-xs text-gray-500">{fileType.toUpperCase()}</span>
                         <button
                           type="button"
@@ -583,7 +599,7 @@ const PublicImagesDisplayPage: React.FC = () => {
                         >
                           <FaDownload className="mr-1" /> Download
                         </button>
-                      </div>
+                      </div> */}
                     </div>
                   </div>
                 );
@@ -620,12 +636,14 @@ const PublicImagesDisplayPage: React.FC = () => {
               onClick={(e) => e.stopPropagation()}
             >
               {getImageUrl(fullscreenImage) ? (
-                <img
-                  src={getImageUrl(fullscreenImage)!}
-                  alt={getImageFilename(fullscreenImage)}
-                  className="max-w-full max-h-[90vh] w-auto h-auto object-contain"
-                  onClick={(e) => e.stopPropagation()}
-                />
+                <>
+                 <img
+                   src={getImageUrl(fullscreenImage)!}
+                   alt={getImageFilename(fullscreenImage)}
+                   className="max-w-full max-h-[90vh] w-auto h-auto object-contain"
+                   onClick={(e) => e.stopPropagation()}
+                 />
+                </>
               ) : (
                 <p className="text-white">Image not available</p>
               )}
