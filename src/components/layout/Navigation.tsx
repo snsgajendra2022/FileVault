@@ -1,29 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { 
-  FaHome, 
-  FaUpload, 
-  FaCog, 
-  FaUsers, 
-  FaCloud, 
-  FaChartBar, 
-  FaShieldAlt,
-  FaPlus,
-  FaTimes,
-  FaUser,
-  FaCamera,
-  FaImages,
-  FaUserPlus,
-  FaSitemap,
-  FaQrcode,
-  FaCrown,
-  FaPalette,
-  FaFolder,
-  FaShare,
-  FaRupeeSign,
-  FaFlag
-} from 'react-icons/fa';
+import { FaTimes, FaCrown } from 'react-icons/fa';
+import {
+  regularNavigation,
+  studioNavigation,
+  adminNavigation,
+} from './navConfig';
 
 interface NavigationProps {
   isOpen: boolean;
@@ -31,6 +15,7 @@ interface NavigationProps {
 }
 
 const Navigation = ({ isOpen, onClose }: NavigationProps) => {
+  const { t } = useTranslation();
   const { user, isAdmin } = useAuth();
 
   // Runtime menu visibility flags
@@ -56,58 +41,9 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
     return defaults;
   }, [isAdmin]);
 
-  const navigationItems = {'items':[
-    { name: 'Dashboard', href: '/studio/dashboard', icon: FaHome, enabled: true },
-    { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
-    { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
-    { name: 'Plans', href: '/plans', icon: FaPlus, enabled: true },
-    { name: 'Usage', href: '/usage', icon: FaChartBar, enabled: true },
-    { name: 'Invitations', href: '/invitations', icon: FaUsers, enabled: true },
-    { name: 'Family Tree', href: '/family-tree', icon: FaSitemap, enabled: true },
-    { name: 'Dummy Tree', href: '/treePage', icon: FaUsers, enabled: true },
-    { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
-  ],active:false};
-  
-  // const studioNavigationItems = [];
-  const studioNavigationItems = {'items':[
-    { name: 'Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
-    { name: 'Upload', href: '/upload-family-images', icon: FaUpload, enabled: true },
-    { name: 'Images', href: '/client-images', icon: FaImages, enabled: true },
-    { name: 'Album', href: '/studio/albums', icon: FaFolder, enabled: true },
-    { name: 'Photo Themes', href: '/photo-themes', icon: FaPalette, enabled: true },
-    { name: 'Shared Albums', href: '/studio/shared-albums', icon: FaShare, enabled: true },
-    { name: 'Select & Pay', href: '/studio/payments', icon: FaQrcode, enabled: true },
-    { name: 'Members Tree', href: '/family-tree', icon: FaSitemap, enabled: true },
-    // { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
-    { name: 'Create Members', href: '/invitations', icon:FaUserPlus , enabled: true },
-    { name: 'Members', href: '/studio/clients', icon: FaUsers, enabled: true },
-    { name: 'Payment Management', href: '/studio/payment-management', icon: FaRupeeSign, enabled: true },
-    { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
-    // { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
-    // { name: 'Photo Book Dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
-    // { name: 'Upload', href: '/upload', icon: FaUpload, enabled: true },
-    // { name: 'My Images', href: '/client-images', icon: FaImages, enabled: true },
-    // { name: 'Services', href: '/services', icon: FaCloud, enabled: true },
-    // { name: 'Create Client', href: '/invitations', icon: FaUsers, enabled: true },
-    // { name: 'Clients', href: '/studio/clients', icon: FaUserPlus, enabled: true },
-    // { name: 'Clients Tree', href: '/client-tree', icon: FaSitemap, enabled: true },
-    // { name: 'Photo Gallery', href: '/studio/gallery', icon: FaImages, enabled: true },
-    // { name: 'Barcode System', href: '/studio/barcodes', icon: FaQrcode, enabled: true },
-    // { name: 'Photo Book Settings', href: '/studio/settings', icon: FaCog, enabled: true },
-    // { name: 'Sheet', href: 'Sheet', icon: FaCog, enabled: true },
-    // { name: 'Profile', href: '/profile', icon: FaUser, enabled: true },
-  ],active:true};
-
-  const adminNavigationItems = {'items':  [
-    { name: 'Admin Dashboard', href: '/admin?tab=dashboard', icon: FaShieldAlt, enabled: true },
-    { name: 'User Management', href: '/admin?tab=users', icon: FaUsers, enabled: true },
-    { name: 'Service Config', href: '/admin?tab=services', icon: FaCloud, enabled: true },
-    { name: 'Plan Management', href: '/admin?tab=plans', icon: FaPlus, enabled: true },
-    { name: 'Feature Flags', href: '/admin?tab=flags', icon: FaFlag, enabled: true },
-    { name: 'Usage Analytics', href: '/admin?tab=analytics', icon: FaChartBar, enabled: true },
-    { name: 'System Health', href: '/admin?tab=health', icon: FaShieldAlt, enabled: true },
-  ],active:true};
-console.log( studioNavigationItems.active === true && 2 );
+  const navigationItems = regularNavigation;
+  const studioNavigationItems = studioNavigation;
+  const adminNavigationItems = adminNavigation;
 
   return (
     <>
@@ -133,13 +69,13 @@ console.log( studioNavigationItems.active === true && 2 );
                 </div>
             <div className="ml-4">
                 {menuFlags.regular === true && navigationItems.active === true && (
-                <h1 className="text-xl font-bold text-white drop-shadow-lg">ImageSecurity</h1>
+                <h1 className="text-xl font-bold text-white drop-shadow-lg">{t('brand.imageSecurity')}</h1>
                 )}
                 {user?.accountType == 'FREE' && menuFlags.studio === true && studioNavigationItems.active === true && (
-                <h1 className="text-xl font-bold text-white drop-shadow-lg">Photo Book</h1>
+                <h1 className="text-xl font-bold text-white drop-shadow-lg">{t('brand.photoBook')}</h1>
                 )}
                 {user.accountType == 'ADMIN' && menuFlags.admin === true && adminNavigationItems.active === true && (
-                <h1 className="text-xl font-bold text-white drop-shadow-lg">Admin Panel</h1>
+                <h1 className="text-xl font-bold text-white drop-shadow-lg">{t('brand.adminPanel')}</h1>
                 )}
                 <div className="flex items-center space-x-1">
                   <p className="text-xs text-blue-100 font-medium">{user?.firstName} {user?.lastName}</p>
@@ -161,7 +97,7 @@ console.log( studioNavigationItems.active === true && 2 );
             <>
               {navigationItems.active === true && navigationItems.items.filter(i=>i.enabled!==false).map((item) => (
                 <NavLink
-                key={item.name}
+                key={item.href}
                 to={item.href}
                 className={({ isActive }) =>
                   `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
@@ -178,11 +114,10 @@ console.log( studioNavigationItems.active === true && 2 );
                       <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
                     )}
                     
-                    fgnfgbdfklbhcfklbndfklbndflbndfkb-----------------------
                     <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-gray-900'}`}>
                       <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
                     </div>
-                    <span className="font-semibold">{item.name}</span>
+                    <span className="font-semibold">{t(item.labelKey)}</span>
                     
                     {/* Hover glow effect */}
                     <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400 to-purple-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
@@ -208,7 +143,7 @@ console.log( studioNavigationItems.active === true && 2 );
                && 
                studioNavigationItems.items.filter(i=>i.enabled!==false).map((item) => (
                 <NavLink
-                  key={item.name}
+                  key={item.href}
                   to={item.href}
                   className={({ isActive }) =>
                     `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
@@ -228,7 +163,7 @@ console.log( studioNavigationItems.active === true && 2 );
                       <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-pink-700'}`}>
                         <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
                       </div>
-                      <span className="font-semibold">{item.name}</span>
+                      <span className="font-semibold">{t(item.labelKey)}</span>
                       
                       {/* Hover glow effect */}
                       <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-pink-400 to-purple-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
@@ -246,13 +181,13 @@ console.log( studioNavigationItems.active === true && 2 );
                 <div className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
                   <FaCrown className="h-4 w-4 text-purple-600 mr-2" />
                   <h3 className="text-xs font-bold text-purple-700 uppercase tracking-wider">
-                    Admin Panel
+                    {t('brand.adminSection')}
                   </h3>
                 </div>
               </div>
               {adminNavigationItems.active === true && adminNavigationItems.items.filter(i=>i.enabled!==false).map((item) => (
                 <NavLink
-                  key={item.name}
+                  key={item.href}
                   to={item.href}
                   className={({ isActive }) =>
                     `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
@@ -272,7 +207,7 @@ console.log( studioNavigationItems.active === true && 2 );
                       <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-purple-700'}`}>
                         <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
                       </div>
-                      <span className="font-semibold">{item.name}</span>
+                      <span className="font-semibold">{t(item.labelKey)}</span>
                       
                       {/* Hover glow effect */}
                       <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-400 to-pink-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { FaLock, FaEye, FaEyeSlash, FaShieldAlt, FaCheck, FaTimes } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import adminService from '../services/adminService';
 
 const ChangePasswordPage = () => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -22,11 +24,11 @@ const ChangePasswordPage = () => {
     mutationFn: (passwordData: { currentPassword: string; newPassword: string }) =>
       adminService.changePassword(passwordData),
     onSuccess: () => {
-      toast.success('Password changed successfully!');
+      toast.success(t('changePassword.toastSuccess'));
       navigate('/profile');
     },
     onError: (error: any) => {
-      const message = error.response?.data?.message || 'Failed to change password';
+      const message = error.response?.data?.message || t('changePassword.toastError');
       toast.error(message);
     }
   });
@@ -36,34 +38,34 @@ const ChangePasswordPage = () => {
 
     // Current password validation
     if (!formData.currentPassword.trim()) {
-      newErrors.currentPassword = 'Current password is required';
+      newErrors.currentPassword = t('changePassword.errCurrentRequired');
     }
 
     // New password validation
     if (!formData.newPassword.trim()) {
-      newErrors.newPassword = 'New password is required';
+      newErrors.newPassword = t('changePassword.errNewRequired');
     } else if (formData.newPassword.length < 8) {
-      newErrors.newPassword = 'Password must be at least 8 characters long';
+      newErrors.newPassword = t('changePassword.errNewMin');
     } else if (!/(?=.*[a-z])/.test(formData.newPassword)) {
-      newErrors.newPassword = 'Password must contain at least one lowercase letter';
+      newErrors.newPassword = t('changePassword.errNewLower');
     } else if (!/(?=.*[A-Z])/.test(formData.newPassword)) {
-      newErrors.newPassword = 'Password must contain at least one uppercase letter';
+      newErrors.newPassword = t('changePassword.errNewUpper');
     } else if (!/(?=.*\d)/.test(formData.newPassword)) {
-      newErrors.newPassword = 'Password must contain at least one number';
+      newErrors.newPassword = t('changePassword.errNewNum');
     } else if (!/(?=.*[@$!%*?&])/.test(formData.newPassword)) {
-      newErrors.newPassword = 'Password must contain at least one special character (@$!%*?&)';
+      newErrors.newPassword = t('changePassword.errNewSpecial');
     }
 
     // Confirm password validation
     if (!formData.confirmPassword.trim()) {
-      newErrors.confirmPassword = 'Please confirm your new password';
+      newErrors.confirmPassword = t('changePassword.errConfirmRequired');
     } else if (formData.newPassword !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = t('changePassword.errMismatch');
     }
 
     // Check if new password is same as current
     if (formData.currentPassword === formData.newPassword) {
-      newErrors.newPassword = 'New password must be different from current password';
+      newErrors.newPassword = t('changePassword.errSameAsCurrent');
     }
 
     setErrors(newErrors);
@@ -99,12 +101,12 @@ const ChangePasswordPage = () => {
     if (/(?=.*[@$!%*?&])/.test(password)) score++;
 
     const strengthMap = {
-      0: { label: 'Very Weak', color: 'bg-red-500' },
-      1: { label: 'Weak', color: 'bg-orange-500' },
-      2: { label: 'Fair', color: 'bg-yellow-500' },
-      3: { label: 'Good', color: 'bg-blue-500' },
-      4: { label: 'Strong', color: 'bg-green-500' },
-      5: { label: 'Very Strong', color: 'bg-emerald-500' }
+      0: { label: t('changePassword.strengthVeryWeak'), color: 'bg-red-500' },
+      1: { label: t('changePassword.strengthWeak'), color: 'bg-orange-500' },
+      2: { label: t('changePassword.strengthFair'), color: 'bg-yellow-500' },
+      3: { label: t('changePassword.strengthGood'), color: 'bg-blue-500' },
+      4: { label: t('changePassword.strengthStrong'), color: 'bg-green-500' },
+      5: { label: t('changePassword.strengthVeryStrong'), color: 'bg-emerald-500' }
     };
 
     return { score, ...strengthMap[score as keyof typeof strengthMap] };
@@ -120,8 +122,8 @@ const ChangePasswordPage = () => {
           <div className="mx-auto h-16 w-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mb-4">
             <FaShieldAlt className="h-8 w-8 text-white" />
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Change Password</h2>
-          <p className="text-gray-600">Update your account password to keep it secure</p>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('changePassword.title')}</h2>
+          <p className="text-gray-600">{t('changePassword.subtitle')}</p>
         </div>
 
         {/* Form Card */}
@@ -130,7 +132,7 @@ const ChangePasswordPage = () => {
             {/* Current Password */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Current Password <span className="text-red-500">*</span>
+                {t('changePassword.currentLabel')} <span className="text-red-500">*</span>
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -142,7 +144,7 @@ const ChangePasswordPage = () => {
                   className={`w-full pl-12 pr-12 py-4 border rounded-2xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
                     errors.currentPassword ? 'border-red-300' : 'border-gray-300'
                   }`}
-                  placeholder="Enter your current password"
+                  placeholder={t('changePassword.placeholderCurrent')}
                   value={formData.currentPassword}
                   onChange={(e) => handleFieldChange('currentPassword', e.target.value)}
                 />
@@ -169,7 +171,7 @@ const ChangePasswordPage = () => {
             {/* New Password */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-3">
-                New Password <span className="text-red-500">*</span>
+                {t('changePassword.newLabel')} <span className="text-red-500">*</span>
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -181,7 +183,7 @@ const ChangePasswordPage = () => {
                   className={`w-full pl-12 pr-12 py-4 border rounded-2xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
                     errors.newPassword ? 'border-red-300' : 'border-gray-300'
                   }`}
-                  placeholder="Enter your new password"
+                  placeholder={t('changePassword.placeholderNew')}
                   value={formData.newPassword}
                   onChange={(e) => handleFieldChange('newPassword', e.target.value)}
                 />
@@ -202,7 +204,7 @@ const ChangePasswordPage = () => {
               {formData.newPassword && (
                 <div className="mt-3">
                   <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-gray-600">Password Strength:</span>
+                    <span className="text-gray-600">{t('changePassword.strengthLabel')}</span>
                     <span className={`font-medium ${passwordStrength.color.replace('bg-', 'text-')}`}>
                       {passwordStrength.label}
                     </span>
@@ -227,7 +229,7 @@ const ChangePasswordPage = () => {
             {/* Confirm New Password */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Confirm New Password <span className="text-red-500">*</span>
+                {t('changePassword.confirmLabel')} <span className="text-red-500">*</span>
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -239,7 +241,7 @@ const ChangePasswordPage = () => {
                   className={`w-full pl-12 pr-12 py-4 border rounded-2xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
                     errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
                   }`}
-                  placeholder="Confirm your new password"
+                  placeholder={t('changePassword.placeholderConfirm')}
                   value={formData.confirmPassword}
                   onChange={(e) => handleFieldChange('confirmPassword', e.target.value)}
                 />
@@ -262,12 +264,12 @@ const ChangePasswordPage = () => {
                   {formData.newPassword === formData.confirmPassword ? (
                     <p className="text-green-600 text-sm flex items-center">
                       <FaCheck className="h-4 w-4 mr-1" />
-                      Passwords match
+                      {t('changePassword.matchOk')}
                     </p>
                   ) : (
                     <p className="text-red-500 text-sm flex items-center">
                       <FaTimes className="h-4 w-4 mr-1" />
-                      Passwords do not match
+                      {t('changePassword.matchNo')}
                     </p>
                   )}
                 </div>
@@ -283,27 +285,27 @@ const ChangePasswordPage = () => {
 
             {/* Password Requirements */}
             <div className="bg-gray-50 rounded-xl p-4">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3">Password Requirements:</h4>
+              <h4 className="text-sm font-semibold text-gray-700 mb-3">{t('changePassword.requirementsTitle')}</h4>
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <FaCheck className={`h-4 w-4 mr-2 ${formData.newPassword.length >= 8 ? 'text-green-500' : 'text-gray-300'}`} />
-                  At least 8 characters long
+                  {t('changePassword.reqLen')}
                 </li>
                 <li className="flex items-center">
                   <FaCheck className={`h-4 w-4 mr-2 ${/(?=.*[a-z])/.test(formData.newPassword) ? 'text-green-500' : 'text-gray-300'}`} />
-                  Contains at least one lowercase letter
+                  {t('changePassword.reqLower')}
                 </li>
                 <li className="flex items-center">
                   <FaCheck className={`h-4 w-4 mr-2 ${/(?=.*[A-Z])/.test(formData.newPassword) ? 'text-green-500' : 'text-gray-300'}`} />
-                  Contains at least one uppercase letter
+                  {t('changePassword.reqUpper')}
                 </li>
                 <li className="flex items-center">
                   <FaCheck className={`h-4 w-4 mr-2 ${/(?=.*\d)/.test(formData.newPassword) ? 'text-green-500' : 'text-gray-300'}`} />
-                  Contains at least one number
+                  {t('changePassword.reqNum')}
                 </li>
                 <li className="flex items-center">
                   <FaCheck className={`h-4 w-4 mr-2 ${/(?=.*[@$!%*?&])/.test(formData.newPassword) ? 'text-green-500' : 'text-gray-300'}`} />
-                  Contains at least one special character (@$!%*?&)
+                  {t('changePassword.reqSpecial')}
                 </li>
               </ul>
             </div>
@@ -326,12 +328,12 @@ const ChangePasswordPage = () => {
                 {changePasswordMutation.isPending ? (
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
-                    Changing Password...
+                    {t('changePassword.submitting')}
                   </div>
                 ) : (
                   <div className="flex items-center justify-center">
                     <FaShieldAlt className="h-5 w-5 mr-2" />
-                    Change Password
+                    {t('changePassword.submit')}
                   </div>
                 )}
               </button>
@@ -343,24 +345,24 @@ const ChangePasswordPage = () => {
         <div className="mt-8 bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
             <FaShieldAlt className="h-5 w-5 text-blue-600 mr-2" />
-            Security Tips
+            {t('changePassword.securityTips')}
           </h3>
           <ul className="space-y-3 text-sm text-gray-600">
             <li className="flex items-start">
               <div className="h-2 w-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <span>Use a unique password that you don't use for other accounts</span>
+              <span>{t('changePassword.tip1')}</span>
             </li>
             <li className="flex items-start">
               <div className="h-2 w-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <span>Consider using a password manager to generate and store strong passwords</span>
+              <span>{t('changePassword.tip2')}</span>
             </li>
             <li className="flex items-start">
               <div className="h-2 w-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <span>Change your password regularly and never share it with anyone</span>
+              <span>{t('changePassword.tip3')}</span>
             </li>
             <li className="flex items-start">
               <div className="h-2 w-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <span>Enable two-factor authentication for additional security</span>
+              <span>{t('changePassword.tip4')}</span>
             </li>
           </ul>
         </div>

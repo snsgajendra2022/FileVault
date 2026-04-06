@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import i18n from "i18next";
 import * as d3 from "d3";
 import api from "../../services/api";
 import { toast } from "react-hot-toast";
@@ -48,7 +50,7 @@ function sanitizeIdPart(value: string): string {
 function convertFamilyDataToTree(data: FamilyData): Person {
   const root: Person = {
     id: 'clients-root',
-    name: 'Clients',
+    name: i18n.t('photoStudioClientTree.rootClients'),
     children: [],
   };
 
@@ -88,6 +90,7 @@ function linkPath(s: [number, number], t: [number, number]) {
 }
 
 export default function ClientTreePage() {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);
@@ -160,19 +163,19 @@ export default function ClientTreePage() {
 
           if (isInitial) {
             if (!initialToastShownRef.current) {
-              toast.success('Family data loaded successfully');
+              toast.success(t('photoStudioClientTree.toastLoaded'));
               initialToastShownRef.current = true;
             }
           } else {
-            toast.success('Family data loaded successfully');
+            toast.success(t('photoStudioClientTree.toastLoaded'));
           }
         } else {
           console.error('API response missing familyData:', response.data);
-          toast.error('Invalid data format received from server');
+          toast.error(t('photoStudioClientTree.toastInvalidFormat'));
         }
       } else {
         console.error('API returned success: false', response.data);
-        toast.error(response.data.message || 'Failed to load family data');
+        toast.error(response.data.message || t('photoStudioClientTree.toastFailedLoad'));
       }
     } catch (error: any) {
       console.error('Error fetching family data:', error);
@@ -180,16 +183,16 @@ export default function ClientTreePage() {
       // Handle different types of errors
       if (error.response) {
         // Server responded with error status
-        const errorMessage = error.response.data?.message || `Server error: ${error.response.status}`;
+        const errorMessage = error.response.data?.message || t('photoStudioClientTree.serverError', { status: error.response.status });
         toast.error(errorMessage);
         console.error('Server error details:', error.response.data);
       } else if (error.request) {
         // Network error
-        toast.error('Network error: Unable to connect to server');
+        toast.error(t('photoStudioClientTree.networkError'));
         console.error('Network error:', error.request);
       } else {
         // Other error
-        toast.error('Failed to load family data');
+        toast.error(t('photoStudioClientTree.toastFailedLoad'));
         console.error('Other error:', error.message);
       }
     } finally {
@@ -324,12 +327,12 @@ export default function ClientTreePage() {
         <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
           <div className="flex flex-col items-center gap-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="text-gray-600 font-medium">Loading family data...</p>
+            <p className="text-gray-600 font-medium">{t('photoStudioClientTree.loadingFamilyData')}</p>
           </div>
         </div>
       )}
       <div className="absolute inset-0 bg-white shadow-sm  ring-gray-200 overflow-hidden">
-        <svg ref={svgRef} className="w-full h-full block select-none" aria-label="Family/Client Tree">
+        <svg ref={svgRef} className="w-full h-full block select-none" aria-label={t('photoStudioClientTree.ariaTree')}>
           <defs>
             <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
               <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.15" />
@@ -402,24 +405,24 @@ export default function ClientTreePage() {
               <svg viewBox="0 0 24 24" width="20" height="20">{AVATAR_SILHOUETTE}</svg>
             </div>
             <div className="flex-1">
-              <div className="text-sm text-gray-500">Selected</div>
+              <div className="text-sm text-gray-500">{t('photoStudioClientTree.selected')}</div>
               <div className="font-semibold text-gray-800 text-base break-words max-w-[220px]">
-                {nodes.find((n) => n.data.id === selected)?.data.name || "None"}
+                {nodes.find((n) => n.data.id === selected)?.data.name || t('photoStudioClientTree.none')}
               </div>
             </div>
-            <button className="ml-2 text-gray-400 hover:text-gray-600" onClick={() => setSelected(null)} aria-label="Close">✕</button>
+            <button className="ml-2 text-gray-400 hover:text-gray-600" onClick={() => setSelected(null)} aria-label={t('photoStudioClientTree.close')}>✕</button>
           </div>
 
           <div className="mt-4 grid gap-2">
-            <Action label="Focus tree on selected" onClick={() => selected && focusOn(selected)} />
-            <Action label="Expand one level" onClick={() => selected && toggle(selected)} />
-            <Action label="Expand all under selected" onClick={() => selected && expandAll(selected)} />
-            <Action label="Collapse selected" onClick={() => selected && collapseAll(selected)} />
-            <Action label="Refresh family data" onClick={fetchFamilyData} />
+            <Action label={t('photoStudioClientTree.focusTree')} onClick={() => selected && focusOn(selected)} />
+            <Action label={t('photoStudioClientTree.expandOneLevel')} onClick={() => selected && toggle(selected)} />
+            <Action label={t('photoStudioClientTree.expandAllUnder')} onClick={() => selected && expandAll(selected)} />
+            <Action label={t('photoStudioClientTree.collapseSelected')} onClick={() => selected && collapseAll(selected)} />
+            <Action label={t('photoStudioClientTree.refreshFamilyData')} onClick={fetchFamilyData} />
           </div>
 
           <div className="mt-auto pt-4 text-xs text-gray-400">
-            Zoom: mouse wheel • Pan: drag • Collapse: Hide/Expand
+            {t('photoStudioClientTree.zoomHelp')}
           </div>
         </aside>
       )}

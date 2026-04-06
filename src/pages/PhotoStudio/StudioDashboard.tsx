@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
   FaCamera,
@@ -93,6 +94,7 @@ interface ChartDataPoint {
 const CHART_COLORS = ['#6366F1', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EC4899', '#14B8A6'];
 
 const StudioDashboard: React.FC = () => {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<DashboardStats>({});
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [recentClients, setRecentClients] = useState<RecentClient[]>([]);
@@ -298,17 +300,17 @@ const StudioDashboard: React.FC = () => {
       value: a.imageCount || 0,
       color: CHART_COLORS[i % CHART_COLORS.length],
     }));
-    if (rest > 0) data.push({ name: 'Others', value: rest, color: '#94A3B8' });
+    if (rest > 0) data.push({ name: t('dashboard.others'), value: rest, color: '#94A3B8' });
     return data;
-  }, [albums, totalAlbumImages]);
+  }, [albums, totalAlbumImages, t]);
 
   const photosCount = typeof yourPhotosCount === 'number' ? yourPhotosCount : allPhotos.length;
 
   if (loading) {
     return (
       <DashboardLoading
-        title="Loading Dashboard"
-        subtitle="Preparing your studio..."
+        title={t('dashboard.loadingTitle')}
+        subtitle={t('dashboard.loadingSubtitle')}
         icon={FaCamera}
       />
     );
@@ -322,23 +324,23 @@ const StudioDashboard: React.FC = () => {
         {/* 1. Welcome Header */}
         <section className="welcome-section premium-welcome">
           <div className="welcome-content">
-            <h1 className="welcome-greeting">Welcome back, {firstName}</h1>
+            <h1 className="welcome-greeting">{t('dashboard.welcome', { name: firstName })}</h1>
             <p className="welcome-summary">
-              Here’s what’s happening with your studio today. Manage clients, albums, and photos in one place.
+              {t('dashboard.welcomeSummary')}
             </p>
           </div>
           <div className="quick-actions">
             <Link to="/invitations" className="quick-action-btn primary">
               <FaPlus />
-              Add Client
+              {t('dashboard.addClient')}
             </Link>
             <Link to="/upload" className="quick-action-btn secondary">
               <FaImages />
-              Upload Photos
+              {t('dashboard.uploadPhotos')}
             </Link>
             <Link to="/studio/albums" className="quick-action-btn secondary">
               <FaFolder />
-              Create Album
+              {t('dashboard.createAlbum')}
             </Link>
           </div>
         </section>
@@ -351,15 +353,17 @@ const StudioDashboard: React.FC = () => {
             </div>
             <div className="stat-body">
               <h3>{(typeof stats.totalClients === 'number' ? stats.totalClients : 0).toLocaleString()}</h3>
-              <p>Total Clients</p>
+              <p>{t('dashboard.totalClients')}</p>
               {typeof stats.clientsTrendPercent === 'number' ? (
                 <span className={`stat-trend ${stats.clientsTrendPercent >= 0 ? 'positive' : 'negative'}`}>
-                  {stats.clientsTrendPercent >= 0 ? '+' : ''}{stats.clientsTrendPercent}% this month
+                  {t('dashboard.thisMonth', {
+                    n: `${stats.clientsTrendPercent >= 0 ? '+' : ''}${stats.clientsTrendPercent}`,
+                  })}
                 </span>
               ) : stats.clientsTrendLabel ? (
                 <span className="stat-trend">{stats.clientsTrendLabel}</span>
               ) : (
-                <span className="stat-trend">From family & clients</span>
+                <span className="stat-trend">{t('dashboard.fromFamilyClients')}</span>
               )}
             </div>
           </div>
@@ -370,8 +374,8 @@ const StudioDashboard: React.FC = () => {
             </div>
             <div className="stat-body">
               <h3>{(stats.totalAlbums ?? albums.length ?? 0).toLocaleString()}</h3>
-              <p>Total Albums</p>
-              <span className="stat-trend">{totalAlbumImages} images</span>
+              <p>{t('dashboard.totalAlbums')}</p>
+              <span className="stat-trend">{t('dashboard.imagesCount', { n: totalAlbumImages })}</span>
             </div>
           </div>
 
@@ -381,8 +385,8 @@ const StudioDashboard: React.FC = () => {
             </div>
             <div className="stat-body">
               <h3>{(typeof stats.totalVideos === 'number' ? stats.totalVideos : 0).toLocaleString()}</h3>
-              <p>Total Videos</p>
-              <span className="stat-trend positive">Active</span>
+              <p>{t('dashboard.totalVideos')}</p>
+              <span className="stat-trend positive">{t('dashboard.active')}</span>
             </div>
           </div>
 
@@ -392,8 +396,8 @@ const StudioDashboard: React.FC = () => {
             </div>
             <div className="stat-body">
               <h3>{photosCount.toLocaleString()}</h3>
-              <p>Your Photos</p>
-              <span className="stat-trend">All time</span>
+              <p>{t('dashboard.yourPhotos')}</p>
+              <span className="stat-trend">{t('dashboard.allTime')}</span>
             </div>
           </div>
         </section>
@@ -405,18 +409,18 @@ const StudioDashboard: React.FC = () => {
               <div className="chart-title-group">
                 <FaFolder className="chart-icon" />
                 <div>
-                  <h3>Album Statistics</h3>
-                  <p>Top albums by image count</p>
+                  <h3>{t('dashboard.albumStatistics')}</h3>
+                  <p>{t('dashboard.topAlbumsByCount')}</p>
                 </div>
               </div>
-              <Link to="/studio/albums" className="view-all-link">View All Albums</Link>
+              <Link to="/studio/albums" className="view-all-link">{t('dashboard.viewAllAlbums')}</Link>
             </div>
             <div className="chart-content">
               {albumChartData.length === 0 ? (
                 <div className="chart-empty">
                   <FaFolder className="empty-icon" />
-                  <p>No albums yet</p>
-                  <Link to="/studio/albums" className="create-link">Create your first album</Link>
+                  <p>{t('dashboard.noAlbumsYet')}</p>
+                  <Link to="/studio/albums" className="create-link">{t('dashboard.createFirstAlbum')}</Link>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={280}>
@@ -425,7 +429,7 @@ const StudioDashboard: React.FC = () => {
                     <XAxis dataKey="label" tick={{ fill: '#64748B', fontSize: 12 }} tickLine={false} axisLine={{ stroke: '#E2E8F0' }} />
                     <YAxis tick={{ fill: '#64748B', fontSize: 12 }} tickLine={false} axisLine={false} />
                     <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }} cursor={{ fill: 'rgba(99, 102, 241, 0.06)' }} />
-                    <Bar dataKey="value" name="Images" radius={[8, 8, 0, 0]} maxBarSize={48}>
+                    <Bar dataKey="value" name={t('dashboard.images')} radius={[8, 8, 0, 0]} maxBarSize={48}>
                       {albumChartData.map((entry, i) => (
                         <Cell key={i} fill={entry.color || CHART_COLORS[i % CHART_COLORS.length]} />
                       ))}
@@ -441,8 +445,8 @@ const StudioDashboard: React.FC = () => {
               <div className="chart-title-group">
                 <FaChartLine className="chart-icon" />
                 <div>
-                  <h3>Upload Activity</h3>
-                  <p>Last 7 days</p>
+                  <h3>{t('dashboard.uploadActivity')}</h3>
+                  <p>{t('dashboard.last7Days')}</p>
                 </div>
               </div>
             </div>
@@ -453,7 +457,7 @@ const StudioDashboard: React.FC = () => {
                   <XAxis dataKey="name" tick={{ fill: '#64748B', fontSize: 12 }} tickLine={false} axisLine={{ stroke: '#E2E8F0' }} />
                   <YAxis tick={{ fill: '#64748B', fontSize: 12 }} tickLine={false} axisLine={false} />
                   <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }} />
-                  <Line type="monotone" dataKey="count" name="Uploads" stroke="#6366F1" strokeWidth={2.5} dot={{ fill: '#6366F1', strokeWidth: 0 }} activeDot={{ r: 6, fill: '#8B5CF6', stroke: '#fff', strokeWidth: 2 }} />
+                  <Line type="monotone" dataKey="count" name={t('dashboard.uploads')} stroke="#6366F1" strokeWidth={2.5} dot={{ fill: '#6366F1', strokeWidth: 0 }} activeDot={{ r: 6, fill: '#8B5CF6', stroke: '#fff', strokeWidth: 2 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -464,8 +468,8 @@ const StudioDashboard: React.FC = () => {
               <div className="chart-title-group">
                 <FaImages className="chart-icon" />
                 <div>
-                  <h3>Photo Distribution</h3>
-                  <p>By album</p>
+                  <h3>{t('dashboard.photoDistribution')}</h3>
+                  <p>{t('dashboard.byAlbum')}</p>
                 </div>
               </div>
             </div>
@@ -473,7 +477,7 @@ const StudioDashboard: React.FC = () => {
               {pieChartData.length === 0 ? (
                 <div className="chart-empty">
                   <FaImages className="empty-icon" />
-                  <p>No data yet</p>
+                  <p>{t('dashboard.noDataYet')}</p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={280}>
@@ -494,7 +498,7 @@ const StudioDashboard: React.FC = () => {
                         <Cell key={i} fill={entry.color} stroke="none" />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }} formatter={(value: number) => [value, 'Images']} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }} formatter={(value: number) => [value, t('dashboard.images')]} />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
@@ -507,15 +511,15 @@ const StudioDashboard: React.FC = () => {
         <section className="main-grid premium-main-grid">
           <div className="dashboard-card premium-card activity-feed">
             <div className="card-header">
-              <h3>Recent Activity</h3>
-              <Link to="/client-images" className="view-all-link">View All</Link>
+              <h3>{t('dashboard.recentActivity')}</h3>
+              <Link to="/client-images" className="view-all-link">{t('dashboard.viewAll')}</Link>
             </div>
             <div className="activity-list timeline">
               {recentActivity.length === 0 ? (
                 <div className="activity-item">
                   <div className="activity-icon-wrapper">{getActivityIcon('upload')}</div>
                   <div className="activity-content">
-                    <p className="activity-message">No recent activity yet</p>
+                    <p className="activity-message">{t('dashboard.noRecentActivity')}</p>
                     <span className="activity-time">—</span>
                   </div>
                 </div>
@@ -535,16 +539,16 @@ const StudioDashboard: React.FC = () => {
 
           <div className="dashboard-card premium-card recent-clients-card">
             <div className="card-header">
-              <h3>Recent Clients</h3>
-              <Link to="/studio/clients" className="view-all-link">View All</Link>
+              <h3>{t('dashboard.recentClients')}</h3>
+              <Link to="/studio/clients" className="view-all-link">{t('dashboard.viewAll')}</Link>
             </div>
             {recentClients.length === 0 ? (
               <div className="clients-list">
                 <div className="client-item empty-state">
                   <div className="client-avatar"><span>+</span></div>
                   <div className="client-info">
-                    <h4>No clients yet</h4>
-                    <p>Add your first client to get started.</p>
+                    <h4>{t('dashboard.noClientsYet')}</h4>
+                    <p>{t('dashboard.addFirstClient')}</p>
                   </div>
                   <Link to="/invitations" className="action-btn primary" title="Add Client"><FaPlus /></Link>
                 </div>
@@ -560,7 +564,7 @@ const StudioDashboard: React.FC = () => {
                       <h4>{client.name}</h4>
                       {client.email && <p>{client.email}</p>}
                       <span className="client-meta">
-                        {[client.totalPhotos ? `${client.totalPhotos} photos` : null, client.lastSession].filter(Boolean).join(' • ') || '—'}
+                        {[client.totalPhotos ? `${client.totalPhotos} ${t('dashboard.photosWord')}` : null, client.lastSession].filter(Boolean).join(' • ') || '—'}
                       </span>
                     </div>
                     <div className="client-actions">
@@ -577,32 +581,32 @@ const StudioDashboard: React.FC = () => {
         {/* 6. Quick Access */}
         <section className="quick-access premium-quick-access">
           <div className="section-header">
-            <h3>Quick Access</h3>
-            <p>Navigate to your most used features</p>
+            <h3>{t('dashboard.quickAccess')}</h3>
+            <p>{t('dashboard.quickAccessSubtitle')}</p>
           </div>
           <div className="access-grid">
             <Link to="/studio/clients" className="access-card premium-access-card">
               <div className="access-icon-wrap gradient-indigo"><FaUsers className="access-icon" /></div>
-              <h4>Manage Clients</h4>
-              <p>Add, edit, and organize your clients</p>
+              <h4>{t('dashboard.manageClients')}</h4>
+              <p>{t('dashboard.manageClientsDesc')}</p>
               <span className="access-arrow">→</span>
             </Link>
             <Link to="/client-images" className="access-card premium-access-card">
               <div className="access-icon-wrap gradient-cyan"><FaImages className="access-icon" /></div>
-              <h4>Photo Gallery</h4>
-              <p>Upload and organize photos & videos</p>
+              <h4>{t('dashboard.photoGallery')}</h4>
+              <p>{t('dashboard.photoGalleryDesc')}</p>
               <span className="access-arrow">→</span>
             </Link>
             <Link to="/studio/albums" className="access-card premium-access-card">
               <div className="access-icon-wrap gradient-violet"><FaFolder className="access-icon" /></div>
-              <h4>Albums</h4>
-              <p>Create and manage photo albums</p>
+              <h4>{t('dashboard.albums')}</h4>
+              <p>{t('dashboard.albumsDesc')}</p>
               <span className="access-arrow">→</span>
             </Link>
             <Link to="/upload" className="access-card premium-access-card">
               <div className="access-icon-wrap gradient-amber"><FaPlus className="access-icon" /></div>
-              <h4>Upload Photos</h4>
-              <p>Upload new photos to your library</p>
+              <h4>{t('dashboard.uploadPhotos')}</h4>
+              <p>{t('dashboard.uploadPhotosDesc')}</p>
               <span className="access-arrow">→</span>
             </Link>
           </div>

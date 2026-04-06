@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -29,6 +30,7 @@ interface ProfileData {
 }
 
 const ProfilePage = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
@@ -64,12 +66,12 @@ const ProfilePage = () => {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Profile updated successfully!');
+      toast.success(t('profile.updated'));
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
     },
     onError: () => {
-      toast.error('Failed to update profile');
+      toast.error(t('profile.updateFailed'));
     }
   });
 
@@ -94,8 +96,8 @@ const ProfilePage = () => {
   if (profileLoading) {
     return (
       <DashboardLoading 
-        title="Loading Profile"
-        subtitle="Fetching your profile information..."
+        title={t('profile.loadingTitle')}
+        subtitle={t('profile.loadingSubtitle')}
         icon={FaUser}
         showFeatures={false}
       />
@@ -107,10 +109,10 @@ const ProfilePage = () => {
       {/* Header */}
       <div className="text-center mb-10">
         <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
-          Profile Settings
+          {t('profile.title')}
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          Manage your account information and personalize your profile
+          {t('profile.subtitle')}
         </p>
       </div>
       <div style={{ display: 'flex', justifyContent: 'end', alignItems: 'center', gap: '10px' }}>
@@ -121,7 +123,7 @@ const ProfilePage = () => {
             className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-red-700 hover:to-pink-700 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
           >
             <FaLock className="h-5 w-5" />
-            <span>Change Password</span>
+            <span>{t('profile.changePassword')}</span>
           </button>
         </div>
       </div>
@@ -185,13 +187,13 @@ const ProfilePage = () => {
           <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
             <FaUser className="h-6 w-6 text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800">Personal Information</h2>
+          <h2 className="text-2xl font-bold text-gray-800">{t('profile.personalInfo')}</h2>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-blue-100/50">
-              <label className="block text-base font-semibold text-gray-800 mb-3">First Name</label>
+              <label className="block text-base font-semibold text-gray-800 mb-3">{t('profile.firstName')}</label>
               <input
                 type="text"
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
@@ -200,7 +202,7 @@ const ProfilePage = () => {
               />
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-blue-100/50">
-              <label className="block text-base font-semibold text-gray-800 mb-3">Last Name</label>
+              <label className="block text-base font-semibold text-gray-800 mb-3">{t('profile.lastName')}</label>
               <input
                 type="text"
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
@@ -214,7 +216,7 @@ const ProfilePage = () => {
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-blue-100/50">
               <label className="block text-base font-semibold text-gray-800 mb-3 flex items-center">
                 <FaEnvelope className="h-4 w-4 mr-2 text-indigo-600" />
-                Email
+                {t('profile.email')}
               </label>
               <input
                 type="email"
@@ -226,7 +228,7 @@ const ProfilePage = () => {
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-blue-100/50">
               <label className="block text-base font-semibold text-gray-800 mb-3 flex items-center">
                 <FaPhone className="h-4 w-4 mr-2 text-indigo-600" />
-                Phone
+                {t('profile.phone')}
               </label>
               <input
                 type="tel"
@@ -384,7 +386,7 @@ const ProfilePage = () => {
           onClick={handleCancel}
           className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 px-8 py-4 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 shadow-lg transform hover:scale-105"
         >
-          Cancel
+          {t('common.cancel')}
         </button>
         <button
           type="submit"
@@ -393,7 +395,7 @@ const ProfilePage = () => {
           className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
         >
           <FaSave className="h-5 w-5" />
-          <span>{updateProfileMutation.isPending ? 'Saving...' : 'Save Changes'}</span>
+          <span>{updateProfileMutation.isPending ? t('common.saving') : t('profile.saveChanges')}</span>
         </button>
       </div>
 

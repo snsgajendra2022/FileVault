@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import { FaChartBar, FaUpload, FaCloud, FaExclamationTriangle } from 'react-icons/fa';
 import { FiDownload } from 'react-icons/fi';
@@ -9,21 +10,14 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const UsagePage = () => {
-  console.log('UsagePage component rendered');
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [isDownloading, setIsDownloading] = useState(false);
   const { data: usage, isLoading, error } = useQuery({
     queryKey: ['usage'],
     queryFn: async () => {
-      console.log('Fetching usage data...');
-      try {
-        const response = await api.get('/api/plans/usage');
-        // console.log('Usage data received:', response.data);
-        return response.data;
-      } catch (error) {
-        console.error('Error fetching usage data:', error);
-        throw error;
-      }
+      const response = await api.get('/api/plans/usage');
+      return response.data;
     },
   });
 
@@ -32,30 +26,29 @@ const UsagePage = () => {
   if (isLoading) {
     return (
       <DashboardLoading 
-        title="Loading Usage Statistics"
-        subtitle="Calculating your storage and upload usage..."
+        title={t('usagePage.loadingTitle')}
+        subtitle={t('usagePage.loadingSubtitle')}
         icon={FaChartBar}
         features={[
-          { icon: FaUpload, label: 'Uploads' },
-          { icon: FaCloud, label: 'Storage' },
-          { icon: FaChartBar, label: 'Statistics' }
+          { icon: FaUpload, label: t('usagePage.featUploads') },
+          { icon: FaCloud, label: t('usagePage.featStorage') },
+          { icon: FaChartBar, label: t('usagePage.featStatistics') }
         ]}
       />
     );
   }
 
   if (error) {
-    console.error('UsagePage error:', error);
     return (
       <div className="space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-red-600 mb-4">Error Loading Usage</h1>
-          <p className="text-gray-600 mb-4">Failed to load usage data. Please try again.</p>
+          <h1 className="text-4xl font-bold text-red-600 mb-4">{t('usagePage.errorTitle')}</h1>
+          <p className="text-gray-600 mb-4">{t('usagePage.errorBody')}</p>
           <button 
             onClick={() => window.location.reload()} 
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
           >
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       </div>
@@ -70,7 +63,7 @@ const UsagePage = () => {
 
   const generateUsageReport = () => {
     if (!usage) {
-      toast.error('No usage data available');
+      toast.error(t('usagePage.toastNoData'));
       return;
     }
 
@@ -146,10 +139,9 @@ const UsagePage = () => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      toast.success('Usage report downloaded successfully!');
+      toast.success(t('usagePage.toastDownloadOk'));
     } catch (error) {
-      console.error('Error generating report:', error);
-      toast.error('Failed to generate report');
+      toast.error(t('usagePage.toastDownloadFail'));
     } finally {
       setIsDownloading(false);
     }
@@ -164,10 +156,10 @@ const UsagePage = () => {
             <FaChartBar className="h-10 w-10 text-white" />
           </div>
           <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            Usage Dashboard
+            {t('usagePage.title')}
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            Monitor your storage consumption and upload activity in real-time with comprehensive analytics
+            {t('usagePage.subtitle')}
           </p>
         </div>
 
@@ -177,15 +169,16 @@ const UsagePage = () => {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold mb-2">
-                Current Plan: {usage.currentPlan.plan.displayName || 'Unknown Plan'}
+                {t('usagePage.currentPlan')} {usage.currentPlan.plan.displayName || t('usagePage.unknownPlan')}
               </h3>
               <p className="text-primary-100 mb-4">
                 ${usage.currentPlan.currentPrice || 0}/{usage.currentPlan.billingCycle?.toLowerCase() || 'month'} • 
-                Next billing: {usage.currentPlan.nextBillingDate ? new Date(usage.currentPlan.nextBillingDate).toLocaleDateString() : 'N/A'}
+                {t('usagePage.nextBilling')}{' '}
+                {usage.currentPlan.nextBillingDate ? new Date(usage.currentPlan.nextBillingDate).toLocaleDateString() : 'N/A'}
               </p>
               <div className="grid grid-cols-2 gap-6">
                 <div className="bg-white/10 rounded-xl p-4">
-                  <p className="text-sm text-primary-100 mb-1">Uploads Used</p>
+                  <p className="text-sm text-primary-100 mb-1">{t('usagePage.uploadsUsed')}</p>
                   <p className="text-2xl font-bold">
                     {usage.uploadsUsedThisMonth || 0}/{usage.currentPlan.plan.maxUploadsPerMonth || 0}
                   </p>
@@ -202,9 +195,11 @@ const UsagePage = () => {
               <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
                 ${usage.currentPlan.currentPrice || 0}
               </div>
-              <p className="text-blue-100 text-lg">per {usage.currentPlan.billingCycle?.toLowerCase() || 'month'}</p>
+              <p className="text-blue-100 text-lg">
+                {t('usagePage.per')} {usage.currentPlan.billingCycle?.toLowerCase() || 'month'}
+              </p>
               <button className="mt-6 bg-white/20 backdrop-blur-sm text-white px-8 py-4 rounded-2xl font-semibold hover:bg-white/30 transition-all duration-300 border border-white/30 shadow-lg">
-                View Usage Details
+                {t('usagePage.viewUsageDetails')}
               </button>
             </div>
           </div>
@@ -221,8 +216,8 @@ const UsagePage = () => {
                 <FaUpload className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Uploads This Month</h3>
-                <p className="text-gray-600">File upload activity</p>
+                <h3 className="text-xl font-bold text-gray-900">{t('usagePage.uploadsThisMonth')}</h3>
+                <p className="text-gray-600">{t('usagePage.fileUploadActivity')}</p>
               </div>
             </div>
             <div className="text-right">
@@ -231,7 +226,7 @@ const UsagePage = () => {
               </div>
               <div className="flex items-center text-sm text-gray-500">
                 <span className="text-green-500 mr-1">↑</span>
-                +12% from last month
+                {t('usagePage.fromLastMonth')}
               </div>
             </div>
           </div>
@@ -239,7 +234,7 @@ const UsagePage = () => {
           <div className="mb-4">
             {usage?.currentPlan ? (
               <div className="flex items-baseline justify-between mb-2">
-                <span className="text-sm text-gray-600">Progress</span>
+                <span className="text-sm text-gray-600">{t('usagePage.progress')}</span>
                 <span className="text-sm font-semibold text-gray-900">
                   {uploadPercentage.toFixed(1)}%
                 </span>
@@ -249,8 +244,8 @@ const UsagePage = () => {
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <FaExclamationTriangle className="h-8 w-8 text-gray-400" />
                 </div>
-                <p className="text-gray-500 font-medium">No active plan</p>
-                <p className="text-sm text-gray-400">Subscribe to a plan to start uploading</p>
+                <p className="text-gray-500 font-medium">{t('usagePage.noActivePlan')}</p>
+                <p className="text-sm text-gray-400">{t('usagePage.subscribeToUpload')}</p>
               </div>
             )}
           </div>
@@ -291,7 +286,7 @@ const UsagePage = () => {
           <div className="mb-4">
             {usage?.currentPlan ? (
               <div className="flex items-baseline justify-between mb-2">
-                <span className="text-sm text-gray-600">Progress</span>
+                <span className="text-sm text-gray-600">{t('usagePage.progress')}</span>
                 <span className="text-sm font-semibold text-gray-900">
                   {storagePercentage.toFixed(1)}%
                 </span>
@@ -327,17 +322,17 @@ const UsagePage = () => {
             </div>
             <div className="ml-4">
               <h3 className="text-lg font-semibold mb-2">
-                Usage Alert
+                {t('usagePage.usageAlert')}
               </h3>
               <p className="mb-4 opacity-90">
-                You're approaching your plan limits. Consider upgrading to avoid service interruption and ensure uninterrupted access to your files.
+                {t('usagePage.usageAlertBody')}
               </p>
               <div className="flex space-x-3">
                 <button className="bg-white text-orange-600 px-6 py-2 rounded-xl font-semibold hover:bg-gray-100 transition-colors">
-                  Upgrade Plan
+                  {t('usagePage.upgradePlan')}
                 </button>
                 <button className="bg-white/20 text-white px-6 py-2 rounded-xl font-semibold hover:bg-white/30 transition-colors">
-                  View Details
+                  {t('usagePage.viewDetails')}
                 </button>
               </div>
             </div>
@@ -349,18 +344,18 @@ const UsagePage = () => {
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Usage History</h2>
-            <p className="text-gray-600">Your usage over the past 30 days</p>
+            <h2 className="text-2xl font-bold text-gray-900">{t('usagePage.usageHistory')}</h2>
+            <p className="text-gray-600">{t('usagePage.usageHistorySub')}</p>
           </div>
           <div className="flex space-x-2">
             <button className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors">
-              7 Days
+              {t('usagePage.days7')}
             </button>
             <button className="px-4 py-2 text-sm font-medium bg-blue-100 text-blue-700 rounded-xl">
-              30 Days
+              {t('usagePage.days30')}
             </button>
             <button className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors">
-              90 Days
+              {t('usagePage.days90')}
             </button>
           </div>
         </div>
@@ -370,9 +365,9 @@ const UsagePage = () => {
             <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <FaChartBar className="h-10 w-10 text-white" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Usage Analytics</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('usagePage.usageAnalytics')}</h3>
             <p className="text-gray-500 max-w-sm">
-              Detailed usage charts and analytics will be displayed here to help you track your consumption patterns
+              {t('usagePage.usageAnalyticsPlaceholder')}
             </p>
           </div>
         </div>
@@ -380,15 +375,15 @@ const UsagePage = () => {
 
         {/* Quick Actions */}
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
-        <h3 className="text-2xl font-bold text-gray-900 mb-6">Quick Actions</h3>
+        <h3 className="text-2xl font-bold text-gray-900 mb-6">{t('usagePage.quickActions')}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <button onClick={() => navigate('/plans')} className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-4 rounded-2xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
               <span className="inline mr-2 text-lg">↑</span>
-              Upgrade Plan
+              {t('usagePage.upgradePlan')}
             </button>
             <button onClick={() => navigate('/billing')} className="group relative overflow-hidden bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-4 rounded-2xl font-semibold hover:from-gray-700 hover:to-gray-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1">
               <FaChartBar className="inline mr-2 h-5 w-5" />
-              View Billing
+              {t('usagePage.viewBilling')}
             </button>
             <button 
               onClick={generateUsageReport} 
@@ -398,12 +393,12 @@ const UsagePage = () => {
             {isDownloading ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                Generating...
+                {t('usagePage.generating')}
               </>
             ) : (
               <>
                 <FiDownload className="inline mr-2 h-4 w-4" />
-                Download Report
+                {t('usagePage.downloadReport')}
               </>
             )}
           </button>

@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import "./LaborSheet.css";
 
 type Row = {
@@ -29,42 +30,42 @@ type Row = {
   Replace: string;
 };
 
-const HEADERS = [
-  "#",
-  "Labor Rates",
-  "Cat",
-  "Sel",
-  "Desc",
-  "Qty",
-  "Unit",
-  "ACV",
-  "Day 1",
-  "Day 2",
-  "Day 3",
-  "Day 4",
-  "Day 5",
-  "Day 6",
-  "Day 7",
-  "Day 8",
-  "Day 9",
-  "Day 10",
-  "Subtotal",
-  "",
-  "ACV",
-  "Item Amount",
-  "Reported Cost",
-  "Worker's Wage",
-  "Labor burden",
-  "Labor Overhead",
-  "Sales Tax",
-  "Material",
-  "Equipment",
-  "Market Conditions",
-  "Coverage",
-  "Activity",
-  "Labor Minimum",
-  "Tax",
-  "Replace",
+const HEADER_KEYS = [
+  "hash",
+  "laborRates",
+  "cat",
+  "sel",
+  "desc",
+  "qty",
+  "unit",
+  "acv",
+  "day1",
+  "day2",
+  "day3",
+  "day4",
+  "day5",
+  "day6",
+  "day7",
+  "day8",
+  "day9",
+  "day10",
+  "subtotal",
+  "empty",
+  "acv2",
+  "itemAmount",
+  "reportedCost",
+  "workersWage",
+  "laborBurden",
+  "laborOverhead",
+  "salesTax",
+  "material",
+  "equipment",
+  "marketConditions",
+  "coverage",
+  "activity",
+  "laborMinimum",
+  "tax",
+  "replace",
 ] as const;
 
 // Fixed column widths (px) – tuned for iPad browser
@@ -135,6 +136,11 @@ const makeEmptyRow = (idx: number): Row => ({
 });
 
 export default function Sheet() {
+  const { t } = useTranslation();
+  const headers = useMemo(
+    () => HEADER_KEYS.map((k) => t(`laborSheetPage.headers.${k}`)),
+    [t]
+  );
   const [rows, setRows] = useState<Row[]>([makeEmptyRow(1)]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -291,7 +297,7 @@ export default function Sheet() {
         <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}>
           {/* Sticky header */}
           <div className="sheet-row sheet-head" style={{ gridTemplateColumns: gridTemplate }}>
-            {HEADERS.map((h, i) => (
+            {headers.map((h, i) => (
               <div className="cell head" key={i} style={{ width: COL_W[i] }}>
                 {h}
               </div>
@@ -372,7 +378,7 @@ export default function Sheet() {
         </div>
 
         <div className="sheet-actions">
-          <button className="btn" onClick={addRow}>+ Add Row</button>
+          <button className="btn" onClick={addRow}>{t("laborSheetPage.addRow")}</button>
         </div>
       </div>
     </div>

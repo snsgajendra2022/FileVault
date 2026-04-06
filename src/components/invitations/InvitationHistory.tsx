@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FaEnvelope, FaUser, FaUsers } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
+import { FaEnvelope, FaUser } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import api from '../../services/api';
 import './invitation.css';
@@ -20,7 +21,15 @@ interface Invitation {
   canManageAlbums: boolean;
 }
 
+const FILTER_KEYS: Record<'pending' | 'accepted' | 'expired', string> = {
+  pending: 'tabPending',
+  accepted: 'tabAccepted',
+  expired: 'tabExpired',
+};
+
 const InvitationHistory: React.FC = () => {
+  const { t } = useTranslation();
+  const h = 'invitationsComponents.history';
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'expired'>('all');
@@ -35,7 +44,7 @@ const InvitationHistory: React.FC = () => {
       setLoading(true);
       const response = await api.get('/api/simple-invitations/my-invitations');
       console.log('response', response.data);
-      
+
       if (response.data.length > 0) {
         setInvitations(response.data || response.data.invitations || []);
       } else {
@@ -43,7 +52,7 @@ const InvitationHistory: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error fetching invitations:', error);
-      toast.error('Failed to load invitations');
+      toast.error(t(`${h}.toastLoadFail`));
     } finally {
       setLoading(false);
     }
@@ -103,29 +112,17 @@ const InvitationHistory: React.FC = () => {
   const copyInvitationLink = (invitation: Invitation) => {
     const link = `${window.location.origin}/accept-invitation?token=${invitation.invitationToken}`;
     navigator.clipboard.writeText(link);
-    toast.success('Invitation link copied to clipboard!');
-  };
-
-  const resendInvitation = async (invitation: Invitation) => {
-    try {
-      toast.success('Invitation resent successfully!');
-    } catch (error) {
-      toast.error('Failed to resend invitation');
-    }
+    toast.success(t(`${h}.toastLinkCopied`));
   };
 
   const cancelInvitation = async (invitation: Invitation) => {
     try {
       await api.delete(`/api/simple-invitations/${invitation.id}`);
-      toast.success('Invitation cancelled successfully!');
+      toast.success(t(`${h}.toastCancelled`));
       fetchInvitations();
     } catch (error) {
-      toast.error('Failed to cancel invitation');
+      toast.error(t(`${h}.toastCancelFail`));
     }
-  };
-
-  const isExpired = (expiresAt: string) => {
-    return new Date(expiresAt) < new Date();
   };
 
   const getPermissionIcon = (permission: boolean) => {
@@ -134,6 +131,19 @@ const InvitationHistory: React.FC = () => {
 
   const getPermissionColor = (permission: boolean) => {
     return permission ? 'text-green-600' : 'text-red-600';
+  };
+
+  const statusLabel = (status: string) => {
+    switch (status) {
+      case 'PENDING':
+        return t(`${h}.status_PENDING`);
+      case 'ACCEPTED':
+        return t(`${h}.status_ACCEPTED`);
+      case 'EXPIRED':
+        return t(`${h}.status_EXPIRED`);
+      default:
+        return status;
+    }
   };
 
   if (loading) {
@@ -148,17 +158,22 @@ const InvitationHistory: React.FC = () => {
 
   const filteredInvitations = getFilteredInvitations();
 
+  const emptyMessage =
+    filter === 'all'
+      ? t(`${h}.emptyNone`)
+      : t(`${h}.emptyFilter`, { filter: t(`${h}.${FILTER_KEYS[filter]}`) });
+
   return (
     <div className="max-w-6xl mx-auto p-6 invitation">
       {/* Header */}
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Invitation History</h2>
-            <p className="text-gray-600">Track all your sent invitations and their status</p>
+            <h2 className="text-2xl font-bold text-gray-900">{t(`${h}.title`)}</h2>
+            <p className="text-gray-600">{t(`${h}.subtitle`)}</p>
           </div>
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-500">Total:</span>
+            <span className="text-sm text-gray-500">{t(`${h}.total`)}</span>
             <span className="text-2xl font-bold text-blue-600">{invitations.length}</span>
           </div>
         </div>
@@ -166,21 +181,31 @@ const InvitationHistory: React.FC = () => {
         {/* Filter Tabs */}
         <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
           {[
-            { key: 'all', label: 'All', count: invitations.length },
-            { key: 'pending', label: 'Pending', count: invitations.filter(i => i.status === 'PENDING').length },
-            { key: 'accepted', label: 'Accepted', count: invitations.filter(i => i.status === 'ACCEPTED').length },
-            { key: 'expired', label: 'Expired', count: invitations.filter(i => i.status === 'EXPIRED').length }
-          ].map(({ key, label, count }) => (
+            { key: 'all' as const, labelKey: 'tabAll', count: invitations.length },
+            {
+              key: 'pending' as const,
+              labelKey: 'tabPending',
+              count: invitations.filter((i) => i.status === 'PENDING').length,
+            },
+            {
+              key: 'accepted' as const,
+              labelKey: 'tabAccepted',
+              count: invitations.filter((i) => i.status === 'ACCEPTED').length,
+            },
+            {
+              key: 'expired' as const,
+              labelKey: 'tabExpired',
+              count: invitations.filter((i) => i.status === 'EXPIRED').length,
+            },
+          ].map(({ key, labelKey, count }) => (
             <button
               key={key}
-              onClick={() => setFilter(key as any)}
+              onClick={() => setFilter(key)}
               className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                filter === key
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                filter === key ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              {label} ({count})
+              {t(`${h}.${labelKey}`)} ({count})
             </button>
           ))}
         </div>
@@ -191,7 +216,7 @@ const InvitationHistory: React.FC = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by name, email, relationship, notes, status..."
+            placeholder={t(`${h}.searchPlaceholder`)}
             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
@@ -201,13 +226,8 @@ const InvitationHistory: React.FC = () => {
       {filteredInvitations.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-12 text-center">
           <FaEnvelope className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No invitations found</h3>
-          <p className="text-gray-600">
-            {filter === 'all'
-              ? "You haven't sent any invitations yet. Create your first invitation to get started!"
-              : `No ${filter} invitations found.`
-            }
-          </p>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">{t(`${h}.noResultsTitle`)}</h3>
+          <p className="text-gray-600">{emptyMessage}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -220,33 +240,35 @@ const InvitationHistory: React.FC = () => {
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-3">
                     {getStatusIcon(invitation.status)}
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(invitation.status)}`}>
-                      {invitation.status}
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(invitation.status)}`}
+                    >
+                      {statusLabel(invitation.status)}
                     </span>
                     {isExpired(invitation.expiresAt) && invitation.status === 'PENDING' && (
                       <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
-                        Expired
+                        {t(`${h}.badgeExpired`)}
                       </span>
                     )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                     <div>
-                      <span className="text-sm font-medium text-gray-500">Invitee</span>
+                      <span className="text-sm font-medium text-gray-500">{t(`${h}.labelInvitee`)}</span>
                       <p className="text-gray-900 size-text-gray-900 font-semibold">
                         {invitation.inviteeFirstName} {invitation.inviteeLastName}
                       </p>
                     </div>
                     <div>
-                      <span className="text-sm font-medium text-gray-500">Email</span>
+                      <span className="text-sm font-medium text-gray-500">{t(`${h}.labelEmail`)}</span>
                       <p className="text-gray-900 size-text-gray-900">{invitation.inviteeEmail}</p>
                     </div>
                     <div>
-                      <span className="text-sm font-medium text-gray-500">Relationship</span>
+                      <span className="text-sm font-medium text-gray-500">{t(`${h}.labelRelationship`)}</span>
                       <p className="text-gray-900 size-text-gray-900">{invitation.relationshipType}</p>
                     </div>
                     <div>
-                      <span className="text-sm font-medium text-gray-500">Expires</span>
+                      <span className="text-sm font-medium text-gray-500">{t(`${h}.labelExpires`)}</span>
                       <p className="text-gray-900 size-text-gray-900">
                         {new Date(invitation.expiresAt).toLocaleDateString()}
                       </p>
@@ -255,44 +277,44 @@ const InvitationHistory: React.FC = () => {
 
                   {/* Permissions Display */}
                   <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">📋 Granted Permissions:</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">{t(`${h}.grantedPermissions`)}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="flex items-center space-x-2">
                         <span className={`text-sm ${getPermissionColor(invitation.canViewImages)}`}>
                           {getPermissionIcon(invitation.canViewImages)}
                         </span>
-                        <span className="text-sm text-gray-700">View Images</span>
+                        <span className="text-sm text-gray-700">{t(`${h}.permView`)}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <span className={`text-sm ${getPermissionColor(invitation.canUploadImages)}`}>
                           {getPermissionIcon(invitation.canUploadImages)}
                         </span>
-                        <span className="text-sm text-gray-700">Upload Images</span>
+                        <span className="text-sm text-gray-700">{t(`${h}.permUpload`)}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <span className={`text-sm ${getPermissionColor(invitation.canDeleteImages)}`}>
                           {getPermissionIcon(invitation.canDeleteImages)}
                         </span>
-                        <span className="text-sm text-gray-700">Delete Images</span>
+                        <span className="text-sm text-gray-700">{t(`${h}.permDelete`)}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <span className={`text-sm ${getPermissionColor(invitation.canManageAlbums)}`}>
                           {getPermissionIcon(invitation.canManageAlbums)}
                         </span>
-                        <span className="text-sm text-gray-700">Manage Albums</span>
+                        <span className="text-sm text-gray-700">{t(`${h}.permManage`)}</span>
                       </div>
                     </div>
                   </div>
 
                   {invitation.relationshipNotes && (
                     <div className="mb-4">
-                      <span className="text-sm font-medium text-gray-500">Notes</span>
+                      <span className="text-sm font-medium text-gray-500">{t(`${h}.labelNotes`)}</span>
                       <p className="text-gray-700 mt-1">{invitation.relationshipNotes}</p>
                     </div>
                   )}
 
                   <div className="text-sm text-gray-500">
-                    Sent on {new Date(invitation.createdAt).toLocaleDateString()}
+                    {t(`${h}.sentOn`, { date: new Date(invitation.createdAt).toLocaleDateString() })}
                   </div>
                 </div>
 
@@ -305,15 +327,8 @@ const InvitationHistory: React.FC = () => {
                         className="flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
                       >
                         <FaEnvelope className="h-4 w-4 mr-2" />
-                        Copy Link
+                        {t(`${h}.copyLink`)}
                       </button>
-                      {/* <button
-                        onClick={() => resendInvitation(invitation)}
-                        className="flex items-center px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        <FaEnvelope className="h-4 w-4 mr-2" />
-                        Resend
-                      </button> */}
                     </>
                   )}
 
@@ -323,7 +338,7 @@ const InvitationHistory: React.FC = () => {
                       className="flex items-center px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
                     >
                       <FaUser className="h-4 w-4 mr-2" />
-                      Cancel
+                      {t(`${h}.cancel`)}
                     </button>
                   )}
                 </div>
@@ -335,5 +350,9 @@ const InvitationHistory: React.FC = () => {
     </div>
   );
 };
+
+function isExpired(expiresAt: string) {
+  return new Date(expiresAt) < new Date();
+}
 
 export default InvitationHistory;

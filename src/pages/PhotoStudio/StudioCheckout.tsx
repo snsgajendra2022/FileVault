@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams, Link } from 'react-router-dom';
 import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaCopy, FaShare, FaFolder, FaFolderOpen, FaChevronRight, FaCheck, FaCog, FaTrash, FaSave, FaTimes } from 'react-icons/fa';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -61,6 +62,7 @@ interface FlagsResponse {
 const PRICE_PER_IMAGE = 0; // Fallback price
 
 const StudioCheckout: React.FC = () => {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [selectedAlbums, setSelectedAlbums] = useState<Set<number>>(new Set());
@@ -191,7 +193,7 @@ const StudioCheckout: React.FC = () => {
           const response = await api.get(`/api/simple-invitations/albums/${albumId}/images`);
           images = Array.isArray(response.data) ? response.data : (response.data?.images || []);
         } catch (err2: any) {
-          if (err2?.response?.status !== 405) toast.error('Failed to load album images');
+          if (err2?.response?.status !== 405) toast.error(t('studioCheckoutPage.failedLoadAlbumImages'));
           setAlbumImagesMap((prev) => { const next = new Map(prev); next.set(albumId, []); return next; });
           return;
         }
@@ -289,10 +291,10 @@ const StudioCheckout: React.FC = () => {
 
   const selectedAlbumsName = useMemo(() => {
     const selected = albums.filter((a) => selectedAlbums.has(a.id));
-    if (selected.length === 0) return 'My Album';
-    if (selected.length === 1) return selected[0]?.name || 'My Album';
-    return `${selected.length} Albums`;
-  }, [albums, selectedAlbums]);
+    if (selected.length === 0) return t('studioCheckoutPage.myAlbum');
+    if (selected.length === 1) return selected[0]?.name || t('studioCheckoutPage.myAlbum');
+    return t('studioCheckoutPage.nAlbums', { count: selected.length });
+  }, [albums, selectedAlbums, t]);
 
   const toggleAlbum = (albumId: number) => {
     setSelectedAlbums(prev => {
@@ -413,7 +415,7 @@ const StudioCheckout: React.FC = () => {
   };
 
   const getImageFilename = (image: AlbumImage): string => {
-    return image.originalFilename || image.filename || 'Unknown';
+    return image.originalFilename || image.filename || t('studioCheckoutPage.unknownFile');
   };
 
   const getFileType = (image: AlbumImage): string => {
@@ -437,14 +439,14 @@ const StudioCheckout: React.FC = () => {
     
     const params = new URLSearchParams({
       pa: upiIdToUse,
-      pn: 'Photo Book',
+      pn: t('studioCheckoutPage.photoBook'),
       am: String(totalAmount),
       cu: 'INR',
-      tn: `Photo Book payment for ${allSelectedImages.length} photo(s)`,
+      tn: t('studioCheckoutPage.upiPaymentNote', { count: allSelectedImages.length }),
     });
     const upiUrl = `upi://pay?${params.toString()}`;
     return encodeURIComponent(upiUrl);
-  }, [allSelectedImages.length, totalAmount, upiId]);
+  }, [allSelectedImages.length, totalAmount, upiId, t]);
 
   const baseUrl = window.location.origin;
   const tokenForUrl = typeof localStorage !== 'undefined' ? (localStorage.getItem('token') || '') : '';
@@ -570,11 +572,11 @@ const StudioCheckout: React.FC = () => {
   
   const handleCopyCheckoutUrl = async () => {
     if (!publicCheckoutUrl) {
-      toast.error('No URL to copy. Please select images first.');
+      toast.error(t('studioCheckoutPage.noUrlCopySelectFirst'));
       return;
     }
     await copyToClipboard(publicCheckoutUrl);
-    toast.success('Public checkout URL copied to clipboard!');
+    toast.success(t('studioCheckoutPage.publicCheckoutUrlCopied'));
     // navigator.clipboard.writeText(publicCheckoutUrl).then(() => {
     // }).catch(() => {
     //   toast.error('Failed to copy URL');
@@ -583,13 +585,13 @@ const StudioCheckout: React.FC = () => {
 
   const handleCopySelectionUrl = () => {
     if (!publicSelectionUrl) {
-      toast.error('No URL to copy. Please select images first.');
+      toast.error(t('studioCheckoutPage.noUrlCopySelectFirst'));
       return;
     }
     navigator.clipboard.writeText(publicSelectionUrl).then(() => {
-      toast.success('Public selection URL copied to clipboard!');
+      toast.success(t('studioCheckoutPage.publicSelectionUrlCopied'));
     }).catch(() => {
-      toast.error('Failed to copy URL');
+      toast.error(t('studioCheckoutPage.failedCopyUrl'));
     });
   };
 
@@ -642,21 +644,21 @@ const StudioCheckout: React.FC = () => {
   const handleShareSend = async () => {
     const urlToShare = shareUrlType === 'checkout' ? publicCheckoutUrl : shareUrlType === 'images_display' ? publicImagesDisplayUrl : publicSelectionUrl;
     if (!urlToShare) {
-      toast.error('No URL to share. Please select images first.');
+      toast.error(t('studioCheckoutPage.noUrlShare'));
       return;
     }
     const emails = shareNewEmails.split(/[\s,]+/).map(e => e.trim()).filter(Boolean);
     const mobileParts = shareNewMobiles.split(/[\s,]+/).map(m => m.trim()).filter(Boolean);
     const mobiles = mobileParts.map(part => (part.startsWith('+') ? part : `${shareNewMobileCountryCode.replace(/\s/g, '')}${part}`));
     if (shareContactIds.size === 0 && emails.length === 0 && mobiles.length === 0) {
-      toast.error('Select at least one contact or enter email/mobile.');
+      toast.error(t('studioCheckoutPage.selectContactOrEmailMobile'));
       return;
     }
     const channels: string[] = [];
     if (shareChannels.email) channels.push('email');
     if (shareChannels.sms) channels.push('sms');
     if (channels.length === 0) {
-      toast.error('Select at least one channel (Email or SMS).');
+      toast.error(t('studioCheckoutPage.selectChannelEmailOrSms'));
       return;
     }
     setShareSending(true);
@@ -682,11 +684,12 @@ const StudioCheckout: React.FC = () => {
         const emailCount = res.data.sent?.email ?? 0;
         const smsCount = res.data.sent?.sms ?? 0;
         const shareIds = res.data.shareIds;
-        const idList =
+        const mergedIds = [...(shareIds?.email ?? []), ...(shareIds?.sms ?? [])].join(', ');
+        const suffix =
           shareIds?.email?.length || shareIds?.sms?.length
-            ? ` Share ID(s): ${[...(shareIds?.email ?? []), ...(shareIds?.sms ?? [])].join(', ')}.`
-            : ' Each recipient gets a Share ID in the email/SMS for reference.';
-        toast.success(`Link sent (email: ${emailCount}, SMS: ${smsCount}).${idList}`);
+            ? t('studioCheckoutPage.shareIdSuffix', { ids: mergedIds })
+            : t('studioCheckoutPage.shareIdFooter');
+        toast.success(t('studioCheckoutPage.linkSent', { email: emailCount, sms: smsCount }) + suffix);
         setShowShareModal(false);
         setShareContactIds(new Set());
         setShareNewEmails('');
@@ -694,13 +697,13 @@ const StudioCheckout: React.FC = () => {
         setShareMessage('');
         setShareAlreadySent(null);
       } else {
-        toast.error('Failed to send. Please try again.');
+        toast.error(t('studioCheckoutPage.failedSendTryAgain'));
       }
     } catch (err: any) {
       if (err.response?.status === 404 || err.response?.status === 501) {
-        toast.error('Share by email/SMS is not available yet. Use Copy link instead.');
+        toast.error(t('studioCheckoutPage.shareNotAvailableUseCopy'));
       } else {
-        toast.error(err.response?.data?.message || 'Failed to send share.');
+        toast.error(err.response?.data?.message || t('studioCheckoutPage.failedSendShare'));
       }
     } finally {
       setShareSending(false);
@@ -709,7 +712,7 @@ const StudioCheckout: React.FC = () => {
 
   const handleGenerateQr = () => {
     if (allSelectedImages.length === 0) {
-      toast.error('Please select at least one image');
+      toast.error(t('studioCheckoutPage.pleaseSelectOneImage'));
       return;
     }
     setShowQr(true);
@@ -718,15 +721,15 @@ const StudioCheckout: React.FC = () => {
 
   const handleMarkAsPaid = () => {
     if (!showQr) {
-      toast.error('Generate QR first');
+      toast.error(t('studioCheckoutPage.generateQrFirst'));
       return;
     }
     if (!totalAmount) {
-      toast.error('No amount to pay');
+      toast.error(t('studioCheckoutPage.noAmountToPay'));
       return;
     }
     setIsPaid(true);
-    toast.success('Payment marked as completed. Starting downloads...');
+    toast.success(t('studioCheckoutPage.paymentMarkedCompleted'));
 
     allSelectedImages.forEach((image) => {
       const imageUrl = getImageUrl(image);
@@ -744,13 +747,13 @@ const StudioCheckout: React.FC = () => {
 
   const handleDownload = (image: AlbumImage) => {
     if (!isPaid) {
-      toast.error('Please complete payment before downloading');
+      toast.error(t('studioCheckoutPage.pleaseCompletePaymentBeforeDownload'));
       return;
     }
 
     const imageUrl = getImageUrl(image);
     if (!imageUrl) {
-      toast.error('Download URL not available');
+      toast.error(t('studioCheckoutPage.downloadUrlNotAvailable'));
       return;
     }
 
@@ -771,11 +774,11 @@ const StudioCheckout: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['upiSettings'] });
-      toast.success('UPI settings created successfully');
+      toast.success(t('studioCheckoutPage.upiCreatedSuccess'));
       setShowUpiSettings(false);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to create UPI settings');
+      toast.error(error.response?.data?.message || t('studioCheckoutPage.failedCreateUpi'));
     },
   });
 
@@ -786,11 +789,11 @@ const StudioCheckout: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['upiSettings'] });
-      toast.success('UPI settings updated successfully');
+      toast.success(t('studioCheckoutPage.upiUpdatedSuccess'));
       setShowUpiSettings(false);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update UPI settings');
+      toast.error(error.response?.data?.message || t('studioCheckoutPage.failedUpdateUpi'));
     },
   });
 
@@ -801,23 +804,23 @@ const StudioCheckout: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['upiSettings'] });
-      toast.success('UPI settings deleted successfully');
+      toast.success(t('studioCheckoutPage.upiDeletedSuccess'));
       setUpiId('');
       setPerPhotoPrice(0);
       setShowUpiSettings(false);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to delete UPI settings');
+      toast.error(error.response?.data?.message || t('studioCheckoutPage.failedDeleteUpi'));
     },
   });
 
   const handleSaveUpiSettings = () => {
     if (!upiId.trim()) {
-      toast.error('Please enter UPI ID');
+      toast.error(t('studioCheckoutPage.pleaseEnterUpiId'));
       return;
     }
     if (perPhotoPrice < 0) {
-      toast.error('Price per photo must be 0 or greater');
+      toast.error(t('studioCheckoutPage.pricePerPhotoNonNegative'));
       return;
     }
 
@@ -835,10 +838,10 @@ const StudioCheckout: React.FC = () => {
 
   const handleDeleteUpiSettings = () => {
     if (!upiSettings) {
-      toast.error('No UPI settings to delete');
+      toast.error(t('studioCheckoutPage.noUpiToDelete'));
       return;
     }
-    if (window.confirm('Are you sure you want to delete UPI settings?')) {
+    if (window.confirm(t('studioCheckoutPage.confirmDeleteUpi'))) {
       deleteUpiMutation.mutate();
     }
   };
@@ -846,7 +849,7 @@ const StudioCheckout: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" text="Loading albums..." />
+        <LoadingSpinner size="lg" text={t('studioCheckoutPage.loadingAlbums')} />
       </div>
     );
   }
@@ -855,13 +858,13 @@ const StudioCheckout: React.FC = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-2">Unable to load albums</h1>
-          <p className="text-gray-600 mb-4">Please try again.</p>
+          <h1 className="text-2xl font-bold text-red-600 mb-2">{t('studioCheckoutPage.unableLoadAlbums')}</h1>
+          <p className="text-gray-600 mb-4">{t('studioCheckoutPage.pleaseTryAgain')}</p>
           <button
             onClick={() => refetch()}
             className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
           >
-            Retry
+            {t('studioCheckoutPage.retry')}
           </button>
         </div>
       </div>
@@ -875,15 +878,15 @@ const StudioCheckout: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center">
             <FaImages className="mr-3 text-[#2731db]" />
-            Album Selection & Payment
+            {t('studioCheckoutPage.title')}
           </h1>
           <p className="text-gray-600 mt-2">
-            Select albums and images, review the total amount, collect payment via QR, and then allow downloads.
+            {t('studioCheckoutPage.subtitle')}
           </p>
         </div>
         <div className="flex items-center space-x-4">
           <div className="text-right">
-            <p className="text-sm text-gray-500">Price per photo</p>
+            <p className="text-sm text-gray-500">{t('studioCheckoutPage.pricePerPhoto')}</p>
             <p className="text-2xl font-bold text-[#2731db]">
               ₹{perPhotoPrice > 0 ? perPhotoPrice : PRICE_PER_IMAGE}
             </p>
@@ -891,10 +894,10 @@ const StudioCheckout: React.FC = () => {
           <button
             onClick={() => setShowUpiSettings(!showUpiSettings)}
             className="flex items-center px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
-            title="Manage UPI Settings"
+            title={t('studioCheckoutPage.manageUpiSettings')}
           >
             <FaCog className="mr-2" />
-            UPI Settings
+            {t('studioCheckoutPage.upiSettings')}
           </button>
         </div>
       </div>
@@ -905,7 +908,7 @@ const StudioCheckout: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <FaCog className="mr-2 text-[#2731db]" />
-              UPI Payment Settings
+              {t('studioCheckoutPage.upiPaymentSettings')}
             </h2>
             <button
               onClick={() => setShowUpiSettings(false)}
@@ -918,17 +921,17 @@ const StudioCheckout: React.FC = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                UPI ID
+                {t('studioCheckoutPage.upiIdLabel')}
               </label>
               <input
                 type="text"
                 value={upiId}
                 onChange={(e) => setUpiId(e.target.value)}
-                placeholder="e.g., yourname@ybl, yourname@paytm"
+                placeholder={t('studioCheckoutPage.upiIdPlaceholder')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2731db] focus:border-transparent"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Enter your UPI ID for receiving payments (e.g., rohitrawat9009@ybl)
+                {t('studioCheckoutPage.upiIdHint')}
               </p>
             </div>
             
@@ -957,7 +960,7 @@ const StudioCheckout: React.FC = () => {
                 className="flex items-center px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FaSave className="mr-2" />
-                {upiSettings ? 'Update Settings' : 'Save Settings'}
+                {upiSettings ? t('studioCheckoutPage.updateSettings') : t('studioCheckoutPage.saveSettings')}
               </button>
               
               {upiSettings && (
@@ -967,7 +970,7 @@ const StudioCheckout: React.FC = () => {
                   className="flex items-center px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FaTrash className="mr-2" />
-                  Delete Settings
+                  {t('studioCheckoutPage.deleteSettings')}
                 </button>
               )}
             </div>
@@ -988,13 +991,13 @@ const StudioCheckout: React.FC = () => {
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-md border border-gray-100 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Selected images</p>
+              <p className="text-sm text-gray-500">{t('studioCheckoutPage.selectedImages')}</p>
               <p className="text-2xl font-semibold text-gray-900">
                 {allSelectedImages.length}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total amount</p>
+              <p className="text-sm text-gray-500">{t('studioCheckoutPage.totalAmount')}</p>
               <p className="text-2xl font-semibold text-green-600">
                 {totalAmount ? `₹${totalAmount}` : '₹0'}
               </p>
@@ -1048,7 +1051,7 @@ const StudioCheckout: React.FC = () => {
               className="flex items-center px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FaShare className="mr-2" />
-              Share link
+              {t('studioCheckoutPage.shareLink')}
             </button>
             <button
               onClick={handleGenerateQr}
@@ -1056,7 +1059,7 @@ const StudioCheckout: React.FC = () => {
               className="flex items-center px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FaQrcode className="mr-2" />
-              Generate QR
+              {t('studioCheckoutPage.generateQr')}
             </button>
             <button
               onClick={handleMarkAsPaid}
@@ -1068,7 +1071,7 @@ const StudioCheckout: React.FC = () => {
               }`}
             >
               <FaCheckCircle className="mr-2" />
-              Mark as Paid
+              {t('studioCheckoutPage.markAsPaid')}
             </button>
           </div>
         </div>
@@ -1078,34 +1081,32 @@ const StudioCheckout: React.FC = () => {
           {!showQr || !qrData ? (
             <div className="text-center text-gray-500">
               <FaQrcode className="mx-auto mb-3 text-3xl" />
-              <p className="text-sm">Generate a QR code after selecting images.</p>
+              <p className="text-sm">{t('studioCheckoutPage.generateQrAfterSelect')}</p>
             </div>
           ) : (
             <>
               <h3 className="text-lg font-semibold mb-2 flex items-center">
                 <FaQrcode className="mr-2 text-[#2731db]" />
-                Scan to Pay
+                {t('studioCheckoutPage.scanToPay')}
               </h3>
               <div className="bg-white p-3 rounded-xl border border-gray-200 mb-3">
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${qrData}`}
-                  alt="Payment QR"
+                  alt={t('studioCheckoutPage.paymentQrAlt')}
                   className="w-44 h-44"
                 />
               </div>
               <p className="text-sm text-gray-600 text-center">
-                Amount: <span className="font-semibold text-green-600">₹{totalAmount}</span> for{' '}
-                <span className="font-semibold">{allSelectedImages.length}</span> photo
-                {allSelectedImages.length !== 1 ? 's' : ''}.
+                {t('studioCheckoutPage.amountForPhotos', { amount: totalAmount, count: allSelectedImages.length })}
               </p>
               {upiId && (
                 <p className="text-xs text-gray-500 text-center mt-1">
-                  UPI: {upiId}
+                  {t('studioCheckoutPage.upiLabel', { id: upiId })}
                 </p>
               )}
               {isPaid && (
                 <p className="mt-2 text-xs text-green-600 flex items-center">
-                  <FaCheckCircle className="mr-1" /> Payment marked as completed.
+                  <FaCheckCircle className="mr-1" /> {t('studioCheckoutPage.paymentMarkedCompletedShort')}
                 </p>
               )}
             </>
@@ -1118,7 +1119,7 @@ const StudioCheckout: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Share link</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{t('studioCheckoutPage.shareModalTitle')}</h3>
               <button
                 onClick={() => {
                   setShowShareModal(false);
@@ -1144,17 +1145,17 @@ const StudioCheckout: React.FC = () => {
                 </select>
               </div> */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Existing contacts</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('studioCheckoutPage.existingContacts')}</label>
                 <input
                   type="text"
                   value={shareContactSearch}
                   onChange={(e) => setShareContactSearch(e.target.value)}
-                  placeholder="Search by name, email, mobile..."
+                  placeholder={t('studioCheckoutPage.searchContactsPlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2"
                 />
                 <div className="border border-gray-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
                   {shareContacts.length === 0 ? (
-                    <p className="text-sm text-gray-500">No contacts yet. Add email or mobile below.</p>
+                    <p className="text-sm text-gray-500">{t('studioCheckoutPage.noContactsYet')}</p>
                   ) : (
                     shareContacts.map((c) => (
                       <label key={c.id} className="flex items-center gap-2 cursor-pointer">
@@ -1177,20 +1178,20 @@ const StudioCheckout: React.FC = () => {
               </div>
               {showEmail && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">New recipients – email (comma separated)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('studioCheckoutPage.newRecipientsEmail')}</label>
                   <input
                     type="text"
                     value={shareNewEmails}
                     onChange={(e) => { setShareNewEmails(e.target.value); setShareAlreadySent(null); }}
                     onBlur={() => checkRecipient(shareNewEmails, shareNewMobiles)}
-                    placeholder="e.g. a@example.com, b@example.com"
+                    placeholder={t('studioCheckoutPage.emailPlaceholderShare')}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                   />
                 </div>
               )}
               {showPhone && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">New recipients – mobile (comma separated)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('studioCheckoutPage.newRecipientsMobile')}</label>
                   <div className="flex gap-2">
                     <select
                       value={shareNewMobileCountryCode}
@@ -1213,7 +1214,7 @@ const StudioCheckout: React.FC = () => {
                       value={shareNewMobiles}
                       onChange={(e) => { setShareNewMobiles(e.target.value); setShareAlreadySent(null); }}
                       onBlur={() => checkRecipient(shareNewEmails, shareNewMobiles)}
-                      placeholder="e.g. 9876543210, 9123456789"
+                      placeholder={t('studioCheckoutPage.mobilePlaceholderShare')}
                       className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm"
                     />
                   </div>
@@ -1221,15 +1222,15 @@ const StudioCheckout: React.FC = () => {
               )}
               {shareAlreadySent?.alreadySent && (
                 <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  Already sent to this {shareAlreadySent.email ? 'email' : 'mobile'}. You can resend if needed.
+                  {t('studioCheckoutPage.alreadySentWarning', { type: shareAlreadySent.email ? t('studioCheckoutPage.emailType') : t('studioCheckoutPage.mobileType') })}
                 </p>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Optional message</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('studioCheckoutPage.optionalMessage')}</label>
                 <textarea
                   value={shareMessage}
                   onChange={(e) => setShareMessage(e.target.value)}
-                  placeholder="Add a short message to include in the email/SMS"
+                  placeholder={t('studioCheckoutPage.messagePlaceholderShare')}
                   rows={2}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 />
@@ -1243,7 +1244,7 @@ const StudioCheckout: React.FC = () => {
                       onChange={(e) => setShareChannels((c) => ({ ...c, email: e.target.checked }))}
                       className="rounded border-gray-300"
                     />
-                    <span className="text-sm">Send via Email</span>
+                    <span className="text-sm">{t('studioCheckoutPage.sendViaEmail')}</span>
                   </label>
                 )}
                 {showPhone && (
@@ -1254,7 +1255,7 @@ const StudioCheckout: React.FC = () => {
                       onChange={(e) => setShareChannels((c) => ({ ...c, sms: e.target.checked }))}
                       className="rounded border-gray-300"
                     />
-                    <span className="text-sm">Send via SMS</span>
+                    <span className="text-sm">{t('studioCheckoutPage.sendViaSms')}</span>
                   </label>
                 )}
               </div>
@@ -1268,10 +1269,10 @@ const StudioCheckout: React.FC = () => {
                 }}
                 className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
               >
-                Cancel
+                {t('studioCheckoutPage.cancel')}
               </button>
               <button onClick={handleShareSend} disabled={shareSending} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-sm font-semibold">
-                {shareSending ? 'Sending…' : 'Send'}
+                {shareSending ? t('studioCheckoutPage.sending') : t('studioCheckoutPage.send')}
               </button>
             </div>
           </div>
@@ -1281,17 +1282,17 @@ const StudioCheckout: React.FC = () => {
       {/* Albums Grid – same layout as PhotoStudioAlbum */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Select Albums & Images</h2>
+          <h2 className="text-xl font-semibold text-gray-900">{t('studioCheckoutPage.selectAlbumsImages')}</h2>
           <p className="text-sm text-gray-500">
-            Select an album, then choose images for checkout.
+            {t('studioCheckoutPage.selectAlbumThenChoose')}
           </p>
         </div>
 
         {albums.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
             <FaFolder className="mx-auto mb-4 text-5xl text-gray-300" />
-            <p className="text-lg font-medium mb-2">No albums available</p>
-            <p className="text-sm">Create albums first in Photo Albums.</p>
+            <p className="text-lg font-medium mb-2">{t('studioCheckoutPage.noAlbumsAvailable')}</p>
+            <p className="text-sm">{t('studioCheckoutPage.createAlbumsFirst')}</p>
           </div>
         ) : (
           <>
@@ -1334,7 +1335,7 @@ const StudioCheckout: React.FC = () => {
                           type="button"
                           onClick={(e) => { e.stopPropagation(); if (!isDisabled) toggleAlbum(album.id); }}
                           className="p-1.5 rounded-lg bg-white/90 hover:bg-white shadow-sm"
-                          title={isSelected ? 'Unselect album' : 'Select album'}
+                          title={isSelected ? t('studioCheckoutPage.unselectAlbum') : t('studioCheckoutPage.selectAlbum')}
                         >
                           <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${isSelected ? 'border-[#2731db] bg-[#2731db]' : 'border-gray-400 bg-white'}`}>
                             {isSelected && <FaCheck className="h-2.5 w-2.5 text-white" />}
@@ -1346,10 +1347,10 @@ const StudioCheckout: React.FC = () => {
                       <h3 className="font-semibold text-gray-900 truncate capitalize">{album.name}</h3>
                       <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
                         <FaImages className="h-3.5 w-3 shrink-0" />
-                        {albumImages.length} {albumImages.length === 1 ? 'image' : 'images'}
+                        {albumImages.length} {albumImages.length === 1 ? t('studioCheckoutPage.image') : t('studioCheckoutPage.images')}
                         {albumImageIds.size > 0 && (
                           <span className="text-[#2731db] font-medium ml-1">
-                            · {albumImageIds.size} selected
+                            · {albumImageIds.size} {t('studioCheckoutPage.selected')}
                           </span>
                         )}
                       </p>
@@ -1358,7 +1359,7 @@ const StudioCheckout: React.FC = () => {
                         onClick={(e) => { e.stopPropagation(); if (!isDisabled) toggleAlbumExpand(album.id); }}
                         className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-800 hover:bg-gray-50 hover:border-[#2731db]/30 transition-colors"
                       >
-                        {isExpanded ? 'Hide images' : 'Choose images'}
+                        {isExpanded ? t('studioCheckoutPage.hideImages') : t('studioCheckoutPage.chooseImages')}
                         <FaChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                       </button>
                     </div>
@@ -1381,9 +1382,9 @@ const StudioCheckout: React.FC = () => {
               <div className="border-t border-gray-200 bg-gray-50 flex flex-col flex-shrink-0 w-full mt-4 h-full rounded-b-2xl overflow-hidden max-h-[min(55vh,420px)]">
                 <div className="flex-shrink-0 flex items-center justify-between gap-2 px-4 py-3 bg-white border-b border-gray-100">
                   <h4 className="text-sm font-semibold text-gray-900">
-                    Select images – {album.name}
+                    {t('studioCheckoutPage.selectImagesHeading', { name: album.name })}
                     {isSelected && albumImageIds.size > 0 && (
-                      <span className="ml-2 text-[#2731db] font-medium">({albumImageIds.size} of {albumImages.length})</span>
+                      <span className="ml-2 text-[#2731db] font-medium">{t('studioCheckoutPage.countSelectedOf', { selected: albumImageIds.size, total: albumImages.length })}</span>
                     )}
                   </h4>
                   <div className="flex items-center gap-3">
@@ -1392,11 +1393,11 @@ const StudioCheckout: React.FC = () => {
                       onClick={() => toggleAlbumExpand(album.id)}
                       className="text-sm font-medium text-gray-600 hover:text-gray-900"
                     >
-                      Hide
+                      {t('studioCheckoutPage.hide')}
                     </button>
                     {isSelected && (
                       <button type="button" onClick={() => selectAllImagesInAlbum(album.id)} className="text-sm text-[#2731db] hover:underline font-medium">
-                        {allSelected ? 'Deselect All' : 'Select All'}
+                        {allSelected ? t('studioCheckoutPage.deselectAll') : t('studioCheckoutPage.selectAll')}
                       </button>
                     )}
                   </div>
@@ -1444,14 +1445,14 @@ const StudioCheckout: React.FC = () => {
                             </div>
                             <p className="text-sm font-medium text-gray-900 truncate" style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }} title={filename}>{filename}</p>
                             <p className="text-sm font-bold text-gray-700 mt-0.5">
-                              {allSelected && album.perAlbumPrice && album.perAlbumPrice > 0 ? `₹${album.perAlbumPrice} (album)` : imagePrice > 0 ? `₹${imagePrice}` : 'Free'}
+                              {allSelected && album.perAlbumPrice && album.perAlbumPrice > 0 ? t('studioCheckoutPage.albumPriceLabel', { price: album.perAlbumPrice }) : imagePrice > 0 ? t('studioCheckoutPage.perImageRupee', { price: imagePrice }) : t('studioCheckoutPage.free')}
                             </p>
                           </button>
                         );
                       })}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-gray-500 text-sm">Loading images…</div>
+                    <div className="text-center py-8 text-gray-500 text-sm">{t('studioCheckoutPage.loadingImages')}</div>
                   )}
                 </div>
               </div>

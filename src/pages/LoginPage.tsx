@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { FaEye, FaEyeSlash, FaLock, FaUser, FaShieldAlt, FaArrowRight, FaEnvelope, FaPhone } from 'react-icons/fa';
 import api from '../services/api';
 
 const LoginPage = () => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     username: '',
     password: ''
@@ -67,12 +69,12 @@ const LoginPage = () => {
 
     try {
       await login(formData.username, formData.password);
-      toast.success('Welcome back!');
+      toast.success(t('login.welcomeBackToast'));
       
       // The login function will update the user state
       // We'll handle the redirect in a useEffect when user changes
     } catch (error: any) {
-      toast.error(error.message || 'Login failed. Please check your credentials.');
+      toast.error(error.message || t('login.loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -84,21 +86,21 @@ const LoginPage = () => {
     try {
       if (loginMode === 'emailOtp') {
         if (!email.trim()) {
-          toast.error('Please enter email');
+          toast.error(t('login.enterEmail'));
           return;
         }
         await requestLoginOtp({ email: email.trim() });
       } else {
         if (!phone.trim()) {
-          toast.error('Please enter phone number');
+          toast.error(t('login.enterPhone'));
           return;
         }
         await requestLoginOtp({ phone: phone.trim(), });
       }
       setOtpRequested(true);
-      toast.success('OTP sent successfully');
+      toast.success(t('login.otpSent'));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to send OTP');
+      toast.error(error.message || t('login.otpSendFailed'));
     } finally {
       setLoading(false);
     }
@@ -109,7 +111,7 @@ const LoginPage = () => {
     setLoading(true);
     try {
       if (!otp.trim()) {
-        toast.error('Please enter OTP');
+        toast.error(t('login.enterOtp'));
         return;
       }
       if (loginMode === 'emailOtp') {
@@ -117,9 +119,9 @@ const LoginPage = () => {
       } else {
         await verifyLoginOtp({ phone: phone.trim(), otp: otp.trim() });
       }
-      toast.success('Login successful');
+      toast.success(t('login.loginSuccess'));
     } catch (error: any) {
-      toast.error(error.message || 'OTP verification failed');
+      toast.error(error.message || t('login.otpVerifyFailed'));
     } finally {
       setLoading(false);
     }
@@ -157,13 +159,13 @@ const LoginPage = () => {
             <FaShieldAlt className="h-10 w-10 text-white drop-shadow-lg" />
           </div>
           <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent mb-4">
-            Welcome Back
+            {t('login.welcomeBack')}
           </h1>
           <p className="text-xl text-white/80 font-medium">
-            Sign in to your secure account
+            {t('login.signInSubtitle')}
           </p>
           <p className="text-sm text-white/60 mt-2">
-            Access your files and cloud services
+            {t('login.accessFiles')}
           </p>
         </div>
 
@@ -177,7 +179,7 @@ const LoginPage = () => {
               onClick={() => { setLoginMode('password'); setOtpRequested(false); setOtp(''); }}
               className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${loginMode === 'password' ? 'bg-white/25 text-white' : 'bg-white/10 text-white/70 hover:text-white'}`}
             >
-              Username
+              {t('login.usernameTab')}
             </button>
             {showEmailOtp && (
               <button
@@ -185,7 +187,7 @@ const LoginPage = () => {
                 onClick={() => { setLoginMode('emailOtp'); setOtpRequested(false); setOtp(''); }}
                 className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${loginMode === 'emailOtp' ? 'bg-white/25 text-white' : 'bg-white/10 text-white/70 hover:text-white'}`}
               >
-                Email OTP
+                {t('login.emailOtpTab')}
               </button>
             )}
             {showPhoneOtp && (
@@ -194,7 +196,7 @@ const LoginPage = () => {
                 onClick={() => { setLoginMode('phoneOtp'); setOtpRequested(false); setOtp(''); }}
                 className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${loginMode === 'phoneOtp' ? 'bg-white/25 text-white' : 'bg-white/10 text-white/70 hover:text-white'}`}
               >
-                Mobile OTP
+                {t('login.phoneOtpTab')}
               </button>
             )}
           </div>
@@ -204,7 +206,7 @@ const LoginPage = () => {
             {/* Username Field */}
             <div className="space-y-2">
               <label htmlFor="username" className="block text-sm font-semibold text-white/90">
-                Username
+                {t('login.username')}
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -216,7 +218,7 @@ const LoginPage = () => {
                   type="text"
                   required
                   className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none"
-                  placeholder="Enter your username"
+                  placeholder={t('login.usernamePlaceholder')}
                   value={formData.username}
                   onChange={(e) => setFormData({...formData, username: e.target.value})}
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
@@ -228,7 +230,7 @@ const LoginPage = () => {
             {/* Password Field */}
             <div className="space-y-2">
               <label htmlFor="password" className="block text-sm font-semibold text-white/90">
-                Password
+                {t('login.password')}
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -240,7 +242,7 @@ const LoginPage = () => {
                   type={showPassword ? 'text' : 'password'}
                   required
                   className="w-full pl-12 pr-12 py-4 bg-white/10 border border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none"
-                  placeholder="Enter your password"
+                  placeholder={t('login.passwordPlaceholder')}
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
@@ -272,13 +274,13 @@ const LoginPage = () => {
                   className="h-4 w-4 text-purple-500 focus:ring-purple-400 border-white/30 rounded bg-white/10"
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-white/80">
-                  Remember me
+                  {t('login.rememberMe')}
                 </label>
               </div>
 
               <div className="text-sm">
                 <Link to="/forgot-password" className="font-medium text-purple-300 hover:text-purple-200 transition-colors">
-                  Forgot password?
+                  {t('login.forgotPassword')}
                 </Link>
               </div>
             </div>
@@ -293,12 +295,12 @@ const LoginPage = () => {
                 {loading ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
-                    Signing in...
+                    {t('login.signingIn')}
                   </div>
                 ) : (
                   <div className="flex items-center">
                     <FaArrowRight className="mr-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                    Sign in
+                    {t('login.signIn')}
                   </div>
                 )}
               </button>
@@ -307,9 +309,9 @@ const LoginPage = () => {
             {/* Sign Up Link */}
             <div className="text-center pt-4">
               <p className="text-sm text-white/70">
-                Don't have an account?{' '}
+                {t('login.noAccount')}{' '}
                 <Link to="/register" className="font-semibold text-purple-300 hover:text-purple-200 transition-colors">
-                  Sign up here
+                  {t('login.signUpHere')}
                 </Link>
               </p>
             </div>
@@ -318,7 +320,7 @@ const LoginPage = () => {
             <form className="space-y-6" onSubmit={otpRequested ? handleVerifyOtp : handleRequestOtp}>
               <div className="space-y-2">
                 <label htmlFor={loginMode === 'emailOtp' ? 'email-login' : 'phone-login'} className="block text-sm font-semibold text-white/90">
-                  {loginMode === 'emailOtp' ? 'Email' : 'Mobile number'}
+                  {loginMode === 'emailOtp' ? t('login.email') : t('login.mobileNumber')}
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -334,7 +336,7 @@ const LoginPage = () => {
                     type={loginMode === 'emailOtp' ? 'email' : 'tel'}
                     required
                     className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
-                    placeholder={loginMode === 'emailOtp' ? 'Enter your email' : 'Enter your mobile number'}
+                    placeholder={loginMode === 'emailOtp' ? t('login.emailPlaceholder') : t('login.mobilePlaceholder')}
                     value={loginMode === 'emailOtp' ? email : phone}
                     onChange={(e) => loginMode === 'emailOtp' ? setEmail(e.target.value) : setPhone(e.target.value)}
                     disabled={otpRequested}
@@ -345,7 +347,7 @@ const LoginPage = () => {
               {otpRequested && (
                 <div className="space-y-2">
                   <label htmlFor="otp" className="block text-sm font-semibold text-white/90">
-                    Verification OTP
+                    {t('login.verificationOtp')}
                   </label>
                   <input
                     id="otp"
@@ -353,7 +355,7 @@ const LoginPage = () => {
                     type="text"
                     required
                     className="w-full px-4 py-4 bg-white/10 border border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
-                    placeholder="Enter OTP"
+                    placeholder={t('login.otpPlaceholder')}
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
                   />
@@ -369,12 +371,12 @@ const LoginPage = () => {
                   {loading ? (
                     <div className="flex items-center">
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
-                      {otpRequested ? 'Verifying...' : 'Sending OTP...'}
+                      {otpRequested ? t('login.verifying') : t('login.sendingOtp')}
                     </div>
                   ) : (
                     <div className="flex items-center">
                       <FaArrowRight className="mr-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                      {otpRequested ? 'Verify OTP & Sign in' : 'Send OTP'}
+                      {otpRequested ? t('login.verifyAndSignIn') : t('login.sendOtp')}
                     </div>
                   )}
                 </button>
@@ -385,7 +387,7 @@ const LoginPage = () => {
                     onClick={() => setOtpRequested(false)}
                     className="w-full py-2 text-sm text-white/80 hover:text-white transition-colors"
                   >
-                    Change {loginMode === 'emailOtp' ? 'email' : 'mobile'}
+                    {loginMode === 'emailOtp' ? t('login.changeEmail') : t('login.changeMobile')}
                   </button>
                 )}
               </div>
@@ -397,10 +399,10 @@ const LoginPage = () => {
         {/* Footer */}
         <div className="text-center">
           <p className="text-xs text-white/50">
-            By signing in, you agree to our{' '}
-            <button type="button" className="text-purple-300 hover:text-purple-200 transition-colors">Terms of Service</button>
-            {' '}and{' '}
-            <button type="button" className="text-purple-300 hover:text-purple-200 transition-colors">Privacy Policy</button>
+            {t('login.termsPrefix')}{' '}
+            <button type="button" className="text-purple-300 hover:text-purple-200 transition-colors">{t('login.termsOfService')}</button>
+            {' '}{t('login.and')}{' '}
+            <button type="button" className="text-purple-300 hover:text-purple-200 transition-colors">{t('login.privacyPolicy')}</button>
           </p>
         </div>
       </div>

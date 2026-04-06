@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   FaStar,
   FaHeart,
@@ -123,79 +124,6 @@ type ApiCoverRecord = {
   backCover: ApiCoverSide;
 };
 
-const THEME_META: ThemeMeta[] = [
-  {
-    id: 'birthday',
-    title: 'Birthday Themes',
-    subtitle: 'Celebrate special moments with vibrant birthday designs.',
-    icon: FaStar,
-    color: 'from-pink-500 via-rose-500 to-pink-600',
-  },
-  {
-    id: 'anniversary',
-    title: 'Anniversary Themes',
-    subtitle: 'Romantic designs for celebrating love and milestones.',
-    icon: FaHeart,
-    color: 'from-red-500 via-pink-500 to-red-600',
-  },
-  {
-    id: 'wedding',
-    title: 'Wedding Themes',
-    subtitle: 'Elegant and timeless designs for your special day.',
-    icon: FaStar,
-    color: 'from-purple-500 via-indigo-500 to-purple-600',
-  },
-  {
-    id: 'baby-kids',
-    title: 'Baby & Kids Themes',
-    subtitle: 'Adorable themes for little ones and growing families.',
-    icon: FaUsers,
-    color: 'from-blue-500 via-cyan-500 to-blue-600',
-  },
-  {
-    id: 'travel',
-    title: 'Travel Memories',
-    subtitle: 'Capture your adventures with stunning travel layouts.',
-    icon: FaCloud,
-    color: 'from-teal-500 via-emerald-500 to-teal-600',
-  },
-  {
-    id: 'family',
-    title: 'Family Album',
-    subtitle: 'Cherish family moments with warm, classic designs.',
-    icon: FaImages,
-    color: 'from-amber-500 via-orange-500 to-amber-600',
-  },
-  {
-    id: 'festival',
-    title: 'Festival & Events',
-    subtitle: 'Vibrant themes for celebrations and special occasions.',
-    icon: FaCalendarAlt,
-    color: 'from-violet-500 via-purple-500 to-violet-600',
-  },
-  {
-    id: 'corporate',
-    title: 'Corporate / Office',
-    subtitle: 'Professional layouts for business and corporate events.',
-    icon: FaBriefcase,
-    color: 'from-slate-500 via-gray-500 to-slate-600',
-  },
-  {
-    id: 'minimal',
-    title: 'Minimal / Classic',
-    subtitle: 'Clean, elegant designs with timeless appeal.',
-    icon: FaFolderOpen,
-    color: 'from-gray-400 via-gray-500 to-gray-600',
-  },
-  {
-    id: 'custom',
-    title: 'Custom Themes',
-    subtitle: 'Create your own unique theme or request a custom design.',
-    icon: FaPalette,
-    color: 'from-indigo-500 via-blue-500 to-indigo-600',
-  },
-];
-
 const defaultPageState: EditablePageState = {
   headline: '',
   subheadline: '',
@@ -217,11 +145,10 @@ const PageEditorCard: React.FC<{
   onChange: (next: EditablePageState) => void;
   filterImageIds?: number[];
 }> = ({ kind, state, onChange, filterImageIds }) => {
+  const { t } = useTranslation(undefined, { keyPrefix: 'photoThemeCategoryPage' });
   const isCover = kind === 'cover';
-  const title = isCover ? 'Front Cover' : 'Back Cover';
-  const hint = isCover
-    ? 'Design the first page of your album.'
-    : 'Design the closing page of your album.';
+  const title = isCover ? t('frontCover') : t('backCover');
+  const hint = isCover ? t('hintFrontCover') : t('hintBackCover');
   const [showAlbumPicker, setShowAlbumPicker] = React.useState(false);
   const [showLogoPicker, setShowLogoPicker] = React.useState(false);
   type Section = 'text' | 'effects' | 'extras';
@@ -293,7 +220,7 @@ const PageEditorCard: React.FC<{
               }`}
             />
             <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600">
-              {isCover ? 'Front cover' : 'Back cover'}
+              {isCover ? t('frontCoverBadge') : t('backCoverBadge')}
             </span>
           </div>
           <h3 className="text-xl font-bold text-slate-900 tracking-tight">{title}</h3>
@@ -314,7 +241,7 @@ const PageEditorCard: React.FC<{
               src={state.imageDataUrl}
               alt={`${title} preview`}
               role="button"
-              title="Click to zoom"
+              title={t('clickToZoom')}
               className={`w-full h-full object-cover ${state.style?.blurBackground ? 'blur-sm' : ''} cursor-zoom-in`}
               style={{
                 transform: `scale(${state.style?.imageScale ?? 1})`,
@@ -328,10 +255,10 @@ const PageEditorCard: React.FC<{
           ) : (
             <div className="flex flex-col items-center justify-center gap-3 px-4 text-center">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-200/90 to-slate-300/80 flex items-center justify-center shadow-inner border border-white/50">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Preview</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('preview')}</span>
               </div>
               <span className="text-[11px] leading-snug text-slate-500 font-medium">
-                Upload a photo and type your headline to see a live preview.
+                {t('previewEmpty')}
               </span>
             </div>
           )}
@@ -441,7 +368,7 @@ const PageEditorCard: React.FC<{
             >
               <img
                 src={state.style.logoDataUrl}
-                alt="Logo"
+                alt={t('logoAlt')}
                 className="w-full h-full object-contain pointer-events-none"
                 draggable={false}
               />
@@ -454,12 +381,12 @@ const PageEditorCard: React.FC<{
           <div className="grid grid-cols-1 gap-3">
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                Headline
+                {t('headline')}
               </label>
               <input
                 className="w-full rounded-xl border border-slate-200/80 px-3.5 py-2.5 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 bg-white/80 shadow-sm transition-all"
                 placeholder={
-                  isCover ? 'e.g. Our Wedding Day' : 'e.g. Thank you for being here'
+                  isCover ? t('placeholderHeadlineCover') : t('placeholderHeadlineBack')
                 }
                 value={state.headline}
                 onChange={(e) => onChange({ ...state, headline: e.target.value })}
@@ -468,14 +395,14 @@ const PageEditorCard: React.FC<{
 
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                Subheadline
+                {t('subheadline')}
               </label>
               <input
                 className="w-full rounded-xl border border-slate-200/80 px-3.5 py-2.5 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 bg-white/80 shadow-sm transition-all"
                 placeholder={
                   isCover
-                    ? 'e.g. 5th June 2026 • Mumbai'
-                    : 'e.g. Grateful for every moment captured here.'
+                    ? t('placeholderSubCover')
+                    : t('placeholderSubBack')
                 }
                 value={state.subheadline}
                 onChange={(e) => onChange({ ...state, subheadline: e.target.value })}
@@ -484,12 +411,12 @@ const PageEditorCard: React.FC<{
 
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                Description (optional)
+                {t('descriptionOptional')}
               </label>
               <textarea
                 rows={3}
                 className="w-full rounded-xl border border-slate-200/80 px-3.5 py-2 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 resize-none bg-white/80 shadow-sm transition-all"
-                placeholder="Add a short story or note about this album."
+                placeholder={t('placeholderDescription')}
                 value={state.description}
                 onChange={(e) => onChange({ ...state, description: e.target.value })}
               />
@@ -499,7 +426,7 @@ const PageEditorCard: React.FC<{
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
             <div>
               <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                Page image
+                {t('pageImage')}
               </label>
               <button
                 type="button"
@@ -511,7 +438,7 @@ const PageEditorCard: React.FC<{
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-gradient-to-r from-cyan-50 to-indigo-50 px-3 py-2 text-[11px] font-bold text-cyan-800 hover:from-cyan-100 hover:to-indigo-100 hover:border-cyan-300 transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/30 cursor-pointer w-auto"
               >
                 <FaImages className="h-3.5 w-3.5 shrink-0" />
-                Use from album / upload
+                {t('useFromAlbumUpload')}
               </button>
             </div>
 
@@ -519,7 +446,7 @@ const PageEditorCard: React.FC<{
               <div className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-50 to-cyan-50 border border-emerald-200/60 px-3.5 py-2 shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50 animate-pulse" />
                 <span className="text-[11px] font-medium text-slate-600">
-                  Live preview updates as you type
+                  {t('livePreviewHint')}
                 </span>
               </div>
             </div>
@@ -533,7 +460,7 @@ const PageEditorCard: React.FC<{
                   onClick={() => toggle('text')}
                   className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-gradient-to-r hover:from-cyan-50/50 hover:to-indigo-50/50 transition-all"
                 >
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Text & layout</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">{t('textLayout')}</span>
                   <span className="text-slate-400 text-[10px]">{openSection === 'text' ? '▼' : '▶'}</span>
                 </button>
                 {openSection === 'text' && (
@@ -541,7 +468,7 @@ const PageEditorCard: React.FC<{
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                  Font size
+                  {t('fontSize')}
                 </label>
                 <input
                   type="range"
@@ -559,7 +486,7 @@ const PageEditorCard: React.FC<{
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                  Weight
+                  {t('weight')}
                 </label>
                 <select
                   className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
@@ -571,15 +498,15 @@ const PageEditorCard: React.FC<{
                     })
                   }
                 >
-                  <option value={400}>Regular</option>
-                  <option value={600}>Semi‑bold</option>
-                  <option value={700}>Bold</option>
-                  <option value={800}>Extra bold</option>
+                  <option value={400}>{t('weightRegular')}</option>
+                  <option value={600}>{t('weightSemiBold')}</option>
+                  <option value={700}>{t('weightBold')}</option>
+                  <option value={800}>{t('weightExtraBold')}</option>
                 </select>
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                  Align
+                  {t('align')}
                 </label>
                 <select
                   className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
@@ -594,14 +521,14 @@ const PageEditorCard: React.FC<{
                     })
                   }
                 >
-                  <option value="left">Left</option>
-                  <option value="center">Center</option>
-                  <option value="right">Right</option>
+                  <option value="left">{t('alignLeft')}</option>
+                  <option value="center">{t('alignCenter')}</option>
+                  <option value="right">{t('alignRight')}</option>
                 </select>
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                  Vertical position
+                  {t('verticalPosition')}
                 </label>
                 <select
                   className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
@@ -616,14 +543,14 @@ const PageEditorCard: React.FC<{
                     })
                   }
                 >
-                  <option value="top">Top</option>
-                  <option value="center">Center</option>
-                  <option value="bottom">Bottom</option>
+                  <option value="top">{t('posTop')}</option>
+                  <option value="center">{t('posCenter')}</option>
+                  <option value="bottom">{t('posBottom')}</option>
                 </select>
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                  Font family
+                  {t('fontFamily')}
                 </label>
                 <select
                   className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
@@ -645,15 +572,15 @@ const PageEditorCard: React.FC<{
                     })
                   }
                 >
-                  <option value="system">System</option>
-                  <option value="sans">Sans-serif</option>
-                  <option value="serif">Serif</option>
-                  <option value="mono">Monospace</option>
+                  <option value="system">{t('fontSystem')}</option>
+                  <option value="sans">{t('fontSans')}</option>
+                  <option value="serif">{t('fontSerif')}</option>
+                  <option value="mono">{t('fontMono')}</option>
                 </select>
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                  Headline color
+                  {t('headlineColor')}
                 </label>
                 <input
                   type="color"
@@ -669,7 +596,7 @@ const PageEditorCard: React.FC<{
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                  Subheadline color
+                  {t('subheadlineColor')}
                 </label>
                 <input
                   type="color"
@@ -685,7 +612,7 @@ const PageEditorCard: React.FC<{
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                  Image zoom
+                  {t('imageZoom')}
                 </label>
                 <input
                   type="range"
@@ -703,7 +630,7 @@ const PageEditorCard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Letter spacing</label>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('letterSpacing')}</label>
                 <input
                   type="range"
                   min={-2}
@@ -716,7 +643,7 @@ const PageEditorCard: React.FC<{
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">Line height</label>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('lineHeight')}</label>
                 <input
                   type="range"
                   min={1}
@@ -739,7 +666,7 @@ const PageEditorCard: React.FC<{
                     }
                     className="rounded border-slate-200 accent-cyan-500"
                   />
-                  <span className="text-[11px] font-semibold text-slate-600">Text shadow</span>
+                  <span className="text-[11px] font-semibold text-slate-600">{t('textShadow')}</span>
                 </label>
               </div>
               <div className="flex items-end gap-2">
@@ -752,13 +679,13 @@ const PageEditorCard: React.FC<{
                     }
                     className="rounded border-slate-200 accent-cyan-500"
                   />
-                  <span className="text-[11px] font-semibold text-slate-600">Decorative divider</span>
+                  <span className="text-[11px] font-semibold text-slate-600">{t('decorativeDivider')}</span>
                 </label>
               </div>
               {state.style?.dividerEnabled && (
                 <>
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Divider width (%)</label>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('dividerWidth')}</label>
                     <input
                       type="range"
                       min={10}
@@ -771,7 +698,7 @@ const PageEditorCard: React.FC<{
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Divider color</label>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('dividerColor')}</label>
                     <input
                       type="color"
                       className="w-full h-8 rounded-xl border border-slate-200 p-0 bg-white"
@@ -792,14 +719,14 @@ const PageEditorCard: React.FC<{
                   onClick={() => toggle('effects')}
                   className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-gradient-to-r hover:from-cyan-50/50 hover:to-indigo-50/50 transition-all"
                 >
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Page effects</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">{t('pageEffects')}</span>
                   <span className="text-slate-400 text-[10px]">{openSection === 'effects' ? '▼' : '▶'}</span>
                 </button>
                 {openSection === 'effects' && (
                   <div className="p-4 pt-2 border-b border-slate-100 bg-gradient-to-b from-slate-50/80 to-white space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Overlay opacity</label>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('overlayOpacity')}</label>
                         <input
                           type="range"
                           min={0}
@@ -812,7 +739,7 @@ const PageEditorCard: React.FC<{
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Gradient</label>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('gradient')}</label>
                         <select
                           className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                           value={state.style?.overlayGradientDirection ?? 'top-bottom'}
@@ -826,13 +753,13 @@ const PageEditorCard: React.FC<{
                             })
                           }
                         >
-                          <option value="top-bottom">Top → Bottom</option>
-                          <option value="bottom-top">Bottom → Top</option>
-                          <option value="radial">Radial</option>
+                          <option value="top-bottom">{t('gradTopBottom')}</option>
+                          <option value="bottom-top">{t('gradBottomTop')}</option>
+                          <option value="radial">{t('gradRadial')}</option>
                         </select>
                       </div>
                       <div>
-                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Overlay color</label>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('overlayColor')}</label>
                         <input
                           type="color"
                           className="w-full h-8 rounded-xl border border-slate-200 p-0 bg-white block"
@@ -851,13 +778,13 @@ const PageEditorCard: React.FC<{
                   onClick={() => toggle('extras')}
                   className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-gradient-to-r hover:from-cyan-50/50 hover:to-indigo-50/50 transition-all"
                 >
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Background & logo</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">{t('backgroundLogo')}</span>
                   <span className="text-slate-400 text-[10px]">{openSection === 'extras' ? '▼' : '▶'}</span>
                 </button>
                 {openSection === 'extras' && (
                   <div className="p-4 pt-2 bg-gradient-to-b from-slate-50/80 to-white space-y-4">
                     <div>
-                      <p className="text-[11px] font-semibold text-slate-600 mb-2">Background</p>
+                      <p className="text-[11px] font-semibold text-slate-600 mb-2">{t('backgroundSection')}</p>
                       <div className="flex flex-wrap gap-x-4 gap-y-2">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -868,7 +795,7 @@ const PageEditorCard: React.FC<{
                             }
                             className="rounded border-slate-200 accent-cyan-500"
                           />
-                          <span className="text-[11px] text-slate-600">Blur</span>
+                          <span className="text-[11px] text-slate-600">{t('blur')}</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -879,7 +806,7 @@ const PageEditorCard: React.FC<{
                             }
                             className="rounded border-slate-200 accent-cyan-500"
                           />
-                          <span className="text-[11px] text-slate-600">Vignette</span>
+                          <span className="text-[11px] text-slate-600">{t('vignette')}</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -890,7 +817,7 @@ const PageEditorCard: React.FC<{
                             }
                             className="rounded border-slate-200 accent-cyan-500"
                           />
-                          <span className="text-[11px] text-slate-600">Dark mode</span>
+                          <span className="text-[11px] text-slate-600">{t('darkMode')}</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -901,12 +828,12 @@ const PageEditorCard: React.FC<{
                             }
                             className="rounded border-slate-200 accent-cyan-500"
                           />
-                          <span className="text-[11px] text-slate-600">Animation</span>
+                          <span className="text-[11px] text-slate-600">{t('animation')}</span>
                         </label>
                       </div>
                     </div>
                     <div>
-                      <p className="text-[11px] font-semibold text-slate-600 mb-2">Logo</p>
+                      <p className="text-[11px] font-semibold text-slate-600 mb-2">{t('logoSection')}</p>
                       <div className="space-y-2">
                         <button
                           type="button"
@@ -914,11 +841,11 @@ const PageEditorCard: React.FC<{
                           onClick={() => setShowLogoPicker(true)}
                         >
                           <FaImages className="h-3.5 w-3.5 shrink-0" />
-                          Use from album
+                          {t('useFromAlbum')}
                         </button>
                         <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <label className="block text-[10px] font-medium text-slate-500 mb-0.5">Position</label>
+                            <label className="block text-[10px] font-medium text-slate-500 mb-0.5">{t('position')}</label>
                             <select
                               className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                               value={state.style?.logoPosition ?? 'top-left'}
@@ -936,13 +863,13 @@ const PageEditorCard: React.FC<{
                                 });
                               }}
                             >
-                              <option value="top-left">Top Left</option>
-                              <option value="top-right">Top Right</option>
-                              <option value="bottom-center">Bottom Center</option>
+                              <option value="top-left">{t('logoTopLeft')}</option>
+                              <option value="top-right">{t('logoTopRight')}</option>
+                              <option value="bottom-center">{t('logoBottomCenter')}</option>
                             </select>
                           </div>
                           <div>
-                            <label className="block text-[10px] font-medium text-slate-500 mb-0.5">Size</label>
+                            <label className="block text-[10px] font-medium text-slate-500 mb-0.5">{t('size')}</label>
                             <input
                               type="range"
                               min={20}
@@ -980,13 +907,13 @@ const PageEditorCard: React.FC<{
         >
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
             <h3 id="album-picker-title" className="text-lg font-bold text-slate-900 tracking-tight">
-              Choose image — {title}
+              {t('chooseImageTitle', { title })}
             </h3>
             <button
               type="button"
               onClick={() => setShowAlbumPicker(false)}
               className="rounded-xl p-2 text-slate-500 hover:bg-cyan-50 hover:text-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
-              aria-label="Close"
+              aria-label={t('close')}
             >
               <span className="text-xl leading-none">×</span>
             </button>
@@ -1039,13 +966,13 @@ const PageEditorCard: React.FC<{
         >
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-50/80">
             <h3 className="text-sm font-bold text-slate-800">
-              Choose logo from album — {title}
+              {t('chooseLogoTitle', { title })}
             </h3>
             <button
               type="button"
               onClick={() => setShowLogoPicker(false)}
               className="rounded-xl p-2 text-slate-500 hover:bg-cyan-50 hover:text-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
-              aria-label="Close"
+              aria-label={t('close')}
             >
               <span className="text-xl leading-none">×</span>
             </button>
@@ -1081,6 +1008,79 @@ const PhotoThemeCategoryPage: React.FC = () => {
     state?: { templateId?: number; photobookId?: number; albumImageIds?: number[]; albumName?: string };
   };
   const { user } = useAuth();
+  const { t } = useTranslation(undefined, { keyPrefix: 'photoThemeCategoryPage' });
+  const themeMetaList = React.useMemo((): ThemeMeta[] => [
+    {
+      id: 'birthday',
+      title: t('themeMetaBirthdayTitle'),
+      subtitle: t('themeMetaBirthdaySubtitle'),
+      icon: FaStar,
+      color: 'from-pink-500 via-rose-500 to-pink-600',
+    },
+    {
+      id: 'anniversary',
+      title: t('themeMetaAnniversaryTitle'),
+      subtitle: t('themeMetaAnniversarySubtitle'),
+      icon: FaHeart,
+      color: 'from-red-500 via-pink-500 to-red-600',
+    },
+    {
+      id: 'wedding',
+      title: t('themeMetaWeddingTitle'),
+      subtitle: t('themeMetaWeddingSubtitle'),
+      icon: FaStar,
+      color: 'from-purple-500 via-indigo-500 to-purple-600',
+    },
+    {
+      id: 'baby-kids',
+      title: t('themeMetaBabyKidsTitle'),
+      subtitle: t('themeMetaBabyKidsSubtitle'),
+      icon: FaUsers,
+      color: 'from-blue-500 via-cyan-500 to-blue-600',
+    },
+    {
+      id: 'travel',
+      title: t('themeMetaTravelTitle'),
+      subtitle: t('themeMetaTravelSubtitle'),
+      icon: FaCloud,
+      color: 'from-teal-500 via-emerald-500 to-teal-600',
+    },
+    {
+      id: 'family',
+      title: t('themeMetaFamilyTitle'),
+      subtitle: t('themeMetaFamilySubtitle'),
+      icon: FaImages,
+      color: 'from-amber-500 via-orange-500 to-amber-600',
+    },
+    {
+      id: 'festival',
+      title: t('themeMetaFestivalTitle'),
+      subtitle: t('themeMetaFestivalSubtitle'),
+      icon: FaCalendarAlt,
+      color: 'from-violet-500 via-purple-500 to-violet-600',
+    },
+    {
+      id: 'corporate',
+      title: t('themeMetaCorporateTitle'),
+      subtitle: t('themeMetaCorporateSubtitle'),
+      icon: FaBriefcase,
+      color: 'from-slate-500 via-gray-500 to-slate-600',
+    },
+    {
+      id: 'minimal',
+      title: t('themeMetaMinimalTitle'),
+      subtitle: t('themeMetaMinimalSubtitle'),
+      icon: FaFolderOpen,
+      color: 'from-gray-400 via-gray-500 to-gray-600',
+    },
+    {
+      id: 'custom',
+      title: t('themeMetaCustomTitle'),
+      subtitle: t('themeMetaCustomSubtitle'),
+      icon: FaPalette,
+      color: 'from-indigo-500 via-blue-500 to-indigo-600',
+    },
+  ], [t]);
 
   // Persist studio album state when arriving from studio/albums (so album builder can filter images)
   React.useEffect(() => {
@@ -1102,10 +1102,10 @@ const PhotoThemeCategoryPage: React.FC = () => {
     return undefined;
   }, [categorySlug, location.state?.albumImageIds]);
 
-  const meta = THEME_META.find((m) => m.id === categorySlug) ?? {
+  const meta = themeMetaList.find((m) => m.id === categorySlug) ?? {
     id: categorySlug || 'unknown',
-    title: 'Custom Theme',
-    subtitle: 'Design a custom cover and last page for your photo album.',
+    title: t('customThemeTitle'),
+    subtitle: t('customThemeSubtitle'),
     icon: FaPalette,
     color: 'from-indigo-500 via-blue-500 to-indigo-600',
   };
@@ -1185,23 +1185,23 @@ const PhotoThemeCategoryPage: React.FC = () => {
       if (!side) {
         return {
           ...defaultPageState,
-          headline: kind === 'cover' ? meta.title : 'Thank you',
+          headline: kind === 'cover' ? meta.title : t('thankYou'),
           subheadline:
             kind === 'cover'
               ? meta.subtitle
-              : 'Grateful for every moment captured here.',
+              : t('gratefulSub'),
         };
       }
 
       const mapped: EditablePageState = {
         headline:
           side.headline ||
-          (kind === 'cover' ? meta.title : 'Thank you'),
+          (kind === 'cover' ? meta.title : t('thankYou')),
         subheadline:
           side.subheadline ||
           (kind === 'cover'
             ? meta.subtitle
-            : 'Grateful for every moment captured here.'),
+            : t('gratefulSub')),
         description: side.description || '',
         style: {
           fontSize: side.fontSize ?? 20,
@@ -1242,7 +1242,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
       }
       return mapped;
     },
-    [meta.title, meta.subtitle]
+    [meta.title, meta.subtitle, t]
   );
 
   // Load all themes (covers) created by the user
@@ -1265,7 +1265,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
         setUserCoverThemes(response.data || []);
       } catch (error: any) {
         console.error('Failed to load user themes /api/covers:', error);
-        setUserThemesError('Unable to load your saved themes.');
+        setUserThemesError(t('userThemesError'));
       } finally {
         setIsLoadingUserThemes(false);
       }
@@ -1339,7 +1339,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
       setLastPage(mappedBack);
     } catch (error: any) {
       console.error('Failed to load theme for editing:', error);
-      setSaveError('Unable to load theme for editing.');
+      setSaveError(t('saveErrorLoadTheme'));
     } finally {
       setIsLoadingSelectedTheme(false);
     }
@@ -1436,7 +1436,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
   };
 
   const handleDeleteAlbum = async (albumId: number) => {
-    if (!window.confirm('Delete this album and all its pages/covers? This cannot be undone.')) return;
+    if (!window.confirm(t('confirmDeleteAlbum'))) return;
     setIsDeletingAlbum(albumId);
     try {
       const token = getStoredToken();
@@ -1445,10 +1445,10 @@ const PhotoThemeCategoryPage: React.FC = () => {
       if (photobookId === albumId) {
         setPhotobookId(null);
         setCoverPage({ ...defaultPageState, headline: meta.title, subheadline: meta.subtitle });
-        setLastPage({ ...defaultPageState, headline: 'Thank you', subheadline: 'Grateful for every moment captured here.' });
+        setLastPage({ ...defaultPageState, headline: t('thankYou'), subheadline: t('gratefulSub') });
         localStorage.removeItem(PHOTOBOOK_KEY);
       }
-    } catch { alert('Failed to delete album. Please try again.'); }
+    } catch { alert(t('deleteAlbumFailed')); }
     finally { setIsDeletingAlbum(null); }
   };
 
@@ -1467,7 +1467,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
 
     if (!activeTemplateId) {
       console.warn('Missing templateId, cannot save');
-      setSaveError('Template ID missing. Please refresh the page and try again.');
+      setSaveError(t('templateIdMissing'));
       return;
     }
 
@@ -1492,7 +1492,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
       }
 
       if (!savedPhotobookId) {
-        setSaveError('Failed to create photobook. Please try again.');
+        setSaveError(t('createPhotobookFailed'));
         setIsSaving(false);
         return;
       }
@@ -1590,9 +1590,9 @@ const PhotoThemeCategoryPage: React.FC = () => {
               <FaImages className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-800">My Albums</h2>
+              <h2 className="text-sm font-bold text-slate-800">{t('myAlbums')}</h2>
               <p className="text-[11px] text-slate-400">
-                {myAlbums.length} album{myAlbums.length !== 1 ? 's' : ''} · <span className="capitalize">{categorySlug}</span>
+                {t('albumsCount', { count: myAlbums.length })} · <span className="capitalize">{categorySlug}</span>
               </p>
             </div>
           </div>
@@ -1602,7 +1602,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
             className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-indigo-500/25 hover:from-indigo-600 hover:to-indigo-700 transition-all"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
-            New Album
+            {t('newAlbum')}
           </button>
         </div>
 
@@ -1613,15 +1613,15 @@ const PhotoThemeCategoryPage: React.FC = () => {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              Loading albums...
+              {t('loadingAlbums')}
             </div>
           ) : myAlbums.length === 0 ? (
             <div className="text-center py-10">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 text-indigo-400 mb-3">
                 <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
               </div>
-              <p className="text-sm font-semibold text-slate-700">Start your first album</p>
-              <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Design your cover below and click "Save & Create Album" to begin building your photo book.</p>
+              <p className="text-sm font-semibold text-slate-700">{t('startFirstAlbum')}</p>
+              <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">{t('startFirstAlbumHint')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1643,12 +1643,12 @@ const PhotoThemeCategoryPage: React.FC = () => {
                   >
                     {isActive && (
                       <span className="absolute -top-2 right-3 text-[9px] font-bold uppercase tracking-wider bg-indigo-600 text-white rounded-full px-2.5 py-0.5 shadow-sm">
-                        Active
+                        {t('active')}
                       </span>
                     )}
                     <div className="mb-3">
                       <h3 className="text-sm font-bold text-slate-800 line-clamp-1">
-                        {album.title || 'Untitled Album'}
+                        {album.title || t('untitledAlbum')}
                       </h3>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         <span className={`text-[10px] font-semibold uppercase tracking-wide rounded-full px-2 py-0.5 ${
@@ -1656,10 +1656,10 @@ const PhotoThemeCategoryPage: React.FC = () => {
                           album.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' :
                           'bg-slate-100 text-slate-500'
                         }`}>
-                          {album.status?.replace('_', ' ') || 'Draft'}
+                          {album.status?.replace('_', ' ') || t('draft')}
                         </span>
                         <span className="text-[10px] text-slate-400">
-                          {album.pageCount} pages
+                          {t('pagesLabel', { count: album.pageCount })}
                         </span>
                       </div>
                       {/* Progress bar */}
@@ -1676,7 +1676,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
                         <span className="text-[9px] text-slate-400 font-medium">{progressPct}%</span>
                       </div>
                       {dateStr && (
-                        <p className="text-[10px] text-slate-400 mt-1.5">Last edited {dateStr}</p>
+                        <p className="text-[10px] text-slate-400 mt-1.5">{t('lastEdited', { date: dateStr })}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
@@ -1685,7 +1685,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
                         onClick={() => handleContinueAlbum(album)}
                         className="flex-1 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 px-3 py-2 text-xs font-bold text-white shadow-sm shadow-indigo-500/20 hover:from-indigo-600 hover:to-indigo-700 transition-all"
                       >
-                        {album.hasCovers ? 'Continue' : 'Edit Covers'}
+                        {album.hasCovers ? t('continue') : t('editCovers')}
                       </button>
                       <button
                         type="button"
@@ -1695,14 +1695,14 @@ const PhotoThemeCategoryPage: React.FC = () => {
                         disabled={!album.hasCovers}
                         className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
-                        Open
+                        {t('open')}
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDeleteAlbum(album.id)}
                         disabled={isDeleting}
                         className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 disabled:opacity-50 transition-all opacity-0 group-hover:opacity-100"
-                        title="Delete album"
+                        title={t('deleteAlbumTitle')}
                       >
                         {isDeleting ? (
                           <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
@@ -1726,7 +1726,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span>Loading saved covers...</span>
+          <span>{t('loadingSavedCovers')}</span>
         </div>
       )}
 
@@ -1737,10 +1737,10 @@ const PhotoThemeCategoryPage: React.FC = () => {
             <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1">
               <span className="w-2 h-2 rounded-full bg-indigo-500" />
               <span className="text-xs font-medium text-indigo-700">
-                {photobookId ? `Editing Album #${photobookId}` : 'Creating new album'}
+                {photobookId ? t('editingAlbum', { id: photobookId }) : t('creatingNewAlbum')}
               </span>
               {isLoadingSelectedTheme && (
-                <span className="ml-2 text-[10px] text-indigo-500">Loading...</span>
+                <span className="ml-2 text-[10px] text-indigo-500">{t('loading')}</span>
               )}
             </div>
           </div>
@@ -1755,7 +1755,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
           <svg className="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
-          <span>✅ Covers saved successfully! Redirecting to album builder...</span>
+          <span>✅ {t('coversSavedRedirect')}</span>
         </div>
       )}
 
@@ -1796,10 +1796,10 @@ const PhotoThemeCategoryPage: React.FC = () => {
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 ></path>
               </svg>
-              Saving covers...
+              {t('savingCovers')}
             </>
           ) : (
-            photobookId ? 'Save & Continue to Album' : 'Save & Create Album'
+            photobookId ? t('saveContinueAlbum') : t('saveCreateAlbum')
           )}
         </button>
       </div>

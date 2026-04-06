@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
+import { useTranslation } from "react-i18next";
 
 // Dummy Data
 export type Person = {
@@ -59,6 +60,7 @@ function linkPath(s: [number, number], t: [number, number]) {
 }
 
 export default function TreePage() {
+  const { t } = useTranslation(undefined, { keyPrefix: "treeFPage" });
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);
@@ -183,7 +185,7 @@ export default function TreePage() {
   return (
     <div ref={containerRef} className="relative w-screen h-screen bg-[#f8fafc]">
       <div className="absolute inset-0 bg-white shadow-sm ring-1 ring-gray-200 overflow-hidden">
-        <svg ref={svgRef} className="w-full h-full block select-none" aria-label="Family/Client Tree">
+        <svg ref={svgRef} className="w-full h-full block select-none" aria-label={t("ariaFamilyTree")}>
           <defs>
             <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
               <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.15" />
@@ -256,23 +258,23 @@ export default function TreePage() {
               <svg viewBox="0 0 24 24" width="20" height="20">{AVATAR_SILHOUETTE}</svg>
             </div>
             <div className="flex-1">
-              <div className="text-sm text-gray-500">Selected</div>
+              <div className="text-sm text-gray-500">{t("selected")}</div>
               <div className="font-semibold text-gray-800 text-base break-words max-w-[220px]">
-                {nodes.find((n) => n.data.id === selected)?.data.name || "None"}
+                {nodes.find((n) => n.data.id === selected)?.data.name || t("none")}
               </div>
             </div>
-            <button className="ml-2 text-gray-400 hover:text-gray-600" onClick={() => setSelected(null)} aria-label="Close">✕</button>
+            <button className="ml-2 text-gray-400 hover:text-gray-600" onClick={() => setSelected(null)} aria-label={t("closeAria")}>✕</button>
           </div>
 
           <div className="mt-4 grid gap-2">
-            <Action label="Focus tree on selected" onClick={() => selected && focusOn(selected)} />
-            <Action label="Expand one level" onClick={() => selected && toggle(selected)} />
-            <Action label="Expand all under selected" onClick={() => selected && expandAll(selected)} />
-            <Action label="Collapse selected" onClick={() => selected && collapseAll(selected)} />
+            <Action label={t("focusTreeOnSelected")} onClick={() => selected && focusOn(selected)} />
+            <Action label={t("expandOneLevel")} onClick={() => selected && toggle(selected)} />
+            <Action label={t("expandAllUnder")} onClick={() => selected && expandAll(selected)} />
+            <Action label={t("collapseSelected")} onClick={() => selected && collapseAll(selected)} />
           </div>
 
           <div className="mt-auto pt-4 text-xs text-gray-400">
-            Zoom: mouse wheel • Pan: drag • Collapse: Hide/Expand
+            {t("zoomHint")}
           </div>
         </aside>
       )}

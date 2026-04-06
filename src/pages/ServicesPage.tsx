@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from 'i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -64,6 +66,7 @@ interface ServiceFormData {
 }
 
 const ServicesPage = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [selectedService, setSelectedService] = useState<AvailableService | null>(null);
@@ -140,11 +143,11 @@ const ServicesPage = () => {
       return response.data;
     },
     onSuccess: (data, serviceType) => {
-      toast.success(`${serviceType} connection test successful!`);
+      toast.success(i18n.t('servicesPage.toastTestOk', { serviceType }));
       refetch();
     },
     onError: (error, serviceType) => {
-      toast.error(`${serviceType} connection test failed`);
+      toast.error(i18n.t('servicesPage.toastTestFail', { serviceType }));
     }
   });
 
@@ -174,26 +177,26 @@ const ServicesPage = () => {
               
               // If test returns authorizationUrl, open it for OAuth
               if (testData.success && testData.authorizationUrl) {
-                toast.success('Opening Google Drive authorization...');
+                toast.success(i18n.t('servicesPage.toastOpeningGoogleDrive'));
                 window.open(testData.authorizationUrl, '_blank');
               } else if (testData.success) {
-                toast.success('Google Drive connection test successful!');
+                toast.success(i18n.t('servicesPage.toastGoogleDriveTestOk'));
               } else {
-                toast.error('Google Drive connection test failed');
+                toast.error(i18n.t('servicesPage.toastGoogleDriveTestFail'));
               }
             } catch (error) {
               console.error('Error testing Google Drive connection:', error);
-              toast.error('Failed to test Google Drive connection');
+              toast.error(i18n.t('servicesPage.toastGoogleDriveTestError'));
             }
           }, 1000);
         } catch (error) {
           console.error('Error enabling Google Drive service:', error);
-          toast.error('Failed to enable Google Drive service');
+          toast.error(i18n.t('servicesPage.toastEnableGoogleDriveFail'));
         }
       // }
     },
     onError: (error, variables) => {
-      toast.error(`Failed to configure `);
+      toast.error(i18n.t('servicesPage.toastConfigureFail'));
       setIsConfiguring(false);
     }
   });
@@ -205,12 +208,26 @@ const ServicesPage = () => {
       return response.data;
     },
     onSuccess: (data, variables) => {
-      toast.success(`${variables.serviceType} ${variables.enabled ? 'enabled' : 'disabled'} successfully!`);
+      toast.success(
+        i18n.t('servicesPage.toastToggleOk', {
+          serviceType: variables.serviceType,
+          state: variables.enabled
+            ? i18n.t('servicesPage.toastToggleOkEnabled')
+            : i18n.t('servicesPage.toastToggleOkDisabled'),
+        })
+      );
       setToggleService(true);
       refetch();
     },
     onError: (error, variables) => {
-      toast.error(`Failed to ${variables.enabled ? 'enable' : 'disable'} ${variables.serviceType}`);
+      toast.error(
+        i18n.t('servicesPage.toastToggleFail', {
+          serviceType: variables.serviceType,
+          action: variables.enabled
+            ? i18n.t('servicesPage.toastToggleFailEnable')
+            : i18n.t('servicesPage.toastToggleFailDisable'),
+        })
+      );
     }
   });
 
@@ -221,11 +238,11 @@ const ServicesPage = () => {
       return response.data;
     },
     onSuccess: (data, serviceType) => {
-      toast.success(`${serviceType} configuration deleted successfully!`);
+      toast.success(i18n.t('servicesPage.toastDeleteOk', { serviceType }));
       refetch();
     },
     onError: (error, serviceType) => {
-      toast.error(`Failed to delete ${serviceType} configuration`);
+      toast.error(i18n.t('servicesPage.toastDeleteFail', { serviceType }));
     }
   });
 
@@ -286,7 +303,7 @@ const ServicesPage = () => {
   };
 
   const handleDeleteService = (serviceType: string) => {
-    if (window.confirm('Are you sure you want to delete this service configuration? This action cannot be undone.')) {
+    if (window.confirm(t('servicesPage.confirmDelete'))) {
       deleteServiceMutation.mutate(serviceType);
     }
   };
@@ -380,13 +397,13 @@ const ServicesPage = () => {
     return (
       <div className="p-6">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-red-900 mb-2">Error Loading Services</h2>
-          <p className="text-red-600 mb-4">Failed to load available services. Please try again later.</p>
+          <h2 className="text-xl font-semibold text-red-900 mb-2">{t('servicesPage.errorLoadingTitle')}</h2>
+          <p className="text-red-600 mb-4">{t('servicesPage.errorLoadingBody')}</p>
           <button
             onClick={() => window.location.reload()}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
           >
-            Retry
+            {t('servicesPage.retry')}
           </button>
         </div>
       </div>
@@ -397,8 +414,8 @@ const ServicesPage = () => {
     return (
       <div className="p-6">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Services Available</h2>
-          <p className="text-gray-600">Unable to load available services. Please try again later.</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('servicesPage.noServicesTitle')}</h2>
+          <p className="text-gray-600">{t('servicesPage.noServicesBody')}</p>
         </div>
       </div>
     );
@@ -409,10 +426,10 @@ const ServicesPage = () => {
       {/* Header */}
       <div className="text-center mb-10">
         <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
-          My Cloud Services
+          {t('servicesPage.headerTitle')}
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          Manage your configured cloud storage services with advanced security and performance
+          {t('servicesPage.headerSubtitle')}
         </p>
       </div>
 
@@ -422,7 +439,7 @@ const ServicesPage = () => {
           <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-2xl p-8 border border-blue-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium mb-2">Total Services</p>
+                <p className="text-gray-600 text-sm font-medium mb-2">{t('servicesPage.statTotal')}</p>
                 <p className="text-3xl font-bold text-gray-800">{userServices.summary.totalSubscriptions}</p>
               </div>
               <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -434,7 +451,7 @@ const ServicesPage = () => {
           <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/30 rounded-2xl p-8 border border-green-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium mb-2">Enabled</p>
+                <p className="text-gray-600 text-sm font-medium mb-2">{t('servicesPage.statEnabled')}</p>
                 <p className="text-3xl font-bold text-gray-800">{userServices.summary.enabledSubscriptions}</p>
               </div>
               <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -446,7 +463,7 @@ const ServicesPage = () => {
           <div className="bg-gradient-to-br from-white via-yellow-50/30 to-orange-50/30 rounded-2xl p-8 border border-yellow-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium mb-2">Configured</p>
+                <p className="text-gray-600 text-sm font-medium mb-2">{t('servicesPage.statConfigured')}</p>
                 <p className="text-3xl font-bold text-gray-800">{userServices.summary.configuredSubscriptions}</p>
               </div>
               <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -458,7 +475,7 @@ const ServicesPage = () => {
           <div className="bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/30 rounded-2xl p-8 border border-blue-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium mb-2">Connected</p>
+                <p className="text-gray-600 text-sm font-medium mb-2">{t('servicesPage.statConnected')}</p>
                 <p className="text-3xl font-bold text-gray-800">{userServices.summary.connectedServices}</p>
               </div>
               <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -470,7 +487,7 @@ const ServicesPage = () => {
           <div className="bg-gradient-to-br from-white via-red-50/30 to-pink-50/30 rounded-2xl p-8 border border-red-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium mb-2">Failed</p>
+                <p className="text-gray-600 text-sm font-medium mb-2">{t('servicesPage.statFailed')}</p>
                 <p className="text-3xl font-bold text-gray-800">{userServices.summary.failedConnections}</p>
               </div>
               <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -503,7 +520,7 @@ const ServicesPage = () => {
                     )}
                     <div>
                       <h3 className="font-bold text-xl">{userService.serviceDisplayName}</h3>
-                      <p className="text-sm opacity-90">Active Service</p>
+                      <p className="text-sm opacity-90">{t('servicesPage.activeService')}</p>
                     </div>
                   </div>
                   <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
@@ -515,7 +532,7 @@ const ServicesPage = () => {
               {/* Service Content */}
               <div className="p-8">
                 <p className="text-gray-700 text-base mb-6 line-clamp-2 leading-relaxed">
-                  {serviceConfig?.description || 'Cloud storage service'}
+                  {serviceConfig?.description || t('servicesPage.cloudStorageFallback')}
                 </p>
 
                 {/* Status Badge */}
@@ -528,7 +545,7 @@ const ServicesPage = () => {
                 {userService.connectionErrorMessage && (
                   <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-2xl">
                     <p className="text-sm text-red-700 font-medium">
-                      Error: {userService.connectionErrorMessage}
+                      {t('servicesPage.errorPrefix')} {userService.connectionErrorMessage}
                     </p>
                   </div>
                 )}
@@ -536,7 +553,7 @@ const ServicesPage = () => {
                 {/* Last Test */}
                 {userService.lastConnectionTest && (
                   <p className="text-sm text-gray-500 mb-6">
-                    Last tested: {formatDate(userService.lastConnectionTest)}
+                    {t('servicesPage.lastTested')} {formatDate(userService.lastConnectionTest)}
                   </p>
                 )}
 
@@ -548,7 +565,7 @@ const ServicesPage = () => {
                       className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 px-4 py-3 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 text-sm flex items-center justify-center shadow-md transform hover:scale-105"
                     >
                       <FaEye className="h-4 w-4 mr-2" />
-                      Details
+                      {t('servicesPage.details')}
                     </button>
                     
                     <button
@@ -557,11 +574,11 @@ const ServicesPage = () => {
                       className="bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 px-4 py-3 rounded-xl font-semibold hover:from-blue-200 hover:to-indigo-200 transition-all duration-300 text-sm flex items-center justify-center shadow-md transform hover:scale-105"
                     >
                       {testConnectionMutation.isPending ? (
-                        <LoadingSpinner size="sm" text="Testing..." />
+                        <LoadingSpinner size="sm" text={t('servicesPage.testing')} />
                       ) : (
                         <>
                           <FaCheck className="h-4 w-4 mr-2" />
-                          Connect to service
+                          {t('servicesPage.connectToService')}
                         </>
                       )}
                     </button>
@@ -577,7 +594,7 @@ const ServicesPage = () => {
                           : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
                       }`}
                     >
-                      {userService.isEnabled ? 'Disable' : 'Enable'}
+                      {userService.isEnabled ? t('servicesPage.disable') : t('servicesPage.enable')}
                     </button>
                     
                     <button
@@ -601,7 +618,7 @@ const ServicesPage = () => {
           <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
             <FaCloud className="h-6 w-6 text-white" />
           </div>
-          <h2 className="text-3xl font-bold text-gray-800">Available Services</h2>
+          <h2 className="text-3xl font-bold text-gray-800">{t('servicesPage.availableServices')}</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {availableServices?.map((service) => {
@@ -623,7 +640,7 @@ const ServicesPage = () => {
                     )}
                     <div>
                       <h3 className="font-bold text-xl">{service.serviceDisplayName}</h3>
-                      <p className="text-sm opacity-90">Cloud Storage</p>
+                      <p className="text-sm opacity-90">{t('servicesPage.cloudStorage')}</p>
                     </div>
                   </div>
                 </div>
@@ -643,12 +660,12 @@ const ServicesPage = () => {
                     {isConfigured ? (
                       <>
                         <FaCheck className="h-4 w-4 mr-2" />
-                        Configured
+                        {t('servicesPage.configured')}
                       </>
                     ) : (
                       <>
                         <FaPlus className="h-4 w-4 mr-2" />
-                        Not Configured
+                        {t('servicesPage.notConfigured')}
                       </>
                     )}
                   </div>
@@ -662,14 +679,14 @@ const ServicesPage = () => {
                           className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 flex items-center justify-center shadow-lg transform hover:scale-105"
                         >
                           <FaPlus className="h-5 w-5 mr-3" />
-                          Configure with Steps
+                          {t('servicesPage.configureWithSteps')}
                         </button>
                         <button
                           onClick={() => handleConfigureService(service)}
                           className="w-full bg-gradient-to-r from-gray-500 to-gray-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-gray-600 hover:to-gray-700 transition-all duration-300 flex items-center justify-center shadow-md transform hover:scale-105"
                         >
                           <FaCog className="h-4 w-4 mr-2" />
-                          Quick Configure
+                          {t('servicesPage.quickConfigure')}
                         </button>
                       </div>
                     ) : (
@@ -678,7 +695,7 @@ const ServicesPage = () => {
                         className="w-full bg-gradient-to-r from-gray-300 to-gray-400 text-gray-500 px-6 py-4 rounded-xl font-semibold cursor-not-allowed flex items-center justify-center shadow-md"
                       >
                         <FaCheck className="h-5 w-5 mr-3" />
-                        Already Configured
+                        {t('servicesPage.alreadyConfigured')}
                       </button>
                     )}
                     
@@ -690,7 +707,7 @@ const ServicesPage = () => {
                         className="w-full bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 px-6 py-4 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 flex items-center justify-center text-sm shadow-md transform hover:scale-105"
                       >
                         <FaEye className="h-5 w-5 mr-3" />
-                        Documentation
+                        {t('servicesPage.documentation')}
                       </a>
                     )}
                   </div>
@@ -708,7 +725,7 @@ const ServicesPage = () => {
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  {selectedUserService.serviceDisplayName} Details
+                  {selectedUserService.serviceDisplayName} {t('servicesPage.detailsTitleSuffix')}
                 </h2>
                 <button
                   onClick={() => setShowDetailsModal(false)}
@@ -723,33 +740,37 @@ const ServicesPage = () => {
               <div className="space-y-6">
                 {/* Service Info */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Service Information</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">{t('servicesPage.serviceInformation')}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Service Type</p>
+                      <p className="text-sm font-medium text-gray-500">{t('servicesPage.serviceType')}</p>
                       <p className="text-sm text-gray-900">{selectedUserService.serviceType}</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Status</p>
+                      <p className="text-sm font-medium text-gray-500">{t('servicesPage.status')}</p>
                       <div className="flex items-center">
                         {getStatusIcon(selectedUserService.connectionStatus)}
                         <span className="ml-2 text-sm text-gray-900">{selectedUserService.connectionStatus}</span>
                       </div>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Enabled</p>
-                      <p className="text-sm text-gray-900">{selectedUserService.isEnabled ? 'Yes' : 'No'}</p>
+                      <p className="text-sm font-medium text-gray-500">{t('servicesPage.enabled')}</p>
+                      <p className="text-sm text-gray-900">
+                        {selectedUserService.isEnabled ? t('servicesPage.yes') : t('servicesPage.no')}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Configured</p>
-                      <p className="text-sm text-gray-900">{selectedUserService.isConfigured ? 'Yes' : 'No'}</p>
+                      <p className="text-sm font-medium text-gray-500">{t('servicesPage.configuredLabel')}</p>
+                      <p className="text-sm text-gray-900">
+                        {selectedUserService.isConfigured ? t('servicesPage.yes') : t('servicesPage.no')}
+                      </p>
                     </div>
                   </div>
                 </div>
 
                 {/* Configuration */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Configuration</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">{t('servicesPage.configuration')}</h3>
                   <div className="bg-gray-50 rounded-lg p-4">
                     <pre className="text-sm text-gray-700 whitespace-pre-wrap">
                       {JSON.stringify(selectedUserService.configuration, null, 2)}
@@ -759,19 +780,19 @@ const ServicesPage = () => {
 
                 {/* Timestamps */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Timestamps</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">{t('servicesPage.timestamps')}</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Created</p>
+                      <p className="text-sm font-medium text-gray-500">{t('servicesPage.created')}</p>
                       <p className="text-sm text-gray-900">{formatDate(selectedUserService.createdAt)}</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Last Updated</p>
+                      <p className="text-sm font-medium text-gray-500">{t('servicesPage.lastUpdated')}</p>
                       <p className="text-sm text-gray-900">{formatDate(selectedUserService.updatedAt)}</p>
                     </div>
                     {selectedUserService.lastConnectionTest && (
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Last Connection Test</p>
+                        <p className="text-sm font-medium text-gray-500">{t('servicesPage.lastConnectionTest')}</p>
                         <p className="text-sm text-gray-900">{formatDate(selectedUserService.lastConnectionTest)}</p>
                       </div>
                     )}
@@ -781,7 +802,7 @@ const ServicesPage = () => {
                 {/* Error Message */}
                 {selectedUserService.connectionErrorMessage && (
                   <div>
-                    <h3 className="text-lg font-medium text-red-900 mb-4">Error Message</h3>
+                    <h3 className="text-lg font-medium text-red-900 mb-4">{t('servicesPage.errorMessage')}</h3>
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                       <p className="text-sm text-red-700">{selectedUserService.connectionErrorMessage}</p>
                     </div>
@@ -800,7 +821,7 @@ const ServicesPage = () => {
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Configure {selectedService.serviceDisplayName}
+                  {t('servicesPage.configureTitle', { name: selectedService.serviceDisplayName })}
                 </h2>
                 <button
                   onClick={() => setShowConfigModal(false)}
@@ -816,8 +837,8 @@ const ServicesPage = () => {
                 <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-medium text-blue-900">Need help?</h3>
-                      <p className="text-sm text-blue-700">Check the documentation for setup instructions</p>
+                      <h3 className="text-sm font-medium text-blue-900">{t('servicesPage.needHelp')}</h3>
+                      <p className="text-sm text-blue-700">{t('servicesPage.needHelpBody')}</p>
                     </div>
                     <a
                       href={selectedService.documentationUrl}
@@ -825,7 +846,7 @@ const ServicesPage = () => {
                       rel="noopener noreferrer"
                       className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
                     >
-                      View Docs
+                      {t('servicesPage.viewDocs')}
                     </a>
                   </div>
                 </div>
@@ -835,7 +856,7 @@ const ServicesPage = () => {
                 {/* Required Fields */}
                 {selectedService.requiredFields.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Required Configuration</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">{t('servicesPage.requiredConfiguration')}</h3>
                     <div className="space-y-4">
                       {selectedService.requiredFields.map((field) => (
                         <div key={field.name}>
@@ -850,7 +871,10 @@ const ServicesPage = () => {
                               onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               rows={4}
-                              placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                              placeholder={
+                                field.placeholder ||
+                                t('servicesPage.placeholderEnter', { field: field.label.toLowerCase() })
+                              }
                             />
                           ) : field.type === 'select' ? (
                             <select
@@ -859,7 +883,10 @@ const ServicesPage = () => {
                               onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             >
-                              <option value="">{field.placeholder || `Select ${field.label.toLowerCase()}`}</option>
+                              <option value="">
+                                {field.placeholder ||
+                                  t('servicesPage.placeholderSelect', { field: field.label.toLowerCase() })}
+                              </option>
                               {field.options?.map((option) => (
                                 <option key={option} value={option}>
                                   {option}
@@ -873,7 +900,10 @@ const ServicesPage = () => {
                               value={formData[field.name] || ''}
                               onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                              placeholder={
+                                field.placeholder ||
+                                t('servicesPage.placeholderEnter', { field: field.label.toLowerCase() })
+                              }
                             />
                           )}
                           {field.description && (
@@ -888,7 +918,7 @@ const ServicesPage = () => {
                 {/* Optional Fields */}
                 {selectedService.optionalFields.length > 0 && (
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Optional Configuration</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">{t('servicesPage.optionalConfiguration')}</h3>
                     <div className="space-y-4">
                       {selectedService.optionalFields.map((field) => (
                         <div key={field.name}>
@@ -901,7 +931,10 @@ const ServicesPage = () => {
                               onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               rows={3}
-                              placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                              placeholder={
+                                field.placeholder ||
+                                t('servicesPage.placeholderEnter', { field: field.label.toLowerCase() })
+                              }
                             />
                           ) : field.type === 'select' ? (
                             <select
@@ -909,7 +942,10 @@ const ServicesPage = () => {
                               onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             >
-                              <option value="">{field.placeholder || `Select ${field.label.toLowerCase()}`}</option>
+                              <option value="">
+                                {field.placeholder ||
+                                  t('servicesPage.placeholderSelect', { field: field.label.toLowerCase() })}
+                              </option>
                               {field.options?.map((option) => (
                                 <option key={option} value={option}>
                                   {option}
@@ -922,7 +958,10 @@ const ServicesPage = () => {
                                value={formData[field.name]  || ''}
                               onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                              placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                              placeholder={
+                                field.placeholder ||
+                                t('servicesPage.placeholderEnter', { field: field.label.toLowerCase() })
+                              }
                             />
                           )}
                           {field.description && (
@@ -941,7 +980,7 @@ const ServicesPage = () => {
                   onClick={() => setShowConfigModal(false)}
                   className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg font-medium hover:bg-gray-200 transition-colors"
                 >
-                  Cancel
+                  {t('servicesPage.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -949,9 +988,9 @@ const ServicesPage = () => {
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center"
                 >
                   {isConfiguring ? (
-                    <LoadingSpinner size="sm" text="Configuring..." />
+                    <LoadingSpinner size="sm" text={t('servicesPage.configuring')} />
                   ) : (
-                    'Configure Service'
+                    t('servicesPage.configureService')
                   )}
                 </button>
               </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactDOMServer from 'react-dom/server';
 import QRCode from 'react-qr-code';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -57,6 +58,7 @@ interface Session {
 }
 
 const PhotoGallery: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<MediaItem[]>([]);
@@ -138,19 +140,19 @@ const PhotoGallery: React.FC = () => {
           size: 0,
           uploadDate: img.uploadTime,
           clientId: 'general',
-          clientName: 'My Library',
+          clientName: t('photoStudioGallery.myLibrary'),
           sessionId: 'general',
-          sessionName: 'General',
+          sessionName: t('photoStudioGallery.general'),
           tags: [],
         };
       });
       setMediaItems(items);
-      const clientList: Client[] = [{ id: 'general', name: 'My Library' }];
+      const clientList: Client[] = [{ id: 'general', name: t('photoStudioGallery.myLibrary') }];
       setClients(clientList);
-      const sessionList: Session[] = [{ id: 'general', name: 'General', clientId: 'general' }];
+      const sessionList: Session[] = [{ id: 'general', name: t('photoStudioGallery.general'), clientId: 'general' }];
       setSessions(sessionList);
     }
-  }, [isLoading, userImagesData]);
+  }, [isLoading, userImagesData, t]);
 
   // Infinite scroll: load more when sentinel is visible
   useEffect(() => {
@@ -220,9 +222,9 @@ const PhotoGallery: React.FC = () => {
           size: file.size,
           uploadDate: new Date().toISOString().split('T')[0],
           clientId: 'general',
-          clientName: 'My Library',
+          clientName: t('photoStudioGallery.myLibrary'),
           sessionId: 'general',
-          sessionName: 'General',
+          sessionName: t('photoStudioGallery.general'),
           tags: [],
         };
         return newItem;
@@ -256,7 +258,7 @@ const PhotoGallery: React.FC = () => {
   };
 
   const handleDeleteSelected = () => {
-    if (window.confirm(`Are you sure you want to delete ${selectedItems.length} items?`)) {
+    if (window.confirm(t('photoStudioGallery.confirmDelete', { count: selectedItems.length }))) {
       setMediaItems(prev => prev.filter(item => !selectedItems.includes(item.id)));
       setSelectedItems([]);
     }
@@ -280,7 +282,7 @@ const PhotoGallery: React.FC = () => {
   const handleShareSelected = () => {
     const selectedMedia = mediaItems.filter(item => selectedItems.includes(item.id));
     if (selectedMedia.length === 0) {
-      alert('Select at least one item to share.');
+      alert(t('photoStudioGallery.selectOneToShare'));
       return;
     }
     // Open QR modal for the first selected item
@@ -298,7 +300,7 @@ const PhotoGallery: React.FC = () => {
   const handleGenerateBarcodes = () => {
     const selectedMedia = mediaItems.filter(item => selectedItems.includes(item.id));
     if (selectedMedia.length === 0) {
-      alert('Select at least one item to generate QR.');
+      alert(t('photoStudioGallery.selectOneForQr'));
       return;
     }
     // Reuse QR modal for per-item QR preview
@@ -306,9 +308,9 @@ const PhotoGallery: React.FC = () => {
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return `0 ${t('photoStudioGallery.bytes')}`;
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = [t('photoStudioGallery.bytes'), t('photoStudioGallery.kb'), t('photoStudioGallery.mb'), t('photoStudioGallery.gb')];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
@@ -323,7 +325,7 @@ const PhotoGallery: React.FC = () => {
 
   // Display filename cleanly (keep original name, trim length only)
   const getDisplayName = (filename: string): string => {
-    if (!filename) return 'Untitled';
+    if (!filename) return t('photoStudioGallery.untitled');
     const base = filename.split('/').pop() || filename;
     const noExt = base.replace(/\.[^.]+$/, '');
     const display = noExt;
@@ -342,7 +344,7 @@ const PhotoGallery: React.FC = () => {
   const copyTextToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      alert('Copied');
+      alert(t('photoStudioGallery.copied'));
     } catch {
       // Fallback for older browsers
       const textarea = document.createElement('textarea');
@@ -354,7 +356,7 @@ const PhotoGallery: React.FC = () => {
       textarea.select();
       try {
         document.execCommand('copy');
-        alert('Copied');
+        alert(t('photoStudioGallery.copied'));
       } finally {
         document.body.removeChild(textarea);
       }
@@ -400,7 +402,7 @@ const PhotoGallery: React.FC = () => {
     return (
       <div className="gallery-loading">
         <div className="loading-spinner"></div>
-        <p>Loading gallery...</p>
+        <p>{t('photoStudioGallery.loading')}</p>
       </div>
     );
   }
@@ -408,7 +410,7 @@ const PhotoGallery: React.FC = () => {
   if (error) {
     return (
       <div className="gallery-loading">
-        <p>Failed to load gallery.</p>
+        <p>{t('photoStudioGallery.failedLoad')}</p>
       </div>
     );
   }
@@ -420,11 +422,11 @@ const PhotoGallery: React.FC = () => {
         <div className="header-left">
           <Link to="/studio/dashboard" className="back-link">
             <FaArrowLeft />
-            Dashboard
+            {t('photoStudioGallery.dashboard')}
           </Link>
           <div className="page-title">
             <FaImages className="title-icon" />
-            <h1>Photo Gallery</h1>
+            <h1>{t('photoStudioGallery.pageTitle')}</h1>
           </div>
         </div>
         <div className="header-actions">
@@ -434,7 +436,7 @@ const PhotoGallery: React.FC = () => {
             onClick={() => window.location.href = '/upload'}
           >
             <FaUpload />
-            Upload Media
+            {t('photoStudioGallery.uploadMedia')}
           </button>
         </div>
       </header>
@@ -446,7 +448,7 @@ const PhotoGallery: React.FC = () => {
             <FaSearch className="search-icon" />
             <input
               type="text"
-              placeholder="Search photos, videos, clients, or tags..."
+              placeholder={t('photoStudioGallery.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -460,7 +462,7 @@ const PhotoGallery: React.FC = () => {
               value={clientFilter}
               onChange={(e) => setClientFilter(e.target.value)}
             >
-              <option value="all">All Clients</option>
+              <option value="all">{t('photoStudioGallery.allClients')}</option>
               {clients.map(client => (
                 <option key={client.id} value={client.id}>
                   {client.name}
@@ -475,9 +477,9 @@ const PhotoGallery: React.FC = () => {
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as any)}
             >
-              <option value="all">All Media</option>
-              <option value="image">Photos Only</option>
-              <option value="video">Videos Only</option>
+              <option value="all">{t('photoStudioGallery.allMedia')}</option>
+              <option value="image">{t('photoStudioGallery.photosOnly')}</option>
+              <option value="video">{t('photoStudioGallery.videosOnly')}</option>
             </select>
           </div>
 
@@ -502,12 +504,12 @@ const PhotoGallery: React.FC = () => {
       {selectedItems.length > 0 && (
         <div className="selection-controls">
           <div className="selection-info">
-            <span>{selectedItems.length} items selected</span>
+            <span>{t('photoStudioGallery.itemsSelected', { count: selectedItems.length })}</span>
             <button 
               className="select-all-btn"
               onClick={handleSelectAll}
             >
-              {selectedItems.length === filteredItems.length ? 'Deselect All' : 'Select All'}
+              {selectedItems.length === filteredItems.length ? t('photoStudioGallery.deselectAll') : t('photoStudioGallery.selectAll')}
             </button>
           </div>
           <div className="selection-actions">
@@ -516,21 +518,21 @@ const PhotoGallery: React.FC = () => {
               onClick={handleDownloadSelected}
             >
               <FaDownload />
-              Download
+              {t('photoStudioGallery.download')}
             </button>
             <button 
               className="action-btns share"
               onClick={handleShareSelected}
             >
               <FaShare />
-              Share
+              {t('photoStudioGallery.share')}
             </button>
             <button 
               className="action-btns barcode"
               onClick={handleGenerateBarcodes}
             >
               <FaQrcode />
-              Generate Barcodes
+              {t('photoStudioGallery.generateBarcodes')}
             </button>
           </div>
         </div>
@@ -541,14 +543,14 @@ const PhotoGallery: React.FC = () => {
         {filteredItems.length === 0 ? (
           <div className="empty-state">
             <FaImages className="empty-icon" />
-            <h3>No media found</h3>
-            <p>Try adjusting your filters or upload some photos and videos.</p>
+            <h3>{t('photoStudioGallery.noMediaFound')}</h3>
+            <p>{t('photoStudioGallery.adjustFilters')}</p>
             <button 
               className="upload-first-btn"
               onClick={() => navigate('/upload')}
             >
               <FaUpload />
-              Upload Your First Media
+              {t('photoStudioGallery.uploadFirstMedia')}
             </button>
           </div>
         ) : (
@@ -576,7 +578,7 @@ const PhotoGallery: React.FC = () => {
                       if (imgEl.src !== secondary && secondary) {
                         imgEl.src = secondary;
                       } else {
-                        imgEl.src = 'https://placehold.co/1200x800?text=Preview+Unavailable';
+                        imgEl.src = `https://placehold.co/1200x800?text=${encodeURIComponent(t('photoStudioGallery.previewUnavailable'))}`;
                       }
                     }}
                   />
@@ -607,15 +609,15 @@ const PhotoGallery: React.FC = () => {
                 <div className="media-actions">
                   <button 
                     className="media-action-btn view"
-                    title="View"
-                    aria-label="View"
+                    title={t('photoStudioGallery.view')}
+                    aria-label={t('photoStudioGallery.view')}
                     onClick={(e) => {
                       e.stopPropagation();
                       setViewerItem(item);
                     }}
                   >
                     <FaEye />
-                    <span className="label">View</span>
+                    <span className="label">{t('photoStudioGallery.view')}</span>
                   </button>
                   {/* <button 
                     className="media-action-btn edit"
@@ -631,15 +633,15 @@ const PhotoGallery: React.FC = () => {
                   </button> */}
                   <button 
                     className="media-action-btn barcode"
-                    title="Barcode"
-                    aria-label="Barcode"
+                    title={t('photoStudioGallery.barcodeTitle')}
+                    aria-label={t('photoStudioGallery.barcodeTitle')}
                     onClick={(e) => {
                       e.stopPropagation();
                       setQrItem(item);
                     }}
                   >
                     <FaQrcode />
-                    <span className="label">Code</span>
+                    <span className="label">{t('photoStudioGallery.code')}</span>
                   </button>
                 </div>
               )}
@@ -673,15 +675,15 @@ const PhotoGallery: React.FC = () => {
                 <div className="media-actions">
                   <button 
                     className="media-action-btn view"
-                    title="View"
-                    aria-label="View"
+                    title={t('photoStudioGallery.view')}
+                    aria-label={t('photoStudioGallery.view')}
                     onClick={(e) => {
                       e.stopPropagation();
                       setViewerItem(item);
                     }}
                   >
                     <FaEye />
-                    <span className="label">View</span>
+                    <span className="label">{t('photoStudioGallery.view')}</span>
                   </button>
                   {/* <button 
                     className="media-action-btn edit"
@@ -697,15 +699,15 @@ const PhotoGallery: React.FC = () => {
                   </button> */}
                   <button 
                     className="media-action-btn barcode"
-                    title="Barcode"
-                    aria-label="Barcode"
+                    title={t('photoStudioGallery.barcodeTitle')}
+                    aria-label={t('photoStudioGallery.barcodeTitle')}
                     onClick={(e) => {
                       e.stopPropagation();
                       setQrItem(item);
                     }}
                   >
                     <FaQrcode />
-                    <span className="label">Code</span>
+                    <span className="label">{t('photoStudioGallery.code')}</span>
                   </button>
                 </div>
               </div>
@@ -717,7 +719,7 @@ const PhotoGallery: React.FC = () => {
         {filteredItems.length > 0 && isFetchingNextPage && (
           <div className="empty-state" style={{ padding: '1rem', textAlign: 'center' }}>
             <span className="inline-block mb-2" style={{ fontSize: '1.5rem' }}><FaSpinner className="animate-spin" /></span>
-            <p>Loading more...</p>
+            <p>{t('photoStudioGallery.loadingMore')}</p>
           </div>
         )}
       </div>
@@ -727,7 +729,7 @@ const PhotoGallery: React.FC = () => {
         <div className="modal-overlay">
           <div className="modal-content upload-modal">
             <div className="modal-header">
-              <h2>Upload Media</h2>
+              <h2>{t('photoStudioGallery.uploadModalTitle')}</h2>
               <button 
                 className="close-btn"
                 onClick={() => setShowUploadModal(false)}
@@ -747,8 +749,8 @@ const PhotoGallery: React.FC = () => {
               />
               <label htmlFor="file-upload" className="upload-dropzone">
                 <FaUpload className="upload-icon" />
-                <h3>Drop files here or click to browse</h3>
-                <p>Supports images and videos up to 100MB each</p>
+                <h3>{t('photoStudioGallery.dropFiles')}</h3>
+                <p>{t('photoStudioGallery.supportsUpTo')}</p>
               </label>
 
               {uploading && (
@@ -759,14 +761,14 @@ const PhotoGallery: React.FC = () => {
                       style={{ width: `${uploadProgress}%` }}
                     ></div>
                   </div>
-                  <p>Uploading... {uploadProgress}%</p>
+                  <p>{t('photoStudioGallery.uploadingPercent', { percent: uploadProgress })}</p>
                 </div>
               )}
             </div>
 
             <div className="upload-options">
               <div className="option-group">
-                <label>Client</label>
+                <label>{t('photoStudioGallery.client')}</label>
                 <select>
                   {clients.map(client => (
                     <option key={client.id} value={client.id}>
@@ -776,7 +778,7 @@ const PhotoGallery: React.FC = () => {
                 </select>
               </div>
               <div className="option-group">
-                <label>Session</label>
+                <label>{t('photoStudioGallery.session')}</label>
                 <select>
                   {sessions.map(session => (
                     <option key={session.id} value={session.id}>
@@ -823,20 +825,20 @@ const PhotoGallery: React.FC = () => {
 
             <div className="upload-options" style={{ gridTemplateColumns: '1fr 1fr' }}>
               <div className="option-group">
-                <label>Filename</label>
+                <label>{t('photoStudioGallery.filename')}</label>
                 <div>{viewerItem.name}</div>
               </div>
               <div className="option-group">
-                <label>Uploaded</label>
+                <label>{t('photoStudioGallery.uploaded')}</label>
                 <div>{formatDate(viewerItem.uploadDate)}</div>
               </div>
               <div className="option-group">
-                <label>Client • Session</label>
+                <label>{t('photoStudioGallery.clientSession')}</label>
                 <div>{viewerItem.clientName} • {viewerItem.sessionName}</div>
               </div>
               {viewerItem.size > 0 && (
                 <div className="option-group">
-                  <label>Size</label>
+                  <label>{t('photoStudioGallery.size')}</label>
                   <div>{formatFileSize(viewerItem.size)}</div>
                 </div>
               )}
@@ -850,7 +852,7 @@ const PhotoGallery: React.FC = () => {
         <div className="modal-overlay">
           <div className="modal-content upload-modal">
             <div className="modal-header">
-              <h2>QR Code</h2>
+              <h2>{t('photoStudioGallery.qrTitle')}</h2>
               <button 
                 className="close-btn"
                 onClick={() => setQrItem(null)}
@@ -867,27 +869,27 @@ const PhotoGallery: React.FC = () => {
 
             <div className="upload-options" style={{ gridTemplateColumns: '1fr 220px', alignItems: 'end' }}>
               <div className="option-group">
-                <label>Item</label>
+                <label>{t('photoStudioGallery.item')}</label>
                 <div>{getDisplayName(qrItem.name)}</div>
               </div>
               <div className="option-group" style={{ alignItems: 'flex-end' }}>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button
                     className="media-action-btn view"
-                    title="Open link"
-                    aria-label="Open link"
+                    title={t('photoStudioGallery.openLink')}
+                    aria-label={t('photoStudioGallery.openLink')}
                     onClick={() => {
                       const url = buildShareUrl(qrItem);
                       window.open(url, '_blank', 'noopener');
                     }}
                   >
                     <FaEye />
-                    <span className="label">Open</span>
+                    <span className="label">{t('photoStudioGallery.open')}</span>
                   </button>
                   <button
                     className="media-action-btn view"
-                    title="Copy link"
-                    aria-label="Copy link"
+                    title={t('photoStudioGallery.copyQr')}
+                    aria-label={t('photoStudioGallery.copyQr')}
                     onClick={() => {
                       const qrValue = buildShareUrl(qrItem);
                       const svgMarkup = ReactDOMServer.renderToStaticMarkup(
@@ -897,12 +899,12 @@ const PhotoGallery: React.FC = () => {
                     }}
                   >
                     <FaCopy />
-                    <span className="label">Copy QR</span>
+                    <span className="label">{t('photoStudioGallery.copyQr')}</span>
                   </button>
                   <button
                     className="media-action-btn share"
-                    title="Share link"
-                    aria-label="Share link"
+                    title={t('photoStudioGallery.shareQr')}
+                    aria-label={t('photoStudioGallery.shareQr')}
                     onClick={async () => {
                       const shareValue = buildShareUrl(qrItem);
                       try {
@@ -923,15 +925,15 @@ const PhotoGallery: React.FC = () => {
                           a.click();
                           a.remove();
                           URL.revokeObjectURL(url);
-                          alert('Downloaded QR image');
+                          alert(t('photoStudioGallery.downloadedQr'));
                         }
                       } catch (e) {
-                        alert('Failed to share QR');
+                        alert(t('photoStudioGallery.failedShareQr'));
                       }
                     }}
                   >
                     <FaShare />
-                    <span className="label">Share QR</span>
+                    <span className="label">{t('photoStudioGallery.shareQr')}</span>
                   </button>
                 </div>
               </div>

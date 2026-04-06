@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
+import { useTranslation } from "react-i18next";
 import api from "../services/api";
 import { toast } from "react-hot-toast";
 
@@ -40,8 +41,19 @@ function sanitizeIdPart(value: string): string {
     .slice(0, 40);
 }
 
-function convertFamilyDataToTree(data: FamilyData): Person {
-  const youName = data?.you?.name || "You";
+type GroupLabels = {
+  you: string;
+  parents: string;
+  siblings: string;
+  children: string;
+  cousins: string;
+  grandparents: string;
+  unclesAunts: string;
+  clients: string;
+};
+
+function convertFamilyDataToTree(data: FamilyData, labels: GroupLabels): Person {
+  const youName = data?.you?.name || labels.you;
   const root: Person = {
     id: `you-${sanitizeIdPart(youName)}`,
     name: youName,
@@ -68,13 +80,13 @@ function convertFamilyDataToTree(data: FamilyData): Person {
     });
   }
 
-  addGroup("Parents", data?.parents);
-  addGroup("Siblings", data?.siblings);
-  addGroup("Children", data?.children);
-  addGroup("Cousins", data?.cousins);
-  addGroup("Grandparents", data?.grandparents);
-  addGroup("Uncles & Aunts", data?.unclesAunts);
-  addGroup("Clients", data?.clients);
+  addGroup(labels.parents, data?.parents);
+  addGroup(labels.siblings, data?.siblings);
+  addGroup(labels.children, data?.children);
+  addGroup(labels.cousins, data?.cousins);
+  addGroup(labels.grandparents, data?.grandparents);
+  addGroup(labels.unclesAunts, data?.unclesAunts);
+  addGroup(labels.clients, data?.clients);
 
   return root;
 }
@@ -93,14 +105,30 @@ function linkPath(s: [number, number], t: [number, number]) {
 }
 
 export default function FamilyTree() {
+  const { t } = useTranslation(undefined, { keyPrefix: "familyTreePage" });
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);
 
-  const [rootData, setRootData] = useState<Person>(() => {
-    // Default fallback data
+  const groupLabels = useMemo(
+    (): GroupLabels => ({
+      you: t("you"),
+      parents: t("parents"),
+      siblings: t("siblings"),
+      children: t("children"),
+      cousins: t("cousins"),
+      grandparents: t("grandparents"),
+      unclesAunts: t("unclesAunts"),
+      clients: t("clients"),
+    }),
+    [t]
+  );
+
+  const [rawFamilyData, setRawFamilyData] = useState<FamilyData | null>(null);
+
+  const rootData = useMemo(() => {
     const fallback: FamilyData = {
-      you: { name: "You", age: null, gender: null, relation: "You", isYou: true, isElder: false },
+      you: { name: groupLabels.you, age: null, gender: null, relation: groupLabels.you, isYou: true, isElder: false },
       parents: [],
       siblings: [],
       children: [],
@@ -110,8 +138,8 @@ export default function FamilyTree() {
       spouse: null,
       clients: [],
     };
-    return convertFamilyDataToTree(fallback);
-  });
+    return convertFamilyDataToTree(rawFamilyData ?? fallback, groupLabels);
+  }, [rawFamilyData, groupLabels]);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -131,24 +159,23 @@ export default function FamilyTree() {
       if (response.data.success) {
         // Check if the API response has the expected structure
         if (response.data.familyData) {
-          const newRootData = convertFamilyDataToTree(response.data.familyData);
-          setRootData(newRootData);
+          setRawFamilyData(response.data.familyData);
 
           if (isInitial) {
             if (!initialToastShownRef.current) {
-              toast.success('Family data loaded successfully');
+              toast.success(t("toastLoaded"));
               initialToastShownRef.current = true;
             }
           } else {
-            toast.success('Family data loaded successfully');
+            toast.success(t("toastLoaded"));
           }
         } else {
           console.error('API response missing familyData:', response.data);
-          toast.error('Invalid data format received from server');
+          toast.error(t("toastInvalidFormat"));
         }
       } else {
         console.error('API returned success: false', response.data);
-        toast.error(response.data.message || 'Failed to load family data');
+        toast.error(response.data.message || t("toastFailedLoad"));
       }
     } catch (error: any) {
       console.error('Error fetching family data:', error);
@@ -161,11 +188,11 @@ export default function FamilyTree() {
         console.error('Server error details:', error.response.data);
       } else if (error.request) {
         // Network error
-        toast.error('Network error: Unable to connect to server');
+        toast.error(t("toastNetworkError"));
         console.error('Network error:', error.request);
       } else {
         // Other error
-        toast.error('Failed to load family data');
+        toast.error(t("toastFailedLoad"));
         console.error('Other error:', error.message);
       }
     } finally {
@@ -295,12 +322,12 @@ export default function FamilyTree() {
         <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
           <div className="flex flex-col items-center gap-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="text-gray-600 font-medium">Loading family data...</p>
+            <p className="text-gray-600 font-medium">{t("loadingFamilyData")}</p>
           </div>
         </div>
       )}
       <div className="absolute inset-0 bg-white shadow-sm ring-1 ring-gray-200 overflow-hidden">
-        <svg ref={svgRef} className="w-full h-full block select-none" aria-label="Family/Client Tree">
+        <svg ref={svgRef} className="w-full h-full block select-none" aria-label={t("ariaFamilyTree")}>
           <defs>
             <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
               <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.15" />
@@ -373,24 +400,24 @@ export default function FamilyTree() {
               <svg viewBox="0 0 24 24" width="20" height="20">{AVATAR_SILHOUETTE}</svg>
             </div>
             <div className="flex-1">
-              <div className="text-sm text-gray-500">Selected</div>
+              <div className="text-sm text-gray-500">{t("selected")}</div>
               <div className="font-semibold text-gray-800 text-base break-words max-w-[220px]">
-                {nodes.find((n) => n.data.id === selected)?.data.name || "None"}
+                {nodes.find((n) => n.data.id === selected)?.data.name || t("none")}
               </div>
             </div>
-            <button className="ml-2 text-gray-400 hover:text-gray-600" onClick={() => setSelected(null)} aria-label="Close">✕</button>
+            <button className="ml-2 text-gray-400 hover:text-gray-600" onClick={() => setSelected(null)} aria-label={t("closeAria")}>✕</button>
           </div>
 
           <div className="mt-4 grid gap-2">
-            <Action label="Focus tree on selected" onClick={() => selected && focusOn(selected)} />
-            <Action label="Expand one level" onClick={() => selected && toggle(selected)} />
-            <Action label="Expand all under selected" onClick={() => selected && expandAll(selected)} />
-            <Action label="Collapse selected" onClick={() => selected && collapseAll(selected)} />
-            <Action label="Refresh family data" onClick={fetchFamilyData} />
+            <Action label={t("focusTreeOnSelected")} onClick={() => selected && focusOn(selected)} />
+            <Action label={t("expandOneLevel")} onClick={() => selected && toggle(selected)} />
+            <Action label={t("expandAllUnder")} onClick={() => selected && expandAll(selected)} />
+            <Action label={t("collapseSelected")} onClick={() => selected && collapseAll(selected)} />
+            <Action label={t("refreshFamilyData")} onClick={fetchFamilyData} />
           </div>
 
           <div className="mt-auto pt-4 text-xs text-gray-400">
-            Zoom: mouse wheel • Pan: drag • Collapse: Hide/Expand
+            {t("zoomHint")}
           </div>
         </aside>
       )}

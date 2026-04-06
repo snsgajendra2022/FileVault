@@ -1,5 +1,6 @@
 import React, { type ReactNode } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { usePhotoBookStore } from '../../store/photobookStore'
 
 function PhotoBookNavLink({ to, end, children }: { to: string; end?: boolean; children: ReactNode }) {
@@ -20,6 +21,7 @@ function PhotoBookNavLink({ to, end, children }: { to: string; end?: boolean; ch
 }
 
 export function PhotoBookLayout() {
+  const { t } = useTranslation()
   const hasAlbum = usePhotoBookStore((s) => Boolean(s.album))
   const resetAll = usePhotoBookStore((s) => s.resetAll)
   const hydratePhotosFromDb = usePhotoBookStore((s) => s.hydratePhotosFromDb)
@@ -39,14 +41,14 @@ export function PhotoBookLayout() {
       <header className="sticky top-0 z-10 border-b border-slate-200/60 bg-white/60 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <NavLink to="." end className="font-semibold tracking-tight text-slate-900">
-            PhotoBook Templates
+            {t('photoBookLayout.brand')}
           </NavLink>
           <nav className="flex items-center gap-2">
             <PhotoBookNavLink to="." end>
-              Templates
+              {t('photoBookLayout.navTemplates')}
             </PhotoBookNavLink>
-            <PhotoBookNavLink to="editor">Editor</PhotoBookNavLink>
-            <PhotoBookNavLink to="preview">Preview</PhotoBookNavLink>
+            <PhotoBookNavLink to="editor">{t('photoBookLayout.navEditor')}</PhotoBookNavLink>
+            <PhotoBookNavLink to="preview">{t('photoBookLayout.navPreview')}</PhotoBookNavLink>
           </nav>
           <div className="flex items-center gap-2">
             {hasAlbum ? (
@@ -55,7 +57,7 @@ export function PhotoBookLayout() {
                 className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
                 onClick={resetAll}
               >
-                Reset
+                {t('photoBookLayout.reset')}
               </button>
             ) : null}
           </div>
@@ -67,4 +69,3 @@ export function PhotoBookLayout() {
     </div>
   )
 }
-

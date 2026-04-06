@@ -15,6 +15,11 @@
     "noFallthroughCasesInSwitch": true,
     "module": "esnext",
     "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "swiper/react": ["node_modules/swiper/swiper-react.d.ts"],
+      "swiper/modules": ["node_modules/swiper/types/modules/index.d.ts"]
+    },
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,

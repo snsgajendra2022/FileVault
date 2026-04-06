@@ -1,7 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from 'i18next';
 import { sendInvitation } from '../services/invitationService';
 
 const InviteUserPage: React.FC = () => {
+  const { t } = useTranslation();
   const [inviteCodeInput, setInviteCodeInput] = React.useState('');
   const [messageInput, setMessageInput] = React.useState('');
   const [sending, setSending] = React.useState(false);
@@ -13,17 +16,18 @@ const InviteUserPage: React.FC = () => {
     setInviteStatus(null);
     setError(null);
     if (!inviteCodeInput.trim()) {
-      setError('Invitation code is required');
+      setError(t('inviteUserPage.errRequired'));
       return;
     }
     setSending(true);
     try {
       await sendInvitation(inviteCodeInput.trim(), messageInput.trim() || undefined);
-      setInviteStatus('Invitation sent successfully');
+      setInviteStatus(t('inviteUserPage.success'));
       setInviteCodeInput('');
       setMessageInput('');
-    } catch (err: any) {
-      setError(err?.message || 'Failed to send invitation');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : i18n.t('inviteUserPage.errSend');
+      setError(msg);
     } finally {
       setSending(false);
     }
@@ -33,9 +37,9 @@ const InviteUserPage: React.FC = () => {
     <div className="min-h-screen bg-slate-50 py-8 px-4">
       <div className="max-w-xl mx-auto space-y-6">
         <header className="space-y-2">
-          <h1 className="text-2xl font-bold text-slate-900">Invite user</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t('inviteUserPage.title')}</h1>
           <p className="text-sm text-slate-600">
-            Paste an invitation code from another account and send an optional message.
+            {t('inviteUserPage.subtitle')}
           </p>
         </header>
 
@@ -43,26 +47,26 @@ const InviteUserPage: React.FC = () => {
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                Invitation code
+                {t('inviteUserPage.codeLabel')}
               </label>
               <input
                 type="text"
                 value={inviteCodeInput}
                 onChange={(e) => setInviteCodeInput(e.target.value.toUpperCase())}
-                placeholder="Enter invitation code"
+                placeholder={t('inviteUserPage.codePlaceholder')}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-[0.18em] uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
               />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                Message (optional)
+                {t('inviteUserPage.messageLabel')}
               </label>
               <textarea
                 rows={3}
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
-                placeholder="Add a short message with your invitation"
+                placeholder={t('inviteUserPage.messagePlaceholder')}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500"
               />
             </div>
@@ -84,7 +88,7 @@ const InviteUserPage: React.FC = () => {
                 disabled={sending}
                 className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60"
               >
-                {sending ? 'Sending…' : 'Send Invitation'}
+                {sending ? t('inviteUserPage.sending') : t('inviteUserPage.sendBtn')}
               </button>
             </div>
           </form>
@@ -95,4 +99,3 @@ const InviteUserPage: React.FC = () => {
 };
 
 export default InviteUserPage;
-

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { FaBell, FaShieldAlt, FaSave, FaCog, FaLock, FaEye, FaEyeSlash, FaUpload, FaUser } from 'react-icons/fa';
+import { useTranslation } from 'react-i18next';
+import { FaBell, FaShieldAlt, FaSave, FaCog, FaLock, FaUpload } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
 const SettingsPage = () => {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState({
     // Appearance
     theme: 'light',
@@ -48,10 +50,10 @@ const SettingsPage = () => {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      toast.success('Settings saved successfully!');
+      toast.success(t('settings.saved'));
       setIsEditing(false);
     } catch (error) {
-      toast.error('Failed to save settings');
+      toast.error(t('settings.saveFailed'));
     }
   };
 
@@ -74,7 +76,7 @@ const SettingsPage = () => {
       allowedFileTypes: 'jpg,png,pdf,doc',
       autoCompress: true
     });
-    toast.success('Settings reset to default');
+    toast.success(t('settings.resetToast'));
   };
 
   return (
@@ -82,10 +84,10 @@ const SettingsPage = () => {
       {/* Header */}
       <div className="text-center mb-10">
         <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
-          Settings
+          {t('settings.title')}
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          Configure your application preferences and customize your experience
+          {t('settings.subtitle')}
         </p>
       </div>
 
@@ -96,7 +98,7 @@ const SettingsPage = () => {
           className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
         >
           <FaCog className="h-5 w-5" />
-          <span>{isEditing ? 'Cancel Editing' : 'Edit Settings'}</span>
+          <span>{isEditing ? t('settings.cancelEditing') : t('settings.editSettings')}</span>
         </button>
         
         {isEditing && (
@@ -106,7 +108,7 @@ const SettingsPage = () => {
               className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
             >
               <FaSave className="h-5 w-5" />
-              <span>Save Settings</span>
+              <span>{t('settings.saveSettings')}</span>
             </button>
             
             <button
@@ -114,7 +116,7 @@ const SettingsPage = () => {
               className="bg-gradient-to-r from-gray-600 to-gray-700 text-white px-8 py-4 rounded-xl font-semibold hover:from-gray-700 hover:to-gray-800 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
             >
               <FaCog className="h-5 w-5" />
-              <span>Reset to Default</span>
+              <span>{t('settings.resetDefault')}</span>
             </button>
           </>
         )}
@@ -129,55 +131,55 @@ const SettingsPage = () => {
             <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
               <FaCog className="h-6 w-6 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-800">Appearance</h2>
+            <h2 className="text-2xl font-bold text-gray-800">{t('settings.appearance')}</h2>
           </div>
           
           <div className="space-y-6">
             {/* Theme Selection */}
             <div className="bg-gray-50 rounded-xl p-6 border border-blue-100">
-              <label className="block text-base font-semibold text-gray-800 mb-3">Theme</label>
+              <label className="block text-base font-semibold text-gray-800 mb-3">{t('settings.theme')}</label>
               <select
                 disabled={!isEditing}
                 value={settings.theme}
                 onChange={(e) => handleSettingChange('theme', e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 text-base"
               >
-                <option value="light">Light Theme</option>
-                <option value="dark">Dark Theme</option>
-                <option value="auto">Auto (System)</option>
+                <option value="light">{t('settings.themeLight')}</option>
+                <option value="dark">{t('settings.themeDark')}</option>
+                <option value="auto">{t('settings.themeAuto')}</option>
               </select>
             </div>
 
             {/* Font Size */}
             <div className="bg-gray-50 rounded-xl p-6 border border-blue-100">
-              <label className="block text-base font-semibold text-gray-800 mb-3">Font Size</label>
+              <label className="block text-base font-semibold text-gray-800 mb-3">{t('settings.fontSize')}</label>
               <select
                 disabled={!isEditing}
                 value={settings.fontSize}
                 onChange={(e) => handleSettingChange('fontSize', e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 text-base"
               >
-                <option value="small">Small</option>
-                <option value="medium">Medium</option>
-                <option value="large">Large</option>
-                <option value="xlarge">Extra Large</option>
+                <option value="small">{t('settings.sizeSmall')}</option>
+                <option value="medium">{t('settings.sizeMedium')}</option>
+                <option value="large">{t('settings.sizeLarge')}</option>
+                <option value="xlarge">{t('settings.sizeXlarge')}</option>
               </select>
             </div>
 
             {/* Language */}
             <div className="bg-gray-50 rounded-xl p-6 border border-blue-100">
-              <label className="block text-base font-semibold text-gray-800 mb-3">Language</label>
+              <label className="block text-base font-semibold text-gray-800 mb-3">{t('settings.language')}</label>
               <select
                 disabled={!isEditing}
                 value={settings.language}
                 onChange={(e) => handleSettingChange('language', e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 text-base"
               >
-                <option value="en">English</option>
-                <option value="es">Spanish</option>
-                <option value="fr">French</option>
-                <option value="de">German</option>
-                <option value="zh">Chinese</option>
+                <option value="en">{t('settings.langEn')}</option>
+                <option value="es">{t('settings.langEs')}</option>
+                <option value="fr">{t('settings.langFr')}</option>
+                <option value="de">{t('settings.langDe')}</option>
+                <option value="zh">{t('settings.langZh')}</option>
               </select>
             </div>
           </div>
@@ -189,15 +191,15 @@ const SettingsPage = () => {
             <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
               <FaBell className="h-6 w-6 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-800">Notifications</h2>
+            <h2 className="text-2xl font-bold text-gray-800">{t('settings.notifications')}</h2>
           </div>
           
           <div className="space-y-4">
             {[
-              { key: 'emailNotifications', label: 'Email Notifications', desc: 'Receive notifications via email' },
-              { key: 'pushNotifications', label: 'Push Notifications', desc: 'Receive push notifications' },
-              { key: 'smsNotifications', label: 'SMS Notifications', desc: 'Receive SMS notifications' },
-              { key: 'marketingEmails', label: 'Marketing Emails', desc: 'Receive marketing updates' }
+              { key: 'emailNotifications', label: t('settings.emailNotif'), desc: t('settings.emailNotifDesc') },
+              { key: 'pushNotifications', label: t('settings.pushNotif'), desc: t('settings.pushNotifDesc') },
+              { key: 'smsNotifications', label: t('settings.smsNotif'), desc: t('settings.smsNotifDesc') },
+              { key: 'marketingEmails', label: t('settings.marketing'), desc: t('settings.marketingDesc') }
             ].map(({ key, label, desc }) => (
               <div key={key} className="bg-gray-50 rounded-xl p-4 border border-green-100">
                 <div className="flex items-center justify-between">
@@ -230,22 +232,22 @@ const SettingsPage = () => {
             <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg">
               <FaLock className="h-6 w-6 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-800">Privacy</h2>
+            <h2 className="text-2xl font-bold text-gray-800">{t('settings.privacy')}</h2>
           </div>
           
           <div className="space-y-6">
             {/* Profile Visibility */}
             <div className="bg-gray-50 rounded-xl p-6 border border-purple-100">
-              <label className="block text-base font-semibold text-gray-800 mb-3">Profile Visibility</label>
+              <label className="block text-base font-semibold text-gray-800 mb-3">{t('settings.profileVisibility')}</label>
               <select
                 disabled={!isEditing}
                 value={settings.profileVisibility}
                 onChange={(e) => handleSettingChange('profileVisibility', e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-50 text-base"
               >
-                <option value="public">Public</option>
-                <option value="private">Private</option>
-                <option value="friends">Friends Only</option>
+                <option value="public">{t('settings.visPublic')}</option>
+                <option value="private">{t('settings.visPrivate')}</option>
+                <option value="friends">{t('settings.visFriends')}</option>
               </select>
             </div>
 
@@ -253,8 +255,8 @@ const SettingsPage = () => {
             <div className="bg-gray-50 rounded-xl p-6 border border-purple-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-gray-800 font-medium">Data Sharing</h3>
-                  <p className="text-gray-600 text-sm">Allow data sharing with third parties</p>
+                  <h3 className="text-gray-800 font-medium">{t('settings.dataSharing')}</h3>
+                  <p className="text-gray-600 text-sm">{t('settings.dataSharingDesc')}</p>
                 </div>
                 <button
                   disabled={!isEditing}
@@ -276,8 +278,8 @@ const SettingsPage = () => {
             <div className="bg-gray-50 rounded-xl p-6 border border-purple-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-gray-800 font-medium">Analytics</h3>
-                  <p className="text-gray-600 text-sm">Help improve the app with analytics</p>
+                  <h3 className="text-gray-800 font-medium">{t('settings.analytics')}</h3>
+                  <p className="text-gray-600 text-sm">{t('settings.analyticsDesc')}</p>
                 </div>
                 <button
                   disabled={!isEditing}
@@ -303,7 +305,7 @@ const SettingsPage = () => {
             <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
               <FaShieldAlt className="h-6 w-6 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-800">Security</h2>
+            <h2 className="text-2xl font-bold text-gray-800">{t('settings.security')}</h2>
           </div>
           
           <div className="space-y-6">
@@ -311,8 +313,8 @@ const SettingsPage = () => {
             <div className="bg-gray-50 rounded-xl p-6 border border-red-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-gray-800 font-medium">Two-Factor Authentication</h3>
-                  <p className="text-gray-600 text-sm">Add an extra layer of security</p>
+                  <h3 className="text-gray-800 font-medium">{t('settings.twoFactor')}</h3>
+                  <p className="text-gray-600 text-sm">{t('settings.twoFactorDesc')}</p>
                 </div>
                 <button
                   disabled={!isEditing}
@@ -332,7 +334,7 @@ const SettingsPage = () => {
 
             {/* Session Timeout */}
             <div className="bg-gray-50 rounded-xl p-6 border border-red-100">
-              <label className="block text-base font-semibold text-gray-800 mb-3">Session Timeout (minutes)</label>
+              <label className="block text-base font-semibold text-gray-800 mb-3">{t('settings.sessionTimeout')}</label>
               <input
                 type="range"
                 min="5"
@@ -343,15 +345,15 @@ const SettingsPage = () => {
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:cursor-not-allowed"
               />
               <div className="flex justify-between text-sm text-gray-600 mt-2">
-                <span>5 min</span>
+                <span>{t('settings.minShort')}</span>
                 <span className="font-medium">{settings.sessionTimeout} min</span>
-                <span>120 min</span>
+                <span>{t('settings.maxShort')}</span>
               </div>
             </div>
 
             {/* Password Expiry */}
             <div className="bg-gray-50 rounded-xl p-6 border border-red-100">
-              <label className="block text-base font-semibold text-gray-800 mb-3">Password Expiry (days)</label>
+              <label className="block text-base font-semibold text-gray-800 mb-3">{t('settings.passwordExpiry')}</label>
               <input
                 type="range"
                 min="30"
@@ -362,9 +364,9 @@ const SettingsPage = () => {
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:cursor-not-allowed"
               />
               <div className="flex justify-between text-sm text-gray-600 mt-2">
-                <span>30 days</span>
+                <span>{t('settings.days30')}</span>
                 <span className="font-medium">{settings.passwordExpiry} days</span>
-                <span>365 days</span>
+                <span>{t('settings.days365')}</span>
               </div>
             </div>
           </div>
@@ -377,13 +379,13 @@ const SettingsPage = () => {
           <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
             <FaUpload className="h-6 w-6 text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800">File Upload Settings</h2>
+          <h2 className="text-2xl font-bold text-gray-800">{t('settings.fileUpload')}</h2>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Max File Size */}
           <div className="bg-gray-50 rounded-xl p-6 border border-yellow-100">
-            <label className="block text-base font-semibold text-gray-800 mb-3">Max File Size (MB)</label>
+            <label className="block text-base font-semibold text-gray-800 mb-3">{t('settings.maxFileSize')}</label>
             <input
               type="number"
               disabled={!isEditing}
@@ -397,7 +399,7 @@ const SettingsPage = () => {
 
           {/* Allowed File Types */}
           <div className="bg-gray-50 rounded-xl p-6 border border-yellow-100">
-            <label className="block text-base font-semibold text-gray-800 mb-3">Allowed File Types</label>
+            <label className="block text-base font-semibold text-gray-800 mb-3">{t('settings.allowedTypes')}</label>
             <input
               type="text"
               disabled={!isEditing}
@@ -406,15 +408,15 @@ const SettingsPage = () => {
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 disabled:bg-gray-50 text-base"
               placeholder="jpg,png,pdf,doc"
             />
-            <p className="text-sm text-gray-500 mt-2">Comma-separated list of file extensions</p>
+            <p className="text-sm text-gray-500 mt-2">{t('settings.allowedTypesHint')}</p>
           </div>
 
           {/* Auto Compress */}
           <div className="bg-gray-50 rounded-xl p-6 border border-yellow-100">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-gray-800 font-medium">Auto Compress</h3>
-                <p className="text-gray-600 text-sm">Automatically compress large files</p>
+                <h3 className="text-gray-800 font-medium">{t('settings.autoCompress')}</h3>
+                <p className="text-gray-600 text-sm">{t('settings.autoCompressDesc')}</p>
               </div>
               <button
                 disabled={!isEditing}

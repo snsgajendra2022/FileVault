@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { FaLock, FaShieldAlt, FaArrowLeft, FaEye, FaEyeSlash } from 'react-icons/fa';
 
 const ResetPasswordPage = () => {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const tokenFromUrl = searchParams.get('token') ?? '';
 
@@ -18,19 +20,19 @@ const ResetPasswordPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tokenFromUrl.trim()) {
-      toast.error('Invalid or missing reset link. Please use the link from your email.');
+      toast.error(t('passwordReset.toastInvalidToken'));
       return;
     }
     if (!newPassword.trim()) {
-      toast.error('Please enter a new password.');
+      toast.error(t('passwordReset.toastEnterPassword'));
       return;
     }
     if (newPassword.length < 8) {
-      toast.error('Password must be at least 8 characters.');
+      toast.error(t('passwordReset.toastMinLength'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match.');
+      toast.error(t('passwordReset.toastMismatch'));
       return;
     }
     setLoading(true);
@@ -40,12 +42,12 @@ const ResetPasswordPage = () => {
         newPassword: newPassword.trim(),
       });
       setSuccess(true);
-      toast.success('Your password has been reset. You can sign in with your new password.');
+      toast.success(t('passwordReset.toastSuccess'));
     } catch (error: unknown) {
       const msg =
         (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         (error as Error)?.message ||
-        'Failed to reset password. The link may have expired.';
+        t('passwordReset.toastFail');
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -58,19 +60,19 @@ const ResetPasswordPage = () => {
         <div className="max-w-md w-full text-center">
           <div className="backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl border border-white/20 p-8">
             <FaShieldAlt className="mx-auto h-16 w-16 text-white/80 mb-4" />
-            <h1 className="text-2xl font-bold text-white mb-2">Invalid reset link</h1>
+            <h1 className="text-2xl font-bold text-white mb-2">{t('passwordReset.invalidLinkTitle')}</h1>
             <p className="text-white/80 mb-6">
-              This page requires a valid reset link. Please use the link sent to your email, or request a new one.
+              {t('passwordReset.invalidLinkBody')}
             </p>
             <Link
               to="/forgot-password"
               className="inline-flex items-center gap-2 font-semibold text-purple-300 hover:text-purple-200"
             >
-              Request new link
+              {t('passwordReset.requestNew')}
             </Link>
             <span className="text-white/50 mx-2">·</span>
             <Link to="/login" className="inline-flex items-center gap-2 font-semibold text-purple-300 hover:text-purple-200">
-              <FaArrowLeft /> Back to Sign in
+              <FaArrowLeft /> {t('passwordReset.backSignIn')}
             </Link>
           </div>
         </div>
@@ -86,13 +88,13 @@ const ResetPasswordPage = () => {
             <div className="mx-auto h-20 w-20 flex items-center justify-center rounded-full bg-green-500/30 mb-6">
               <FaShieldAlt className="h-10 w-10 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Password reset</h1>
-            <p className="text-white/80 mb-6">You can now sign in with your new password.</p>
+            <h1 className="text-2xl font-bold text-white mb-2">{t('passwordReset.successTitle')}</h1>
+            <p className="text-white/80 mb-6">{t('passwordReset.successBody')}</p>
             <Link
               to="/login"
               className="inline-flex items-center justify-center gap-2 w-full py-3 px-6 rounded-2xl font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
             >
-              <FaArrowLeft /> Sign in
+              <FaArrowLeft /> {t('passwordReset.signIn')}
             </Link>
           </div>
         </div>
@@ -113,9 +115,9 @@ const ResetPasswordPage = () => {
             <FaShieldAlt className="h-10 w-10 text-white drop-shadow-lg" />
           </div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent mb-4">
-            Reset Password
+            {t('passwordReset.pageTitle')}
           </h1>
-          <p className="text-white/80">Enter your new password below.</p>
+          <p className="text-white/80">{t('passwordReset.pageSubtitle')}</p>
         </div>
 
         <div className="backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl border border-white/20 p-8 relative overflow-hidden">
@@ -124,7 +126,7 @@ const ResetPasswordPage = () => {
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="space-y-2">
                 <label htmlFor="newPassword" className="block text-sm font-semibold text-white/90">
-                  New password
+                  {t('passwordReset.newPasswordLabel')}
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -138,7 +140,7 @@ const ResetPasswordPage = () => {
                     minLength={8}
                     autoComplete="new-password"
                     className="w-full pl-12 pr-12 py-4 bg-white/10 border border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm"
-                    placeholder="Enter new password (min 8 characters)"
+                    placeholder={t('passwordReset.placeholderNew')}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                   />
@@ -146,7 +148,7 @@ const ResetPasswordPage = () => {
                     type="button"
                     onClick={() => setShowNewPassword((s) => !s)}
                     className="absolute inset-y-0 right-0 pr-4 flex items-center text-white/60 hover:text-white"
-                    aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showNewPassword ? t('passwordReset.hidePassword') : t('passwordReset.showPassword')}
                   >
                     {showNewPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
                   </button>
@@ -155,7 +157,7 @@ const ResetPasswordPage = () => {
 
               <div className="space-y-2">
                 <label htmlFor="confirmPassword" className="block text-sm font-semibold text-white/90">
-                  Confirm new password
+                  {t('passwordReset.confirmLabel')}
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -169,7 +171,7 @@ const ResetPasswordPage = () => {
                     minLength={8}
                     autoComplete="new-password"
                     className="w-full pl-12 pr-12 py-4 bg-white/10 border border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm"
-                    placeholder="Confirm new password"
+                    placeholder={t('passwordReset.placeholderConfirm')}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                   />
@@ -177,7 +179,7 @@ const ResetPasswordPage = () => {
                     type="button"
                     onClick={() => setShowConfirmPassword((s) => !s)}
                     className="absolute inset-y-0 right-0 pr-4 flex items-center text-white/60 hover:text-white"
-                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    aria-label={showConfirmPassword ? t('passwordReset.hidePassword') : t('passwordReset.showPassword')}
                   >
                     {showConfirmPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
                   </button>
@@ -192,10 +194,10 @@ const ResetPasswordPage = () => {
                 {loading ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3" />
-                    Resetting...
+                    {t('passwordReset.submitting')}
                   </div>
                 ) : (
-                  'Reset password'
+                  t('passwordReset.submit')
                 )}
               </button>
 
@@ -204,7 +206,7 @@ const ResetPasswordPage = () => {
                   to="/login"
                   className="inline-flex items-center gap-2 text-sm font-medium text-purple-300 hover:text-purple-200 transition-colors"
                 >
-                  <FaArrowLeft /> Back to Sign in
+                  <FaArrowLeft /> {t('passwordReset.backSignIn')}
                 </Link>
               </div>
             </form>

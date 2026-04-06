@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { FaEnvelope, FaShieldAlt, FaArrowLeft } from 'react-icons/fa';
 
 const ForgotPasswordPage = () => {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -13,16 +15,16 @@ const ForgotPasswordPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) {
-      toast.error('Please enter your email address.');
+      toast.error(t('forgotPassword.toastEmailRequired'));
       return;
     }
     setLoading(true);
     try {
       const data = await forgotPassword(email.trim());
       setSubmitted(true);
-      toast.success(data.message || 'If an account exists with this email, you will receive a password reset link shortly.');
+      toast.success(data.message || t('forgotPassword.toastSuccess'));
     } catch (error: any) {
-      const msg = error.response?.data?.message || error.message || 'Something went wrong. Please try again.';
+      const msg = error.response?.data?.message || error.message || t('forgotPassword.toastGenericError');
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -42,10 +44,10 @@ const ForgotPasswordPage = () => {
             <FaShieldAlt className="h-10 w-10 text-white drop-shadow-lg" />
           </div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent mb-4">
-            Forgot Password
+            {t('forgotPassword.title')}
           </h1>
           <p className="text-white/80">
-            Enter your email and we&apos;ll send you a link to reset your password.
+            {t('forgotPassword.subtitle')}
           </p>
         </div>
 
@@ -55,23 +57,23 @@ const ForgotPasswordPage = () => {
             {submitted ? (
               <div className="space-y-6 text-center">
                 <p className="text-white/90">
-                  If an account exists with this email, you will receive a password reset link shortly.
+                  {t('forgotPassword.sentTitle')}
                 </p>
                 <p className="text-sm text-white/70">
-                  Check your inbox and spam folder. The link may take a few minutes to arrive.
+                  {t('forgotPassword.sentHint')}
                 </p>
                 <Link
                   to="/login"
                   className="inline-flex items-center gap-2 font-semibold text-purple-300 hover:text-purple-200 transition-colors"
                 >
-                  <FaArrowLeft /> Back to Sign in
+                  <FaArrowLeft /> {t('forgotPassword.backToSignIn')}
                 </Link>
               </div>
             ) : (
               <form className="space-y-6" onSubmit={handleSubmit}>
                 <div className="space-y-2">
                   <label htmlFor="email" className="block text-sm font-semibold text-white/90">
-                    Email address
+                    {t('forgotPassword.emailLabel')}
                   </label>
                   <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -84,7 +86,7 @@ const ForgotPasswordPage = () => {
                       required
                       autoComplete="email"
                       className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
-                      placeholder="Enter your email"
+                      placeholder={t('forgotPassword.emailPlaceholder')}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
@@ -99,10 +101,10 @@ const ForgotPasswordPage = () => {
                   {loading ? (
                     <div className="flex items-center">
                       <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
-                      Sending...
+                      {t('forgotPassword.sending')}
                     </div>
                   ) : (
-                    'Send reset link'
+                    t('forgotPassword.sendLink')
                   )}
                 </button>
 
@@ -111,7 +113,7 @@ const ForgotPasswordPage = () => {
                     to="/login"
                     className="inline-flex items-center gap-2 text-sm font-medium text-purple-300 hover:text-purple-200 transition-colors"
                   >
-                    <FaArrowLeft /> Back to Sign in
+                    <FaArrowLeft /> {t('forgotPassword.backToSignIn')}
                   </Link>
                 </div>
               </form>

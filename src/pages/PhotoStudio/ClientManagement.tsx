@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
   FaUsers,
@@ -66,6 +67,7 @@ function getClientInitials(client: Client): string {
 }
 
 const ClientManagement: React.FC = () => {
+  const { t } = useTranslation();
   const [clients, setClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -129,7 +131,7 @@ const ClientManagement: React.FC = () => {
       setClients(uniqueClients);
     } catch (error: any) {
       console.error('Error fetching clients:', error);
-      toast.error('Failed to load clients');
+      toast.error(t('photoStudioClients.toastFailedLoad'));
       setClients([]);
     } finally {
       setLoading(false);
@@ -174,13 +176,13 @@ const ClientManagement: React.FC = () => {
   if (loading) {
     return (
       <DashboardLoading 
-        title="Loading Clients"
-        subtitle="Retrieving client information..."
+        title={t('photoStudioClients.loadingTitle')}
+        subtitle={t('photoStudioClients.loadingSubtitle')}
         icon={FaUsers}
         features={[
-          { icon: FaUsers, label: 'Clients' },
-          { icon: FaFolder, label: 'Albums' },
-          { icon: FaImages, label: 'Photos' }
+          { icon: FaUsers, label: t('photoStudioClients.featureClients') },
+          { icon: FaFolder, label: t('photoStudioClients.featureAlbums') },
+          { icon: FaImages, label: t('photoStudioClients.featurePhotos') }
         ]}
       />
     );
@@ -202,7 +204,7 @@ const ClientManagement: React.FC = () => {
                 onClick={() => setSelectedClient(null)}
               >
                 <FaArrowLeft />
-                Back to Clients
+                {t('photoStudioClients.backToClients')}
               </button>
             </div>
 
@@ -232,7 +234,7 @@ const ClientManagement: React.FC = () => {
                   <div className="stat-item">
                     <FaUser className="stat-item-icon" aria-hidden />
                     <div>
-                      <p className="stat-item-label">Username</p>
+                      <p className="stat-item-label">{t('photoStudioClients.username')}</p>
                       <h3 className="stat-item-value">{selectedClient.username}</h3>
                     </div>
                   </div>
@@ -241,7 +243,7 @@ const ClientManagement: React.FC = () => {
                   <div className="stat-item">
                     <FaUsers className="stat-item-icon" aria-hidden />
                     <div>
-                      <p className="stat-item-label">User ID</p>
+                      <p className="stat-item-label">{t('photoStudioClients.userId')}</p>
                       <h3 className="stat-item-value">{selectedClient.userId}</h3>
                     </div>
                   </div>
@@ -250,13 +252,13 @@ const ClientManagement: React.FC = () => {
 
               <div className="profile-sections">
                 <div className="section section--elevated">
-                  <h3>Client information</h3>
+                  <h3>{t('photoStudioClients.clientInformation')}</h3>
                   <div className="sessions-list">
                     {selectedClient.relation && (
                       <div className="session-item session-item--row">
                         <FaUserTag className="session-item-leading" aria-hidden />
                         <div className="session-info">
-                          <h4>Relationship</h4>
+                          <h4>{t('photoStudioClients.relationship')}</h4>
                           <p>{selectedClient.relation}</p>
                         </div>
                       </div>
@@ -265,7 +267,7 @@ const ClientManagement: React.FC = () => {
                       <div className="session-item session-item--row">
                         <FaEnvelope className="session-item-leading" aria-hidden />
                         <div className="session-info">
-                          <h4>Email</h4>
+                          <h4>{t('photoStudioClients.email')}</h4>
                           <p>{selectedClient.email}</p>
                         </div>
                       </div>
@@ -274,7 +276,7 @@ const ClientManagement: React.FC = () => {
                       <div className="session-item session-item--row">
                         <FaUser className="session-item-leading" aria-hidden />
                         <div className="session-info">
-                          <h4>Username</h4>
+                          <h4>{t('photoStudioClients.username')}</h4>
                           <p>{selectedClient.username}</p>
                         </div>
                       </div>
@@ -297,7 +299,7 @@ const ClientManagement: React.FC = () => {
           <div className="header-left">
             <Link to="/studio/dashboard" className="back-link">
               <FaArrowLeft />
-              Dashboard
+              {t('photoStudioClients.dashboard')}
             </Link>
             <div className="page-intro">
               <div className="page-title">
@@ -305,8 +307,8 @@ const ClientManagement: React.FC = () => {
                   <FaUsers className="title-icon" />
                 </span>
                 <div className="page-title-text">
-                  <h1>Clients</h1>
-                  <p className="page-subtitle">Manage people with access to your studio</p>
+                  <h1>{t('photoStudioClients.pageTitle')}</h1>
+                  <p className="page-subtitle">{t('photoStudioClients.pageSubtitle')}</p>
                 </div>
               </div>
             </div>
@@ -319,10 +321,10 @@ const ClientManagement: React.FC = () => {
             <FaSearch className="search-icon" aria-hidden />
             <input
               type="search"
-              placeholder="Search by name, email, or username..."
+              placeholder={t('photoStudioClients.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              aria-label="Search clients"
+              aria-label={t('photoStudioClients.searchAriaLabel')}
             />
           </div>
         </div>
@@ -351,7 +353,7 @@ const ClientManagement: React.FC = () => {
                         {client.email}
                       </p>
                     ) : (
-                      <p className="client-email-line client-email-line--muted">No email on file</p>
+                      <p className="client-email-line client-email-line--muted">{t('photoStudioClients.noEmailOnFile')}</p>
                     )}
                     <span className="client-role-pill">{client.relation || 'Client'}</span>
                   </div>
@@ -374,7 +376,7 @@ const ClientManagement: React.FC = () => {
                       className="meta-row-text"
                       title={client.username ? `@${client.username}` : undefined}
                     >
-                      {client.username ? `@${client.username}` : 'No username'}
+                      {client.username ? `@${client.username}` : t('photoStudioClients.noUsername')}
                     </span>
                   </div>
                   <div className="meta-row">
@@ -396,7 +398,7 @@ const ClientManagement: React.FC = () => {
                   onClick={() => setSelectedClient(client)}
                 >
                   <FaEye aria-hidden />
-                  <span>View profile</span>
+                  <span>{t('photoStudioClients.viewProfile')}</span>
                   <FaArrowRight className="client-card-cta-chevron" aria-hidden />
                 </button>
               </article>
@@ -409,9 +411,9 @@ const ClientManagement: React.FC = () => {
             <div className="empty-state-icon-wrap" aria-hidden>
               <FaUsers className="empty-icon" />
             </div>
-            <h3>No clients found</h3>
+            <h3>{t('photoStudioClients.noClientsFound')}</h3>
             <p>
-              {searchTerm ? 'Try adjusting your search.' : "You don't have any clients yet."}
+              {searchTerm ? t('photoStudioClients.emptySearchHint') : t('photoStudioClients.emptyNoClients')}
             </p>
           </div>
         )}

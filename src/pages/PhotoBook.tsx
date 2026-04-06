@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   FaEdit,
@@ -26,12 +27,6 @@ function buildCoverPreviewUrl(imageId: number): string {
 }
 
 /** Category slugs matching API: /api/photobooks/by-category/{slug} */
-const PHOTOBOOK_CATEGORIES: { slug: string; title: string; templateId?: number }[] = [
-  { slug: 'baby-kids', title: 'Baby & Kids', templateId: 4 },
-  { slug: 'wedding', title: 'Wedding', templateId: 3 },
-  { slug: 'anniversary', title: 'Anniversary', templateId: 2 },
-  { slug: 'birthday', title: 'Birthday', templateId: 1 },
-];
 
 type PhotobookProgress = {
   id: number;
@@ -52,15 +47,31 @@ type ThemeInfo = {
 
 type BookWithTheme = PhotobookProgress & { theme: ThemeInfo };
 
-const stepLabel = (step?: string) =>
-  step === 'ALBUM' ? 'Album' : step === 'PREVIEW' ? 'Preview' : step === 'DONE' ? 'Done' : 'Cover';
-
 type CoversResponse = {
   frontCover?: { imageId?: number | null; imageUrl?: string | null };
   backCover?: { imageId?: number | null; imageUrl?: string | null };
 };
 
 const PhotoBook: React.FC = () => {
+  const { t } = useTranslation();
+  const PHOTOBOOK_CATEGORIES = useMemo(
+    () =>
+      [
+        { slug: 'baby-kids', titleKey: 'catBabyKids' as const, templateId: 4 },
+        { slug: 'wedding', titleKey: 'catWedding' as const, templateId: 3 },
+        { slug: 'anniversary', titleKey: 'catAnniversary' as const, templateId: 2 },
+        { slug: 'birthday', titleKey: 'catBirthday' as const, templateId: 1 },
+      ].map((c) => ({ slug: c.slug, title: t(`photoBookHub.${c.titleKey}`), templateId: c.templateId })),
+    [t]
+  );
+  const stepLabel = (step?: string) =>
+    step === 'ALBUM'
+      ? t('photoBookHub.stepAlbum')
+      : step === 'PREVIEW'
+        ? t('photoBookHub.stepPreview')
+        : step === 'DONE'
+          ? t('photoBookHub.stepDone')
+          : t('photoBookHub.stepCover');
   const navigate = useNavigate();
   const [books, setBooks] = useState<BookWithTheme[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,7 +116,7 @@ const PhotoBook: React.FC = () => {
     };
     load();
     return () => { isMounted = false; };
-  }, []);
+  }, [PHOTOBOOK_CATEGORIES]);
 
   // Fetch cover image for each book that has covers (for display on folder front)
   useEffect(() => {
@@ -165,8 +176,8 @@ const PhotoBook: React.FC = () => {
               <FaImages className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">My Photo Books</h1>
-              <p className="text-sm text-slate-500">View, preview, and edit your created books</p>
+              <h1 className="text-2xl font-bold text-slate-900">{t('photoBookHub.title')}</h1>
+              <p className="text-sm text-slate-500">{t('photoBookHub.subtitle')}</p>
             </div>
           </div>
           <Link
@@ -174,28 +185,28 @@ const PhotoBook: React.FC = () => {
             className="inline-flex items-center gap-2 rounded-xl bg-slate-900 text-white px-4 py-2.5 text-sm font-semibold hover:bg-slate-800 transition-colors"
           >
             <FaFolderOpen className="h-4 w-4" />
-            New Book
+            {t('photoBookHub.newBook')}
           </Link>
         </div>
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <FaSpinner className="h-10 w-10 text-indigo-500 animate-spin mb-4" />
-            <p className="text-slate-500 font-medium">Loading your books...</p>
+            <p className="text-slate-500 font-medium">{t('photoBookHub.loading')}</p>
           </div>
         ) : books.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
             <FaImages className="h-14 w-14 text-slate-300 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold text-slate-800 mb-2">No photo books yet</h2>
+            <h2 className="text-lg font-semibold text-slate-800 mb-2">{t('photoBookHub.emptyTitle')}</h2>
             <p className="text-slate-500 text-sm mb-6 max-w-sm mx-auto">
-              Create your first book from Photo Themes. Pick a theme, design the cover, then add album pages.
+              {t('photoBookHub.emptyBody')}
             </p>
             <Link
               to="/photo-themes"
               className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 text-white px-5 py-2.5 text-sm font-semibold hover:bg-indigo-700 transition-colors"
             >
               <FaFolderOpen className="h-4 w-4" />
-              Go to Photo Themes
+              {t('photoBookHub.goThemes')}
             </Link>
           </div>
         ) : (
@@ -215,7 +226,7 @@ const PhotoBook: React.FC = () => {
                       setOpenMenuBookId((id) => (id === book.id ? null : book.id));
                     }}
                     className="absolute top-2 right-2 z-10 w-8 h-4 rounded-lg flex items-center justify-center text-slate-500 hover:bg-amber-200/60 hover:text-slate-700 transition-colors"
-                    aria-label="Options"
+                    aria-label={t('photoBookHub.optionsAria')}
                     aria-expanded={openMenuBookId === book.id}
                   >
                     <ThreeDotsIcon />
@@ -232,7 +243,7 @@ const PhotoBook: React.FC = () => {
                       {coverUrls[book.id] ? (
                         <img
                           src={coverUrls[book.id]}
-                          alt={book.title || 'Cover'}
+                          alt={book.title || t('photoBookHub.coverAlt')}
                           className="absolute inset-0 w-full h-full object-cover"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none';
@@ -241,7 +252,7 @@ const PhotoBook: React.FC = () => {
                       ) : (
                         <div className="flex-1 flex flex-col items-center justify-center p-2 text-center">
                           <span className="text-amber-200/95 font-semibold text-xs leading-tight line-clamp-3">
-                            {book.title || `Book #${book.id}`}
+                            {book.title || t('photoBookHub.bookNum', { id: book.id })}
                           </span>
                           <span className="text-amber-300/70 text-[10px] mt-1">{book.theme.title}</span>
                         </div>
@@ -264,7 +275,7 @@ const PhotoBook: React.FC = () => {
                         className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg text-left"
                       >
                         <FaEdit className="h-4 w-4 text-indigo-600 shrink-0" />
-                        Edit
+                        {t('photoBookHub.edit')}
                       </button>
                       <button
                         type="button"
@@ -272,7 +283,7 @@ const PhotoBook: React.FC = () => {
                         className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg text-left"
                       >
                         <FaImages className="h-4 w-4 text-slate-500 shrink-0" />
-                        Flip book
+                        {t('photoBookHub.flipBook')}
                       </button>
                       <button
                         type="button"
@@ -280,7 +291,7 @@ const PhotoBook: React.FC = () => {
                         className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg text-left"
                       >
                         <FaImages className="h-4 w-4 text-slate-500 shrink-0" />
-                        Page view
+                        {t('photoBookHub.pageView')}
                       </button>
                       <div className="border-t border-slate-100 my-1" />
                       <button
@@ -289,15 +300,15 @@ const PhotoBook: React.FC = () => {
                         className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg text-left"
                       >
                         <FaTimes className="h-4 w-4 shrink-0" />
-                        Close
+                        {t('photoBookHub.close')}
                       </button>
                     </div>
                   </>
                 )}
                 {/* Label below folder (title + theme only, no buttons) */}
                 <div className="mt-3 text-center">
-                  <p className="text-sm font-semibold text-slate-800 truncate px-1" title={book.title || `Book #${book.id}`}>
-                    {book.title || `Book #${book.id}`}
+                  <p className="text-sm font-semibold text-slate-800 truncate px-1" title={book.title || t('photoBookHub.bookNum', { id: book.id })}>
+                    {book.title || t('photoBookHub.bookNum', { id: book.id })}
                   </p>
                   <p className="text-xs text-slate-500">{book.theme.title} · {stepLabel(book.currentStep)}</p>
                 </div>

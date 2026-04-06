@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from 'i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -36,6 +38,7 @@ interface ValidationErrors {
 }
 
 const RegisterPage = () => {
+  const { t } = useTranslation();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -73,64 +76,64 @@ const RegisterPage = () => {
   });
 
   // Validation functions
-  const validateField = (name: string, value: string): string | undefined => {
+  const validateField = useCallback((name: string, value: string): string | undefined => {
     switch (name) {
       case 'username':
-        if (!value.trim()) return 'Username is required';
-        if (value.length < 3) return 'Username must be at least 3 characters';
-        if (value.length > 20) return 'Username must be less than 20 characters';
-        if (!/^[a-zA-Z0-9_]+$/.test(value)) return 'Username can only contain letters, numbers, and underscores';
+        if (!value.trim()) return t('registerPage.validation.usernameRequired');
+        if (value.length < 3) return t('registerPage.validation.usernameMin');
+        if (value.length > 20) return t('registerPage.validation.usernameMax');
+        if (!/^[a-zA-Z0-9_]+$/.test(value)) return t('registerPage.validation.usernamePattern');
         break;
       
       case 'password':
-        if (!value) return 'Password is required';
-        if (value.length < 8) return 'Password must be at least 8 characters';
-        if (!/(?=.*[a-z])/.test(value)) return 'Password must contain at least one lowercase letter';
-        if (!/(?=.*[A-Z])/.test(value)) return 'Password must contain at least one uppercase letter';
-        if (!/(?=.*\d)/.test(value)) return 'Password must contain at least one number';
-        if (!/(?=.*[@$!%*?&])/.test(value)) return 'Password must contain at least one special character (@$!%*?&)';
+        if (!value) return t('registerPage.validation.passwordRequired');
+        if (value.length < 8) return t('registerPage.validation.passwordMin');
+        if (!/(?=.*[a-z])/.test(value)) return t('registerPage.validation.passwordLower');
+        if (!/(?=.*[A-Z])/.test(value)) return t('registerPage.validation.passwordUpper');
+        if (!/(?=.*\d)/.test(value)) return t('registerPage.validation.passwordNumber');
+        if (!/(?=.*[@$!%*?&])/.test(value)) return t('registerPage.validation.passwordSpecial');
         break;
       
       case 'email':
-        if (!value.trim()) return 'Email is required';
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Please enter a valid email address';
+        if (!value.trim()) return t('registerPage.validation.emailRequired');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return t('registerPage.validation.emailInvalid');
         break;
       
       case 'firstName':
-        if (!value.trim()) return 'First name is required';
-        if (value.length < 2) return 'First name must be at least 2 characters';
-        if (value.length > 50) return 'First name must be less than 50 characters';
-        if (!/^[a-zA-Z\s]+$/.test(value)) return 'First name can only contain letters and spaces';
+        if (!value.trim()) return t('registerPage.validation.firstNameRequired');
+        if (value.length < 2) return t('registerPage.validation.firstNameMin');
+        if (value.length > 50) return t('registerPage.validation.firstNameMax');
+        if (!/^[a-zA-Z\s]+$/.test(value)) return t('registerPage.validation.firstNamePattern');
         break;
       
       case 'lastName':
-        if (!value.trim()) return 'Last name is required';
-        if (value.length < 2) return 'Last name must be at least 2 characters';
-        if (value.length > 50) return 'Last name must be less than 50 characters';
-        if (!/^[a-zA-Z\s]+$/.test(value)) return 'Last name can only contain letters and spaces';
+        if (!value.trim()) return t('registerPage.validation.lastNameRequired');
+        if (value.length < 2) return t('registerPage.validation.lastNameMin');
+        if (value.length > 50) return t('registerPage.validation.lastNameMax');
+        if (!/^[a-zA-Z\s]+$/.test(value)) return t('registerPage.validation.lastNamePattern');
         break;
       
       case 'phone':
-        if (!value.trim()) return 'Phone number is required';
+        if (!value.trim()) return t('registerPage.validation.phoneRequired');
         if (!/^[\+]?[1-9][\d]{0,15}$/.test(value.replace(/[\s\-\(\)]/g, ''))) {
-          return 'Please enter a valid phone number';
+          return t('registerPage.validation.phoneInvalid');
         }
         break;
       
       case 'company':
-        if (value && value.length > 100) return 'Company name must be less than 100 characters';
+        if (value && value.length > 100) return t('registerPage.validation.companyMax');
         break;
       
       case 'role':
-        if (value && value.length > 100) return 'Role must be less than 100 characters';
+        if (value && value.length > 100) return t('registerPage.validation.roleMax');
         break;
       
       case 'department':
-        if (value && value.length > 100) return 'Department must be less than 100 characters';
+        if (value && value.length > 100) return t('registerPage.validation.departmentMax');
         break;
     }
     return undefined;
-  };
+  }, [t]);
 
   const validateStep = (stepNumber: number): boolean => {
     const newErrors: ValidationErrors = {};
@@ -164,7 +167,7 @@ const RegisterPage = () => {
 
   const handleSubmit = async () => {
     if (!validateStep(2)) {
-      toast.error('Please fix the validation errors before submitting');
+      toast.error(i18n.t('registerPage.toastFixValidationSubmit'));
       return;
     }
 
@@ -187,16 +190,18 @@ const RegisterPage = () => {
         }; 
 
         await api.post('/api/plans/subscribe', upgradeData);
-        toast.success(`Registration successful! Your ${formData.accountType} plan has been activated.`);
+        toast.success(
+          i18n.t('registerPage.toastRegistrationSuccessPlan', { plan: formData.accountType })
+        );
       } catch (upgradeError: any) {
         console.error('Plan upgrade failed:', upgradeError);
-        toast.success('Registration successful! Welcome to ImageSecurity Portal.');
+        toast.success(i18n.t('registerPage.toastRegistrationSuccessWelcome'));
         // Don't fail the registration if plan upgrade fails
       }
       
       // The register function will update the user state and trigger the useEffect for redirect
     } catch (error: any) {
-      toast.error(error.message || 'Registration failed');
+      toast.error(error.message || i18n.t('registerPage.toastRegistrationFailed'));
     } finally {
       setLoading(false);
     }
@@ -206,7 +211,7 @@ const RegisterPage = () => {
     if (validateStep(1)) {
       setStep(step + 1);
     } else {
-      toast.error('Please fix the validation errors before proceeding');
+      toast.error(i18n.t('registerPage.toastFixValidationNext'));
     }
   };
   
@@ -226,18 +231,18 @@ const RegisterPage = () => {
 
   const renderStep1 = () => (
     <div className="space-y-6">
-      <h3 className="text-2xl font-bold text-white/90 mb-6">Personal Information</h3>
+      <h3 className="text-2xl font-bold text-white/90 mb-6">{t('registerPage.personalInformation')}</h3>
       
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-white/90">First Name *</label>
+          <label className="block text-sm font-semibold text-white/90">{t('registerPage.labelFirstName')}</label>
           <input
             type="text"
             required
             className={`w-full px-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.firstName ? 'border-red-400' : 'border-white/20'
             }`}
-            placeholder="First name"
+            placeholder={t('registerPage.placeholderFirstName')}
             value={formData.firstName}
             onChange={(e) => handleFieldChange('firstName', e.target.value)}
             style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
@@ -245,14 +250,14 @@ const RegisterPage = () => {
           {errors.firstName && <p className="text-sm text-red-300">{errors.firstName}</p>}
         </div>
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-white/90">Last Name *</label>
+          <label className="block text-sm font-semibold text-white/90">{t('registerPage.labelLastName')}</label>
           <input
             type="text"
             required
             className={`w-full px-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.lastName ? 'border-red-400' : 'border-white/20'
             }`}
-            placeholder="Last name"
+            placeholder={t('registerPage.placeholderLastName')}
             value={formData.lastName}
             onChange={(e) => handleFieldChange('lastName', e.target.value)}
             style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
@@ -262,7 +267,7 @@ const RegisterPage = () => {
       </div>
 
       <div className="space-y-2">
-        <label className="block text-sm font-semibold text-white/90">Username *</label>
+        <label className="block text-sm font-semibold text-white/90">{t('registerPage.labelUsername')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <FaUser className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
@@ -273,7 +278,7 @@ const RegisterPage = () => {
             className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.username ? 'border-red-400' : 'border-white/20'
             }`}
-            placeholder="Enter your username"
+            placeholder={t('registerPage.placeholderUsername')}
             value={formData.username}
             onChange={(e) => handleFieldChange('username', e.target.value)}
             style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
@@ -284,7 +289,7 @@ const RegisterPage = () => {
       </div>
 
       <div className="space-y-2">
-        <label className="block text-sm font-semibold text-white/90">Email *</label>
+        <label className="block text-sm font-semibold text-white/90">{t('registerPage.labelEmail')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <FaEnvelope className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
@@ -295,7 +300,7 @@ const RegisterPage = () => {
             className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.email ? 'border-red-400' : 'border-white/20'
             }`}
-            placeholder="Enter your email"
+            placeholder={t('registerPage.placeholderEmail')}
             value={formData.email}
             onChange={(e) => handleFieldChange('email', e.target.value)}
             style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
@@ -306,7 +311,7 @@ const RegisterPage = () => {
       </div>
 
       <div className="space-y-2">
-        <label className="block text-sm font-semibold text-white/90">Phone *</label>
+        <label className="block text-sm font-semibold text-white/90">{t('registerPage.labelPhone')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <FaPhone className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
@@ -316,7 +321,7 @@ const RegisterPage = () => {
             className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.phone ? 'border-red-400' : 'border-white/20'
             }`}
-            placeholder="Enter your phone number"
+            placeholder={t('registerPage.placeholderPhone')}
             value={formData.phone}
             onChange={(e) => handleFieldChange('phone', e.target.value)}
             style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
@@ -327,7 +332,7 @@ const RegisterPage = () => {
       </div>
 
       <div className="space-y-2">
-        <label className="block text-sm font-semibold text-white/90">Password *</label>
+        <label className="block text-sm font-semibold text-white/90">{t('registerPage.labelPassword')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <FaShieldAlt className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
@@ -338,7 +343,7 @@ const RegisterPage = () => {
             className={`w-full pl-12 pr-12 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.password ? 'border-red-400' : 'border-white/20'
             }`}
-            placeholder="Enter your password"
+            placeholder={t('registerPage.placeholderPassword')}
             value={formData.password}
             onChange={(e) => handleFieldChange('password', e.target.value)}
             style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
@@ -355,9 +360,7 @@ const RegisterPage = () => {
           <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10"></div>
         </div>
         {errors.password && <p className="text-sm text-red-300">{errors.password}</p>}
-        <div className="text-xs text-white/60 mt-2">
-          Password must contain at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.
-        </div>
+        <div className="text-xs text-white/60 mt-2">{t('registerPage.passwordRulesHint')}</div>
       </div>
 
       <div className="pt-4">
@@ -368,7 +371,7 @@ const RegisterPage = () => {
         >
           <div className="flex items-center">
             <FaArrowRight className="mr-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            Next
+            {t('registerPage.next')}
           </div>
         </button>
       </div>
@@ -377,22 +380,24 @@ const RegisterPage = () => {
 
   const renderStep2 = () => (
     <div className="space-y-6">
-      <h3 className="text-2xl font-bold text-white/90 mb-6">Business Information</h3>
+      <h3 className="text-2xl font-bold text-white/90 mb-6">{t('registerPage.businessInformation')}</h3>
       
       <div className="space-y-2">
-        <label className="block text-sm font-semibold text-white/90">Account Type *</label>
+        <label className="block text-sm font-semibold text-white/90">{t('registerPage.labelAccountType')}</label>
         <select
           className="w-full px-4 py-4 bg-black border border-white/20 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none"
           value={formData.accountType}
           onChange={(e) => handleFieldChange('accountType', e.target.value)}
           style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
         >
-          <option value="FREE" className="bg-gray-800 text-white">Free</option>
+          <option value="FREE" className="bg-gray-800 text-white">
+            {t('registerPage.accountTypeFree')}
+          </option>
         </select>
       </div>
 
       <div className="space-y-2">
-        <label className="block text-sm font-semibold text-white/90">Company (Optional)</label>
+        <label className="block text-sm font-semibold text-white/90">{t('registerPage.labelCompany')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <FaBuilding className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
@@ -402,7 +407,7 @@ const RegisterPage = () => {
             className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.company ? 'border-red-400' : 'border-white/20'
             }`}
-            placeholder="Enter your company name"
+            placeholder={t('registerPage.placeholderCompany')}
             value={formData.company}
             onChange={(e) => handleFieldChange('company', e.target.value)}
             style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
@@ -414,7 +419,7 @@ const RegisterPage = () => {
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-white/90">Role (Optional)</label>
+          <label className="block text-sm font-semibold text-white/90">{t('registerPage.labelRole')}</label>
           <div className="relative group">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
               <FaBriefcase className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
@@ -424,7 +429,7 @@ const RegisterPage = () => {
               className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
                 errors.role ? 'border-red-400' : 'border-white/20'
               }`}
-              placeholder="Enter your role"
+              placeholder={t('registerPage.placeholderRole')}
               value={formData.role}
               onChange={(e) => handleFieldChange('role', e.target.value)}
               style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
@@ -434,13 +439,13 @@ const RegisterPage = () => {
           {errors.role && <p className="text-sm text-red-300">{errors.role}</p>}
         </div>
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-white/90">Department (Optional)</label>
+          <label className="block text-sm font-semibold text-white/90">{t('registerPage.labelDepartment')}</label>
           <input
             type="text"
             className={`w-full px-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
               errors.department ? 'border-red-400' : 'border-white/20'
             }`}
-            placeholder="Enter your department"
+            placeholder={t('registerPage.placeholderDepartment')}
             value={formData.department}
             onChange={(e) => handleFieldChange('department', e.target.value)}
             style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
@@ -457,7 +462,7 @@ const RegisterPage = () => {
         >
           <div className="flex items-center">
             <FaArrowLeft className="mr-2 h-5 w-5 group-hover:-translate-x-1 transition-transform" />
-            Previous
+            {t('registerPage.previous')}
           </div>
         </button>
         <button
@@ -469,12 +474,12 @@ const RegisterPage = () => {
           {loading ? (
             <div className="flex items-center">
               <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
-              Creating Account...
+              {t('registerPage.creatingAccount')}
             </div>
           ) : (
             <div className="flex items-center">
               <FaSave className="mr-2 h-5 w-5 group-hover:animate-pulse" />
-              Create Account
+              {t('registerPage.createAccount')}
             </div>
           )}
         </button>
@@ -498,14 +503,10 @@ const RegisterPage = () => {
             <FaUsers className="h-10 w-10 text-white" />
           </div>
           <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent mb-4 p-[1%]">
-            Join ImageSecurity
+            {t('registerPage.joinTitle')}
           </h1>
-          <p className="text-xl text-white/80 font-medium">
-            Create your secure account
-          </p>
-          <p className="text-sm text-white/60 mt-2">
-            Step {step} of 2
-          </p>
+          <p className="text-xl text-white/80 font-medium">{t('registerPage.joinSubtitle')}</p>
+          <p className="text-sm text-white/60 mt-2">{t('registerPage.stepOf', { current: step, total: 2 })}</p>
         </div>
 
         {/* Registration Form */}
@@ -520,9 +521,9 @@ const RegisterPage = () => {
         {/* Sign In Link */}
         <div className="text-center">
           <p className="text-sm text-white/70">
-            Already have an account?{' '}
+            {t('registerPage.alreadyHaveAccount')}{' '}
             <Link to="/login" className="font-semibold text-purple-300 hover:text-purple-200 transition-colors">
-              Sign in here
+              {t('registerPage.signInHere')}
             </Link>
           </p>
         </div>

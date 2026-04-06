@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { 
   FaFolder, 
@@ -85,6 +86,7 @@ type SharedAlbumsApiResponse = {
 };
 
 const SharedAlbums: React.FC = () => {
+  const { t } = useTranslation();
   const { user, isLoading: authLoading } = useAuth();
   const loadMoreAlbumsRef = useRef<HTMLDivElement | null>(null);
   const [expandedAlbums, setExpandedAlbums] = useState<Set<number>>(new Set());
@@ -178,7 +180,8 @@ const SharedAlbums: React.FC = () => {
       });
     } catch (error: any) {
       console.error('Error fetching album images:', error);
-      toast.error('Failed to load album images');
+      const msg = error?.response?.data?.message;
+      toast.error(typeof msg === 'string' && msg.trim() ? msg : t('photoStudioSharedAlbums.toastFailedAlbumImages'));
       if (!append) {
         setAlbumImages((prev) => {
           const next = new Map(prev);
@@ -247,7 +250,7 @@ const SharedAlbums: React.FC = () => {
 
   // Get image filename
   const getImageFilename = (image: AlbumImage): string => {
-    return image.originalFilename || image.filename || 'Unknown';
+    return image.originalFilename || image.filename || t('photoStudioSharedAlbums.unknownFilename');
   };
 
   // Get file type from filename
@@ -273,7 +276,7 @@ const SharedAlbums: React.FC = () => {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" text="Loading user information..." />
+        <LoadingSpinner size="lg" text={t('photoStudioSharedAlbums.loadingUser')} />
       </div>
     );
   }
@@ -281,7 +284,7 @@ const SharedAlbums: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" text="Loading shared albums..." />
+        <LoadingSpinner size="lg" text={t('photoStudioSharedAlbums.loadingShared')} />
       </div>
     );
   }
@@ -291,13 +294,13 @@ const SharedAlbums: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Unable to load shared albums</h1>
-          <p className="text-gray-600 text-sm mb-4">Failed to fetch shared albums. Please try again.</p>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('photoStudioSharedAlbums.unableLoad')}</h1>
+          <p className="text-gray-600 text-sm mb-4">{t('photoStudioSharedAlbums.failedFetch')}</p>
           <button
             onClick={() => refetch()}
             className="px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors"
           >
-            Retry
+            {t('photoStudioSharedAlbums.retry')}
           </button>
         </div>
       </div>
@@ -311,17 +314,17 @@ const SharedAlbums: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center">
             <FaShare className="mr-3 text-purple-600" />
-            Shared Albums
+            {t('photoStudioSharedAlbums.title')}
           </h1>
           <p className="text-gray-600 mt-2">
-            Albums shared with you by your clients and photographers.
+            {t('photoStudioSharedAlbums.subtitle')}
           </p>
         </div>
       </div>
 
       {/* Albums List */}
       <div className="text-left flex flex-wrap items-center gap-2 mb-4">
-        <p className="text-sm text-gray-500">Shared albums:</p>
+        <p className="text-sm text-gray-500">{t('photoStudioSharedAlbums.sharedAlbumsLabel')}</p>
         <p className="text-2xl font-bold text-gray-900">{sharedAlbumsTotal}</p>
       </div>
 
@@ -329,8 +332,8 @@ const SharedAlbums: React.FC = () => {
         {sharedAlbums.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
             <FaShare className="mx-auto mb-4 text-5xl text-gray-300" />
-            <p className="text-lg font-medium mb-2">No shared albums</p>
-            <p className="text-sm">Albums shared with you will appear here.</p>
+            <p className="text-lg font-medium mb-2">{t('photoStudioSharedAlbums.noShared')}</p>
+            <p className="text-sm">{t('photoStudioSharedAlbums.noSharedHint')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -373,7 +376,7 @@ const SharedAlbums: React.FC = () => {
                             {album.name}
                           </h3>
                           <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-medium rounded-full">
-                            Shared
+                            {t('photoStudioSharedAlbums.shared')}
                           </span>
                         </div>
                         {album.description && (
@@ -386,24 +389,24 @@ const SharedAlbums: React.FC = () => {
                             return imageCount > 0 ? (
                               <span className="flex items-center">
                                 <FaImages className="mr-1" />
-                                {imageCount} {imageCount === 1 ? 'image' : 'images'}
+                                {imageCount} {imageCount === 1 ? t('photoStudioSharedAlbums.image') : t('photoStudioSharedAlbums.images')}
                               </span>
                             ) : isExpanded ? (
                               <span className="flex items-center text-gray-400">
                                 <FaImages className="mr-1" />
-                                Loading images...
+                                {t('photoStudioSharedAlbums.loadingImages')}
                               </span>
                             ) : null;
                           })()}
                           {album.sharedBy && (
                             <span className="flex items-center">
                               <FaUser className="mr-1" />
-                              Shared by: {album.sharedBy.username || 'Unknown'}
+                              {t('photoStudioSharedAlbums.sharedBy', { name: album.sharedBy.username || t('photoStudioSharedAlbums.unknownSharer') })}
                             </span>
                           )}
                           {album.sharedAt && (
                             <span>
-                              Shared: {new Date(album.sharedAt).toLocaleDateString()}
+                              {t('photoStudioSharedAlbums.sharedDate', { date: new Date(album.sharedAt).toLocaleDateString() })}
                             </span>
                           )}
                         </div>
@@ -423,7 +426,7 @@ const SharedAlbums: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
                         {album.sharedBy && (
                           <div>
-                            <p className="text-gray-500 mb-1">Shared By</p>
+                            <p className="text-gray-500 mb-1">{t('photoStudioSharedAlbums.sharedByHeading')}</p>
                             <p className="text-gray-700 font-medium">
                               {album.sharedBy.username}
                             </p>
@@ -434,7 +437,7 @@ const SharedAlbums: React.FC = () => {
                         )}
                         {album.sharedAt && (
                           <div>
-                            <p className="text-gray-500 mb-1">Shared Date</p>
+                            <p className="text-gray-500 mb-1">{t('photoStudioSharedAlbums.sharedDateHeading')}</p>
                             <p className="text-gray-700">
                               {new Date(album.sharedAt).toLocaleString()}
                             </p>
@@ -442,7 +445,7 @@ const SharedAlbums: React.FC = () => {
                         )}
                         {album.createdAt && (
                           <div>
-                            <p className="text-gray-500 mb-1">Album Created</p>
+                            <p className="text-gray-500 mb-1">{t('photoStudioSharedAlbums.albumCreated')}</p>
                             <p className="text-gray-700">
                               {new Date(album.createdAt).toLocaleString()}
                             </p>
@@ -450,16 +453,16 @@ const SharedAlbums: React.FC = () => {
                         )}
                         {album.permissions && (
                           <div>
-                            <p className="text-gray-500 mb-1">Permissions</p>
+                            <p className="text-gray-500 mb-1">{t('photoStudioSharedAlbums.permissions')}</p>
                             <div className="flex flex-wrap gap-2">
                               {album.permissions.canView && (
-                                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">View</span>
+                                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">{t('photoStudioSharedAlbums.permView')}</span>
                               )}
                               {album.permissions.canDownload && (
-                                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">Download</span>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">{t('photoStudioSharedAlbums.permDownload')}</span>
                               )}
                               {album.permissions.canUpload && (
-                                <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded">Upload</span>
+                                <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded">{t('photoStudioSharedAlbums.permUpload')}</span>
                               )}
                             </div>
                           </div>
@@ -470,7 +473,7 @@ const SharedAlbums: React.FC = () => {
                       <div className="mt-4 pt-4 border-t border-gray-200">
                         <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
                           <FaImages className="mr-2 text-purple-600" />
-                          Images in Album
+                          {t('photoStudioSharedAlbums.imagesInAlbum')}
                         </h4>
                         
                         {(() => {
@@ -512,13 +515,13 @@ const SharedAlbums: React.FC = () => {
                                             />
                                             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-opacity flex items-center justify-center">
                                               <div className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-xl font-semibold">
-                                                View
+                                                {t('photoStudioSharedAlbums.view')}
                                               </div>
                                             </div>
                                           </>
                                         ) : (
                                           <div className="flex items-center justify-center h-full text-gray-500 text-xs">
-                                            {fileType.toUpperCase() || 'FILE'}
+                                            {fileType.toUpperCase() || t('photoStudioGallery.file')}
                                           </div>
                                         )}
                                       </div>
@@ -539,7 +542,7 @@ const SharedAlbums: React.FC = () => {
                                     disabled={loadingMoreAlbumId === album.id}
                                     className="px-4 py-2 rounded-lg border border-purple-300 text-purple-700 text-sm font-medium hover:bg-purple-50 disabled:opacity-50"
                                   >
-                                    {loadingMoreAlbumId === album.id ? 'Loading…' : `Load more`}
+                                    {loadingMoreAlbumId === album.id ? t('photoStudioSharedAlbums.loadingEllipsis') : t('photoStudioSharedAlbums.loadMore')}
                                   </button>
                                 </div>
                               )}
@@ -549,7 +552,7 @@ const SharedAlbums: React.FC = () => {
                             return (
                               <div className="text-center py-8 text-gray-500">
                                 <FaImages className="mx-auto mb-2 text-3xl text-gray-300" />
-                                <p className="text-sm">No images in this album yet</p>
+                                <p className="text-sm">{t('photoStudioSharedAlbums.noImagesYet')}</p>
                               </div>
                             );
                           }
@@ -565,7 +568,7 @@ const SharedAlbums: React.FC = () => {
         {sharedAlbums.length > 0 && <div ref={loadMoreAlbumsRef} className="h-4" aria-hidden />}
         {sharedAlbums.length > 0 && isFetchingNextPage && (
           <div className="flex justify-center py-4">
-            <LoadingSpinner size="md" text="Loading more..." />
+            <LoadingSpinner size="md" text={t('photoStudioSharedAlbums.loadingMore')} />
           </div>
         )}
       </div>
@@ -604,7 +607,7 @@ const SharedAlbums: React.FC = () => {
             <button
               onClick={handleClose}
               className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-3"
-              aria-label="Close"
+              aria-label={t('photoStudioSharedAlbums.close')}
             >
               <FaTimes className="text-2xl" />
             </button>
@@ -617,7 +620,7 @@ const SharedAlbums: React.FC = () => {
                   handlePrevious();
                 }}
                 className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-4"
-                aria-label="Previous image"
+                aria-label={t('photoStudioSharedAlbums.previousImage')}
               >
                 <FaChevronLeft className="text-2xl" />
               </button>
@@ -631,7 +634,7 @@ const SharedAlbums: React.FC = () => {
                   handleNext();
                 }}
                 className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-4"
-                aria-label="Next image"
+                aria-label={t('photoStudioSharedAlbums.nextImage')}
               >
                 <FaChevronRight className="text-2xl" />
               </button>
@@ -653,7 +656,7 @@ const SharedAlbums: React.FC = () => {
                 />
               ) : (
                 <div className="text-white text-center">
-                  <p className="text-lg mb-2">Image not available</p>
+                  <p className="text-lg mb-2">{t('photoStudioSharedAlbums.imageNotAvailable')}</p>
                   <p className="text-sm text-gray-400">{filename}</p>
                 </div>
               )}
@@ -663,7 +666,7 @@ const SharedAlbums: React.FC = () => {
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-center z-10 bg-black bg-opacity-50 rounded-lg px-4 py-2">
               <p className="text-sm font-medium">{filename}</p>
               <p className="text-xs text-gray-300 mt-1">
-                {index + 1} of {images.length}
+                {t('photoStudioSharedAlbums.nOfM', { n: index + 1, m: images.length })}
               </p>
             </div>
           </div>

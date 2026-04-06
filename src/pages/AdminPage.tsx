@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { FaUsers, FaCloud, FaChartBar, FaCog, FaPlus, FaUser, FaShieldAlt, FaRupeeSign, FaFlag } from 'react-icons/fa';
 import UserManagement from '../components/admin/UserManagement';
@@ -12,27 +13,28 @@ import SystemHealth from '../components/admin/SystemHealth';
 import adminService from '../services/adminService';
 import { toast } from 'react-hot-toast';
 
+const tabDefs = [
+  { id: 'dashboard', icon: FaShieldAlt },
+  { id: 'users', icon: FaUsers },
+  { id: 'services', icon: FaCloud },
+  { id: 'plans', icon: FaPlus },
+  { id: 'payments', icon: FaRupeeSign },
+  { id: 'flags', icon: FaFlag },
+  { id: 'analytics', icon: FaChartBar },
+  { id: 'health', icon: FaShieldAlt },
+  { id: 'settings', icon: FaCog }
+] as const;
+
 const AdminPage = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  const tabs = [
-    { id: 'dashboard', name: 'Admin Dashboard', icon: FaShieldAlt },
-    { id: 'users', name: 'User Management', icon: FaUsers },
-    { id: 'services', name: 'Service Config', icon: FaCloud },
-    { id: 'plans', name: 'Plan Management', icon: FaPlus },
-    { id: 'payments', name: 'Payment Management', icon: FaRupeeSign },
-    { id: 'flags', name: 'Feature Flags', icon: FaFlag },
-    { id: 'analytics', name: 'Usage Analytics', icon: FaChartBar },
-    { id: 'health', name: 'System Health', icon: FaShieldAlt },
-    { id: 'settings', name: 'Admin Settings', icon: FaCog }
-  ];
-
   // Set initial tab from URL parameter
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
-    if (tabFromUrl && tabs.find(tab => tab.id === tabFromUrl)) {
+    if (tabFromUrl && tabDefs.find((tab) => tab.id === tabFromUrl)) {
       setActiveTab(tabFromUrl);
     }
   }, [searchParams]);
@@ -72,8 +74,8 @@ const AdminPage = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-          <p className="text-gray-600">You don't have permission to access the admin panel.</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">{t('adminPage.accessDenied')}</h1>
+          <p className="text-gray-600">{t('adminPage.accessDeniedBody')}</p>
         </div>
       </div>
     );
@@ -85,7 +87,7 @@ const AdminPage = () => {
       <div className="bg-white border-b border-gray-200">
         <div className="px-6">
           <div className="flex space-x-8 overflow-x-auto">
-            {tabs.map((tab) => {
+            {tabDefs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
@@ -98,7 +100,7 @@ const AdminPage = () => {
                   }`}
                 >
                   <Icon className="h-4 w-4 mr-2" />
-                  {tab.name}
+                  {t(`adminPage.tabs.${tab.id}`)}
                 </button>
               );
             })}
@@ -116,6 +118,7 @@ const AdminPage = () => {
 
 // Admin Dashboard Component
 const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void }) => {
+  const { t } = useTranslation();
   const [dashboardData, setDashboardData] = useState({
     userStats: null,
     systemHealth: null,
@@ -147,32 +150,32 @@ const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void 
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to load dashboard data');
+      toast.error(t('adminPage.toastDashboardLoadFailed'));
     } finally {
       setLoading(false);
     }
   };
 
-  const quickActions = [
-    { name: 'User Management', tab: 'users', icon: FaUser, color: 'bg-blue-500' },
-    { name: 'Service Config', tab: 'services', icon: FaCloud, color: 'bg-green-500' },
-    { name: 'Plan Management', tab: 'plans', icon: FaPlus, color: 'bg-purple-500' },
-    { name: 'Payment Management', tab: 'payments', icon: FaRupeeSign, color: 'bg-yellow-500' },
-    { name: 'Usage Analytics', tab: 'analytics', icon: FaChartBar, color: 'bg-orange-500' },
-    { name: 'System Health', tab: 'health', icon: FaShieldAlt, color: 'bg-red-500' },
+  const quickActionDefs = [
+    { tab: 'users' as const, icon: FaUser, color: 'bg-blue-500' },
+    { tab: 'services' as const, icon: FaCloud, color: 'bg-green-500' },
+    { tab: 'plans' as const, icon: FaPlus, color: 'bg-purple-500' },
+    { tab: 'payments' as const, icon: FaRupeeSign, color: 'bg-yellow-500' },
+    { tab: 'analytics' as const, icon: FaChartBar, color: 'bg-orange-500' },
+    { tab: 'health' as const, icon: FaShieldAlt, color: 'bg-red-500' },
   ];
 
   const getSystemHealthStatus = () => {
-    if (!dashboardData.systemHealth) return { status: 'Loading...', color: 'text-gray-500' };
-    
+    if (!dashboardData.systemHealth) return { status: t('adminPage.healthLoading'), color: 'text-gray-500' };
+
     const health = dashboardData.systemHealth;
-    if (health.status === 'HEALTHY') return { status: 'Good', color: 'text-green-600' };
-    if (health.status === 'WARNING') return { status: 'Warning', color: 'text-yellow-600' };
-    return { status: 'Critical', color: 'text-red-600' };
+    if (health.status === 'HEALTHY') return { status: t('adminPage.healthGood'), color: 'text-green-600' };
+    if (health.status === 'WARNING') return { status: t('adminPage.healthWarning'), color: 'text-yellow-600' };
+    return { status: t('adminPage.healthCritical'), color: 'text-red-600' };
   };
 
   const formatStorage = (bytes: number) => {
-    if (!bytes) return '0 GB';
+    if (!bytes) return t('adminPage.gbZero');
     const gb = bytes / (1024 * 1024 * 1024);
     return `${gb.toFixed(1)} GB`;
   };
@@ -182,8 +185,8 @@ const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void 
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p className="text-gray-600">Welcome to the admin panel. Manage your system from here.</p>
+            <h1 className="text-2xl font-bold text-gray-900">{t('adminPage.dashboardTitle')}</h1>
+            <p className="text-gray-600">{t('adminPage.dashboardSubtitle')}</p>
           </div>
           <button
             onClick={fetchDashboardData}
@@ -191,26 +194,26 @@ const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void 
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
           >
             <FaChartBar className="h-4 w-4" />
-            <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
+            <span>{loading ? t('adminPage.refreshing') : t('adminPage.refresh')}</span>
           </button>
         </div>
       </div>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
-        {quickActions.map((action) => {
+        {quickActionDefs.map((action) => {
           const Icon = action.icon;
           return (
             <button
-              key={action.name}
+              key={action.tab}
               onClick={() => setActiveTab(action.tab)}
               className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow text-left"
             >
               <div className={`w-12 h-12 ${action.color} rounded-lg flex items-center justify-center mb-4`}>
                 <Icon className="h-6 w-6 text-white" />
               </div>
-              <h3 className="font-semibold text-gray-900">{action.name}</h3>
-              <p className="text-sm text-gray-600 mt-1">Manage {action.name.toLowerCase()}</p>
+              <h3 className="font-semibold text-gray-900">{t(`adminPage.quickActions.${action.tab}`)}</h3>
+              <p className="text-sm text-gray-600 mt-1">{t(`adminPage.quickActionManage.${action.tab}`)}</p>
             </button>
           );
         })}
@@ -218,52 +221,52 @@ const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void 
 
       {/* System Overview */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">System Overview</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('adminPage.systemOverview')}</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-blue-50 rounded-lg p-4">
-            <p className="text-sm font-medium text-blue-600">Total Users</p>
+            <p className="text-sm font-medium text-blue-600">{t('adminPage.totalUsers')}</p>
             <p className="text-2xl font-bold text-blue-900">
-              {loading ? 'Loading...' : (dashboardData.userStats?.totalUsers || 0)}
+              {loading ? t('adminPage.statLoading') : (dashboardData.userStats?.totalUsers || 0)}
             </p>
             {dashboardData.userStats && (
               <p className="text-xs text-blue-600 mt-1">
-                {dashboardData.userStats.activeUsers || 0} active
+                {t('adminPage.activeCount', { count: dashboardData.userStats.activeUsers || 0 })}
               </p>
             )}
           </div>
           
           <div className="bg-green-50 rounded-lg p-4">
-            <p className="text-sm font-medium text-green-600">Active Services</p>
+            <p className="text-sm font-medium text-green-600">{t('adminPage.activeServices')}</p>
             <p className="text-2xl font-bold text-green-900">
-              {loading ? 'Loading...' : (dashboardData.serviceStats?.activeServices || 0)}
+              {loading ? t('adminPage.statLoading') : (dashboardData.serviceStats?.activeServices || 0)}
             </p>
             {dashboardData.serviceStats && (
               <p className="text-xs text-green-600 mt-1">
-                {dashboardData.serviceStats.totalServices || 0} total
+                {t('adminPage.totalCount', { count: dashboardData.serviceStats.totalServices || 0 })}
               </p>
             )}
           </div>
           
           <div className="bg-purple-50 rounded-lg p-4">
-            <p className="text-sm font-medium text-purple-600">Total Storage</p>
+            <p className="text-sm font-medium text-purple-600">{t('adminPage.totalStorage')}</p>
             <p className="text-2xl font-bold text-purple-900">
-              {loading ? 'Loading...' : formatStorage(dashboardData.usageStats?.totalStorageUsed || 0)}
+              {loading ? t('adminPage.statLoading') : formatStorage(dashboardData.usageStats?.totalStorageUsed || 0)}
             </p>
             {dashboardData.usageStats && (
               <p className="text-xs text-purple-600 mt-1">
-                {dashboardData.usageStats.totalFiles || 0} files
+                {t('adminPage.filesCount', { count: dashboardData.usageStats.totalFiles || 0 })}
               </p>
             )}
           </div>
           
           <div className="bg-orange-50 rounded-lg p-4">
-            <p className="text-sm font-medium text-orange-600">System Health</p>
+            <p className="text-sm font-medium text-orange-600">{t('adminPage.systemHealthCard')}</p>
             <p className={`text-2xl font-bold ${getSystemHealthStatus().color}`}>
               {getSystemHealthStatus().status}
             </p>
             {dashboardData.systemHealth && (
               <p className="text-xs text-orange-600 mt-1">
-                {dashboardData.systemHealth.uptime || 'N/A'} uptime
+                {t('adminPage.uptime', { value: dashboardData.systemHealth.uptime || t('adminPage.na') })}
               </p>
             )}
           </div>
@@ -274,55 +277,55 @@ const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void 
       {dashboardData.userStats && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">User Activity</h3>
+            <h3 className="text-sm font-medium text-gray-600 mb-2">{t('adminPage.userActivity')}</h3>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">New Users (30d)</span>
+                <span className="text-sm text-gray-500">{t('adminPage.newUsers30d')}</span>
                 <span className="font-semibold">{dashboardData.userStats.newUsersThisMonth || 0}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Pending Verification</span>
+                <span className="text-sm text-gray-500">{t('adminPage.pendingVerification')}</span>
                 <span className="font-semibold">{dashboardData.userStats.pendingVerification || 0}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Suspended Users</span>
+                <span className="text-sm text-gray-500">{t('adminPage.suspendedUsers')}</span>
                 <span className="font-semibold">{dashboardData.userStats.suspendedUsers || 0}</span>
               </div>
             </div>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">Storage Usage</h3>
+            <h3 className="text-sm font-medium text-gray-600 mb-2">{t('adminPage.storageUsage')}</h3>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Used Storage</span>
+                <span className="text-sm text-gray-500">{t('adminPage.usedStorage')}</span>
                 <span className="font-semibold">{formatStorage(dashboardData.usageStats?.totalStorageUsed || 0)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Available</span>
+                <span className="text-sm text-gray-500">{t('adminPage.available')}</span>
                 <span className="font-semibold">{formatStorage(dashboardData.usageStats?.totalStorageAvailable || 0)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Uploads (30d)</span>
+                <span className="text-sm text-gray-500">{t('adminPage.uploads30d')}</span>
                 <span className="font-semibold">{dashboardData.usageStats?.uploadsThisMonth || 0}</span>
               </div>
             </div>
           </div>
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">Service Status</h3>
+            <h3 className="text-sm font-medium text-gray-600 mb-2">{t('adminPage.serviceStatus')}</h3>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Connected Services</span>
+                <span className="text-sm text-gray-500">{t('adminPage.connectedServices')}</span>
                 <span className="font-semibold">{dashboardData.serviceStats?.connectedServices || 0}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Failed Connections</span>
+                <span className="text-sm text-gray-500">{t('adminPage.failedConnections')}</span>
                 <span className="font-semibold">{dashboardData.serviceStats?.failedConnections || 0}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Last Sync</span>
-                <span className="font-semibold">{dashboardData.serviceStats?.lastSyncTime || 'N/A'}</span>
+                <span className="text-sm text-gray-500">{t('adminPage.lastSync')}</span>
+                <span className="font-semibold">{dashboardData.serviceStats?.lastSyncTime || t('adminPage.na')}</span>
               </div>
             </div>
           </div>
@@ -334,15 +337,16 @@ const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void 
 
 // Admin Settings Component
 const AdminSettings = () => {
+  const { t } = useTranslation();
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Admin Settings</h1>
-        <p className="text-gray-600">Configure system-wide settings and preferences.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('adminPage.adminSettingsTitle')}</h1>
+        <p className="text-gray-600">{t('adminPage.adminSettingsSubtitle')}</p>
       </div>
       
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <p className="text-gray-600">Admin settings configuration will be implemented here.</p>
+        <p className="text-gray-600">{t('adminPage.adminSettingsPlaceholder')}</p>
       </div>
     </div>
   );

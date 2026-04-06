@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { FaCamera, FaEye, FaEyeSlash, FaUser, FaEnvelope, FaLock, FaBuilding } from 'react-icons/fa';
 import './StudioAuthPage.css';
 
 const StudioAuthPage: React.FC = () => {
+  const { t } = useTranslation();
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -70,13 +72,13 @@ const StudioAuthPage: React.FC = () => {
               className={`tab ${isLogin ? 'active' : ''}`}
               onClick={() => setIsLogin(true)}
             >
-              Sign In
+              {t('studioAuth.signIn')}
             </button>
             <button 
               className={`tab ${!isLogin ? 'active' : ''}`}
               onClick={() => setIsLogin(false)}
             >
-              Create Photo Book
+              {t('studioAuth.createPhotoBook')}
             </button>
           </div>
 
@@ -84,7 +86,7 @@ const StudioAuthPage: React.FC = () => {
             {!isLogin && (
               <>
                 <div className="form-group">
-                  <label htmlFor="studioName">Photo Book Name</label>
+                  <label htmlFor="studioName">{t('studioAuth.photoBookName')}</label>
                   <div className="input-group">
                     <FaBuilding className="input-icon" />
                     <input
@@ -93,14 +95,14 @@ const StudioAuthPage: React.FC = () => {
                       name="studioName"
                       value={formData.studioName}
                       onChange={handleInputChange}
-                      placeholder="Enter your photo book name"
+                      placeholder={t('studioAuth.placeholderPhotoBookName')}
                       required={!isLogin}
                     />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="ownerName">Owner Name</label>
+                  <label htmlFor="ownerName">{t('studioAuth.ownerName')}</label>
                   <div className="input-group">
                     <FaUser className="input-icon" />
                     <input
@@ -109,14 +111,14 @@ const StudioAuthPage: React.FC = () => {
                       name="ownerName"
                       value={formData.ownerName}
                       onChange={handleInputChange}
-                      placeholder="Enter your full name"
+                      placeholder={t('studioAuth.placeholderOwnerName')}
                       required={!isLogin}
                     />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="phone">Phone Number</label>
+                  <label htmlFor="phone">{t('studioAuth.phoneNumber')}</label>
                   <div className="input-group">
                     <FaEnvelope className="input-icon" />
                     <input
@@ -125,14 +127,14 @@ const StudioAuthPage: React.FC = () => {
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      placeholder="Enter your phone number"
+                      placeholder={t('studioAuth.placeholderPhone')}
                       required={!isLogin}
                     />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="address">Photo Book Address</label>
+                  <label htmlFor="address">{t('studioAuth.photoBookAddress')}</label>
                   <div className="input-group">
                     <FaBuilding className="input-icon" />
                     <input
@@ -141,7 +143,7 @@ const StudioAuthPage: React.FC = () => {
                       name="address"
                       value={formData.address}
                       onChange={handleInputChange}
-                      placeholder="Enter your photo book address"
+                      placeholder={t('studioAuth.placeholderAddress')}
                       required={!isLogin}
                     />
                   </div>
@@ -150,7 +152,7 @@ const StudioAuthPage: React.FC = () => {
             )}
 
             <div className="form-group">
-              <label htmlFor="email">Email Address</label>
+              <label htmlFor="email">{t('studioAuth.emailAddress')}</label>
               <div className="input-group">
                 <FaEnvelope className="input-icon" />
                 <input
@@ -159,14 +161,14 @@ const StudioAuthPage: React.FC = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  placeholder="Enter your email"
+                  placeholder={t('studioAuth.placeholderEmail')}
                   required
                 />
               </div>
             </div>
 
             <div className="form-group">
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password">{t('studioAuth.password')}</label>
               <div className="input-group">
                 <FaLock className="input-icon" />
                 <input
@@ -175,7 +177,7 @@ const StudioAuthPage: React.FC = () => {
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  placeholder="Enter your password"
+                  placeholder={t('studioAuth.placeholderPassword')}
                   required
                 />
                 <button
@@ -190,7 +192,7 @@ const StudioAuthPage: React.FC = () => {
 
             {!isLogin && (
               <div className="form-group">
-                <label htmlFor="confirmPassword">Confirm Password</label>
+                <label htmlFor="confirmPassword">{t('studioAuth.confirmPassword')}</label>
                 <div className="input-group">
                   <FaLock className="input-icon" />
                   <input
@@ -199,7 +201,7 @@ const StudioAuthPage: React.FC = () => {
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    placeholder="Confirm your password"
+                    placeholder={t('studioAuth.placeholderConfirmPassword')}
                     required={!isLogin}
                   />
                 </div>
@@ -211,10 +213,10 @@ const StudioAuthPage: React.FC = () => {
                 <label className="checkbox-label">
                   <input type="checkbox" />
                   <span className="checkmark"></span>
-                  Remember me
+                  {t('studioAuth.rememberMe')}
                 </label>
                 <Link to="/forgot-password" className="forgot-link">
-                  Forgot Password?
+                  {t('studioAuth.forgotPassword')}
                 </Link>
               </div>
             )}
@@ -227,20 +229,20 @@ const StudioAuthPage: React.FC = () => {
               {loading ? (
                 <div className="spinner"></div>
               ) : (
-                isLogin ? 'Sign In' : 'Create Photo Book'
+                isLogin ? t('studioAuth.signInSubmit') : t('studioAuth.createSubmit')
               )}
             </button>
 
             {isLogin && (
               <div className="auth-footer">
                 <p>
-                  Don't have a photo book account?{' '}
+                  {t('studioAuth.noAccount')}{' '}
                   <button 
                     type="button" 
                     className="link-btn"
                     onClick={() => setIsLogin(false)}
                   >
-                    Create one now
+                    {t('studioAuth.createOne')}
                   </button>
                 </p>
               </div>
@@ -249,23 +251,23 @@ const StudioAuthPage: React.FC = () => {
         </div>
 
         <div className="features-preview">
-          <h3>What you get with Photo Book Pro:</h3>
+          <h3>{t('studioAuth.featuresTitle')}</h3>
           <div className="features-grid">
             <div className="feature">
               <FaUser className="feature-icon" />
-              <span>Client Management</span>
+              <span>{t('studioAuth.featureClientManagement')}</span>
             </div>
             <div className="feature">
               <FaCamera className="feature-icon" />
-              <span>Photo Gallery</span>
+              <span>{t('studioAuth.featurePhotoGallery')}</span>
             </div>
             <div className="feature">
               <FaEnvelope className="feature-icon" />
-              <span>Client Portal</span>
+              <span>{t('studioAuth.featureClientPortal')}</span>
             </div>
             <div className="feature">
               <FaLock className="feature-icon" />
-              <span>Secure Access</span>
+              <span>{t('studioAuth.featureSecureAccess')}</span>
             </div>
           </div>
         </div>

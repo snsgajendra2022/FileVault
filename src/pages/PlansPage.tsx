@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from 'i18next';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import { FaCheck, FaTimes, FaCrown, FaShieldAlt, FaCloud, FaUpload, FaUsers, FaStar, FaDollarSign } from 'react-icons/fa';
@@ -71,6 +73,7 @@ interface CancelRequest {
 }
 
 const PlansPage = () => {
+  const { t } = useTranslation();
   const [selectedCycle, setSelectedCycle] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
   const [showSubscribeModal, setShowSubscribeModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -130,14 +133,14 @@ const PlansPage = () => {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Successfully subscribed to plan!');
+      toast.success(i18n.t('plansPage.toastSubscribeOk'));
       queryClient.invalidateQueries({ queryKey: ['userPlan'] });
       queryClient.invalidateQueries({ queryKey: ['planUsage'] });
       setShowSubscribeModal(false);
       setSelectedPlan(null);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to subscribe to plan');
+      toast.error(error.response?.data?.message || i18n.t('plansPage.toastSubscribeFail'));
     }
   });
 
@@ -148,14 +151,14 @@ const PlansPage = () => {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Successfully upgraded your plan!');
+      toast.success(i18n.t('plansPage.toastUpgradeOk'));
       queryClient.invalidateQueries({ queryKey: ['userPlan'] });
       queryClient.invalidateQueries({ queryKey: ['planUsage'] });
       setShowSubscribeModal(false);
       setSelectedPlan(null);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to upgrade plan');
+      toast.error(error.response?.data?.message || i18n.t('plansPage.toastUpgradeFail'));
     }
   });
 
@@ -174,7 +177,7 @@ const PlansPage = () => {
       setImmediateCancel(false);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to cancel plan');
+      toast.error(error.response?.data?.message || i18n.t('plansPage.toastCancelFail'));
     }
   });
 
@@ -235,10 +238,10 @@ const PlansPage = () => {
         setImmediateCancel(false);
         
         // Show success message
-        toast.success('Plan cancellation processed successfully');
+        toast.success(i18n.t('plansPage.toastCancelOk'));
       },
       onError: (error: any) => {
-        toast.error(error.response?.data?.message || 'Failed to cancel plan. Please try again.');
+        toast.error(error.response?.data?.message || i18n.t('plansPage.toastCancelFail'));
       }
     });
   };
@@ -305,13 +308,13 @@ const PlansPage = () => {
   if (plansLoading || userPlanLoading || usageLoading) {
     return (
       <DashboardLoading 
-        title="Loading Plans"
-        subtitle="Fetching available subscription plans..."
+        title={t('plansPage.loadingTitle')}
+        subtitle={t('plansPage.loadingSubtitle')}
         icon={FaDollarSign}
         features={[
-          { icon: FaDollarSign, label: 'Plans' },
-          { icon: FaCloud, label: 'Storage' },
-          { icon: FaUpload, label: 'Uploads' }
+          { icon: FaDollarSign, label: t('plansPage.featPlans') },
+          { icon: FaCloud, label: t('plansPage.featStorage') },
+          { icon: FaUpload, label: t('plansPage.featUploads') }
         ]}
       />
     );
@@ -324,10 +327,10 @@ const PlansPage = () => {
       {/* Header */}
       <div className="text-center mb-10">
         <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
-          Choose Your Plan
+          {t('plansPage.title')}
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          Select the perfect plan for your needs with advanced features and competitive pricing
+          {t('plansPage.subtitle')}
         </p>
       </div>
 
@@ -341,11 +344,11 @@ const PlansPage = () => {
                   queryClient.refetchQueries({ queryKey: ['userPlan'] });
                   queryClient.refetchQueries({ queryKey: ['planUsage'] });
                   queryClient.refetchQueries({ queryKey: ['usage'] });
-                  toast.success('Data refreshed successfully!');
+                  toast.success(t('plansPage.toastRefreshOk'));
                 }}
                 className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
               >
-                Refresh Data
+                {t('plansPage.refreshData')}
               </button>
             </div>
             <div className="flex items-center space-x-6">
@@ -354,15 +357,15 @@ const PlansPage = () => {
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-gray-800">
-                  Current Plan: {userPlan.plan.displayName}
+                  {t('plansPage.currentPlan')} {userPlan.plan.displayName}
                 </h3>
                 <p className="text-lg text-gray-600">
                   ${userPlan.currentPrice}/{userPlan.billingCycle.toLowerCase()} • 
-                  Next billing: {new Date(userPlan.nextBillingDate).toLocaleDateString()}
+                  {t('plansPage.nextBilling')} {new Date(userPlan.nextBillingDate).toLocaleDateString()}
                 </p>
                 <div className="mt-4 grid grid-cols-3 gap-6">
                   <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-blue-100/50">
-                    <p className="text-sm text-gray-500 mb-1">Uploads</p>
+                    <p className="text-sm text-gray-500 mb-1">{t('plansPage.uploads')}</p>
                     <p className="text-lg font-semibold text-gray-800">
                       {userPlan.uploadsUsedThisMonth}/{userPlan.plan.maxUploadsPerMonth}
                     </p>
@@ -374,7 +377,7 @@ const PlansPage = () => {
                     </p>
                   </div> */}
                   <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-blue-100/50">
-                    <p className="text-sm text-gray-500 mb-1">Status</p>
+                    <p className="text-sm text-gray-500 mb-1">{t('plansPage.status')}</p>
                     <p className={`text-lg font-semibold ${userPlan.status === 'ACTIVE' ? 'text-green-600' : 'text-yellow-600'}`}>
                       {userPlan.status}
                     </p>
@@ -387,14 +390,14 @@ const PlansPage = () => {
                 onClick={() => {navigate('/usage');}}
                 className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg transform hover:scale-105"
               >
-                View Usage
+                {t('plansPage.viewUsage')}
               </button>
               {userPlan.status === 'ACTIVE' && !isFreePlan(userPlan.plan) && (
                 <button
                   onClick={handleCancelPlan}
                   className="bg-gradient-to-r from-red-500 to-pink-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-red-600 hover:to-pink-700 transition-all duration-300 shadow-lg transform hover:scale-105"
                 >
-                  Cancel Plan
+                  {t('plansPage.cancelPlan')}
                 </button>
               )}
             </div>
@@ -413,7 +416,7 @@ const PlansPage = () => {
                 : 'text-gray-600 hover:text-gray-800 hover:bg-white/50'
             }`}
           >
-            Monthly
+            {t('plansPage.monthly')}
           </button>
           <button
             onClick={() => setSelectedCycle('YEARLY')}
@@ -423,10 +426,10 @@ const PlansPage = () => {
                 : 'text-gray-600 hover:text-gray-800 hover:bg-white/50'
             }`}
           >
-            Yearly
+            {t('plansPage.yearly')}
             {selectedCycle === 'YEARLY' && (
               <span className="ml-2 bg-gradient-to-r from-green-400 to-emerald-500 text-white text-xs px-3 py-1 rounded-full font-bold shadow-sm">
-                Save up to 20%
+                {t('plansPage.saveUpTo')}
               </span>
             )}
           </button>
@@ -445,7 +448,7 @@ const PlansPage = () => {
             {plan.isPopular && (
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                 <span className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-                  Most Popular
+                  {t('plansPage.mostPopular')}
                 </span>
               </div>
             )}
@@ -453,7 +456,7 @@ const PlansPage = () => {
             {isCurrentPlan(plan) && (
               <div className="absolute -top-4 right-6">
                 <span className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
-                  Current Plan
+                  {t('plansPage.currentPlanBadge')}
                 </span>
               </div>
             )}
@@ -471,12 +474,12 @@ const PlansPage = () => {
                 <div className="flex items-baseline justify-center">
                   <span className="text-5xl font-bold text-gray-800">${getPrice(plan)}</span>
                   <span className="text-gray-500 ml-2 text-lg">
-                    /{selectedCycle === 'MONTHLY' ? 'month' : 'year'}
+                    /{selectedCycle === 'MONTHLY' ? t('plansPage.month') : t('plansPage.year')}
                   </span>
                 </div>
                 {getSavings(plan) > 0 && (
                   <p className="text-base text-green-600 mt-2 font-semibold">
-                    Save {getSavings(plan)}% with yearly billing
+                    {t('plansPage.saveYearly', { percent: getSavings(plan) })}
                   </p>
                 )}
               </div>
@@ -487,7 +490,7 @@ const PlansPage = () => {
                     <FaCheck className="h-4 w-4 text-white" />
                   </div>
                   <span className="text-base text-gray-700 font-medium">
-                    {plan.maxUploadsPerMonth.toLocaleString()} uploads/month
+                    {t('plansPage.uploadsPerMonth', { n: plan.maxUploadsPerMonth.toLocaleString() })}
                   </span>
                 </div>
                 <div className="flex items-center">
@@ -495,7 +498,7 @@ const PlansPage = () => {
                     <FaCheck className="h-4 w-4 text-white" />
                   </div>
                   <span className="text-base text-gray-700 font-medium">
-                    {plan.storageQuotaGB} GB storage
+                    {t('plansPage.storageGb', { n: plan.storageQuotaGB })}
                   </span>
                 </div>
                 <div className="flex items-center">
@@ -503,7 +506,7 @@ const PlansPage = () => {
                     <FaCheck className="h-4 w-4 text-white" />
                   </div>
                   <span className="text-base text-gray-700 font-medium">
-                    Up to {plan.maxFileSizeMB} MB per file
+                    {t('plansPage.maxFileMb', { n: plan.maxFileSizeMB })}
                   </span>
                 </div>
                 <div className="flex items-center">
@@ -511,7 +514,7 @@ const PlansPage = () => {
                     <FaCheck className="h-4 w-4 text-white" />
                   </div>
                   <span className="text-base text-gray-700 font-medium">
-                    {plan.maxConcurrentUploads} concurrent uploads
+                    {t('plansPage.concurrentUploads', { n: plan.maxConcurrentUploads })}
                   </span>
                 </div>
                 {plan.encryptionEnabled && (
@@ -520,7 +523,7 @@ const PlansPage = () => {
                       <FaCheck className="h-4 w-4 text-white" />
                     </div>
                     <span className="text-base text-gray-700 font-medium">
-                      Encryption & compression
+                      {t('plansPage.encryptionCompression')}
                     </span>
                   </div>
                 )}
@@ -530,7 +533,7 @@ const PlansPage = () => {
                       <FaCheck className="h-4 w-4 text-white" />
                     </div>
                     <span className="text-base text-gray-700 font-medium">
-                      Cloud storage integration
+                      {t('plansPage.cloudIntegration')}
                     </span>
                   </div>
                 )}
@@ -540,7 +543,7 @@ const PlansPage = () => {
                       <FaCheck className="h-4 w-4 text-white" />
                     </div>
                     <span className="text-base text-gray-700 font-medium">
-                      Priority support
+                      {t('plansPage.prioritySupport')}
                     </span>
                   </div>
                 )}
@@ -560,14 +563,14 @@ const PlansPage = () => {
                     disabled
                     className="w-full bg-gradient-to-r from-gray-300 to-gray-400 text-gray-500 px-6 py-4 rounded-xl font-semibold cursor-not-allowed shadow-md"
                   >
-                    Current Plan
+                    {t('plansPage.currentPlanBadge')}
                   </button>
                 ) : isFreePlan(plan) ? (
                   <button
                     disabled
                     className="w-full bg-gradient-to-r from-gray-300 to-gray-400 text-gray-500 px-6 py-4 rounded-xl font-semibold cursor-not-allowed shadow-md"
                   >
-                    Free Plan
+                    {t('plansPage.freePlan')}
                   </button>
                 ) : (
                   <button
@@ -580,7 +583,7 @@ const PlansPage = () => {
                         : 'bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:from-gray-700 hover:to-gray-800'
                     }`}
                   >
-                    {isUpgrade(plan) ? 'Upgrade Plan' : isDowngrade(plan) ? 'Downgrade' : 'Upgrade Plan'}
+                    {isUpgrade(plan) ? t('plansPage.upgradePlan') : isDowngrade(plan) ? t('plansPage.downgrade') : t('plansPage.upgradePlan')}
                   </button>
                 )}
               </div>
@@ -599,43 +602,46 @@ const PlansPage = () => {
                   <FaCrown className="h-6 w-6 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-800">
-                  {isUpgrade(selectedPlan) ? 'Upgrade' : 'Subscribe'} to {selectedPlan.displayName}
+                  {t('plansPage.subscribeTo', {
+                    action: isUpgrade(selectedPlan) ? t('plansPage.actionUpgrade') : t('plansPage.actionSubscribe'),
+                    name: selectedPlan.displayName,
+                  })}
                 </h3>
               </div>
               
               <div className="space-y-6">
                 <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-blue-100/50 shadow-lg">
-                  <h4 className="font-semibold text-gray-800 mb-4 text-lg">Plan Summary</h4>
+                  <h4 className="font-semibold text-gray-800 mb-4 text-lg">{t('plansPage.planSummary')}</h4>
                   <div className="space-y-3 text-base text-gray-700">
                     <div className="flex items-center">
                       <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center mr-3">
                         <FaCheck className="h-3 w-3 text-white" />
                       </div>
-                      <span>{selectedPlan.maxUploadsPerMonth.toLocaleString()} uploads/month</span>
+                      <span>{t('plansPage.uploadsPerMonth', { n: selectedPlan.maxUploadsPerMonth.toLocaleString() })}</span>
                     </div>
                     <div className="flex items-center">
                       <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center mr-3">
                         <FaCheck className="h-3 w-3 text-white" />
                       </div>
-                      <span>{selectedPlan.storageQuotaGB} GB storage</span>
+                      <span>{t('plansPage.storageGb', { n: selectedPlan.storageQuotaGB })}</span>
                     </div>
                     <div className="flex items-center">
                       <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center mr-3">
                         <FaCheck className="h-3 w-3 text-white" />
                       </div>
-                      <span>Up to {selectedPlan.maxFileSizeMB} MB per file</span>
+                      <span>{t('plansPage.maxFileMb', { n: selectedPlan.maxFileSizeMB })}</span>
                     </div>
                     <div className="flex items-center">
                       <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center mr-3">
                         <FaCheck className="h-3 w-3 text-white" />
                       </div>
-                      <span>{selectedPlan.maxConcurrentUploads} concurrent uploads</span>
+                      <span>{t('plansPage.concurrentUploads', { n: selectedPlan.maxConcurrentUploads })}</span>
                     </div>
                     <div className="flex items-center">
                       <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg flex items-center justify-center mr-3">
                         <FaCheck className="h-3 w-3 text-white" />
                       </div>
-                      <span>{selectedCycle === 'YEARLY' ? 'Yearly' : 'Monthly'} billing</span>
+                      <span>{selectedCycle === 'YEARLY' ? t('plansPage.yearlyBilling') : t('plansPage.monthlyBilling')}</span>
                     </div>
                   </div>
                 </div>
@@ -644,12 +650,12 @@ const PlansPage = () => {
                   <p className="text-4xl font-bold text-gray-800">
                     ${getPrice(selectedPlan)}
                     <span className="text-lg text-gray-500 ml-2">
-                      /{selectedCycle === 'MONTHLY' ? 'month' : 'year'}
+                      /{selectedCycle === 'MONTHLY' ? t('plansPage.month') : t('plansPage.year')}
                     </span>
                   </p>
                   {getSavings(selectedPlan) > 0 && (
                     <p className="text-base text-green-600 mt-2 font-semibold">
-                      Save {getSavings(selectedPlan)}% with yearly billing
+                      {t('plansPage.saveYearly', { percent: getSavings(selectedPlan) })}
                     </p>
                   )}
                 </div>
@@ -664,7 +670,7 @@ const PlansPage = () => {
                       className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
                     <label htmlFor="autoRenew" className="ml-3 block text-base text-gray-800 font-medium">
-                      Auto-renew subscription
+                      {t('plansPage.autoRenew')}
                     </label>
                   </div>
                 )}
@@ -674,7 +680,7 @@ const PlansPage = () => {
                     onClick={() => setShowSubscribeModal(false)}
                     className="flex-1 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 px-6 py-4 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 shadow-md transform hover:scale-105"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={confirmSubscribe}
@@ -682,9 +688,9 @@ const PlansPage = () => {
                     className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 transition-all duration-300 shadow-lg transform hover:scale-105"
                   >
                     {subscribeMutation.isPending || upgradeMutation.isPending ? (
-                      <LoadingSpinner size="sm" text="Processing..." />
+                      <LoadingSpinner size="sm" text={t('plansPage.processing')} />
                     ) : (
-                      isUpgrade(selectedPlan) ? 'Upgrade' : 'Subscribe'
+                      isUpgrade(selectedPlan) ? t('plansPage.upgrade') : t('plansPage.subscribe')
                     )}
                   </button>
                 </div>
@@ -704,21 +710,21 @@ const PlansPage = () => {
                   <FaTimes className="h-6 w-6 text-white" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-800">
-                  Cancel Subscription
+                  {t('plansPage.cancelSubscription')}
                 </h3>
               </div>
               
               <div className="space-y-6">
                 <div className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl border border-red-100/50 shadow-lg">
                   <label className="block text-base font-semibold text-gray-800 mb-4">
-                    Reason for cancellation
+                    {t('plansPage.reasonCancellation')}
                   </label>
                   <textarea
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 text-base"
                     rows={4}
-                    placeholder="Please tell us why you're cancelling..."
+                    placeholder={t('plansPage.cancelPlaceholder')}
                   />
                 </div>
 
@@ -731,7 +737,7 @@ const PlansPage = () => {
                     className="h-5 w-5 text-red-600 focus:ring-red-500 border-gray-300 rounded"
                   />
                   <label htmlFor="immediateCancel" className="ml-3 block text-base text-gray-800 font-medium">
-                    Cancel immediately (no refund)
+                    {t('plansPage.immediateCancel')}
                   </label>
                 </div>
 
@@ -740,7 +746,7 @@ const PlansPage = () => {
                     onClick={() => setShowCancelModal(false)}
                     className="flex-1 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 px-6 py-4 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 shadow-md transform hover:scale-105"
                   >
-                    Keep Plan
+                    {t('plansPage.keepPlan')}
                   </button>
                   <button
                     onClick={confirmCancel}
@@ -748,9 +754,9 @@ const PlansPage = () => {
                     className="flex-1 bg-gradient-to-r from-red-500 to-pink-600 text-white px-6 py-4 rounded-xl font-semibold hover:from-red-600 hover:to-pink-700 disabled:opacity-50 transition-all duration-300 shadow-lg transform hover:scale-105"
                   >
                     {cancelMutation.isPending ? (
-                      <LoadingSpinner size="sm" text="Processing..." />
+                      <LoadingSpinner size="sm" text={t('plansPage.processing')} />
                     ) : (
-                      'Cancel Plan'
+                      t('plansPage.cancelPlan')
                     )}
                   </button>
                 </div>

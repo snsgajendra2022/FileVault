@@ -1,4 +1,5 @@
 import { FiDownload } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
 
 // const ViewImages = ( { image }: { image: string }  { closeLightbox }: { closeLightbox: () => void }  { handleDownload }: { handleDownload: () => void }  ) => {
 
@@ -305,9 +306,10 @@ import { FiDownload } from "react-icons/fi";
 //               {/* </div> */}
 //         </div>
 const ViewImages = () => {
+    const { t } = useTranslation();
     return (
       <div>
-        <h1>View Images</h1>
+        <h1>{t("viewImagesPage.title")}</h1>
       </div>
     );
   };

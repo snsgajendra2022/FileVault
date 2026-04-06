@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { FaUpload, FaEye, FaLock, FaTimes, FaCloud, FaUsers, FaUser } from 'react-icons/fa';
@@ -44,6 +45,7 @@ interface Image {
 const IMAGES_PAGE_SIZE = 20;
 
 const ImagesPage = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [selectedImage, setSelectedImage] = useState<UserImage | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -92,18 +94,18 @@ const ImagesPage = () => {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Image deleted successfully');
+      toast.success(t('imagesPageRoot.toastDeleteSuccess'));
       queryClient.invalidateQueries({ queryKey: ['userImages'] });
     },
     onError: () => {
-      toast.error('Failed to delete image');
+      toast.error(t('imagesPageRoot.toastDeleteFailed'));
     }
   });
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return t('imagesPageRoot.sizeZero');
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = [t('imagesPageRoot.sizeBytes'), t('imagesPageRoot.sizeKb'), t('imagesPageRoot.sizeMb'), t('imagesPageRoot.sizeGb')];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
@@ -126,7 +128,7 @@ const ImagesPage = () => {
     }
     
     // Download using the API URL
-    toast.success(`Downloading ${image.filename}...`);
+    toast.success(t('imagesPageRoot.downloading', { name: image.filename }));
     const link = document.createElement('a');
     link.href = image.downloadUrl;
     link.download = image.filename;
@@ -252,13 +254,13 @@ const ImagesPage = () => {
     return (
       <div className="p-6">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-red-900 mb-2">Error Loading Images</h2>
-          <p className="text-red-600 mb-4">Failed to load your images. Please try again later.</p>
+          <h2 className="text-xl font-semibold text-red-900 mb-2">{t('imagesPageRoot.errorTitle')}</h2>
+          <p className="text-red-600 mb-4">{t('imagesPageRoot.errorBody')}</p>
           <button
             onClick={() => refetch()}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
           >
-            Retry
+            {t('imagesPageRoot.retry')}
           </button>
         </div>
       </div>
@@ -274,10 +276,15 @@ const ImagesPage = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {viewMode === 'my' ? 'My Files' : `${selectedUser?.inviterFirstName} ${selectedUser?.inviterLastName}'s Files`}
+              {viewMode === 'my'
+                ? t('imagesPageRoot.myFiles')
+                : t('imagesPageRoot.theirFiles', {
+                    first: selectedUser?.inviterFirstName ?? '',
+                    last: selectedUser?.inviterLastName ?? ''
+                  })}
             </h1>
             <p className="text-gray-600">
-              {viewMode === 'my' ? 'Manage and view your uploaded files' : 'View shared files from family member'}
+              {viewMode === 'my' ? t('imagesPageRoot.subtitleMy') : t('imagesPageRoot.subtitleInvited')}
             </p>
           </div>
           {viewMode === 'invited' && (
@@ -286,7 +293,7 @@ const ImagesPage = () => {
               className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             >
               <FaUser className="h-4 w-4 mr-2" />
-              Back to My Files
+              {t('imagesPageRoot.backToMyFiles')}
             </button>
           )}
         </div>
@@ -298,13 +305,13 @@ const ImagesPage = () => {
           <div className="bg-white rounded-lg shadow p-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <FaUsers className="h-5 w-5 mr-2 text-blue-600" />
-              Family Members
+              {t('imagesPageRoot.familyMembers')}
             </h3>
             {familyRelationships.length === 0 ? (
               <div className="text-center py-6">
                 <FaUsers className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                <p className="text-gray-500">No family relationships found</p>
-                <p className="text-sm text-gray-400">You haven't been invited to any family accounts yet</p>
+                <p className="text-gray-500">{t('imagesPageRoot.noFamily')}</p>
+                <p className="text-sm text-gray-400">{t('imagesPageRoot.noFamilyHint')}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-red-500">
@@ -327,30 +334,30 @@ const ImagesPage = () => {
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-gray-600">
-                        <span className="font-medium">Username:</span> {familyMember.inviterUsername}
+                        <span className="font-medium">{t('imagesPageRoot.usernameLabel')}</span> {familyMember.inviterUsername}
                       </p>
                       <p className="text-xs text-gray-600">
-                        <span className="font-medium">Relationship:</span> {familyMember.relationshipNotes}
+                        <span className="font-medium">{t('imagesPageRoot.relationshipLabel')}</span> {familyMember.relationshipNotes}
                       </p>
                       <div className="flex flex-wrap gap-1 mt-2">
                         {familyMember.canViewImages && (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            View
+                            {t('imagesPageRoot.badgeView')}
                           </span>
                         )}
                         {familyMember.canUploadImages && (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            Upload
+                            {t('imagesPageRoot.badgeUpload')}
                           </span>
                         )}
                         {familyMember.canDeleteImages && (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            Delete
+                            {t('imagesPageRoot.badgeDelete')}
                           </span>
                         )}
                         {familyMember.canManageAlbums && (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                            Albums
+                            {t('imagesPageRoot.badgeAlbums')}
                           </span>
                         )}
                       </div>
@@ -371,7 +378,7 @@ const ImagesPage = () => {
               <FaUpload className="h-5 w-5 text-blue-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Total Files</p>
+              <p className="text-sm font-medium text-gray-500">{t('imagesPageRoot.totalFiles')}</p>
               <p className="text-lg font-semibold text-gray-900">{userImagesData?.pages?.[0]?.totalImages ?? images.length}</p>
             </div>
           </div>
@@ -382,7 +389,7 @@ const ImagesPage = () => {
               <FaCloud className="h-5 w-5 text-green-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Cloud Services</p>
+              <p className="text-sm font-medium text-gray-500">{t('imagesPageRoot.cloudServices')}</p>
               <p className="text-lg font-semibold text-gray-900">
                 {images.reduce((acc, img) => acc + getEnabledServicesCount(img.enabledServices), 0)}
               </p>
@@ -395,7 +402,7 @@ const ImagesPage = () => {
               <FaEye className="h-5 w-5 text-purple-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">File Types</p>
+              <p className="text-sm font-medium text-gray-500">{t('imagesPageRoot.fileTypes')}</p>
               <p className="text-lg font-semibold text-gray-900">
                 {new Set(images.map(img => img.fileType)).size}
               </p>
@@ -408,7 +415,7 @@ const ImagesPage = () => {
               <FiDownload className="h-5 w-5 text-yellow-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Available</p>
+              <p className="text-sm font-medium text-gray-500">{t('imagesPageRoot.available')}</p>
               <p className="text-lg font-semibold text-gray-900">
                 {images.filter(img => Object.keys(img.enabledServices).length > 0).length}
               </p>
@@ -424,13 +431,14 @@ const ImagesPage = () => {
             <FaUpload className="h-12 w-12" />
           </div>
           <h3 className="mt-2 text-sm font-medium text-gray-900">
-            {viewMode === 'my' ? 'No files uploaded' : 'No files shared'}
+            {viewMode === 'my' ? t('imagesPageRoot.noFilesMy') : t('imagesPageRoot.noFilesShared')}
           </h3>
           <p className="mt-1 text-sm text-gray-500">
-            {viewMode === 'my' 
-              ? 'Get started by uploading your first file.'
-              : `${selectedUser?.inviterFirstName} hasn't shared any files yet.`
-            }
+            {viewMode === 'my'
+              ? t('imagesPageRoot.uploadHint')
+              : t('imagesPageRoot.noFilesTheir', {
+                  name: `${selectedUser?.inviterFirstName ?? ''} ${selectedUser?.inviterLastName ?? ''}`.trim()
+                })}
           </p>
           {viewMode === 'my' && (
             <div className="mt-6">
@@ -439,7 +447,7 @@ const ImagesPage = () => {
                 className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
               >
                 <FaUpload className="-ml-1 mr-2 h-4 w-4" />
-                Upload File
+                {t('imagesPageRoot.uploadFile')}
               </button>
             </div>
           )}
@@ -520,14 +528,14 @@ const ImagesPage = () => {
                     className="flex-1 inline-flex justify-center items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                   >
                     <FaEye className="h-3 w-3 mr-1" />
-                    View
+                    {t('imagesPageRoot.view')}
                   </button>
                   <button
                     onClick={() => handleDownload(image)}
                     className="flex-1 inline-flex justify-center items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                   >
                     <FiDownload className="h-3 w-3 mr-1" />
-                    Download
+                    {t('imagesPageRoot.download')}
                   </button>
                   {/* Only show delete button for own files and if user has delete permission */}
                   {viewMode === 'my' && (
@@ -553,7 +561,7 @@ const ImagesPage = () => {
       {images.length > 0 && <div ref={loadMoreSentinelRef} className="h-4" aria-hidden />}
       {images.length > 0 && isFetchingNextPage && (
         <div className="mt-4 flex justify-center py-4">
-          <LoadingSpinner size="md" text="Loading more..." />
+          <LoadingSpinner size="md" text={t('imagesPageRoot.loadingMore')} />
         </div>
       )}
 
@@ -565,10 +573,10 @@ const ImagesPage = () => {
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
                 <FaLock className="h-6 w-6 text-yellow-600" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mt-4">Upgrade Required</h3>
+              <h3 className="text-lg font-medium text-gray-900 mt-4">{t('imagesPageRoot.upgradeTitle')}</h3>
               <div className="mt-2 px-7 py-3">
                 <p className="text-sm text-gray-500">
-                  This feature is only available for premium plans. Upgrade your plan to access advanced features.
+                  {t('imagesPageRoot.upgradeBody')}
                 </p>
               </div>
               <div className="items-center px-4 py-3">
@@ -579,13 +587,13 @@ const ImagesPage = () => {
                   }}
                   className="px-4 py-2 bg-blue-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
                 >
-                  View Plans
+                  {t('imagesPageRoot.viewPlans')}
                 </button>
                 <button
                   onClick={() => setShowUpgradeModal(false)}
                   className="mt-2 px-4 py-2 bg-gray-300 text-gray-700 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
                 >
-                  Cancel
+                  {t('imagesPageRoot.cancel')}
                 </button>
               </div>
             </div>
@@ -621,13 +629,16 @@ const ImagesPage = () => {
                 </div>
               )}
               <div className="mt-4 text-sm text-gray-500">
-                File Type: {selectedImage.fileType.toUpperCase()} • Uploaded: {formatDate(selectedImage.uploadTime)}
+                {t('imagesPageRoot.fileMeta', {
+                  type: selectedImage.fileType.toUpperCase(),
+                  date: formatDate(selectedImage.uploadTime)
+                })}
               </div>
               
               {/* Cloud Services Info */}
               {Object.keys(selectedImage.enabledServices).length > 0 && (
                 <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Cloud Services:</h4>
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">{t('imagesPageRoot.cloudServicesHeading')}</h4>
                   <div className="flex flex-wrap gap-2 justify-center">
                     {Object.entries(selectedImage.enabledServices).map(([service, status]) => (
                       <span
@@ -648,7 +659,7 @@ const ImagesPage = () => {
                   className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
                   <FiDownload className="-ml-1 mr-2 h-4 w-4" />
-                  Download
+                  {t('imagesPageRoot.download')}
                 </button>
                 {/* Only show delete button for own files */}
                 {viewMode === 'my' && (
@@ -657,7 +668,7 @@ const ImagesPage = () => {
                     className="inline-flex items-center px-4 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"
                   >
                     <FiTrash2 className="-ml-1 mr-2 h-4 w-4" />
-                    Delete
+                    {t('imagesPageRoot.delete')}
                   </button>
                 )}
               </div>

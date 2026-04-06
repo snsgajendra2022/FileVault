@@ -1,10 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  FaCamera, 
-  FaUsers, 
-  FaImages, 
-  FaQrcode, 
+import { useTranslation } from 'react-i18next';
+import {
+  FaCamera,
+  FaUsers,
+  FaImages,
+  FaQrcode,
   FaArrowRight,
   FaStar,
   FaCheck
@@ -12,62 +13,39 @@ import {
 import './StudioLanding.css';
 
 const StudioLanding: React.FC = () => {
+  const { t } = useTranslation();
+
   const features = [
-    {
-      icon: FaUsers,
-      title: 'Client Management',
-      description: 'Easily manage your clients and their information'
-    },
-    {
-      icon: FaImages,
-      title: 'Photo Gallery',
-      description: 'Upload and organize photos and videos'
-    },
-    {
-      icon: FaQrcode,
-      title: 'Barcode System',
-      description: 'Generate QR codes for easy photo sharing'
-    },
-    {
-      icon: FaCamera,
-      title: 'Client Portal',
-      description: 'Let clients view their photos securely'
-    }
+    { icon: FaUsers, titleKey: 'studioLanding.featClientsTitle' as const, descKey: 'studioLanding.featClientsDesc' as const },
+    { icon: FaImages, titleKey: 'studioLanding.featGalleryTitle' as const, descKey: 'studioLanding.featGalleryDesc' as const },
+    { icon: FaQrcode, titleKey: 'studioLanding.featBarcodeTitle' as const, descKey: 'studioLanding.featBarcodeDesc' as const },
+    { icon: FaCamera, titleKey: 'studioLanding.featPortalTitle' as const, descKey: 'studioLanding.featPortalDesc' as const },
   ];
 
-  const benefits = [
-    'Professional client management',
-    'Secure photo sharing',
-    'QR code generation',
-    'View-only client access',
-    'Modern, responsive design',
-    'Easy to use interface'
-  ];
+  const benefitKeys = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6'] as const;
 
   return (
     <div className="studio-landing">
       <div className="landing-container">
-        {/* Hero Section */}
         <section className="hero-section">
           <div className="hero-content">
             <div className="hero-badge">
               <FaStar />
-              <span>Professional Photo Book Management</span>
+              <span>{t('studioLanding.badge')}</span>
             </div>
             <h1 className="hero-title">
-              Photo Book <span className="gradient-text">Pro</span>
+              {t('studioLanding.heroTitle')} <span className="gradient-text">{t('studioLanding.heroPro')}</span>
             </h1>
             <p className="hero-description">
-              The complete SAAS solution for professional photo books. 
-              Manage clients, organize photos, and share with barcode technology.
+              {t('studioLanding.heroDesc')}
             </p>
             <div className="hero-actions">
               <Link to="/studio/auth" className="cta-btn primary">
-                Get Started
+                {t('studioLanding.getStarted')}
                 <FaArrowRight />
               </Link>
               <Link to="/studio/dashboard" className="cta-btn secondary">
-                View Demo
+                {t('studioLanding.viewDemo')}
               </Link>
             </div>
           </div>
@@ -78,11 +56,10 @@ const StudioLanding: React.FC = () => {
           </div>
         </section>
 
-        {/* Features Section */}
         <section className="features-section">
           <div className="section-header">
-            <h2>Everything You Need</h2>
-            <p>Complete photo book management in one platform</p>
+            <h2>{t('studioLanding.featuresTitle')}</h2>
+            <p>{t('studioLanding.featuresSub')}</p>
           </div>
           <div className="features-grid">
             {features.map((feature, index) => {
@@ -92,33 +69,31 @@ const StudioLanding: React.FC = () => {
                   <div className="feature-icon">
                     <Icon />
                   </div>
-                  <h3>{feature.title}</h3>
-                  <p>{feature.description}</p>
+                  <h3>{t(feature.titleKey)}</h3>
+                  <p>{t(feature.descKey)}</p>
                 </div>
               );
             })}
           </div>
         </section>
 
-        {/* Benefits Section */}
         <section className="benefits-section">
           <div className="benefits-content">
             <div className="benefits-text">
-              <h2>Why Choose Photo Book ?</h2>
+              <h2>{t('studioLanding.benefitsTitle')}</h2>
               <p>
-                Built specifically for photo books, our platform provides 
-                everything you need to manage your business professionally.
+                {t('studioLanding.benefitsBody')}
               </p>
               <ul className="benefits-list">
-                {benefits.map((benefit, index) => (
-                  <li key={index}>
+                {benefitKeys.map((k) => (
+                  <li key={k}>
                     <FaCheck />
-                    <span>{benefit}</span>
+                    <span>{t(`studioLanding.${k}`)}</span>
                   </li>
                 ))}
               </ul>
               <Link to="/studio/auth" className="cta-btn primary">
-                Start Your Free Trial
+                {t('studioLanding.trialCta')}
                 <FaArrowRight />
               </Link>
             </div>
@@ -130,14 +105,13 @@ const StudioLanding: React.FC = () => {
           </div>
         </section>
 
-        {/* CTA Section */}
         <section className="cta-section">
           <div className="cta-content">
-            <h2>Ready to Transform Your Photo Book?</h2>
-            <p>Join thousands of professional photographers who trust Photo Book Pro</p>
+            <h2>{t('studioLanding.ctaTitle')}</h2>
+            <p>{t('studioLanding.ctaSub')}</p>
             <div className="cta-actions">
               <Link to="/studio/auth" className="cta-btn primary large">
-                Create Your Photo Book Account
+                {t('studioLanding.ctaAccount')}
                 <FaArrowRight />
               </Link>
             </div>

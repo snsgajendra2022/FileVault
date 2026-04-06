@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { FaCheck, FaTimes, FaEye, FaImage, FaRupeeSign, FaClock, FaUser, FaFileImage } from 'react-icons/fa';
@@ -31,6 +32,7 @@ interface RejectPaymentData {
 }
 
 const PaymentManagement = () => {
+  const { t } = useTranslation();
   const [selectedPayment, setSelectedPayment] = useState<PendingPayment | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -71,14 +73,14 @@ const PaymentManagement = () => {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Payment confirmed successfully');
+      toast.success(t('photoStudioPayments.toastConfirmed'));
       setShowConfirmModal(false);
       setOwnerNotes('');
       setSelectedPayment(null);
       queryClient.invalidateQueries({ queryKey: ['pendingPayments'] });
     },
     onError: (error: any) => {
-      const errorMessage = error.response?.data?.message || 'Failed to confirm payment';
+      const errorMessage = error.response?.data?.message || t('photoStudioPayments.toastConfirmFailed');
       toast.error(errorMessage);
     },
   });
@@ -90,14 +92,14 @@ const PaymentManagement = () => {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Payment rejected successfully');
+      toast.success(t('photoStudioPayments.toastRejected'));
       setShowRejectModal(false);
       setRejectReason('');
       setSelectedPayment(null);
       queryClient.invalidateQueries({ queryKey: ['pendingPayments'] });
     },
     onError: (error: any) => {
-      const errorMessage = error.response?.data?.message || 'Failed to reject payment';
+      const errorMessage = error.response?.data?.message || t('photoStudioPayments.toastRejectFailed');
       toast.error(errorMessage);
     },
   });
@@ -130,7 +132,7 @@ const PaymentManagement = () => {
   const handleRejectSubmit = () => {
     if (!selectedPayment) return;
     if (!rejectReason.trim()) {
-      toast.error('Please provide a reason for rejection');
+      toast.error(t('photoStudioPayments.toastReasonRequired'));
       return;
     }
     rejectPaymentMutation.mutate({
@@ -164,9 +166,9 @@ const PaymentManagement = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center">
             <FaRupeeSign className="mr-2 text-[#2731db]" />
-            Payment Management
+            {t('photoStudioPayments.title')}
           </h1>
-          <p className="text-gray-600 mt-1">Review and manage pending payment submissions</p>
+          <p className="text-gray-600 mt-1">{t('photoStudioPayments.subtitle')}</p>
         </div>
         <button
           onClick={() => refetch()}
@@ -176,10 +178,10 @@ const PaymentManagement = () => {
           {isFetching ? (
             <>
               <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Refreshing...</span>
+              <span>{t('photoStudioPayments.refreshing')}</span>
             </>
           ) : (
-            <span>Refresh</span>
+            <span>{t('photoStudioPayments.refresh')}</span>
           )}
         </button>
       </div>
@@ -189,7 +191,7 @@ const PaymentManagement = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Pending Payments</p>
+              <p className="text-sm text-gray-600">{t('photoStudioPayments.pendingPayments')}</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">{payments.length}</p>
             </div>
             <FaClock className="text-3xl text-yellow-500" />
@@ -198,7 +200,7 @@ const PaymentManagement = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Amount</p>
+              <p className="text-sm text-gray-600">{t('photoStudioPayments.totalAmount')}</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
                 {formatAmount(payments.reduce((sum, p) => sum + (p.totalAmount || 0), 0))}
               </p>
@@ -209,7 +211,7 @@ const PaymentManagement = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Images</p>
+              <p className="text-sm text-gray-600">{t('photoStudioPayments.totalImages')}</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
                 {payments.reduce((sum, p) => sum + (p.imageCount || p.imageIds?.length || 0), 0)}
               </p>
@@ -226,22 +228,22 @@ const PaymentManagement = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Payment Details
+                  {t('photoStudioPayments.colPaymentDetails')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
+                  {t('photoStudioPayments.colUser')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Purchase Type
+                  {t('photoStudioPayments.colPurchaseType')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Amount
+                  {t('photoStudioPayments.colAmount')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Submitted
+                  {t('photoStudioPayments.colSubmitted')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
+                  {t('photoStudioPayments.colActions')}
                 </th>
               </tr>
             </thead>
@@ -249,13 +251,13 @@ const PaymentManagement = () => {
               {isLoading ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                    Loading payments...
+                    {t('photoStudioPayments.loadingPayments')}
                   </td>
                 </tr>
               ) : payments.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                    No pending payments found
+                    {t('photoStudioPayments.noPending')}
                   </td>
                 </tr>
               ) : (
@@ -263,10 +265,10 @@ const PaymentManagement = () => {
                   <tr key={payment.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">UTR: {payment.utrNumber}</p>
-                        <p className="text-xs text-gray-500">ID: {payment.id}</p>
+                        <p className="text-sm font-medium text-gray-900">{t('photoStudioPayments.utrLabel', { utr: payment.utrNumber })}</p>
+                        <p className="text-xs text-gray-500">{t('photoStudioPayments.idLabel', { id: payment.id })}</p>
                         {payment.albumName && (
-                          <p className="text-xs text-gray-500">Album: {payment.albumName}</p>
+                          <p className="text-xs text-gray-500">{t('photoStudioPayments.albumLabel', { name: payment.albumName })}</p>
                         )}
                       </div>
                     </td>
@@ -274,8 +276,8 @@ const PaymentManagement = () => {
                       <div className="flex items-center">
                         <FaUser className="text-gray-400 mr-2" />
                         <div>
-                          <p className="text-sm text-gray-900">{payment.userName || 'N/A'}</p>
-                          <p className="text-xs text-gray-500">{payment.userEmail || 'N/A'}</p>
+                          <p className="text-sm text-gray-900">{payment.userName || t('photoStudioPayments.na')}</p>
+                          <p className="text-xs text-gray-500">{payment.userEmail || t('photoStudioPayments.na')}</p>
                         </div>
                       </div>
                     </td>
@@ -285,7 +287,7 @@ const PaymentManagement = () => {
                           {payment.purchaseType.replace('_', ' ')}
                         </span>
                         <p className="text-xs text-gray-500 mt-1">
-                          {payment.imageCount || payment.imageIds?.length || 0} image(s)
+                          {t('photoStudioPayments.imageCountShort', { count: payment.imageCount || payment.imageIds?.length || 0 })}
                         </p>
                       </div>
                     </td>
@@ -303,21 +305,21 @@ const PaymentManagement = () => {
                         <button
                           onClick={() => handleViewDetails(payment)}
                           className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded"
-                          title="View Details"
+                          title={t('photoStudioPayments.viewDetails')}
                         >
                           <FaEye />
                         </button>
                         <button
                           onClick={() => handleConfirm(payment)}
                           className="text-green-600 hover:text-green-900 p-2 hover:bg-green-50 rounded"
-                          title="Confirm Payment"
+                          title={t('photoStudioPayments.confirmPayment')}
                         >
                           <FaCheck />
                         </button>
                         <button
                           onClick={() => handleReject(payment)}
                           className="text-red-600 hover:text-red-900 p-2 hover:bg-red-50 rounded"
-                          title="Reject Payment"
+                          title={t('photoStudioPayments.rejectPayment')}
                         >
                           <FaTimes />
                         </button>
@@ -338,7 +340,7 @@ const PaymentManagement = () => {
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                 <FaCheck className="mr-2 text-green-600" />
-                Confirm Payment
+                {t('photoStudioPayments.confirmPaymentTitle')}
               </h2>
               <button
                 onClick={() => {
@@ -352,22 +354,22 @@ const PaymentManagement = () => {
             </div>
             <div className="p-6 space-y-4">
               <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-600 mb-2">Payment Details</p>
+                <p className="text-sm text-gray-600 mb-2">{t('photoStudioPayments.paymentDetails')}</p>
                 <div className="space-y-1 text-sm">
-                  <p><strong>UTR:</strong> {selectedPayment.utrNumber}</p>
-                  <p><strong>Amount:</strong> {formatAmount(selectedPayment.totalAmount)}</p>
-                  <p><strong>Type:</strong> {selectedPayment.purchaseType.replace('_', ' ')}</p>
-                  <p><strong>Images:</strong> {selectedPayment.imageCount || selectedPayment.imageIds?.length || 0}</p>
+                  <p><strong>{t('photoStudioPayments.utr')}</strong> {selectedPayment.utrNumber}</p>
+                  <p><strong>{t('photoStudioPayments.amount')}</strong> {formatAmount(selectedPayment.totalAmount)}</p>
+                  <p><strong>{t('photoStudioPayments.type')}</strong> {selectedPayment.purchaseType.replace('_', ' ')}</p>
+                  <p><strong>{t('photoStudioPayments.images')}</strong> {selectedPayment.imageCount || selectedPayment.imageIds?.length || 0}</p>
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Owner Notes (Optional)
+                  {t('photoStudioPayments.ownerNotesOptional')}
                 </label>
                 <textarea
                   value={ownerNotes}
                   onChange={(e) => setOwnerNotes(e.target.value)}
-                  placeholder="Add any notes about this payment confirmation..."
+                  placeholder={t('photoStudioPayments.ownerNotesPlaceholder')}
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2731db] focus:border-transparent"
                 />
@@ -381,7 +383,7 @@ const PaymentManagement = () => {
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
-                Cancel
+                {t('photoStudioPayments.cancel')}
               </button>
               <button
                 onClick={handleConfirmSubmit}
@@ -391,12 +393,12 @@ const PaymentManagement = () => {
                 {confirmPaymentMutation.isPending ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    Confirming...
+                    {t('photoStudioPayments.confirming')}
                   </>
                 ) : (
                   <>
                     <FaCheck className="mr-1" />
-                    Confirm Payment
+                    {t('photoStudioPayments.confirmPayment')}
                   </>
                 )}
               </button>
@@ -412,7 +414,7 @@ const PaymentManagement = () => {
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                 <FaTimes className="mr-2 text-red-600" />
-                Reject Payment
+                {t('photoStudioPayments.rejectTitle')}
               </h2>
               <button
                 onClick={() => {
@@ -426,27 +428,27 @@ const PaymentManagement = () => {
             </div>
             <div className="p-6 space-y-4">
               <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-600 mb-2">Payment Details</p>
+                <p className="text-sm text-gray-600 mb-2">{t('photoStudioPayments.paymentDetails')}</p>
                 <div className="space-y-1 text-sm">
-                  <p><strong>UTR:</strong> {selectedPayment.utrNumber}</p>
-                  <p><strong>Amount:</strong> {formatAmount(selectedPayment.totalAmount)}</p>
-                  <p><strong>Type:</strong> {selectedPayment.purchaseType.replace('_', ' ')}</p>
+                  <p><strong>{t('photoStudioPayments.utr')}</strong> {selectedPayment.utrNumber}</p>
+                  <p><strong>{t('photoStudioPayments.amount')}</strong> {formatAmount(selectedPayment.totalAmount)}</p>
+                  <p><strong>{t('photoStudioPayments.type')}</strong> {selectedPayment.purchaseType.replace('_', ' ')}</p>
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rejection Reason <span className="text-red-500">*</span>
+                  {t('photoStudioPayments.rejectionReason')} <span className="text-red-500">{t('photoStudioPayments.required')}</span>
                 </label>
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder="Please provide a reason for rejecting this payment..."
+                  placeholder={t('photoStudioPayments.rejectPlaceholder')}
                   rows={4}
                   required
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  This reason will be communicated to the user.
+                  {t('photoStudioPayments.rejectHint')}
                 </p>
               </div>
             </div>
@@ -458,7 +460,7 @@ const PaymentManagement = () => {
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
-                Cancel
+                {t('photoStudioPayments.cancel')}
               </button>
               <button
                 onClick={handleRejectSubmit}
@@ -468,12 +470,12 @@ const PaymentManagement = () => {
                 {rejectPaymentMutation.isPending ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    Rejecting...
+                    {t('photoStudioPayments.rejecting')}
                   </>
                 ) : (
                   <>
                     <FaTimes className="mr-1" />
-                    Reject Payment
+                    {t('photoStudioPayments.rejectPayment')}
                   </>
                 )}
               </button>
@@ -489,7 +491,7 @@ const PaymentManagement = () => {
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                 <FaEye className="mr-2 text-blue-600" />
-                Payment Details
+                {t('photoStudioPayments.detailsTitle')}
               </h2>
               <button
                 onClick={() => setShowDetailsModal(false)}
@@ -501,32 +503,32 @@ const PaymentManagement = () => {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Payment ID</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('photoStudioPayments.paymentId')}</p>
                   <p className="text-lg font-semibold text-gray-900">{selectedPayment.id}</p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">UTR Number</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('photoStudioPayments.utrNumber')}</p>
                   <p className="text-lg font-semibold text-gray-900">{selectedPayment.utrNumber}</p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Amount</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('photoStudioPayments.colAmount')}</p>
                   <p className="text-lg font-semibold text-green-600">
                     {formatAmount(selectedPayment.totalAmount)}
                   </p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Purchase Type</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('photoStudioPayments.purchaseType')}</p>
                   <p className="text-lg font-semibold text-gray-900">
                     {selectedPayment.purchaseType.replace('_', ' ')}
                   </p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">User</p>
-                  <p className="text-sm font-medium text-gray-900">{selectedPayment.userName || 'N/A'}</p>
-                  <p className="text-xs text-gray-500">{selectedPayment.userEmail || 'N/A'}</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('photoStudioPayments.user')}</p>
+                  <p className="text-sm font-medium text-gray-900">{selectedPayment.userName || t('photoStudioPayments.na')}</p>
+                  <p className="text-xs text-gray-500">{selectedPayment.userEmail || t('photoStudioPayments.na')}</p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Image Count</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('photoStudioPayments.imageCount')}</p>
                   <p className="text-lg font-semibold text-gray-900">
                     {selectedPayment.imageCount || selectedPayment.imageIds?.length || 0}
                   </p>
@@ -535,17 +537,17 @@ const PaymentManagement = () => {
 
               {selectedPayment.albumId && (
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Album ID</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('photoStudioPayments.albumId')}</p>
                   <p className="text-sm font-medium text-gray-900">{selectedPayment.albumId}</p>
                   {selectedPayment.albumName && (
-                    <p className="text-xs text-gray-500">Name: {selectedPayment.albumName}</p>
+                    <p className="text-xs text-gray-500">{t('photoStudioPayments.namePrefix', { name: selectedPayment.albumName })}</p>
                   )}
                 </div>
               )}
 
               {selectedPayment.imageIds && selectedPayment.imageIds.length > 0 && (
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-2">Image IDs</p>
+                  <p className="text-sm text-gray-600 mb-2">{t('photoStudioPayments.imageIds')}</p>
                   <div className="flex flex-wrap gap-2">
                     {selectedPayment.imageIds.map((id) => (
                       <span
@@ -561,10 +563,10 @@ const PaymentManagement = () => {
 
               {selectedPayment.paymentScreenshot && (
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-2">Payment Screenshot</p>
+                  <p className="text-sm text-gray-600 mb-2">{t('photoStudioPayments.paymentScreenshot')}</p>
                   <img
                     src={selectedPayment.paymentScreenshot}
-                    alt="Payment screenshot"
+                    alt={t('photoStudioPayments.screenshotAlt')}
                     className="max-w-full h-auto rounded-lg border border-gray-300"
                   />
                 </div>
@@ -572,11 +574,11 @@ const PaymentManagement = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Created At</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('photoStudioPayments.createdAt')}</p>
                   <p className="text-sm text-gray-900">{formatDate(selectedPayment.createdAt)}</p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-1">Updated At</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('photoStudioPayments.updatedAt')}</p>
                   <p className="text-sm text-gray-900">{formatDate(selectedPayment.updatedAt)}</p>
                 </div>
               </div>
@@ -586,7 +588,7 @@ const PaymentManagement = () => {
                 onClick={() => setShowDetailsModal(false)}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
               >
-                Close
+                {t('photoStudioPayments.close')}
               </button>
             </div>
           </div>

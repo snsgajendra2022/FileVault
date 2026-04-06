@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from 'i18next';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../../context/AuthContext';
 import { getStoredToken, getStoredUserData } from '../../utils/authUtils';
@@ -146,11 +148,11 @@ function getMimeForExt(ext: string): string {
   return m[ext] ?? 'application/octet-stream';
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
-  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)} MB`;
-  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(1)} KB`;
-  return `${bytes} B`;
+function formatFileSizeForToast(bytes: number): string {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} ${i18n.t('uploadFamilyPage.sizeGB')}`;
+  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)} ${i18n.t('uploadFamilyPage.sizeMB')}`;
+  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(1)} ${i18n.t('uploadFamilyPage.sizeKB')}`;
+  return `${bytes} ${i18n.t('uploadFamilyPage.sizeBytes')}`;
 }
 
 /** Read a File to ArrayBuffer via FileReader (sometimes more reliable than file.arrayBuffer() after drop). */
@@ -476,7 +478,7 @@ class UploadManager {
           update({ status: 'uploading', progress: 0 });
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Video processing failed';
+        const msg = err instanceof Error ? err.message : i18n.t('uploadFamilyPage.videoProcessingFailed');
         update({ status: 'failed', error: msg });
         return;
       }
@@ -559,10 +561,16 @@ class UploadManager {
       const message =
         (lastData as { message?: string })?.message ??
         (isFamily && familyTargets.length > 1
-          ? `${currentItem.fileName} uploaded to ${familyTargets.length} accounts.`
+          ? i18n.t('uploadFamilyPage.successMulti', {
+              fileName: currentItem.fileName,
+              count: familyTargets.length,
+            })
           : isFamily && familyTargets.length === 1
-            ? `${currentItem.fileName} uploaded to ${familyTargets[0].otherUserFirstName}'s account.`
-            : `${currentItem.fileName} uploaded successfully.`);
+            ? i18n.t('uploadFamilyPage.successOne', {
+                fileName: currentItem.fileName,
+                name: familyTargets[0].otherUserFirstName,
+              })
+            : i18n.t('uploadFamilyPage.successDefault', { fileName: currentItem.fileName }));
 
       update({
         status: 'completed',
@@ -584,7 +592,7 @@ class UploadManager {
       const errorMessage =
         (err as { response?: { data?: { message?: string }; status?: number }; message?: string }).response?.data?.message ??
         (err as Error).message ??
-        'Upload failed';
+        i18n.t('uploadFamilyPage.uploadFailed');
       const newRetries = currentItem.retries + 1;
 
       if (newRetries >= MAX_RETRIES) {
@@ -628,6 +636,7 @@ interface Album {
 // ---------------------------------------------------------------------------
 
 const UploadFamilyImagesPage = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [queueState, setQueueState] = useState(uploadManager.getState());
   const [familyMembers, setFamilyMembers] = useState<
@@ -899,7 +908,7 @@ const UploadFamilyImagesPage = () => {
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
       if (!canUpload()) {
-        toast.error('You do not have permission to upload files');
+        toast.error(i18n.t('uploadFamilyPage.toastNoPermission'));
         return;
       }
       // Read all ZIPs into memory (skip ones over limit — browser cannot handle very large ZIPs)
@@ -908,7 +917,13 @@ const UploadFamilyImagesPage = () => {
       const zipOk = zipFiles.filter((f) => f.size <= MAX_ZIP_SIZE_BYTES);
       if (zipTooBig.length) {
         zipTooBig.forEach((f) =>
-          toast.error(`${f.name} is too large (${formatFileSize(f.size)}). Max ${MAX_ZIP_SIZE_GB} GB. Extract on your computer and upload the photos/videos directly.`)
+          toast.error(
+            i18n.t('uploadFamilyPage.zipTooLarge', {
+              name: f.name,
+              size: formatFileSizeForToast(f.size),
+              maxGb: MAX_ZIP_SIZE_GB,
+            })
+          )
         );
       }
       const zipBuffers: { name: string; buffer: ArrayBuffer }[] = [];
@@ -918,12 +933,16 @@ const UploadFamilyImagesPage = () => {
           zipOk.forEach((f, i) => zipBuffers.push({ name: f.name, buffer: buffers[i] }));
         } catch (e) {
           console.error('ZIP read failed:', e);
-          toast.error(`Could not read ZIP file(s). ${e instanceof Error ? e.message : 'Use "Select ZIP" below if drag-and-drop fails.'}`);
+          toast.error(
+            i18n.t('uploadFamilyPage.zipReadFailed', {
+              detail: e instanceof Error ? e.message : i18n.t('uploadFamilyPage.zipReadFallback'),
+            })
+          );
           return;
         }
       }
       const zipCount = zipBuffers.length;
-      if (zipCount) toast.loading(`Extracting ${zipCount} ZIP file(s)...`, { id: 'zip-extract' });
+      if (zipCount) toast.loading(i18n.t('uploadFamilyPage.extractingZip', { count: zipCount }), { id: 'zip-extract' });
       const expanded: File[] = [];
       const zipByName = new Map(zipBuffers.map((z) => [z.name, z]));
       for (const file of acceptedFiles) {
@@ -933,10 +952,15 @@ const UploadFamilyImagesPage = () => {
           try {
             const extracted = await extractImagesAndVideosFromZipBuffer(z.buffer, z.name);
             if (extracted.length) expanded.push(...extracted);
-            else toast(`No images or videos found in "${file.name}"`, { id: 'zip-empty' });
+            else toast(i18n.t('uploadFamilyPage.zipNoMedia', { name: file.name }), { id: 'zip-empty' });
           } catch (e) {
             console.error('ZIP extract failed:', e);
-            toast.error(`Failed to extract "${file.name}". ${e instanceof Error ? e.message : 'Invalid or corrupted ZIP.'}`);
+            toast.error(
+              i18n.t('uploadFamilyPage.zipExtractFailed', {
+                name: file.name,
+                detail: e instanceof Error ? e.message : i18n.t('uploadFamilyPage.zipInvalid'),
+              })
+            );
           }
         } else {
           expanded.push(file);
@@ -946,10 +970,10 @@ const UploadFamilyImagesPage = () => {
       const invalid: string[] = [];
       const valid: File[] = [];
       expanded.forEach((file) => {
-        if (!isFileTypeAllowed(file)) invalid.push(`${file.name} - File type not allowed`);
+        if (!isFileTypeAllowed(file)) invalid.push(i18n.t('uploadFamilyPage.fileTypeNotAllowed', { name: file.name }));
         else valid.push(file);
       });
-      if (invalid.length) toast.error(`Some files were rejected:\n${invalid.join('\n')}`);
+      if (invalid.length) toast.error(i18n.t('uploadFamilyPage.someFilesRejected', { list: invalid.join('\n') }));
       if (valid.length) {
         setIsAddingFiles(true);
         try {
@@ -971,9 +995,12 @@ const UploadFamilyImagesPage = () => {
             targetAlbumId: selectedAlbumId ?? undefined,
           });
           setQueueState(uploadManager.getState());
-          if (added) toast.success(`${added} file(s) added to upload queue`);
-          if (skipped) toast(`Skipped ${skipped} duplicate(s).`);
-          if (skippedDueToLimit) toast.error(`Queue limit (${MAX_UPLOAD_QUEUE}) reached. ${skippedDueToLimit} file(s) not added.`);
+          if (added) toast.success(i18n.t('uploadFamilyPage.filesAddedQueue', { n: added }));
+          if (skipped) toast(i18n.t('uploadFamilyPage.skippedDuplicates', { n: skipped }));
+          if (skippedDueToLimit)
+            toast.error(
+              i18n.t('uploadFamilyPage.queueLimit', { max: MAX_UPLOAD_QUEUE, n: skippedDueToLimit })
+            );
         } finally {
           setIsAddingFiles(false);
         }
@@ -996,14 +1023,20 @@ const UploadFamilyImagesPage = () => {
       if (!files?.length || !canUpload()) return;
       const zips = Array.from(files).filter((f) => isZipFile(f));
       if (!zips.length) {
-        toast.error('Please select a .zip file');
+        toast.error(i18n.t('uploadFamilyPage.selectZipFile'));
         e.target.value = '';
         return;
       }
       const tooBig = zips.filter((f) => f.size > MAX_ZIP_SIZE_BYTES);
       if (tooBig.length) {
         tooBig.forEach((f) =>
-          toast.error(`${f.name} is too large (${formatFileSize(f.size)}). Max ${MAX_ZIP_SIZE_GB} GB. Extract on your computer and upload the photos/videos directly.`)
+          toast.error(
+            i18n.t('uploadFamilyPage.zipTooLarge', {
+              name: f.name,
+              size: formatFileSizeForToast(f.size),
+              maxGb: MAX_ZIP_SIZE_GB,
+            })
+          )
         );
       }
       const zipsOk = zips.filter((f) => f.size <= MAX_ZIP_SIZE_BYTES);
@@ -1019,16 +1052,21 @@ const UploadFamilyImagesPage = () => {
             const buffer = await readFileAsArrayBuffer(zipFile);
             const extracted = await extractImagesAndVideosFromZipBuffer(buffer, zipFile.name);
             if (extracted.length) expanded.push(...extracted);
-            else toast(`No images or videos in "${zipFile.name}"`);
+            else toast(i18n.t('uploadFamilyPage.zipNoMedia', { name: zipFile.name }));
           } catch (err) {
             console.error('ZIP extract failed:', err);
-            toast.error(`Failed to extract "${zipFile.name}". ${err instanceof Error ? err.message : 'Invalid ZIP.'}`);
+            toast.error(
+              i18n.t('uploadFamilyPage.zipExtractFailed', {
+                name: zipFile.name,
+                detail: err instanceof Error ? err.message : i18n.t('uploadFamilyPage.zipInvalid'),
+              })
+            );
           }
         }
         if (expanded.length) {
           const valid = expanded.filter((f) => isFileTypeAllowed(f));
           const invalidCount = expanded.length - valid.length;
-          if (invalidCount) toast.error(`${invalidCount} file(s) skipped (type not allowed).`);
+          if (invalidCount) toast.error(i18n.t('uploadFamilyPage.skippedType', { n: invalidCount }));
           if (valid.length) {
             const isFamily = defaultUploadDestination === 'family-account' && defaultSelectedAccountIds.length > 0;
             const members = isFamily
@@ -1048,9 +1086,9 @@ const UploadFamilyImagesPage = () => {
               targetAlbumId: selectedAlbumId ?? undefined,
             });
             setQueueState(uploadManager.getState());
-            if (added) toast.success(`${added} file(s) from ZIP added to queue`);
-            if (skipped) toast(`Skipped ${skipped} duplicate(s).`);
-            if (skippedDueToLimit) toast.error(`Queue limit reached. ${skippedDueToLimit} not added.`);
+            if (added) toast.success(i18n.t('uploadFamilyPage.filesFromZipAdded', { n: added }));
+            if (skipped) toast(i18n.t('uploadFamilyPage.skippedDuplicates', { n: skipped }));
+            if (skippedDueToLimit) toast.error(i18n.t('uploadFamilyPage.queueLimitShort', { n: skippedDueToLimit }));
           }
         }
       } finally {
@@ -1170,15 +1208,15 @@ const UploadFamilyImagesPage = () => {
   const getUploadDestinationText = (item: QueueItem) => {
     if (item.uploadDestination === 'family-account' && item.targetFamilyMembers?.length) {
       if (item.targetFamilyMembers.length === 1) {
-        return `👥 ${item.targetFamilyMembers[0].otherUserFirstName}'s Account`;
+        return `👥 ${t('uploadFamilyPage.destOneAccount', { name: item.targetFamilyMembers[0].otherUserFirstName })}`;
       }
-      return `👥 ${item.targetFamilyMembers.length} accounts`;
+      return `👥 ${t('uploadFamilyPage.destNAccounts', { n: item.targetFamilyMembers.length })}`;
     }
     if (item.uploadDestination === 'family-account' && item.targetFamilyMember) {
-      return `👥 ${item.targetFamilyMember.otherUserFirstName}'s Account`;
+      return `👥 ${t('uploadFamilyPage.destOneAccount', { name: item.targetFamilyMember.otherUserFirstName })}`;
     }
-    if (item.uploadDestination === 'family-account') return '👥 Client Account (Select below)';
-    return '🏠 My Account';
+    if (item.uploadDestination === 'family-account') return `👥 ${t('uploadFamilyPage.destClientSelect')}`;
+    return `🏠 ${t('uploadFamilyPage.destMyAccount')}`;
   };
 
   const openUploadOptions = (item: QueueItem) => {
@@ -1188,7 +1226,7 @@ const UploadFamilyImagesPage = () => {
 
   const handleCreateAlbum = async () => {
     if (!newAlbumName.trim()) {
-      toast.error('Please enter an album name');
+      toast.error(t('uploadFamilyPage.toastAlbumName'));
       return;
     }
     setIsCreatingAlbum(true);
@@ -1203,7 +1241,7 @@ const UploadFamilyImagesPage = () => {
       const perPhoto = parseFloat(perPhotoPrice.trim());
       if (!isNaN(perPhoto) && perPhoto > 0) albumData.perPhotoPrice = perPhoto;
       const res = await api.post('/api/albums', albumData);
-      toast.success('Album created successfully!');
+      toast.success(t('uploadFamilyPage.toastAlbumCreated'));
       setShowCreateAlbumModal(false);
       setNewAlbumName('');
       setNewAlbumDescription('');
@@ -1214,7 +1252,9 @@ const UploadFamilyImagesPage = () => {
       await refetchAlbums();
       if (res.data?.id) setSelectedAlbumId(res.data.id);
     } catch (err: unknown) {
-      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to create album';
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        t('uploadFamilyPage.toastAlbumCreateFail');
       toast.error(message);
     } finally {
       setIsCreatingAlbum(false);
@@ -1222,19 +1262,24 @@ const UploadFamilyImagesPage = () => {
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return `0 ${t('uploadFamilyPage.sizeBytes')}`;
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = [
+      t('uploadFamilyPage.sizeBytes'),
+      t('uploadFamilyPage.sizeKB'),
+      t('uploadFamilyPage.sizeMB'),
+      t('uploadFamilyPage.sizeGB'),
+    ];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const formatRelativeTime = (timestamp: number) => {
     const sec = Math.floor((Date.now() - timestamp) / 1000);
-    if (sec < 60) return 'Just now';
-    if (sec < 3600) return `${Math.floor(sec / 60)} min ago`;
-    if (sec < 86400) return `${Math.floor(sec / 3600)} hr ago`;
-    return `${Math.floor(sec / 86400)} day(s) ago`;
+    if (sec < 60) return t('uploadFamilyPage.timeJustNow');
+    if (sec < 3600) return t('uploadFamilyPage.timeMinAgo', { n: Math.floor(sec / 60) });
+    if (sec < 86400) return t('uploadFamilyPage.timeHrAgo', { n: Math.floor(sec / 3600) });
+    return t('uploadFamilyPage.timeDayAgo', { n: Math.floor(sec / 86400) });
   };
 
   const getStatusIcon = (status: QueueItemStatus) => {
@@ -1256,12 +1301,12 @@ const UploadFamilyImagesPage = () => {
 
   const getStatusLabel = (status: QueueItemStatus): string => {
     switch (status) {
-      case 'completed': return 'Completed';
-      case 'failed': return 'Failed';
-      case 'paused': return 'Paused';
-      case 'uploading': return 'Uploading';
-      case 'processing': return 'Processing';
-      default: return 'Waiting';
+      case 'completed': return t('uploadFamilyPage.statusCompleted');
+      case 'failed': return t('uploadFamilyPage.statusFailed');
+      case 'paused': return t('uploadFamilyPage.statusPaused');
+      case 'uploading': return t('uploadFamilyPage.statusUploading');
+      case 'processing': return t('uploadFamilyPage.statusProcessing');
+      default: return t('uploadFamilyPage.statusWaiting');
     }
   };
 
@@ -1302,11 +1347,11 @@ const UploadFamilyImagesPage = () => {
     if (removedIds.length > 0) {
       toast.success(
         removedIds.length === 1
-          ? '1 item removed from queue'
-          : `${removedIds.length} items removed from queue`
+          ? t('uploadFamilyPage.toastRemovedOne')
+          : t('uploadFamilyPage.toastRemovedMany', { n: removedIds.length })
       );
     }
-  }, []);
+  }, [t]);
 
   const addCompletedToAlbum = useCallback(async () => {
     if (!selectedAlbumId || completedWithIds.length === 0) return;
@@ -1314,16 +1359,18 @@ const UploadFamilyImagesPage = () => {
     const ids = completedWithIds.map((i) => Number(i.imageId!));
     try {
       await api.post(`/api/albums/${selectedAlbumId}/images`, { imageIds: ids });
-      const name = albums.find((a) => a.id === selectedAlbumId)?.name ?? 'album';
-      toast.success(`${ids.length} image(s) added to album "${name}"`);
+      const name = albums.find((a) => a.id === selectedAlbumId)?.name ?? t('uploadFamilyPage.unknown');
+      toast.success(t('uploadFamilyPage.toastImagesAddedAlbum', { n: ids.length, name }));
       setUploadedImageIds((prev) => [...prev, ...ids]);
       if (!addedToAlbumRef.current.has(selectedAlbumId)) addedToAlbumRef.current.set(selectedAlbumId, new Set());
       ids.forEach((id) => addedToAlbumRef.current.get(selectedAlbumId)!.add(id));
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to add to album';
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        t('uploadFamilyPage.toastAddAlbumFail');
       toast.error(msg);
     }
-  }, [selectedAlbumId, completedWithIds, albums]);
+  }, [selectedAlbumId, completedWithIds, albums, t]);
 
   // When runOneUpload completes an item that has targetAlbumId, add that image to that album (e.g. folder-selected or album-selected when files were added)
   const completedWithTargetAlbum = queueState.items.filter(
@@ -1346,26 +1393,28 @@ const UploadFamilyImagesPage = () => {
       const alreadyAdded = addedToAlbumRef.current.get(albumId)!;
       const toAdd = imageIds.filter((id) => !alreadyAdded.has(id));
       if (toAdd.length === 0) return;
-      const albumName = albums.find((a) => a.id === albumId)?.name ?? 'album';
+      const albumName = albums.find((a) => a.id === albumId)?.name ?? t('uploadFamilyPage.unknown');
       api
         .post(`/api/albums/${albumId}/images`, { imageIds: toAdd })
         .then(() => {
           toAdd.forEach((id) => alreadyAdded.add(id));
           setUploadedImageIds((prev) => [...prev, ...toAdd]);
-          toast.success(`${toAdd.length} image(s) added to album "${albumName}"`);
+          toast.success(t('uploadFamilyPage.toastImagesAddedAlbum', { n: toAdd.length, name: albumName }));
         })
         .catch((err: unknown) => {
-          const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to add to album';
+          const msg =
+            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+            t('uploadFamilyPage.toastAddAlbumFail');
           toast.error(msg);
         });
     });
-  }, [completedImageIdsKey, completedWithTargetAlbum, albums]);
+  }, [completedImageIdsKey, completedWithTargetAlbum, albums, t]);
 
   if (userLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <LoadingSpinner size="lg" text="Loading your profile..." />
+          <LoadingSpinner size="lg" text={t('uploadFamilyPage.loadingProfile')} />
         </div>
       </div>
     );
@@ -1376,10 +1425,10 @@ const UploadFamilyImagesPage = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Profile Loading Failed</h1>
-          <p className="text-gray-600 mb-4">Unable to load your profile information</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('uploadFamilyPage.profileErrorTitle')}</h1>
+          <p className="text-gray-600 mb-4">{t('uploadFamilyPage.profileErrorBody')}</p>
           <button onClick={() => window.location.reload()} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       </div>
@@ -1391,8 +1440,8 @@ const UploadFamilyImagesPage = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center max-w-md mx-auto">
           <div className="text-red-500 text-6xl mb-4">🔒</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Upload Not Available</h1>
-          <p className="text-gray-600 mb-4">You don't have permission to upload files.</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('uploadFamilyPage.uploadNotAvailable')}</h1>
+          <p className="text-gray-600 mb-4">{t('uploadFamilyPage.uploadNotAllowedBody')}</p>
         </div>
       </div>
     );
@@ -1402,10 +1451,10 @@ const UploadFamilyImagesPage = () => {
     <div className="space-y-8">
       <div className="text-center">
         <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-6">
-          Upload Files
+          {t('uploadFamilyPage.title')}
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          Upload and secure your images and documents. Uploads continue in the background and survive refresh.
+          {t('uploadFamilyPage.subtitle')}
         </p>
         {userProfile && (
           <div className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 max-w-4xl mx-auto border border-blue-100">
@@ -1414,29 +1463,29 @@ const UploadFamilyImagesPage = () => {
                 <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
                   <span className="text-white font-bold text-lg">{userProfile.accountType?.charAt(0) || 'U'}</span>
                 </div>
-                <h3 className="font-semibold text-gray-800">Account Type</h3>
-                <p className="text-sm text-gray-600">{userProfile.accountType || 'Unknown'}</p>
+                <h3 className="font-semibold text-gray-800">{t('uploadFamilyPage.accountType')}</h3>
+                <p className="text-sm text-gray-600">{userProfile.accountType || t('uploadFamilyPage.unknown')}</p>
               </div>
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
                   <span className="text-white font-bold text-xl">∞</span>
                 </div>
-                <h3 className="font-semibold text-gray-800">File Size</h3>
-                <p className="text-sm text-gray-600">Unlimited</p>
+                <h3 className="font-semibold text-gray-800">{t('uploadFamilyPage.fileSize')}</h3>
+                <p className="text-sm text-gray-600">{t('uploadFamilyPage.unlimited')}</p>
               </div>
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
                   <span className="text-white font-bold text-lg">{userProfile.allowedFileTypes?.split(',').length || 0}</span>
                 </div>
-                <h3 className="font-semibold text-gray-800">Allowed Types</h3>
-                <p className="text-sm text-gray-600">{userProfile.allowedFileTypes?.toUpperCase() || 'None'}</p>
+                <h3 className="font-semibold text-gray-800">{t('uploadFamilyPage.allowedTypes')}</h3>
+                <p className="text-sm text-gray-600">{userProfile.allowedFileTypes?.toUpperCase() || t('uploadFamilyPage.none')}</p>
               </div>
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-sm">{queueState.isOnline ? 'Online' : 'Offline'}</span>
+                  <span className="text-white font-bold text-sm">{queueState.isOnline ? t('uploadFamilyPage.online') : t('uploadFamilyPage.offline')}</span>
                 </div>
-                <h3 className="font-semibold text-gray-800">Network</h3>
-                <p className="text-sm text-gray-600">{queueState.isOnline ? 'Uploads active' : 'Paused (Offline)'}</p>
+                <h3 className="font-semibold text-gray-800">{t('uploadFamilyPage.network')}</h3>
+                <p className="text-sm text-gray-600">{queueState.isOnline ? t('uploadFamilyPage.uploadsActive') : t('uploadFamilyPage.pausedOffline')}</p>
               </div>
             </div>
           </div>
@@ -1449,8 +1498,8 @@ const UploadFamilyImagesPage = () => {
           <div className="flex items-center space-x-3">
             <FaFolder className="mr-3 font-medium text-[#2731db]" />
             <div>
-              <h3 className="text-lg font-semibold text-gray-800">Select Album (Optional)</h3>
-              <p className="text-sm text-gray-600">Add uploaded images to the selected album</p>
+              <h3 className="text-lg font-semibold text-gray-800">{t('uploadFamilyPage.selectAlbumTitle')}</h3>
+              <p className="text-sm text-gray-600">{t('uploadFamilyPage.selectAlbumHint')}</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
@@ -1461,7 +1510,7 @@ const UploadFamilyImagesPage = () => {
               className="flex items-center px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FaPlus className="mr-2" />
-              Create Album
+              {t('uploadFamilyPage.createAlbum')}
             </button>
             {albums.length > 0 && (
               <select
@@ -1470,10 +1519,11 @@ const UploadFamilyImagesPage = () => {
                 disabled={!canUpload()}
                 className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2731db] min-w-[200px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <option value="">No Album</option>
+                <option value="">{t('uploadFamilyPage.noAlbum')}</option>
                 {albums.map((album) => (
                   <option key={album.id} value={album.id}>
-                    {album.name} {album.imageCount != null ? `(${album.imageCount} images)` : ''}
+                    {album.name}{' '}
+                    {album.imageCount != null ? t('uploadFamilyPage.imagesCount', { n: album.imageCount }) : ''}
                   </option>
                 ))}
               </select>
@@ -1483,14 +1533,14 @@ const UploadFamilyImagesPage = () => {
         {selectedAlbumId && (
           <div className="mt-3 p-3 bg-blue-100 rounded-lg border border-blue-200">
             <p className="text-sm text-blue-800">
-              ✓ Images can be added to: <strong>{albums.find((a) => a.id === selectedAlbumId)?.name}</strong>
+              ✓ {t('uploadFamilyPage.imagesAddedTo')} <strong>{albums.find((a) => a.id === selectedAlbumId)?.name}</strong>
             </p>
             {completedWithIds.length > 0 && (
               <button
                 onClick={addCompletedToAlbum}
                 className="mt-2 text-sm text-blue-700 underline hover:no-underline"
               >
-                Add {completedWithIds.length} completed image(s) to this album
+                {t('uploadFamilyPage.addCompletedHint', { n: completedWithIds.length })}
               </button>
             )}
           </div>
@@ -1504,8 +1554,8 @@ const UploadFamilyImagesPage = () => {
             <div className="bg-white rounded-2xl shadow-xl px-8 py-6 flex items-center gap-4">
               <LoadingSpinner size="md" text="" />
               <div>
-                <p className="font-semibold text-gray-800">Adding files...</p>
-                <p className="text-sm text-gray-600">Max {MAX_UPLOAD_QUEUE} files · Please wait</p>
+                <p className="font-semibold text-gray-800">{t('uploadFamilyPage.addingFiles')}</p>
+                <p className="text-sm text-gray-600">{t('uploadFamilyPage.addingFilesWait', { max: MAX_UPLOAD_QUEUE })}</p>
               </div>
             </div>
           </div>
@@ -1513,7 +1563,7 @@ const UploadFamilyImagesPage = () => {
         <div className="p-10">
           {/* Upload to: My Account / Client accounts — search + list (4 rows, scroll) */}
           <div className="mb-6 rounded-2xl border border-purple-200 bg-purple-50/80 p-4">
-            <p className="text-sm font-semibold text-purple-900 mb-3">Upload to</p>
+            <p className="text-sm font-semibold text-purple-900 mb-3">{t('uploadFamilyPage.uploadToLabel')}</p>
             <div className="flex flex-wrap gap-4 mb-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -1523,7 +1573,7 @@ const UploadFamilyImagesPage = () => {
                   onChange={() => setDefaultUploadDestination('my-account')}
                   className="text-indigo-600"
                 />
-                <span className="text-sm font-medium text-gray-800">My account</span>
+                <span className="text-sm font-medium text-gray-800">{t('uploadFamilyPage.myAccount')}</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -1534,7 +1584,7 @@ const UploadFamilyImagesPage = () => {
                   className="text-purple-600"
                   disabled={uploadTargetAccounts.length === 0}
                 />
-                <span className="text-sm font-medium text-gray-800">Client account(s)</span>
+                <span className="text-sm font-medium text-gray-800">{t('uploadFamilyPage.clientAccounts')}</span>
               </label>
             </div>
             {defaultUploadDestination === 'family-account' && (
@@ -1544,14 +1594,14 @@ const UploadFamilyImagesPage = () => {
                     type="search"
                     value={defaultAccountSearch}
                     onChange={(e) => setDefaultAccountSearch(e.target.value)}
-                    placeholder="Search accounts..."
+                    placeholder={t('uploadFamilyPage.searchAccounts')}
                     className="w-full p-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
                   />
                 </div>
                 <div className="border border-purple-200 rounded-lg bg-white overflow-hidden" style={{ maxHeight: '10.5rem' }}>
                   <div className="overflow-y-auto p-1" style={{ maxHeight: '10rem' }}>
                     {uploadTargetAccounts.length === 0 ? (
-                      <p className="text-sm text-gray-500 p-2">No client accounts. Accept an invitation to see them here.</p>
+                      <p className="text-sm text-gray-500 p-2">{t('uploadFamilyPage.noClientAccounts')}</p>
                     ) : (() => {
                       const q = defaultAccountSearch.trim().toLowerCase();
                       const filtered = q
@@ -1564,7 +1614,7 @@ const UploadFamilyImagesPage = () => {
                           )
                         : uploadTargetAccounts;
                       return filtered.length === 0 ? (
-                        <p className="text-sm text-gray-500 p-2">No accounts match.</p>
+                        <p className="text-sm text-gray-500 p-2">{t('uploadFamilyPage.noAccountsMatch')}</p>
                       ) : (
                         filtered.map((acc) => {
                           const checked = defaultSelectedAccountIds.includes(acc.inviterId);
@@ -1596,7 +1646,7 @@ const UploadFamilyImagesPage = () => {
                 </div>
                 {defaultSelectedAccountIds.length > 0 && (
                   <p className="text-xs text-purple-700 mt-2">
-                    {defaultSelectedAccountIds.length} account{defaultSelectedAccountIds.length !== 1 ? 's' : ''} selected — new files will upload to each.
+                    {t('uploadFamilyPage.accountsSelectedLine', { n: defaultSelectedAccountIds.length })}
                   </p>
                 )}
               </>
@@ -1612,10 +1662,10 @@ const UploadFamilyImagesPage = () => {
             <input {...getInputProps()} />
             <FaCloudUploadAlt className="mx-auto h-20 w-20 text-indigo-500 mb-6" />
             <p className="mt-6 text-2xl font-bold text-gray-800">
-              {isDragActive ? 'Drop files here' : 'Drag & drop files here'}
+              {isDragActive ? t('uploadFamilyPage.dropFilesHere') : t('uploadFamilyPage.dragDropHere')}
             </p>
-            <p className="mt-3 text-lg text-gray-600">or click to select files</p>
-            <p className="mt-2 text-sm text-gray-500">Videos longer than 30s are auto-trimmed. Queue limit: {MAX_UPLOAD_QUEUE} files.</p>
+            <p className="mt-3 text-lg text-gray-600">{t('uploadFamilyPage.clickToSelect')}</p>
+            <p className="mt-2 text-sm text-gray-500">{t('uploadFamilyPage.videoTrimHint', { max: MAX_UPLOAD_QUEUE })}</p>
             <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm">
               {userProfile?.allowedFileTypes && (
                 <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
@@ -1625,7 +1675,7 @@ const UploadFamilyImagesPage = () => {
               )}
               <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
                 <span className="w-3 h-3 bg-blue-400 rounded-full mr-3 animate-pulse" />
-                <span className="font-medium text-gray-700">Background upload · Survives refresh</span>
+                <span className="font-medium text-gray-700">{t('uploadFamilyPage.allowedTypesBadge')}</span>
               </span>
               <input
                 ref={zipInputRef}
@@ -1641,15 +1691,17 @@ const UploadFamilyImagesPage = () => {
                 onClick={() => zipInputRef.current?.click()}
                 disabled={!canUpload() || isAddingFiles}
                 className="flex items-center bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 px-4 py-2 rounded-full shadow-sm font-medium text-sm disabled:opacity-50 disabled:pointer-events-none transition-colors"
-                title={`ZIP is extracted in the browser; max ${MAX_ZIP_SIZE_GB} GB. Larger files: extract on your computer and upload the photos/videos.`}
+                title={t('uploadFamilyPage.zipTitleHint', { n: MAX_ZIP_SIZE_GB })}
               >
                 <FaFolder className="mr-2 w-4 h-4" />
-                Select ZIP (max {MAX_ZIP_SIZE_GB} GB)
+                {t('uploadFamilyPage.selectZipTitle', { n: MAX_ZIP_SIZE_GB })}
               </button>
               {storageUsage && (
                 <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
                   <span className="w-3 h-3 bg-purple-400 rounded-full mr-3 animate-pulse" />
-                  <span className="font-medium text-gray-700">{storageUsage.total - storageUsage.used}MB Available</span>
+                  <span className="font-medium text-gray-700">
+                    {t('uploadFamilyPage.mbAvailable', { n: storageUsage.total - storageUsage.used })}
+                  </span>
                 </span>
               )}
             </div>
@@ -1667,24 +1719,24 @@ const UploadFamilyImagesPage = () => {
                   <FaFileImage className="h-6 w-6 text-white" />
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Upload Queue</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800">{t('uploadFamilyPage.uploadQueue')}</h2>
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mt-1">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 font-semibold tabular-nums text-base shrink-0">
-                      {queueState.items.length} / {MAX_UPLOAD_QUEUE} files
+                      {t('uploadFamilyPage.filesOfMax', { current: queueState.items.length, max: MAX_UPLOAD_QUEUE })}
                     </span>
                     {queueState.items.length >= MAX_UPLOAD_QUEUE && (
-                      <span className="text-amber-600 text-sm font-medium shrink-0">(max limit)</span>
+                      <span className="text-amber-600 text-sm font-medium shrink-0">{t('uploadFamilyPage.maxLimit')}</span>
                     )}
                     <span className="text-gray-500 text-sm">·</span>
-                    <span className="text-gray-600 text-sm tabular-nums">{pendingCount} waiting</span>
+                    <span className="text-gray-600 text-sm tabular-nums">{t('uploadFamilyPage.waiting', { n: pendingCount })}</span>
                     {processingCount > 0 && (
                       <>
                         <span className="text-gray-400">·</span>
-                        <span className="text-indigo-600 text-sm tabular-nums">{processingCount} processing</span>
+                        <span className="text-indigo-600 text-sm tabular-nums">{t('uploadFamilyPage.processingCount', { n: processingCount })}</span>
                       </>
                     )}
                     <span className="text-gray-400">·</span>
-                    <span className="text-gray-600 text-sm">{queueState.isOnline ? 'Online' : 'Paused'}</span>
+                    <span className="text-gray-600 text-sm">{queueState.isOnline ? t('uploadFamilyPage.online') : t('uploadFamilyPage.paused')}</span>
                   </div>
                 </div>
               </div>
@@ -1694,7 +1746,7 @@ const UploadFamilyImagesPage = () => {
                   onClick={handleClearFinished}
                   className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors shrink-0"
                 >
-                  Clear finished ({finishedCount})
+                  {t('uploadFamilyPage.clearFinished', { n: finishedCount })}
                 </button>
               )}
             </div>
@@ -1702,14 +1754,14 @@ const UploadFamilyImagesPage = () => {
           {isAddingFiles && (
             <div className="px-6 py-3 bg-indigo-100 border-b border-indigo-200 flex items-center justify-center gap-2 text-sm text-indigo-800 font-medium">
               <LoadingSpinner size="sm" text="" />
-              <span>Adding more files... (max {MAX_UPLOAD_QUEUE})</span>
+              <span>{t('uploadFamilyPage.addingMoreFiles', { max: MAX_UPLOAD_QUEUE })}</span>
             </div>
           )}
           <div className="relative flex flex-col min-h-[320px] max-h-[70vh] h-[70vh]">
             <div className="sticky top-0 z-10 px-4 py-2 bg-indigo-50/95 border-b border-indigo-100/80 backdrop-blur-sm flex items-center justify-center gap-2 text-sm text-gray-700 shrink-0">
               <span className="tabular-nums font-semibold text-indigo-800">{queueState.items.length}</span>
-              <span>files in queue</span>
-              <span className="text-gray-400">(scroll to see all)</span>
+              <span>{t('uploadFamilyPage.filesInQueueLine')}</span>
+              <span className="text-gray-400">{t('uploadFamilyPage.scrollToSeeAll')}</span>
             </div>
             <div className="p-6 md:p-8 overflow-y-auto overflow-x-hidden scroll-smooth flex-1 min-h-0 basis-0">
             <div className="grid grid-cols-1 gap-4">
@@ -1748,13 +1800,13 @@ const UploadFamilyImagesPage = () => {
                         {item.status === 'processing' && (
                           <>
                             {getStatusIcon(item.status)}
-                            <span className="text-sm font-medium text-indigo-600">Processing video...</span>
+                            <span className="text-sm font-medium text-indigo-600">{t('uploadFamilyPage.processingVideo')}</span>
                           </>
                         )}
                         {item.status === 'uploading' && (
                           <>
                             {getStatusIcon(item.status)}
-                            <span className="text-sm font-medium text-blue-600">Uploading</span>
+                            <span className="text-sm font-medium text-blue-600">{t('uploadFamilyPage.uploading')}</span>
                           </>
                         )}
                         {(item.status === 'waiting' || item.status === 'paused') && (
@@ -1763,13 +1815,13 @@ const UploadFamilyImagesPage = () => {
                         {item.status === 'completed' && (
                           <span className="text-sm font-medium text-green-700 flex items-center gap-1.5">
                             {getStatusIcon(item.status)}
-                            Completed
+                            {t('uploadFamilyPage.completed')}
                           </span>
                         )}
                         {item.status === 'failed' && (
                           <span className="text-sm font-medium text-red-700 flex items-center gap-1.5">
                             {getStatusIcon(item.status)}
-                            Failed
+                            {t('uploadFamilyPage.failed')}
                           </span>
                         )}
                       </div>
@@ -1790,7 +1842,7 @@ const UploadFamilyImagesPage = () => {
                           onClick={() => openUploadOptions(item)}
                           className="mt-1 text-sm font-medium text-purple-600 hover:text-purple-700"
                         >
-                          Choose Destination
+                          {t('uploadFamilyPage.chooseDestination')}
                         </button>
                       )}
                       {item.status === 'failed' && (
@@ -1799,11 +1851,11 @@ const UploadFamilyImagesPage = () => {
                           onClick={() => retryUpload(item.id)}
                           className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-amber-600 hover:text-amber-700"
                         >
-                          <FaRedoAlt className="h-4 w-4" /> Retry
+                          <FaRedoAlt className="h-4 w-4" /> {t('uploadFamilyPage.retry')}
                         </button>
                       )}
                       {item.status === 'paused' && (
-                        <p className="text-xs text-amber-700 mt-0.5">Paused (Offline) – will resume when back online</p>
+                        <p className="text-xs text-amber-700 mt-0.5">{t('uploadFamilyPage.pausedOfflineResume')}</p>
                       )}
                       {item.successMessage && item.status === 'completed' && (
                         <p className="text-xs text-green-700 mt-0.5 truncate">{item.successMessage}</p>
@@ -1811,7 +1863,8 @@ const UploadFamilyImagesPage = () => {
                       {item.error && (
                         <p className="text-xs text-red-700 mt-0.5 break-words">
                           {item.error}
-                          {item.retries > 0 && ` (retry ${item.retries}/${MAX_RETRIES})`}
+                          {item.retries > 0 &&
+                            ` ${t('uploadFamilyPage.retryProgress', { current: item.retries, max: MAX_RETRIES })}`}
                         </p>
                       )}
                     </div>
@@ -1824,7 +1877,7 @@ const UploadFamilyImagesPage = () => {
                         // onClick={() => !isUploading && removeFromQueue(item.id)}
                         // disabled={isUploading}
                         className="w-10 h-10 rounded-full bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label="Remove from queue"
+                        aria-label={t('uploadFamilyPage.removeFromQueue')}
                       >
                         <FaTimes className="h-5 w-5" />
                       </button>
@@ -1845,7 +1898,7 @@ const UploadFamilyImagesPage = () => {
             <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
               <FaCloudUploadAlt className="h-6 w-6 text-white" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-800">Upload Summary</h3>
+            <h3 className="text-2xl font-bold text-gray-800">{t('uploadFamilyPage.uploadSummary')}</h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
@@ -1853,8 +1906,8 @@ const UploadFamilyImagesPage = () => {
                 <div className="w-14 h-14 bg-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
                   <span className="text-white font-bold text-lg tabular-nums">{queueState.items.length}</span>
                 </div>
-                <p className="text-sm font-semibold text-gray-800">Total</p>
-                <p className="text-xs text-gray-500 mt-0.5">max {MAX_UPLOAD_QUEUE} files</p>
+                <p className="text-sm font-semibold text-gray-800">{t('uploadFamilyPage.total')}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{t('uploadFamilyPage.maxFilesHint', { max: MAX_UPLOAD_QUEUE })}</p>
               </div>
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
@@ -1862,7 +1915,7 @@ const UploadFamilyImagesPage = () => {
                 <div className="w-14 h-14 bg-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
                   <span className="text-white font-bold text-lg">{processingCount}</span>
                 </div>
-                <p className="text-sm font-semibold text-gray-800">Processing</p>
+                <p className="text-sm font-semibold text-gray-800">{t('uploadFamilyPage.processing')}</p>
               </div>
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
@@ -1872,7 +1925,7 @@ const UploadFamilyImagesPage = () => {
                     {queueState.items.filter((i) => i.status === 'uploading').length}
                   </span>
                 </div>
-                <p className="text-sm font-semibold text-gray-800">Uploading</p>
+                <p className="text-sm font-semibold text-gray-800">{t('uploadFamilyPage.uploading')}</p>
               </div>
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
@@ -1882,7 +1935,7 @@ const UploadFamilyImagesPage = () => {
                     {queueState.items.filter((i) => i.status === 'completed').length}
                   </span>
                 </div>
-                <p className="text-sm font-semibold text-gray-800">Completed</p>
+                <p className="text-sm font-semibold text-gray-800">{t('uploadFamilyPage.completed')}</p>
               </div>
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
@@ -1892,7 +1945,7 @@ const UploadFamilyImagesPage = () => {
                     {queueState.items.filter((i) => i.status === 'failed').length}
                   </span>
                 </div>
-                <p className="text-sm font-semibold text-gray-800">Failed</p>
+                <p className="text-sm font-semibold text-gray-800">{t('uploadFamilyPage.failed')}</p>
               </div>
             </div>
           </div>
@@ -1905,7 +1958,7 @@ const UploadFamilyImagesPage = () => {
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-900">Choose Upload Destination</h3>
+                <h3 className="text-xl font-bold text-gray-900">{t('uploadFamilyPage.modalDestinationTitle')}</h3>
                 <button
                   onClick={() => {
                     setShowUploadOptions(false);
@@ -1918,7 +1971,7 @@ const UploadFamilyImagesPage = () => {
               </div>
               <div className="space-y-4">
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-2">Selected File</h4>
+                  <h4 className="font-semibold text-gray-900 mb-2">{t('uploadFamilyPage.selectedFile')}</h4>
                   <div className="flex items-center space-x-3">
                     <FaFileImage className="h-8 w-8 text-blue-500" />
                     <div>
@@ -1938,8 +1991,8 @@ const UploadFamilyImagesPage = () => {
                         className="text-blue-600"
                       />
                       <div>
-                        <label className="font-medium text-blue-900">🏠 My Account</label>
-                        <p className="text-sm text-blue-700">Store in your account</p>
+                        <label className="font-medium text-blue-900">🏠 {t('uploadFamilyPage.myAccountTitle')}</label>
+                        <p className="text-sm text-blue-700">{t('uploadFamilyPage.myAccountDesc')}</p>
                       </div>
                     </div>
                   </div>
@@ -1956,12 +2009,12 @@ const UploadFamilyImagesPage = () => {
                       />
                       <div>
                         <label htmlFor="upload-dest-family" className="font-medium text-purple-900 cursor-pointer">
-                          👥 Client Account
+                          👥 {t('uploadFamilyPage.clientAccountTitle')}
                         </label>
                         <p className="text-sm text-purple-700">
                           {uploadTargetAccounts.length > 0
-                            ? 'Upload to one or more client accounts'
-                            : 'No client accounts available. Accept an invitation to see accounts here.'}
+                            ? t('uploadFamilyPage.clientAccountDescMulti')
+                            : t('uploadFamilyPage.clientAccountDescEmpty')}
                         </p>
                       </div>
                     </div>
@@ -1969,17 +2022,17 @@ const UploadFamilyImagesPage = () => {
                       <div className="ml-6 space-y-2">
                         {uploadTargetAccounts.length === 0 ? (
                           <p className="text-sm text-gray-500 p-3 bg-white border border-purple-200 rounded-lg">
-                            No client accounts to show. Client accounts come from your profile and accepted invitations.
+                            {t('uploadFamilyPage.noClientAccountsDetail')}
                           </p>
                         ) : (
                           <>
                             <div className="flex items-center gap-2">
-                              <span className="text-sm text-purple-700 shrink-0">Search</span>
+                              <span className="text-sm text-purple-700 shrink-0">{t('uploadFamilyPage.searchLabel')}</span>
                               <input
                                 type="search"
                                 value={accountSearchQuery}
                                 onChange={(e) => setAccountSearchQuery(e.target.value)}
-                                placeholder="Search accounts..."
+                                placeholder={t('uploadFamilyPage.searchAccounts')}
                                 className="flex-1 min-w-0 p-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
                               />
                             </div>
@@ -1997,7 +2050,7 @@ const UploadFamilyImagesPage = () => {
                                       )
                                     : uploadTargetAccounts;
                                   return filtered.length === 0 ? (
-                                    <p className="text-sm text-gray-500 p-2">No accounts match.</p>
+                                    <p className="text-sm text-gray-500 p-2">{t('uploadFamilyPage.noAccountsMatch')}</p>
                                   ) : (
                                     filtered.map((acc) => {
                                       const checked = selectedAccountIdsForModal.includes(acc.inviterId);
@@ -2031,7 +2084,7 @@ const UploadFamilyImagesPage = () => {
                             </div>
                             {selectedAccountIdsForModal.length > 0 && (
                               <p className="text-xs text-purple-700">
-                                {selectedAccountIdsForModal.length} account{selectedAccountIdsForModal.length !== 1 ? 's' : ''} selected. File will be uploaded to each.
+                                {t('uploadFamilyPage.modalAccountsSelected', { n: selectedAccountIdsForModal.length })}
                               </p>
                             )}
                             <button
@@ -2051,7 +2104,9 @@ const UploadFamilyImagesPage = () => {
                               disabled={selectedAccountIdsForModal.length === 0}
                               className="w-full py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              Done — Upload to {selectedAccountIdsForModal.length || '…'} account(s)
+                              {selectedAccountIdsForModal.length
+                                ? t('uploadFamilyPage.doneUploadTo', { n: selectedAccountIdsForModal.length })
+                                : t('uploadFamilyPage.doneUploadToEllipsis')}
                             </button>
                           </>
                         )}
@@ -2067,7 +2122,7 @@ const UploadFamilyImagesPage = () => {
                     }}
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
-                    Done
+                    {t('uploadFamilyPage.done')}
                   </button>
                 </div>
               </div>
@@ -2083,7 +2138,7 @@ const UploadFamilyImagesPage = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold text-gray-900 flex items-center">
                 <FaFolder className="mr-2 text-[#2731db]" />
-                Create New Album
+                {t('uploadFamilyPage.createNewAlbum')}
               </h2>
               <button
                 onClick={() => {
@@ -2100,44 +2155,44 @@ const UploadFamilyImagesPage = () => {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Album Name *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadFamilyPage.albumName')}</label>
                 <input
                   type="text"
                   value={newAlbumName}
                   onChange={(e) => setNewAlbumName(e.target.value)}
-                  placeholder="Enter album name"
+                  placeholder={t('uploadFamilyPage.albumNamePlaceholder')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadFamilyPage.albumDesc')}</label>
                 <textarea
                   value={newAlbumDescription}
                   onChange={(e) => setNewAlbumDescription(e.target.value)}
-                  placeholder="Enter description"
+                  placeholder={t('uploadFamilyPage.albumDescPlaceholder')}
                   rows={3}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Album Price (₹) (optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadFamilyPage.albumPrice')}</label>
                 <input
                   type="number"
                   value={newAlbumPrice}
                   onChange={(e) => setNewAlbumPrice(e.target.value)}
-                  placeholder="Price per album"
+                  placeholder={t('uploadFamilyPage.albumPricePlaceholder')}
                   min="0"
                   step="0.01"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Price Per Photo (₹) (optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadFamilyPage.perPhotoPrice')}</label>
                 <input
                   type="number"
                   value={perPhotoPrice}
                   onChange={(e) => setPerPhotoPrice(e.target.value)}
-                  placeholder="Price per photo"
+                  placeholder={t('uploadFamilyPage.perPhotoPlaceholder')}
                   min="0"
                   step="0.01"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
@@ -2151,7 +2206,7 @@ const UploadFamilyImagesPage = () => {
                   onChange={(e) => setNewAlbumIsPublic(e.target.checked)}
                   className="w-4 h-4 text-[#2731db] border-gray-300 rounded"
                 />
-                <label htmlFor="isPublic" className="text-sm font-medium text-gray-700">Make album public</label>
+                <label htmlFor="isPublic" className="text-sm font-medium text-gray-700">{t('uploadFamilyPage.makeAlbumPublic')}</label>
               </div>
               <div className="flex space-x-3 pt-4">
                 <button
@@ -2159,7 +2214,7 @@ const UploadFamilyImagesPage = () => {
                   disabled={isCreatingAlbum || !newAlbumName.trim()}
                   className="flex-1 px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isCreatingAlbum ? 'Creating...' : 'Create Album'}
+                  {isCreatingAlbum ? t('uploadFamilyPage.creating') : t('uploadFamilyPage.createAlbumBtn')}
                 </button>
                 <button
                   onClick={() => {
@@ -2169,7 +2224,7 @@ const UploadFamilyImagesPage = () => {
                   }}
                   className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               </div>
             </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 import axios from 'axios';
 import {
@@ -119,18 +120,18 @@ type PhotobookProgress = {
   title?: string;
 };
 
-const stepLabel = (step?: string) =>
-  step === 'ALBUM' ? 'Album pages'
-  : step === 'PREVIEW' ? 'Preview'
-  : step === 'DONE' ? 'Completed'
-  : 'Cover';
-
 const ThemeCard: React.FC<{
   theme: ThemeCategory;
   onNewAlbum: (theme: ThemeCategory) => void;
   onResume: (theme: ThemeCategory, pb: PhotobookProgress) => void;
   progressList?: PhotobookProgress[];
 }> = ({ theme, onNewAlbum, onResume, progressList }) => {
+  const { t } = useTranslation(undefined, { keyPrefix: 'photoThemesPage' });
+  const stepLabel = (step?: string) =>
+    step === 'ALBUM' ? t('stepAlbum')
+    : step === 'PREVIEW' ? t('stepPreview')
+    : step === 'DONE' ? t('stepDone')
+    : t('stepCover');
   const Icon = theme.icon;
   const albumList = progressList ?? [];
 
@@ -157,7 +158,7 @@ const ThemeCard: React.FC<{
         {/* Albums for this theme (from API by category) */}
         {albumList.length > 0 && (
           <div className="mb-3 space-y-2">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">YOUR ALBUMS</div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{t('yourAlbums')}</div>
             {albumList.map((pb) => (
               <button
                 key={pb.id}
@@ -167,17 +168,17 @@ const ThemeCard: React.FC<{
               >
                 <div className="flex flex-col items-start min-w-0">
                   <span className="text-xs font-semibold text-slate-800 truncate w-full">
-                    {pb.title || `Album #${pb.id}`}
+                    {pb.title || t('albumNumber', { id: pb.id })}
                   </span>
                   <span className="flex items-center gap-1.5 mt-0.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                     <span className="text-[10px] text-slate-500">{stepLabel(pb.currentStep)}</span>
-                    {pb.hasCovers && <span className="text-[9px] rounded-full bg-green-100 text-green-700 px-1.5 py-0.5">Covers</span>}
-                    {pb.savedPagesCount > 0 && <span className="text-[9px] rounded-full bg-indigo-100 text-indigo-700 px-1.5 py-0.5">{pb.savedPagesCount} pages</span>}
+                    {pb.hasCovers && <span className="text-[9px] rounded-full bg-green-100 text-green-700 px-1.5 py-0.5">{t('covers')}</span>}
+                    {pb.savedPagesCount > 0 && <span className="text-[9px] rounded-full bg-indigo-100 text-indigo-700 px-1.5 py-0.5">{t('pages', { count: pb.savedPagesCount })}</span>}
                   </span>
                 </div>
                 <span className="text-xs font-bold text-cyan-600 shrink-0 flex items-center gap-1">
-                  Continue
+                  {t('continue')}
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                   </svg>
@@ -196,7 +197,7 @@ const ThemeCard: React.FC<{
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          {albumList.length > 0 ? 'Create New Album' : 'Start Album'}
+          {albumList.length > 0 ? t('createNewAlbum') : t('startAlbum')}
         </button>
       </div>
 
@@ -206,6 +207,7 @@ const ThemeCard: React.FC<{
 };
 
 const PhotoThemesPage: React.FC = () => {
+  const { t } = useTranslation(undefined, { keyPrefix: 'photoThemesPage' });
   const navigate = useNavigate();
   const [loading, setLoading] = React.useState<boolean>(true);
   const [themes, setThemes] = React.useState<ThemeCategory[]>([]);
@@ -379,13 +381,13 @@ const PhotoThemesPage: React.FC = () => {
                 title: String(
                   parsed.cover?.headline ||
                     parsed.themeTitle ||
-                    'Your last design'
+                    t('lastDesignTitle')
                 ),
                 subtitle: String(
                   parsed.cover?.subheadline ||
                     parsed.back?.headline ||
                     parsed.themeSubtitle ||
-                    'Recently saved cover & last page design.'
+                    t('lastDesignSubtitle')
                 ),
                 description: String(
                   parsed.cover?.description ||
@@ -427,7 +429,7 @@ const PhotoThemesPage: React.FC = () => {
           console.error('📋 API Error Message:', err.response.data?.message || err.response.data?.error || 'No error message');
         }
 
-        setError('Unable to load templates from server. Showing default themes.');
+        setError(t('errorLoadTemplates'));
         setThemes(fallbackThemes);
       } finally {
         if (isMounted) {
@@ -528,10 +530,10 @@ const PhotoThemesPage: React.FC = () => {
             </div>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
-                Photo Themes
+                {t('title')}
               </h1>
               <p className="text-sm md:text-base text-slate-500 mt-1">
-                Pick a style to design your cover & album pages.
+                {t('subtitleLoading')}
               </p>
             </div>
           </div>
@@ -551,8 +553,8 @@ const PhotoThemesPage: React.FC = () => {
                 <FaPalette className="relative h-8 w-8 text-cyan-500 drop-shadow-sm" />
               </div>
             </div>
-            <p className="mt-6 text-base font-bold text-slate-800 tracking-tight">Loading themes</p>
-            <p className="mt-1 text-xs text-slate-500">Preparing your templates</p>
+            <p className="mt-6 text-base font-bold text-slate-800 tracking-tight">{t('loadingThemes')}</p>
+            <p className="mt-1 text-xs text-slate-500">{t('preparingTemplates')}</p>
             {/* Shimmer bar */}
             <div className="mt-5 w-32 h-1 rounded-full bg-slate-200/80 overflow-hidden">
               <div className="loader-shimmer h-full w-full rounded-full" />
@@ -582,17 +584,17 @@ const PhotoThemesPage: React.FC = () => {
           </div>
           <div className="flex-1">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
-              Photo Themes
+              {t('title')}
             </h1>
             <p className="text-sm md:text-base text-slate-500 mt-1 max-w-xl">
-              Choose a theme for your front & back cover, then customize pages in the album builder.
+              {t('subtitleLoaded')}
             </p>
           </div>
           <Link
             to="/photo-book"
             className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
           >
-            My Photo Books
+            {t('myPhotoBooks')}
           </Link>
         </div>
       </div>
@@ -623,12 +625,9 @@ const PhotoThemesPage: React.FC = () => {
             <FaPalette className="h-5 w-5 text-cyan-300" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-1.5">About Photo Themes</h3>
+            <h3 className="text-sm font-bold text-slate-900 mb-1.5">{t('aboutTitle')}</h3>
             <p className="text-xs text-slate-600">
-              Use Photo Themes as a central place to explore different photo book styles. Each
-              category groups templates and layouts tailored for a specific occasion such as
-              birthdays, weddings, family albums, and more. Pick a theme to continue into a
-              detailed template or editor flow.
+              {t('aboutBody')}
             </p>
           </div>
         </div>

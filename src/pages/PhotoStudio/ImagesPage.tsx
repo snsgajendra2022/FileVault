@@ -25,6 +25,7 @@ import {
 import { FiDownload, FiTrash2 } from 'react-icons/fi';
 import { compressFileList, shouldUseCompressedFileList } from '../../utils/checkoutUrlEncoding';
 import toast from 'react-hot-toast';
+import { useTranslation } from 'react-i18next';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import { FamilyRelationship } from '../../types/user';
@@ -390,6 +391,7 @@ const ImageCard = memo(function ImageCard({
 // ---------------------------------------------------------------------------
 
 const ClientImagesPage = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [selectedImage, setSelectedImage] = useState<UserImage | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(-1);
@@ -504,10 +506,10 @@ const ClientImagesPage = () => {
         .filter(Boolean)
         .join(' ')
         .trim();
-      return name ? `${name}'s images` : 'Shared images';
+      return name ? t('imagesPage.theirImagesAlbum', { name }) : t('imagesPage.sharedImages');
     }
-    return 'My images';
-  }, [viewMode, selectedUser]);
+    return t('imagesPage.myImagesLower');
+  }, [viewMode, selectedUser, t]);
 
   const handleToggleSelect = useCallback(
     (image: UserImage) => {
@@ -1179,27 +1181,34 @@ const ClientImagesPage = () => {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h1 className="text-2xl font-bold text-gray-900">
             {viewMode === 'my'
-              ? 'My Images'
-              : `${selectedUser?.inviterFirstName ?? ''} ${selectedUser?.inviterLastName ?? ''}'s Files`}
+              ? t('imagesPage.myImages')
+              : t('imagesPage.theirFiles', {
+                  name: [selectedUser?.inviterFirstName, selectedUser?.inviterLastName]
+                    .filter(Boolean)
+                    .join(' ')
+                    .trim() || '—',
+                })}
           </h1>
           <div className="flex items-center gap-2">
             {viewMode === 'my' && selectedImageIds.size > 0 && (
               <>
-                <span className="text-sm text-gray-500">{selectedImageIds.size} selected</span>
+                <span className="text-sm text-gray-500">
+                  {t('imagesPage.selected', { n: selectedImageIds.size })}
+                </span>
                 <button
                   type="button"
                   onClick={() => setShowShareModal(true)}
                   className="inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold"
                 >
                   <FaShare className="h-4 w-4 mr-2" />
-                  Share link
+                  {t('imagesPage.shareLink')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedImageIds(new Set())}
                   className="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
                 >
-                  Clear selection
+                  {t('imagesPage.clearSelection')}
                 </button>
               </>
             )}
@@ -1210,7 +1219,7 @@ const ClientImagesPage = () => {
                 className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 <FaUser className="h-4 w-4 mr-2" />
-                Back to My Files
+                {t('imagesPage.backToMyFiles')}
               </button>
             )}
           </div>
@@ -1223,13 +1232,13 @@ const ClientImagesPage = () => {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <FaUsers className="h-5 w-5 mr-2 text-blue-600" />
-              Family Members
+              {t('imagesPage.familyMembers')}
             </h3>
             {familyRelationships.length === 0 ? (
               <div className="text-center py-6">
                 <FaUsers className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                <p className="text-gray-500">No family relationships found</p>
-                <p className="text-sm text-gray-400">You haven't been invited to any family accounts yet</p>
+                <p className="text-gray-500">{t('imagesPage.noFamily')}</p>
+                <p className="text-sm text-gray-400">{t('imagesPage.noFamilyHint')}</p>
               </div>
             ) : (
               <div className="relative">
@@ -1271,28 +1280,29 @@ const ClientImagesPage = () => {
                         </div>
                         {member.relationshipNotes && (
                           <p className="text-xs text-gray-600 leading-relaxed mb-3">
-                            <span className="font-medium text-gray-700">Notes:</span> {member.relationshipNotes}
+                            <span className="font-medium text-gray-700">{t('common.notes')}</span>{' '}
+                            {member.relationshipNotes}
                           </p>
                         )}
                         <div className="flex flex-wrap gap-1.5">
                           {member.canViewImages && (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              View
+                              {t('imagesPage.view')}
                             </span>
                           )}
                           {member.canUploadImages && (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              Upload
+                              {t('imagesPage.upload')}
                             </span>
                           )}
                           {member.canDeleteImages && (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              Delete
+                              {t('imagesPage.delete')}
                             </span>
                           )}
                           {member.canManageAlbums && (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                              Albums
+                              {t('imagesPage.albums')}
                             </span>
                           )}
                         </div>
@@ -1329,7 +1339,7 @@ const ClientImagesPage = () => {
               <FaUpload className="h-5 w-5 text-blue-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Total Files</p>
+              <p className="text-sm font-medium text-gray-500">{t('imagesPage.totalFiles')}</p>
               <p className="text-lg font-semibold text-gray-900">
                 {userImagesData?.pages?.[0]?.totalImages ?? images.length}
               </p>
@@ -1355,7 +1365,7 @@ const ClientImagesPage = () => {
               <FaEye className="h-5 w-5 text-purple-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">File Types</p>
+              <p className="text-sm font-medium text-gray-500">{t('imagesPage.fileTypes')}</p>
               <p className="text-lg font-semibold text-gray-900">
                 {new Set(images.map((img) => img.fileType)).size}
               </p>
@@ -1368,7 +1378,7 @@ const ClientImagesPage = () => {
               <FiDownload className="h-5 w-5 text-yellow-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Available</p>
+              <p className="text-sm font-medium text-gray-500">{t('imagesPage.available')}</p>
               <p className="text-lg font-semibold text-gray-900">
                 {images.filter((img) => Object.keys(img.enabledServices).length > 0).length}
               </p>
@@ -1382,12 +1392,17 @@ const ClientImagesPage = () => {
         <div className="text-center py-16 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50">
           <FaUpload className="h-14 w-14 text-gray-400 mx-auto" />
           <h3 className="mt-4 text-lg font-medium text-gray-900">
-            {viewMode === 'my' ? 'No files uploaded' : 'No files shared'}
+            {viewMode === 'my' ? t('imagesPage.noFilesMy') : t('imagesPage.noFilesShared')}
           </h3>
           <p className="mt-2 text-sm text-gray-500 max-w-sm mx-auto">
             {viewMode === 'my'
-              ? 'Get started by uploading your first file.'
-              : `${selectedUser?.inviterFirstName ?? ''} hasn't shared any files yet.`}
+              ? t('imagesPage.uploadHint')
+              : t('imagesPage.noFilesTheir', {
+                  name: [selectedUser?.inviterFirstName, selectedUser?.inviterLastName]
+                    .filter(Boolean)
+                    .join(' ')
+                    .trim() || '—',
+                })}
           </p>
           {viewMode === 'my' && (
             <button
@@ -1396,7 +1411,7 @@ const ClientImagesPage = () => {
               className="mt-6 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors"
             >
               <FaUpload className="mr-2 h-4 w-4" />
-              Upload File
+              {t('imagesPage.uploadFile')}
             </button>
           )}
         </div>
@@ -1424,7 +1439,7 @@ const ClientImagesPage = () => {
           <div ref={loadMoreSentinelRef} className="h-4" aria-hidden />
           {isFetchingNextPage && (
             <div className="mt-4 flex justify-center py-4">
-              <LoadingSpinner size="md" text="Loading more..." />
+              <LoadingSpinner size="md" text={t('imagesPage.loadingMore')} />
             </div>
           )}
         </>
@@ -1435,7 +1450,7 @@ const ClientImagesPage = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Share link</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{t('imagesPage.shareLink')}</h3>
               <button
                 type="button"
                 onClick={() => {

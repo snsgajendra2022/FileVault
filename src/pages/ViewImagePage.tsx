@@ -1,7 +1,9 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 const ViewImagePage: React.FC = () => {
+  const { t } = useTranslation();
   const location = useLocation();
 
   const getImageUrl = (): string | null => {
@@ -11,7 +13,7 @@ const ViewImagePage: React.FC = () => {
     try {
       const decoded = atob(decodeURIComponent(encoded));
       return decoded;
-    } catch (e) {
+    } catch {
       return null;
     }
   };
@@ -25,7 +27,7 @@ const ViewImagePage: React.FC = () => {
         background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
       }}>
         <div style={{ background: '#fff', padding: 24, borderRadius: 12, boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ margin: 0 }}>Invalid or missing image link</h2>
+          <h2 style={{ margin: 0 }}>{t('viewImagePage.invalidLink')}</h2>
         </div>
       </div>
     );
@@ -38,7 +40,7 @@ const ViewImagePage: React.FC = () => {
     }}>
       <img
         src={url}
-        alt="Shared"
+        alt={t('viewImagePage.imgAlt')}
         style={{
           maxWidth: '100%', maxHeight: '90vh', borderRadius: 12,
           boxShadow: '0 20px 50px rgba(0,0,0,0.15)', background: '#f7fafc'
@@ -49,5 +51,3 @@ const ViewImagePage: React.FC = () => {
 };
 
 export default ViewImagePage;
-
-

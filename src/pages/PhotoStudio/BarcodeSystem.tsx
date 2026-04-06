@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactDOMServer from 'react-dom/server';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
@@ -56,6 +57,7 @@ interface Session {
 }
 
 const BarcodeSystem: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [barcodeItems, setBarcodeItems] = useState<BarcodeItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<BarcodeItem[]>([]);
@@ -162,19 +164,19 @@ const BarcodeSystem: React.FC = () => {
           barcode,
           qrCode,
           clientId: 'general',
-          clientName: 'My Library',
+          clientName: t('photoStudioBarcode.myLibrary'),
           sessionId: 'general',
-          sessionName: 'General',
+          sessionName: t('photoStudioBarcode.general'),
           createdAt: img.uploadTime,
           isActive: true,
           scanCount: 0,
         };
       });
       setBarcodeItems(items);
-      setClients([{ id: 'general', name: 'My Library' }]);
-      setSessions([{ id: 'general', name: 'General', clientId: 'general' }]);
+      setClients([{ id: 'general', name: t('photoStudioBarcode.myLibrary') }]);
+      setSessions([{ id: 'general', name: t('photoStudioBarcode.general'), clientId: 'general' }]);
     }
-  }, [isLoading, userImagesData]);
+  }, [isLoading, userImagesData, t]);
 
   useEffect(() => {
     filterItems();
@@ -300,11 +302,11 @@ const BarcodeSystem: React.FC = () => {
       // @ts-ignore - navigator.canShare may not be in TS lib
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         // @ts-ignore - share with files
-        await navigator.share({ files: [file], title: item.mediaName, text: `Scan to view: ${shareUrl}` });
+        await navigator.share({ files: [file], title: item.mediaName, text: t('photoStudioBarcode.shareScanText', { url: shareUrl }) });
         return;
       }
       if (navigator.share) {
-        await navigator.share({ title: item.mediaName, text: 'Scan to view', url: shareUrl });
+        await navigator.share({ title: item.mediaName, text: t('photoStudioBarcode.shareScanShort'), url: shareUrl });
         return;
       }
       // Fallback: download the QR image
@@ -316,9 +318,9 @@ const BarcodeSystem: React.FC = () => {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      alert('Downloaded QR image');
+      alert(t('photoStudioBarcode.downloadedQrImage'));
     } catch (e) {
-      alert('Failed to share QR');
+      alert(t('photoStudioBarcode.failedShareQr'));
     }
   };
 
@@ -334,7 +336,7 @@ const BarcodeSystem: React.FC = () => {
     return (
       <div className="barcode-loading">
         <div className="loading-spinner"></div>
-        <p>Loading barcode system...</p>
+        <p>{t('photoStudioBarcode.loading')}</p>
       </div>
     );
   }
@@ -342,7 +344,7 @@ const BarcodeSystem: React.FC = () => {
   if (error) {
     return (
       <div className="barcode-loading">
-        <p>Failed to load barcodes.</p>
+        <p>{t('photoStudioBarcode.failedLoad')}</p>
       </div>
     );
   }
@@ -354,11 +356,11 @@ const BarcodeSystem: React.FC = () => {
         <div className="header-left">
           <Link to="/studio/dashboard" className="back-link">
             <FaArrowLeft />
-            Dashboard
+            {t('photoStudioBarcode.dashboard')}
           </Link>
           <div className="page-title">
             <FaQrcode className="title-icon" />
-            <h1>Barcode System</h1>
+            <h1>{t('photoStudioBarcode.pageTitle')}</h1>
           </div>
         </div>
         {/* <div className="header-actions">
@@ -379,7 +381,7 @@ const BarcodeSystem: React.FC = () => {
             <FaSearch className="search-icon" />
             <input
               type="text"
-              placeholder="Search barcodes, media, or clients..."
+              placeholder={t('photoStudioBarcode.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -394,7 +396,7 @@ const BarcodeSystem: React.FC = () => {
               className='filter-select'
               onChange={(e) => setClientFilter(e.target.value)}
             >
-              <option value="all">All Clients</option>
+              <option value="all">{t('photoStudioBarcode.allClients')}</option>
               {clients.map(client => (
                 <option key={client.id} value={client.id}>
                   {client.name}
@@ -408,9 +410,9 @@ const BarcodeSystem: React.FC = () => {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
             >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="all">{t('photoStudioBarcode.allStatus')}</option>
+              <option value="active">{t('photoStudioBarcode.active')}</option>
+              <option value="inactive">{t('photoStudioBarcode.inactive')}</option>
             </select>
           </div>
         </div>
@@ -420,22 +422,22 @@ const BarcodeSystem: React.FC = () => {
       {selectedItems.length > 0 && (
         <div className="selection-controls">
           <div className="selection-info">
-            <span>{selectedItems.length} items selected</span>
+            <span>{t('photoStudioBarcode.itemsSelected', { count: selectedItems.length })}</span>
             <button 
               className="select-all-btn"
               onClick={handleSelectAll}
             >
-              {selectedItems.length === filteredItems.length ? 'Deselect All' : 'Select All'}
+              {selectedItems.length === filteredItems.length ? t('photoStudioBarcode.deselectAll') : t('photoStudioBarcode.selectAll')}
             </button>
           </div>
           <div className="selection-actions">
             <button className="action-btn print">
               <FaPrint />
-              Print Selected
+              {t('photoStudioBarcode.printSelected')}
             </button>
             <button className="action-btn deactivate">
               <FaTimes />
-              Deactivate
+              {t('photoStudioBarcode.deactivate')}
             </button>
           </div>
         </div>
@@ -446,8 +448,8 @@ const BarcodeSystem: React.FC = () => {
         {filteredItems.length === 0 ? (
           <div className="empty-state">
             <FaQrcode className="empty-icon" />
-            <h3>No barcodes found</h3>
-            <p>Generate barcodes for your photos and videos to enable easy sharing.</p>
+            <h3>{t('photoStudioBarcode.noBarcodesFound')}</h3>
+            <p>{t('photoStudioBarcode.noBarcodesHint')}</p>
             {/* <button 
               className="generate-first-btn"
               onClick={() => setShowGenerateModal(true)}
@@ -510,7 +512,7 @@ const BarcodeSystem: React.FC = () => {
                   >
                     <QRCode value={item.qrCode} size={200} />
                   </div>
-                  <p>Click QR code to view</p>
+                  <p>{t('photoStudioBarcode.clickQrToView')}</p>
                   <div className="qr-actions">
                     <button
                       className="action-btn copy"
@@ -519,7 +521,7 @@ const BarcodeSystem: React.FC = () => {
                         (async () => {
                           try {
                             await navigator.clipboard.writeText(item.thumbnail);
-                            alert('Link copied');
+                            alert(t('photoStudioBarcode.linkCopied'));
                           } catch {
                             const ta = document.createElement('textarea');
                             ta.value = item.thumbnail;
@@ -530,35 +532,35 @@ const BarcodeSystem: React.FC = () => {
                             ta.select();
                             document.execCommand('copy');
                             document.body.removeChild(ta);
-                            alert('Link copied');
+                            alert(t('photoStudioBarcode.linkCopied'));
                           }
                         })();
                       }}
                     >
                       <FaCopy />
-                      Copy Link
+                      {t('photoStudioBarcode.copyLink')}
                     </button>
                   </div>
                 </div>
 
                 <div className="barcode-stats">
                   <div className="stat">
-                    <span className="label">Scans:</span>
+                    <span className="label">{t('photoStudioBarcode.scans')}</span>
                     <span className="value">{item.scanCount}</span>
                   </div>
                   <div className="stat">
-                    <span className="label">Status:</span>
+                    <span className="label">{t('photoStudioBarcode.status')}</span>
                     <span className={`status ${item.isActive ? 'active' : 'inactive'}`}>
-                      {item.isActive ? 'Active' : 'Inactive'}
+                      {item.isActive ? t('photoStudioBarcode.active') : t('photoStudioBarcode.inactive')}
                     </span>
                   </div>
                   <div className="stat">
-                    <span className="label">Created:</span>
+                    <span className="label">{t('photoStudioBarcode.created')}</span>
                     <span className="value">{formatDate(item.createdAt)}</span>
                   </div>
                   {item.lastScanned && (
                     <div className="stat">
-                      <span className="label">Last Scanned:</span>
+                      <span className="label">{t('photoStudioBarcode.lastScanned')}</span>
                       <span className="value">{formatDate(item.lastScanned)}</span>
                     </div>
                   )}
@@ -575,7 +577,7 @@ const BarcodeSystem: React.FC = () => {
                   }}
                 >
                   <FaEye />
-                  View
+                  {t('photoStudioBarcode.view')}
                 </button>
                 <button 
                   className="action-btn share"
@@ -585,7 +587,7 @@ const BarcodeSystem: React.FC = () => {
                   }}
                 >
                   <FaShare />
-                  Share QR
+                  {t('photoStudioBarcode.shareQr')}
                 </button>
                 <button 
                   className="action-btn refresh"
@@ -593,10 +595,10 @@ const BarcodeSystem: React.FC = () => {
                     e.stopPropagation();
                     regenerateQRCode(item);
                   }}
-                  title="Regenerate QR Code"
+                  title={t('photoStudioBarcode.regenerateQrTitle')}
                 >
                   <FaQrcode />
-                  Refresh QR
+                  {t('photoStudioBarcode.refreshQr')}
                 </button>
                 <button 
                   className={`action-btn ${item.isActive ? 'deactivate' : 'activate'}`}
@@ -606,7 +608,7 @@ const BarcodeSystem: React.FC = () => {
                   }}
                 >
                   {item.isActive ? <FaTimes /> : <FaCheck />}
-                  {item.isActive ? 'Deactivate' : 'Activate'}
+                  {item.isActive ? t('photoStudioBarcode.deactivate') : t('photoStudioBarcode.activate')}
                 </button>
               </div>
             </div>
@@ -619,7 +621,7 @@ const BarcodeSystem: React.FC = () => {
         <div className="modal-overlay">
           <div className="modal-content generate-modal">
             <div className="modal-header">
-              <h2>Generate Barcodes</h2>
+              <h2>{t('photoStudioBarcode.generateBarcodes')}</h2>
               <button 
                 className="close-btn"
                 onClick={() => setShowGenerateModal(false)}
@@ -630,7 +632,7 @@ const BarcodeSystem: React.FC = () => {
 
             <div className="generate-content">
               <div className="media-selection">
-                <h3>Select Media to Generate Barcodes</h3>
+                <h3>{t('photoStudioBarcode.selectMediaTitle')}</h3>
                 <div className="media-list">
                   {/* Mock media items for selection */}
                   {[
@@ -658,7 +660,7 @@ const BarcodeSystem: React.FC = () => {
 
               <div className="generate-options">
                 <div className="option-group">
-                  <label>Client</label>
+                  <label>{t('photoStudioBarcode.client')}</label>
                   <select>
                     {clients.map(client => (
                       <option key={client.id} value={client.id}>
@@ -668,7 +670,7 @@ const BarcodeSystem: React.FC = () => {
                   </select>
                 </div>
                 <div className="option-group">
-                  <label>Session</label>
+                  <label>{t('photoStudioBarcode.session')}</label>
                   <select>
                     {sessions.map(session => (
                       <option key={session.id} value={session.id}>
@@ -686,7 +688,7 @@ const BarcodeSystem: React.FC = () => {
                 className="cancel-btn"
                 onClick={() => setShowGenerateModal(false)}
               >
-                Cancel
+                {t('photoStudioBarcode.cancel')}
               </button>
               <button 
                 type="button" 
@@ -697,12 +699,12 @@ const BarcodeSystem: React.FC = () => {
                 {generating ? (
                   <>
                     <FaSpinner className="spinning" />
-                    Generating...
+                    {t('photoStudioBarcode.generating')}
                   </>
                 ) : (
                   <>
                     <FaQrcode />
-                    Generate Barcodes
+                    {t('photoStudioBarcode.generateBarcodes')}
                   </>
                 )}
               </button>
@@ -716,7 +718,7 @@ const BarcodeSystem: React.FC = () => {
         <div className="modal-overlay">
           <div className="modal-content barcode-viewer">
             <div className="modal-header">
-              <h2>Barcode Details</h2>
+              <h2>{t('photoStudioBarcode.barcodeDetails')}</h2>
               <button 
                 className="close-btn"
                 onClick={() => setShowBarcodeViewer(false)}
@@ -757,7 +759,7 @@ const BarcodeSystem: React.FC = () => {
 
               <div className="qr-code-large">
                 <QRCode value={selectedBarcode.qrCode} size={300} />
-                <p>Scan this QR code to view the media</p>
+                <p>{t('photoStudioBarcode.scanQrHint')}</p>
               </div>
             </div>
 
@@ -767,14 +769,14 @@ const BarcodeSystem: React.FC = () => {
                 onClick={() => copyBarcode(selectedBarcode.barcode)}
               >
                 <FaCopy />
-                Copy Barcode
+                {t('photoStudioBarcode.copyBarcode')}
               </button>
               <button 
                 className="action-btn copy"
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(selectedBarcode.qrCode);
-                    alert('Link copied');
+                    alert(t('photoStudioBarcode.linkCopied'));
                   } catch {
                     const ta = document.createElement('textarea');
                     ta.value = selectedBarcode.qrCode;
@@ -785,32 +787,32 @@ const BarcodeSystem: React.FC = () => {
                     ta.select();
                     document.execCommand('copy');
                     document.body.removeChild(ta);
-                    alert('Link copied');
+                    alert(t('photoStudioBarcode.linkCopied'));
                   }
                 }}
               >
                 <FaCopy />
-                Copy Link
+                {t('photoStudioBarcode.copyLink')}
               </button>
               <button 
                 className="action-btn share"
                 onClick={() => {
                   navigator.share?.({
                     title: selectedBarcode.mediaName,
-                    text: `Scan or open: ${selectedBarcode.qrCode}`,
+                    text: t('photoStudioBarcode.shareScanText', { url: selectedBarcode.qrCode }),
                     url: selectedBarcode.qrCode
                   });
                 }}
               >
                 <FaShare />
-                Share Link
+                {t('photoStudioBarcode.shareLink')}
               </button>
               <button 
                 className="action-btn print"
                 onClick={() => printBarcode(selectedBarcode)}
               >
                 <FaShare />
-                Share QR
+                {t('photoStudioBarcode.shareQr')}
               </button>
             </div>
           </div>

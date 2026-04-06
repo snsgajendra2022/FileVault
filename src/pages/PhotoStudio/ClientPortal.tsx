@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   FaImages, 
@@ -56,6 +57,7 @@ interface Session {
 }
 
 const ClientPortal: React.FC = () => {
+  const { t } = useTranslation();
   const { clientId } = useParams<{ clientId: string }>();
   const navigate = useNavigate();
   const [client, setClient] = useState<Client | null>(null);
@@ -147,9 +149,14 @@ const ClientPortal: React.FC = () => {
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return t('photoStudioClientPortal.sizeZero');
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = [
+      t('photoStudioClientPortal.fileSizeBytes'),
+      t('photoStudioClientPortal.fileSizeKb'),
+      t('photoStudioClientPortal.fileSizeMb'),
+      t('photoStudioClientPortal.fileSizeGb'),
+    ];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
@@ -166,7 +173,7 @@ const ClientPortal: React.FC = () => {
     return (
       <div className="portal-loading">
         <div className="loading-spinner"></div>
-        <p>Loading your gallery...</p>
+        <p>{t('photoStudioClientPortal.loadingGallery')}</p>
       </div>
     );
   }
@@ -174,10 +181,10 @@ const ClientPortal: React.FC = () => {
   if (!client) {
     return (
       <div className="portal-error">
-        <h2>Client not found</h2>
-        <p>The requested client gallery could not be found.</p>
+        <h2>{t('photoStudioClientPortal.clientNotFound')}</h2>
+        <p>{t('photoStudioClientPortal.galleryNotFound')}</p>
         <button onClick={() => navigate('/')} className="back-home-btn">
-          Go Home
+          {t('photoStudioClientPortal.goHome')}
         </button>
       </div>
     );
@@ -190,12 +197,12 @@ const ClientPortal: React.FC = () => {
         <div className="header-content">
           <div className="studio-info">
             <h1>{client.studioName}</h1>
-            <p>Welcome back, {client.name}</p>
+            <p>{t('photoStudioClientPortal.welcomeBack', { name: client.name })}</p>
           </div>
           <div className="header-actions">
             <button className="share-btn">
               <FaShare />
-              Share Gallery
+              {t('photoStudioClientPortal.shareGallery')}
             </button>
           </div>
         </div>
@@ -208,21 +215,21 @@ const ClientPortal: React.FC = () => {
             <FaImages className="stat-icon" />
             <div>
               <h3>{client.totalPhotos}</h3>
-              <p>Photos</p>
+              <p>{t('photoStudioClientPortal.photos')}</p>
             </div>
           </div>
           <div className="stat-item">
             <FaVideo className="stat-icon" />
             <div>
               <h3>{client.totalVideos}</h3>
-              <p>Videos</p>
+              <p>{t('photoStudioClientPortal.videos')}</p>
             </div>
           </div>
           <div className="stat-item">
             <FaFolder className="stat-icon" />
             <div>
               <h3>{client.sessions.length}</h3>
-              <p>Sessions</p>
+              <p>{t('photoStudioClientPortal.sessions')}</p>
             </div>
           </div>
         </div>
@@ -230,7 +237,7 @@ const ClientPortal: React.FC = () => {
 
       {/* Sessions */}
       <section className="sessions-section">
-        <h2>Your Sessions</h2>
+        <h2>{t('photoStudioClientPortal.yourSessions')}</h2>
         <div className="sessions-grid">
           {client.sessions.map((session) => (
             <div 
@@ -243,8 +250,8 @@ const ClientPortal: React.FC = () => {
                 <p>{formatDate(session.date)}</p>
               </div>
               <div className="session-stats">
-                <span>{session.photos} photos</span>
-                <span>{session.videos} videos</span>
+                <span>{t('photoStudioClientPortal.photosCount', { count: session.photos })}</span>
+                <span>{t('photoStudioClientPortal.videosCount', { count: session.videos })}</span>
               </div>
             </div>
           ))}
@@ -258,7 +265,7 @@ const ClientPortal: React.FC = () => {
             <FaSearch className="search-icon" />
             <input
               type="text"
-              placeholder="Search your photos and videos..."
+              placeholder={t('photoStudioClientPortal.searchPlaceholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -272,9 +279,9 @@ const ClientPortal: React.FC = () => {
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as any)}
             >
-              <option value="all">All Media</option>
-              <option value="image">Photos Only</option>
-              <option value="video">Videos Only</option>
+              <option value="all">{t('photoStudioClientPortal.allMedia')}</option>
+              <option value="image">{t('photoStudioClientPortal.photosOnly')}</option>
+              <option value="video">{t('photoStudioClientPortal.videosOnly')}</option>
             </select>
           </div>
 
@@ -300,8 +307,8 @@ const ClientPortal: React.FC = () => {
         {filteredItems.length === 0 ? (
           <div className="empty-state">
             <FaImages className="empty-icon" />
-            <h3>No media found</h3>
-            <p>Try adjusting your filters or select a different session.</p>
+            <h3>{t('photoStudioClientPortal.noMediaFound')}</h3>
+            <p>{t('photoStudioClientPortal.adjustFilters')}</p>
           </div>
         ) : (
           <div className={`media-container ${viewMode}`}>
@@ -405,7 +412,7 @@ const ClientPortal: React.FC = () => {
                     // Share functionality
                     navigator.share?.({
                       title: selectedMedia.name,
-                      text: `Check out this photo from ${client.studioName}`,
+                      text: t('photoStudioClientPortal.sharePhotoFrom', { studio: client.studioName }),
                       url: window.location.href
                     });
                   }}
@@ -457,11 +464,11 @@ const ClientPortal: React.FC = () => {
 
             <div className="viewer-footer">
               <div className="media-counter">
-                {currentImageIndex + 1} of {filteredItems.length}
+                {t('photoStudioClientPortal.mediaCounter', { current: currentImageIndex + 1, total: filteredItems.length })}
               </div>
               <div className="download-notice">
                 <FaLock />
-                <span>Downloading is disabled in client view</span>
+                <span>{t('photoStudioClientPortal.downloadDisabled')}</span>
               </div>
             </div>
           </div>

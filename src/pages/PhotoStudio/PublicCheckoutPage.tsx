@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaChevronLeft, FaCheck, FaRedoAlt, FaTimes, FaUpload, FaFileImage, FaExpandArrowsAlt } from 'react-icons/fa';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
@@ -48,6 +49,7 @@ const ALBUMS_PAGE_SIZE = 20;
 const IMAGES_PAGE_SIZE = 20; // images to show per album (then "Load more")
 
 const PublicCheckoutPage: React.FC = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -178,7 +180,7 @@ const PublicCheckoutPage: React.FC = () => {
             });
             setVerifyStatus('otp_sent');
             setVerifyOtp('');
-            toast.success('OTP sent. Check your email or phone.');
+            toast.success(t('publicCheckoutPage.toastOtpSentEmailPhone'));
           } catch {
             setVerifyStatus('needs_input');
           }
@@ -196,7 +198,7 @@ const PublicCheckoutPage: React.FC = () => {
   const handleVerifySubmit = async () => {
     const email = verifyEmail.trim();
     if (!email) {
-      setVerifyError('Enter email address.');
+      setVerifyError(t('publicCheckoutPage.verifyEnterEmail'));
       return;
     }
     setVerifyError('');
@@ -222,7 +224,7 @@ const PublicCheckoutPage: React.FC = () => {
         });
         setVerifyStatus('otp_sent');
         setVerifyOtp('');
-        toast.success('OTP sent. Check your email.');
+        toast.success(t('publicCheckoutPage.toastOtpSentEmail'));
         return;
       }
       // Not existing → call send-otp and show OTP page
@@ -235,14 +237,14 @@ const PublicCheckoutPage: React.FC = () => {
       await api.post('/api/public-verify/send-otp', sendOtpBody);
       setVerifyStatus('otp_sent');
       setVerifyOtp('');
-      toast.success('OTP sent. Check your email.');
+      toast.success(t('publicCheckoutPage.toastOtpSentEmail'));
     } catch (err: any) {
       if (err.response?.status === 404 || err.response?.status === 501) {
         sessionStorage.setItem(verifyStorageKey, '1');
         setVerifyStatus('verified');
-        toast.success('Verification skipped.');
+        toast.success(t('publicCheckoutPage.toastVerificationSkipped'));
       } else {
-        setVerifyError(err.response?.data?.message || 'Something went wrong. Try again.');
+        setVerifyError(err.response?.data?.message || t('publicCheckoutPage.verifyGenericError'));
       }
     } finally {
       setVerifySending(false);
@@ -260,9 +262,9 @@ const PublicCheckoutPage: React.FC = () => {
           ...(validShareId != null ? { id: validShareId } : {}),
         });
         setVerifyOtp('');
-        toast.success('OTP sent again.');
+        toast.success(t('publicCheckoutPage.toastOtpSentAgain'));
       } catch (err: any) {
-        setVerifyError(err.response?.data?.message || 'Failed to resend OTP.');
+        setVerifyError(err.response?.data?.message || t('publicCheckoutPage.verifyFailedResendOtp'));
       } finally {
         setVerifySending(false);
       }
@@ -273,7 +275,7 @@ const PublicCheckoutPage: React.FC = () => {
 
   const handleVerifyOtpSubmit = async () => {
     if (!verifyOtp.trim()) {
-      setVerifyError('Enter the OTP.');
+      setVerifyError(t('publicCheckoutPage.verifyEnterOtp'));
       return;
     }
     setVerifyError('');
@@ -289,12 +291,12 @@ const PublicCheckoutPage: React.FC = () => {
       if (res.data?.success) {
         sessionStorage.setItem(verifyStorageKey, '1');
         setVerifyStatus('verified');
-        toast.success('Verified. Loading...');
+        toast.success(t('publicCheckoutPage.verifyVerifiedLoading'));
       } else {
-        setVerifyError('Invalid OTP. Try again.');
+        setVerifyError(t('publicCheckoutPage.verifyInvalidOtp'));
       }
     } catch (err: any) {
-      setVerifyError(err.response?.data?.message || 'Invalid OTP. Try again.');
+      setVerifyError(err.response?.data?.message || t('publicCheckoutPage.verifyInvalidOtp'));
     } finally {
       setVerifySending(false);
     }
@@ -584,7 +586,7 @@ const PublicCheckoutPage: React.FC = () => {
   };
 
   const getImageFilename = (image: AlbumImage): string => {
-    return image.originalFilename || image.filename || 'Unknown';
+    return image.originalFilename || image.filename || t('publicCheckoutPage.unknownFile');
   };
 
   const getFileType = (image: AlbumImage): string => {
@@ -607,10 +609,10 @@ const PublicCheckoutPage: React.FC = () => {
         setDownloadCodeData(response.data);
         setIsPaid(true);
         setShowQr(false); // Ensure QR is hidden when download code is verified
-        toast.success('Download code verified! You can now download your images.');
+        toast.success(t('publicCheckoutPage.toastDownloadCodeVerified'));
       } catch (error: any) {
         console.error('Error fetching download code:', error);
-        const errorMessage = error.response?.data?.message || 'Invalid or expired download code';
+        const errorMessage = error.response?.data?.message || t('publicCheckoutPage.invalidDownloadCode');
         toast.error(errorMessage);
         setDownloadCodeData(null);
         setIsPaid(false);
@@ -707,7 +709,7 @@ const PublicCheckoutPage: React.FC = () => {
       setSelectedAlbums(matchedAlbums);
       setSelectedImages(matchedImages);
       autoSelectedRef.current = true;
-      toast.success(`Found ${matchedAlbums.size} album(s) with matching images`);
+      toast.success(t('publicCheckoutPage.foundAlbumsMatch', { count: matchedAlbums.size }));
     }
   }, [albums, targetFilenames]);
 
@@ -756,7 +758,7 @@ const PublicCheckoutPage: React.FC = () => {
           } catch (error: any) {
             console.error('Error registering payment:', error);
             console.error('Error details:', error.response?.data || error.message);
-            toast.error('Failed to register payment. Please try again.');
+            toast.error(t('publicCheckoutPage.toastPaymentRegisterFailed'));
           }
         } catch (error) {
           console.error('Error creating transaction:', error);
@@ -855,7 +857,7 @@ const PublicCheckoutPage: React.FC = () => {
   // Auto-unlock downloads when payment is confirmed
   useEffect(() => {
     if (isPaid && allSelectedImages.length > 0) {
-      toast.success('Payment confirmed! Downloads unlocked.');
+      toast.success(t('publicCheckoutPage.toastPaymentConfirmedDownloads'));
       
       setTimeout(() => {
         allSelectedImages.forEach((image, index) => {
@@ -878,13 +880,13 @@ const PublicCheckoutPage: React.FC = () => {
 
   const handleDownload = (image: AlbumImage) => {
     if (!isPaid) {
-      toast.error('Please complete payment before downloading');
+      toast.error(t('publicCheckoutPage.toastCompletePaymentFirst'));
       return;
     }
 
     const imageUrl = getImageUrl(image);
     if (!imageUrl) {
-      toast.error('Download URL not available');
+      toast.error(t('publicCheckoutPage.downloadUrlUnavailable'));
       return;
     }
 
@@ -902,12 +904,12 @@ const PublicCheckoutPage: React.FC = () => {
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        toast.error('Please upload an image file');
+        toast.error(t('publicCheckoutPage.toastUploadImageFile'));
         return;
       }
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size should be less than 5MB');
+        toast.error(t('publicCheckoutPage.toastImageSize5mb'));
         return;
       }
       setPaymentScreenshot(file);
@@ -922,17 +924,17 @@ const PublicCheckoutPage: React.FC = () => {
 
   const handleSubmitPayment = async () => {
     if (!utrNumber.trim()) {
-      toast.error('Please enter UTR number');
+      toast.error(t('publicCheckoutPage.toastEnterUtr'));
       return;
     }
 
     if (!email) {
-      toast.error('Please enter email address');
+      toast.error(t('publicCheckoutPage.toastEnterEmail'));
       return;
     }
 
     if (allSelectedImages.length === 0) {
-      toast.error('Please select at least one image');
+      toast.error(t('publicCheckoutPage.toastSelectOneImage'));
       return;
     }
 
@@ -1022,7 +1024,7 @@ const PublicCheckoutPage: React.FC = () => {
       // Validation: FULL_ALBUM must have albumId
       if (purchaseType === 'FULL_ALBUM' && !albumId) {
         console.error('❌ FULL_ALBUM purchase but albumId is missing!');
-        toast.error('Error: Album ID is required for full album purchase');
+        toast.error(t('publicCheckoutPage.toastFullAlbumIdRequired'));
         setSubmittingPayment(false);
         return;
       }
@@ -1030,7 +1032,7 @@ const PublicCheckoutPage: React.FC = () => {
       // Validation: INDIVIDUAL_IMAGES should have imageIds
       if (purchaseType === 'INDIVIDUAL_IMAGES' && !imageIds) {
         console.error('❌ INDIVIDUAL_IMAGES purchase but imageIds is missing!');
-        toast.error('Error: Image IDs are required for individual image purchase');
+        toast.error(t('publicCheckoutPage.toastImageIdsRequired'));
         setSubmittingPayment(false);
         return;
       }
@@ -1059,7 +1061,7 @@ const PublicCheckoutPage: React.FC = () => {
       });
 
       console.log('Payment submitted for approval:', response.data);
-      toast.success('Payment details submitted for approval! We will review and confirm your payment shortly.');
+      toast.success(t('publicCheckoutPage.toastPaymentSubmitted'));
       
       // Close modal and reset form
       setShowPaymentModal(false);
@@ -1069,7 +1071,7 @@ const PublicCheckoutPage: React.FC = () => {
       
     } catch (error: any) {
       console.error('Error submitting payment:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to submit payment';
+      const errorMessage = error.response?.data?.message || error.message || t('publicCheckoutPage.toastFailedSubmitPayment');
       toast.error(errorMessage);
     } finally {
       setSubmittingPayment(false);
@@ -1091,12 +1093,12 @@ const PublicCheckoutPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Incomplete link</h1>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('publicCheckoutPage.incompleteLinkTitle')}</h1>
           <p className="text-gray-600 text-sm mb-4">
-            This page only works with a complete share link. Do not open the public checkout URL without the full link (with <code className="bg-gray-100 px-1 rounded">sid</code>, <code className="bg-gray-100 px-1 rounded">q</code>, or <code className="bg-gray-100 px-1 rounded">token</code>) provided by your photographer.
+            {t('publicCheckoutPage.incompleteLinkBody')}
           </p>
           <a href="/" className="inline-block px-4 py-2 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">
-            Go to home
+            {t('publicCheckoutPage.goHome')}
           </a>
         </div>
       </div>
@@ -1116,9 +1118,9 @@ const PublicCheckoutPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Invalid or expired link</h1>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('publicCheckoutPage.invalidShortLinkTitle')}</h1>
           <p className="text-gray-600 text-sm">
-            This short link could not be loaded. It may have expired or been removed.
+            {t('publicCheckoutPage.invalidShortLinkBody')}
           </p>
         </div>
       </div>
@@ -1130,9 +1132,9 @@ const PublicCheckoutPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Invalid link</h1>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('publicCheckoutPage.invalidLinkTitle')}</h1>
           <p className="text-gray-600 text-sm">
-            This link could not be read. Please use the link provided by your photographer.
+            {t('publicCheckoutPage.invalidLinkBody')}
           </p>
         </div>
       </div>
@@ -1144,12 +1146,12 @@ const PublicCheckoutPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Invalid or expired link</h1>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('publicCheckoutPage.invalidTokenTitle')}</h1>
           <p className="text-gray-600 text-sm mb-4">
-            This checkout link could not be loaded. Use the full link shared by your photographer.
+            {t('publicCheckoutPage.invalidTokenBody')}
           </p>
           <a href="/" className="inline-block px-4 py-2 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">
-            Go to home
+            {t('publicCheckoutPage.goHome')}
           </a>
         </div>
       </div>
@@ -1160,7 +1162,7 @@ const PublicCheckoutPage: React.FC = () => {
   if (verifyStatus === 'idle' || verifyStatus === 'checking') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <LoadingSpinner size="lg" text="Verifying access..." />
+        <LoadingSpinner size="lg" text={t('publicCheckoutPage.verifyingAccess')} />
       </div>
     );
   }
@@ -1169,9 +1171,9 @@ const PublicCheckoutPage: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Notice</h2>
-          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">{verifyInfoMessage || 'No message.'}</p>
-          <p className="text-xs text-gray-500">You are not being moved to another page.</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('publicCheckoutPage.noticeTitle')}</h2>
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">{verifyInfoMessage || t('publicCheckoutPage.noMessage')}</p>
+          <p className="text-xs text-gray-500">{t('publicCheckoutPage.notMovedToAnotherPage')}</p>
         </div>
       </div>
     );
@@ -1181,51 +1183,51 @@ const PublicCheckoutPage: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Verify to continue</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('publicCheckoutPage.verifyToContinue')}</h2>
           {verifyStatus === 'needs_input' && verifyInfoMessage ? (
             <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">{verifyInfoMessage}</p>
           ) : verifyStatus === 'needs_input' ? (
-            <p className="text-sm text-gray-600 mb-4">Enter your email to view this link.</p>
+            <p className="text-sm text-gray-600 mb-4">{t('publicCheckoutPage.enterEmailToView')}</p>
           ) : null}
           {verifyStatus === 'needs_input' ? (
             <>
               <div className="space-y-3 mb-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('publicCheckoutPage.emailLabel')}</label>
                   <input
                     type="email"
                     value={verifyEmail}
                     onChange={(e) => setVerifyEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder={t('publicCheckoutPage.emailPlaceholder')}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                   />
                 </div>
               </div>
               {verifyError && <p className="text-sm text-red-600 mb-2">{verifyError}</p>}
               <button onClick={handleVerifySubmit} disabled={verifySending} className="w-full py-2 rounded-lg bg-[#2731db] text-white font-medium disabled:opacity-50">
-                {verifySending ? 'Sending…' : 'Continue'}
+                {verifySending ? t('publicCheckoutPage.sending') : t('publicCheckoutPage.continue')}
               </button>
             </>
           ) : (
             <>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Enter OTP</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('publicCheckoutPage.enterOtpLabel')}</label>
                 <input
                   type="text"
                   inputMode="numeric"
                   maxLength={6}
                   value={verifyOtp}
                   onChange={(e) => setVerifyOtp(e.target.value.replace(/\D/g, ''))}
-                  placeholder="123456"
+                  placeholder={t('publicCheckoutPage.otpPlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 />
               </div>
               {verifyError && <p className="text-sm text-red-600 mb-2">{verifyError}</p>}
               <button onClick={handleVerifyOtpSubmit} disabled={verifySending} className="w-full py-2 rounded-lg bg-[#2731db] text-white font-medium disabled:opacity-50 mb-2">
-                {verifySending ? 'Verifying…' : 'Verify'}
+                {verifySending ? t('publicCheckoutPage.verifying') : t('publicCheckoutPage.verify')}
               </button>
               <button type="button" onClick={handleResendOtp} disabled={verifySending} className="w-full py-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50">
-                Resend OTP
+                {t('publicCheckoutPage.resendOtp')}
               </button>
             </>
           )}
@@ -1237,7 +1239,7 @@ const PublicCheckoutPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <LoadingSpinner size="lg" text="Loading albums..." />
+        <LoadingSpinner size="lg" text={t('publicCheckoutPage.loadingAlbums')} />
       </div>
     );
   }
@@ -1247,8 +1249,8 @@ const PublicCheckoutPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Unable to load albums</h1>
-          <p className="text-gray-600 text-sm">Please check the link or try again later.</p>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('publicCheckoutPage.unableLoadAlbumsTitle')}</h1>
+          <p className="text-gray-600 text-sm">{t('publicCheckoutPage.unableLoadAlbumsBody')}</p>
         </div>
       </div>
     );
@@ -1261,10 +1263,10 @@ const PublicCheckoutPage: React.FC = () => {
         <header className="mb-8 text-center">
           <h1 className="text-4xl font-bold text-gray-900 flex items-center justify-center">
             <FaImages className="mr-3 text-[#2731db]" />
-            Photo Checkout
+            {t('publicCheckoutPage.pageTitle')}
           </h1>
           <p className="text-gray-600 mt-2">
-            Select albums and images, make payment, and download your selected photos.
+            {t('publicCheckoutPage.pageSubtitle')}
           </p>
         </header>
 
@@ -1273,19 +1275,19 @@ const PublicCheckoutPage: React.FC = () => {
           <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg border border-gray-100 p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Selected images</p>
+                <p className="text-sm text-gray-500">{t('publicCheckoutPage.selectedImages')}</p>
                 <p className="text-2xl font-semibold text-gray-900">
                   {allSelectedImages.length}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total amount</p>
+                <p className="text-sm text-gray-500">{t('publicCheckoutPage.totalAmount')}</p>
                 <p className="text-2xl font-semibold text-green-600">
                   {totalAmount ? `₹${totalAmount}` : '₹0'}
                 </p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Pricing</p>
+                <p className="text-sm text-gray-500">{t('publicCheckoutPage.pricing')}</p>
                 <p className="text-sm font-medium text-[#2731db]">
                   {(() => {
                     // Check if any album has all images selected with perAlbumPrice
@@ -1306,7 +1308,7 @@ const PublicCheckoutPage: React.FC = () => {
                     });
                     
                     if (hasFullAlbum) {
-                      return `₹${albumPrice} per album`;
+                      return t('publicCheckoutPage.perAlbum', { price: albumPrice });
                     }
                     
                     // Check for perPhotoPrice from albums
@@ -1319,12 +1321,12 @@ const PublicCheckoutPage: React.FC = () => {
                     });
                     
                     if (photoPrice > 0) {
-                      return `₹${photoPrice} per image`;
+                      return t('publicCheckoutPage.perImage', { price: photoPrice });
                     }
                     
                     // Fallback to UPI settings or default
                     const priceToShow = defaultPerPhotoPrice > 0 ? defaultPerPhotoPrice : PRICE_PER_IMAGE;
-                    return priceToShow > 0 ? `₹${priceToShow} per image` : 'Free';
+                    return priceToShow > 0 ? t('publicCheckoutPage.perImage', { price: priceToShow }) : t('publicCheckoutPage.free');
                   })()}
                 </p>
               </div>
@@ -1332,7 +1334,7 @@ const PublicCheckoutPage: React.FC = () => {
 
             {allSelectedImages.length === 0 && (
               <div className="text-center py-4 text-gray-500">
-                <p className="text-sm">Select albums and images to see payment QR code</p>
+                <p className="text-sm">{t('publicCheckoutPage.selectForQr')}</p>
               </div>
             )}
           </div>
@@ -1344,62 +1346,60 @@ const PublicCheckoutPage: React.FC = () => {
               loadingDownloadCode ? (
                 <div className="text-center text-gray-500">
                   <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#2731db] border-t-transparent mx-auto mb-3"></div>
-                  <p className="text-sm">Verifying download code...</p>
+                  <p className="text-sm">{t('publicCheckoutPage.verifyingDownloadCode')}</p>
                 </div>
               ) : downloadCodeData && isPaid ? (
               <div className="text-center w-full">
                 <FaCheckCircle className="mx-auto mb-3 text-5xl text-green-600" />
-                <h3 className="text-lg font-semibold mb-2 text-gray-900">Payment Confirmed!</h3>
+                <h3 className="text-lg font-semibold mb-2 text-gray-900">{t('publicCheckoutPage.paymentConfirmedTitle')}</h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Your download code has been verified. You can now download your images.
+                  {t('publicCheckoutPage.downloadCodeVerifiedBody')}
                 </p>
                 {downloadCodeData.downloadCode && (
                   <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                    <p className="text-xs text-gray-500 mb-1">Download Code</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('publicCheckoutPage.downloadCodeLabel')}</p>
                     <p className="text-sm font-mono font-semibold text-gray-900">{downloadCodeData.downloadCode}</p>
                   </div>
                 )}
                 <div className="w-full mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                   <p className="text-sm text-green-700 flex items-center justify-center">
-                    <FaCheckCircle className="mr-2" /> Downloads unlocked - Click images to download
+                    <FaCheckCircle className="mr-2" /> {t('publicCheckoutPage.downloadsUnlockedClick')}
                   </p>
                 </div>
               </div>
               ) : (
                 <div className="text-center text-gray-500">
                   <FaQrcode className="mx-auto mb-3 text-4xl" />
-                  <p className="text-sm">Processing download code...</p>
+                  <p className="text-sm">{t('publicCheckoutPage.processingDownloadCode')}</p>
                 </div>
               )
             ) : !showQr || !qrData ? (
               <div className="text-center text-gray-500">
                 <FaQrcode className="mx-auto mb-3 text-4xl" />
-                <p className="text-sm">Select albums and images to see payment QR code.</p>
+                <p className="text-sm">{t('publicCheckoutPage.selectForQrShort')}</p>
               </div>
             ) : (
               <>
                 <h3 className="text-lg font-semibold mb-3 flex items-center">
                   <FaQrcode className="mr-2 text-[#2731db]" />
-                  Scan to Pay
+                  {t('publicCheckoutPage.scanToPay')}
                 </h3>
                 <div className="bg-white p-4 rounded-xl border-2 border-gray-200 mb-4">
                   <img
                     src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${qrData}`}
-                    alt="Payment QR"
+                    alt={t('publicCheckoutPage.paymentQrAlt')}
                     className="w-48 h-48"
                   />
                 </div>
                 <p className="text-sm text-gray-600 text-center mb-3">
-                  Amount: <span className="font-semibold text-green-600">₹{totalAmount}</span> for{' '}
-                  <span className="font-semibold">{allSelectedImages.length}</span> photo
-                  {allSelectedImages.length !== 1 ? 's' : ''}.
+                  {t('publicCheckoutPage.amountForPhotos', { amount: totalAmount, count: allSelectedImages.length })}
                 </p>
                 {paymentChecking && !isPaid && (
                   <div className="w-full mt-3 space-y-2">
                     <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <p className="text-sm text-blue-700 flex items-center justify-center">
                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent mr-2"></div>
-                        Waiting for payment confirmation...
+                        {t('publicCheckoutPage.waitingPaymentConfirmation')}
                       </p>
                     </div>
                   </div>
@@ -1407,7 +1407,7 @@ const PublicCheckoutPage: React.FC = () => {
                 {isPaid && (
                   <div className="w-full mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                     <p className="text-sm text-green-700 flex items-center justify-center">
-                      <FaCheckCircle className="mr-2" /> Payment confirmed! Downloads unlocked.
+                      <FaCheckCircle className="mr-2" /> {t('publicCheckoutPage.paymentConfirmedUnlocked')}
                     </p>
                   </div>
                 )}
@@ -1416,7 +1416,7 @@ const PublicCheckoutPage: React.FC = () => {
                     onClick={() => setShowPaymentModal(true)}
                     className="w-full mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
                   >
-                    Submit Payment for Approval
+                    {t('publicCheckoutPage.submitPaymentApproval')}
                   </button>
                 )}
               </>
@@ -1428,9 +1428,9 @@ const PublicCheckoutPage: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Select Albums & Images</h2>
+              <h2 className="text-xl font-semibold text-gray-900">{t('publicCheckoutPage.selectAlbumsImagesTitle')}</h2>
               <p className="text-sm text-gray-500 mt-1">
-                Click albums to select, expand to see images inside.
+                {t('publicCheckoutPage.selectAlbumsImagesHint')}
               </p>
             </div>
             <button
@@ -1438,10 +1438,10 @@ const PublicCheckoutPage: React.FC = () => {
                 window.location.reload();
               }}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors"
-              title="Reload page"
+              title={t('publicCheckoutPage.reloadTitle')}
             >
               <FaRedoAlt className="text-sm" />
-              <span className="text-sm font-medium">Reload</span>
+              <span className="text-sm font-medium">{t('publicCheckoutPage.reload')}</span>
             </button>
           </div>
 
@@ -1449,12 +1449,12 @@ const PublicCheckoutPage: React.FC = () => {
             <div className="text-center py-12 text-gray-500">
               <FaImages className="mx-auto mb-3 text-4xl" />
               <p className="text-lg font-medium mb-2">
-                {effectiveHasValidAlbumId && !isLoading ? 'Album not found' : 'No albums available'}
+                {effectiveHasValidAlbumId && !isLoading ? t('publicCheckoutPage.albumNotFound') : t('publicCheckoutPage.noAlbumsAvailable')}
               </p>
               <p className="text-sm">
                 {effectiveHasValidAlbumId && !isLoading
-                  ? 'The album link may be invalid or the album was removed. Try the link without albumId or contact the photographer.'
-                  : 'Please check the link or contact the photographer.'}
+                  ? t('publicCheckoutPage.albumInvalidHint')
+                  : t('publicCheckoutPage.checkLinkOrPhotographer')}
               </p>
             </div>
           ) : (
@@ -1507,15 +1507,15 @@ const PublicCheckoutPage: React.FC = () => {
                             <p className="text-sm text-gray-500">{album.description}</p>
                           )}
                           <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
-                            <span>{albumImages.length} images</span>
+                            <span>{t('publicCheckoutPage.imagesCount', { n: albumImages.length })}</span>
                             {albumImageIds.size > 0 && (
                               <span className="text-[#2731db] font-medium">
-                                {albumImageIds.size} selected
+                                {t('publicCheckoutPage.selectedCount', { n: albumImageIds.size })}
                               </span>
                             )}
                             {album.perAlbumPrice && album.perAlbumPrice > 0 && (
                               <span className="text-green-600 font-semibold">
-                                ₹{album.perAlbumPrice} per album
+                                {t('publicCheckoutPage.perAlbumPrice', { price: album.perAlbumPrice })}
                               </span>
                             )}
                           </div>
@@ -1543,10 +1543,10 @@ const PublicCheckoutPage: React.FC = () => {
                       <div className="border-t border-gray-200 p-4 bg-gray-50">
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="text-sm font-semibold text-gray-900">
-                            {isSelected ? 'Selected Images (Full Album)' : 'Album Images'}
+                            {isSelected ? t('publicCheckoutPage.selectedImagesFullAlbum') : t('publicCheckoutPage.albumImages')}
                             {isSelected && albumImageIds.size > 0 && (
                               <span className="ml-2 text-[#2731db] font-medium">
-                                ({albumImageIds.size} of {albumImages.length} selected)
+                                {t('publicCheckoutPage.selectedOfTotal', { selected: albumImageIds.size, total: albumImages.length })}
                               </span>
                             )}
                           </h4>
@@ -1555,7 +1555,7 @@ const PublicCheckoutPage: React.FC = () => {
                               onClick={() => selectAllImagesInAlbum(album.id)}
                               className="text-xs text-[#2731db] hover:underline"
                             >
-                              Select All
+                              {t('publicCheckoutPage.selectAll')}
                             </button>
                           )}
                         </div>
@@ -1620,7 +1620,7 @@ const PublicCheckoutPage: React.FC = () => {
                                             openFullscreenImage(album.id, imageIndex);
                                           }}
                                           className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-black/50 hover:bg-black/70 text-white flex items-center justify-center"
-                                          title="View full screen"
+                                          title={t('publicCheckoutPage.viewFullScreen')}
                                         >
                                           <FaExpandArrowsAlt className="text-sm" />
                                         </button>
@@ -1639,8 +1639,8 @@ const PublicCheckoutPage: React.FC = () => {
                                     <div className="mt-2 flex items-center justify-between">
                                       <span className="text-xs text-gray-500">
                                         {allImagesSelected && album.perAlbumPrice && album.perAlbumPrice > 0
-                                          ? `₹${album.perAlbumPrice} (album)`
-                                          : imagePrice > 0 ? `₹${imagePrice}` : 'Free'}
+                                          ? t('publicCheckoutPage.albumPriceLabel', { price: album.perAlbumPrice })
+                                          : imagePrice > 0 ? t('publicCheckoutPage.perImageRupee', { price: imagePrice }) : t('publicCheckoutPage.free')}
                                       </span>
                                       {(isPaid || downloadCodeData) && (
                                         <button
@@ -1651,7 +1651,7 @@ const PublicCheckoutPage: React.FC = () => {
                                           }}
                                           className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-green-600 text-white hover:bg-green-700"
                                         >
-                                          <FaDownload className="mr-1" /> Download
+                                          <FaDownload className="mr-1" /> {t('publicCheckoutPage.download')}
                                         </button>
                                       )}
                                     </div>
@@ -1671,7 +1671,7 @@ const PublicCheckoutPage: React.FC = () => {
                               })}
                               className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
                             >
-                              Load more ({albumImages.length - showCount} remaining)
+                              {t('publicCheckoutPage.loadMoreRemaining', { remaining: albumImages.length - showCount })}
                             </button>
                           </div>
                         )}
@@ -1685,7 +1685,7 @@ const PublicCheckoutPage: React.FC = () => {
             <div ref={loadMoreAlbumsRef} className="h-4" aria-hidden />
             {albumsFetchingNextPage && (
               <div className="mt-4 flex justify-center py-4">
-                <LoadingSpinner size="md" text="Loading more..." />
+                <LoadingSpinner size="md" text={t('publicCheckoutPage.loadingMore')} />
               </div>
             )}
             </>
@@ -1699,13 +1699,13 @@ const PublicCheckoutPage: React.FC = () => {
             onClick={closeFullscreenImage}
             role="dialog"
             aria-modal="true"
-            aria-label="View image full screen"
+            aria-label={t('publicCheckoutPage.fullscreenDialogLabel')}
           >
             <button
               type="button"
               onClick={closeFullscreenImage}
               className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"
-              aria-label="Close"
+              aria-label={t('publicCheckoutPage.close')}
             >
               <FaTimes className="text-xl" />
             </button>
@@ -1716,7 +1716,7 @@ const PublicCheckoutPage: React.FC = () => {
                 goPrevFullscreenImage();
               }}
               className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-white text-blue-600 shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center justify-center"
-              aria-label="Previous image"
+              aria-label={t('publicCheckoutPage.previousImage')}
             >
               <FaChevronLeft className="text-lg" />
             </button>
@@ -1727,7 +1727,7 @@ const PublicCheckoutPage: React.FC = () => {
                 goNextFullscreenImage();
               }}
               className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-white text-blue-600 shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center justify-center"
-              aria-label="Next image"
+              aria-label={t('publicCheckoutPage.nextImage')}
             >
               <FaChevronRight className="text-lg" />
             </button>
@@ -1743,7 +1743,7 @@ const PublicCheckoutPage: React.FC = () => {
                   onClick={(e) => e.stopPropagation()}
                 />
               ) : (
-                <p className="text-white">Image not available</p>
+                <p className="text-white">{t('publicCheckoutPage.imageNotAvailable')}</p>
               )}
             </div>
             <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-sm truncate max-w-[90vw]">
@@ -1760,7 +1760,7 @@ const PublicCheckoutPage: React.FC = () => {
               <div className="flex items-center justify-between p-6 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900 flex items-center">
                   <FaQrcode className="mr-2 text-[#2731db]" />
-                  Submit Payment for Approval
+                  {t('publicCheckoutPage.modalSubmitPayment')}
                 </h2>
                 <button
                   onClick={handleCloseModal}
@@ -1775,10 +1775,10 @@ const PublicCheckoutPage: React.FC = () => {
               <div className="p-6 space-y-4">
                 {/* Payment Summary */}
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm text-gray-600 mb-2">Payment Summary</p>
+                  <p className="text-sm text-gray-600 mb-2">{t('publicCheckoutPage.paymentSummary')}</p>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-900 font-medium">
-                      {allSelectedImages.length} photo{allSelectedImages.length !== 1 ? 's' : ''}
+                      {t('publicCheckoutPage.photoCount', { count: allSelectedImages.length })}
                     </span>
                     <span className="text-lg font-bold text-green-600">₹{totalAmount}</span>
                   </div>
@@ -1787,34 +1787,34 @@ const PublicCheckoutPage: React.FC = () => {
                 {/* UTR Number Input */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    UTR Number <span className="text-red-500">*</span>
+                    {t('publicCheckoutPage.utrNumberLabel')} <span className="text-red-500">{t('publicCheckoutPage.required')}</span>
                   </label>
                   <input
                     type="text"
                     value={utrNumber}
                     onChange={(e) => setUtrNumber(e.target.value)}
-                    placeholder="Enter UTR/Transaction ID"
+                    placeholder={t('publicCheckoutPage.utrPlaceholder')}
                     disabled={submittingPayment}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2731db] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Enter the UTR number from your payment receipt
+                    {t('publicCheckoutPage.utrHint')}
                   </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address<span className="text-red-500">*</span>
+                    {t('publicCheckoutPage.emailAddressLabel')}<span className="text-red-500">{t('publicCheckoutPage.required')}</span>
                   </label>
                   <input
                     type="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter Email Address"
+                    placeholder={t('publicCheckoutPage.emailModalPlaceholder')}
                     disabled={submittingPayment}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2731db] focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Enter your email address to receive the download code after payment approval
+                    {t('publicCheckoutPage.emailModalHint')}
                   </p>
                 </div>
 
@@ -1867,10 +1867,10 @@ const PublicCheckoutPage: React.FC = () => {
                 {/* Instructions */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <p className="text-xs text-blue-700 mb-2">
-                    <strong>Note:</strong> Please ensure the email address is correct and the payment approval email is received.
+                    <strong>{t('publicCheckoutPage.noteApprovalEmail')}</strong> {t('publicCheckoutPage.noteApprovalBody')}
                   </p>
                   <p className="text-xs text-blue-700">
-                    <strong>Approval Process:</strong> Your payment details will be reviewed and approved. You will be notified once the payment is confirmed.
+                    <strong>{t('publicCheckoutPage.approvalProcess')}</strong> {t('publicCheckoutPage.approvalProcessBody')}
                   </p>
                 </div>
               </div>
@@ -1882,7 +1882,7 @@ const PublicCheckoutPage: React.FC = () => {
                   disabled={submittingPayment}
                   className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
                 >
-                  Cancel
+                  {t('publicCheckoutPage.cancel')}
                 </button>
                 <button
                   onClick={handleSubmitPayment}
@@ -1892,12 +1892,12 @@ const PublicCheckoutPage: React.FC = () => {
                   {submittingPayment ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                      Submitting for Approval...
+                      {t('publicCheckoutPage.submittingForApproval')}
                     </>
                   ) : (
                     <>
                       <FaCheckCircle className="mr-1" />
-                      Submit for Approval
+                      {t('publicCheckoutPage.submitForApproval')}
                     </>
                   )}
                 </button>

@@ -1,4 +1,5 @@
 import React, { useMemo, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { SpreadPreviewCanvas } from '../../components/PhotoBook/SpreadPreviewCanvas'
 import { usePhotoBookStore } from '../../store/photobookStore'
@@ -6,6 +7,7 @@ import { getPhotoBookLayout, getPhotoBookTemplate } from '../../templates/photob
 import { downloadTextFile } from '../../utils/photobookDownload'
 
 export function PhotoBookPreviewPage() {
+  const { t } = useTranslation()
   const album = usePhotoBookStore((s) => s.album)
   const photos = usePhotoBookStore((s) => s.photos)
   const exportJson = usePhotoBookStore((s) => s.exportJson)
@@ -22,14 +24,14 @@ export function PhotoBookPreviewPage() {
   if (!album) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="text-lg font-semibold text-slate-900">Nothing to preview</div>
-        <p className="mt-1 text-sm text-slate-600">Create an album in the editor first.</p>
+        <div className="text-lg font-semibold text-slate-900">{t('photoBookPreview.emptyTitle')}</div>
+        <p className="mt-1 text-sm text-slate-600">{t('photoBookPreview.emptyBody')}</p>
         <Link
           to="../editor"
           relative="path"
           className="mt-4 inline-flex rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
         >
-          Go to editor
+          {t('photoBookPreview.goEditor')}
         </Link>
       </div>
     )
@@ -52,9 +54,9 @@ export function PhotoBookPreviewPage() {
       <div className="no-print rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Preview</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{t('photoBookPreview.heading')}</h1>
             <p className="mt-1 text-sm text-slate-600">
-              Print this page to save a PDF. You can also export/import JSON.
+              {t('photoBookPreview.sub')}
             </p>
           </div>
 
@@ -67,28 +69,28 @@ export function PhotoBookPreviewPage() {
               ].join(' ')}
               onClick={() => setEditMode((v) => !v)}
             >
-              {editMode ? 'Editing: ON' : 'Edit in preview'}
+              {editMode ? t('photoBookPreview.editingOn') : t('photoBookPreview.editInPreview')}
             </button>
             <button
               type="button"
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
               onClick={() => window.print()}
             >
-              Print / Save PDF
+              {t('photoBookPreview.printPdf')}
             </button>
             <button
               type="button"
               className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
               onClick={() => downloadTextFile(`${album.title || 'photobook'}.json`, exportJson())}
             >
-              Export JSON
+              {t('photoBookPreview.exportJson')}
             </button>
             <button
               type="button"
               className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
               onClick={() => fileInputRef.current?.click()}
             >
-              Import JSON
+              {t('photoBookPreview.importJson')}
             </button>
             <input
               ref={fileInputRef}
@@ -114,11 +116,11 @@ export function PhotoBookPreviewPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="text-sm font-semibold text-slate-900">{album.title}</div>
           <div className="mt-1 text-xs text-slate-600">
-            Template: {template?.name ?? album.templateId} · Spreads: {album.spreads.length}
+            {t('photoBookPreview.metaTemplate', { name: template?.name ?? album.templateId, n: album.spreads.length })}
           </div>
           {editMode ? (
             <div className="mt-2 text-xs text-slate-600">
-              Tip: Click a photo to select it, then drag to crop/position and use the zoom slider.
+              {t('photoBookPreview.editTip')}
             </div>
           ) : null}
         </div>
@@ -150,7 +152,7 @@ export function PhotoBookPreviewPage() {
                   }`}
                 >
                   <span className="text-sm font-bold tracking-tight">
-                    {isFrontCover ? 'Front Cover' : isBackCover ? 'Back Cover' : `Spread ${idx + 1}`}
+                    {isFrontCover ? t('photoBookEditor.frontCover') : isBackCover ? t('photoBookEditor.backCover') : t('photoBookPreview.spreadLabel', { n: idx + 1 })}
                   </span>
                   {layout ? (
                     <span className={`text-xs font-medium ${isFrontCover || isBackCover ? 'text-white/90' : 'text-slate-500'}`}>
@@ -171,7 +173,7 @@ export function PhotoBookPreviewPage() {
                   />
                 ) : (
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                    Missing layout: {sp.layoutId}
+                    {t('photoBookPreview.missingLayout', { id: sp.layoutId })}
                   </div>
                 )}
                 </div>
@@ -183,4 +185,3 @@ export function PhotoBookPreviewPage() {
     </div>
   )
 }
-

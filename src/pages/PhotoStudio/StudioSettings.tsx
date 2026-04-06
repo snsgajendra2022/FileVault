@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { 
   FaCog, 
@@ -64,6 +65,7 @@ interface SecuritySettings {
 }
 
 const StudioSettings: React.FC = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('profile');
   const [studioProfile, setStudioProfile] = useState<StudioProfile | null>(null);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
@@ -170,7 +172,7 @@ const StudioSettings: React.FC = () => {
 
   const handlePasswordChange = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('New passwords do not match');
+      alert(t('studioSettings.alertPasswordMismatch'));
       return;
     }
 
@@ -179,7 +181,7 @@ const StudioSettings: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       setShowPasswordModal(false);
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      alert('Password updated successfully');
+      alert(t('studioSettings.alertPasswordUpdated'));
     } catch (error) {
       console.error('Error updating password:', error);
     } finally {
@@ -192,7 +194,7 @@ const StudioSettings: React.FC = () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
       // Redirect to home or show success message
-      alert('Photo Book account deleted successfully');
+      alert(t('studioSettings.alertAccountDeleted'));
     } catch (error) {
       console.error('Error deleting studio:', error);
     } finally {
@@ -201,20 +203,23 @@ const StudioSettings: React.FC = () => {
     }
   };
 
-  const tabs = [
-    { id: 'profile', label: 'Profile', icon: FaUser },
-    { id: 'notifications', label: 'Notifications', icon: FaBell },
-    { id: 'security', label: 'Security', icon: FaShieldAlt },
-    { id: 'appearance', label: 'Appearance', icon: FaPalette },
-    { id: 'billing', label: 'Billing', icon: FaCreditCard },
-    { id: 'danger', label: 'Danger Zone', icon: FaTrash }
-  ];
+  const tabs = useMemo(
+    () => [
+      { id: 'profile', label: t('studioSettings.tabProfile'), icon: FaUser },
+      { id: 'notifications', label: t('studioSettings.tabNotifications'), icon: FaBell },
+      { id: 'security', label: t('studioSettings.tabSecurity'), icon: FaShieldAlt },
+      { id: 'appearance', label: t('studioSettings.tabAppearance'), icon: FaPalette },
+      { id: 'billing', label: t('studioSettings.tabBilling'), icon: FaCreditCard },
+      { id: 'danger', label: t('studioSettings.tabDanger'), icon: FaTrash },
+    ],
+    [t]
+  );
 
   if (loading) {
     return (
       <div className="settings-loading">
         <div className="loading-spinner"></div>
-        <p>Loading settings...</p>
+        <p>{t('studioSettings.loading')}</p>
       </div>
     );
   }
@@ -226,17 +231,17 @@ const StudioSettings: React.FC = () => {
         <div className="header-left">
           <Link to="/studio/dashboard" className="back-link">
             <FaArrowLeft />
-            Dashboard
+            {t('studioSettings.dashboard')}
           </Link>
           <div className="page-title">
             <FaCog className="title-icon" />
-            <h1>Photo Book Settings</h1>
+            <h1>{t('studioSettings.pageTitle')}</h1>
           </div>
         </div>
         {saving && (
           <div className="saving-indicator">
             <div className="spinner"></div>
-            <span>Saving...</span>
+            <span>{t('studioSettings.saving')}</span>
           </div>
         )}
       </header>
@@ -267,16 +272,16 @@ const StudioSettings: React.FC = () => {
           {activeTab === 'profile' && studioProfile && (
             <div className="settings-section">
               <div className="section-header">
-                <h2>Photo Book Profile</h2>
-                <p>Manage your photo book information and branding</p>
+                <h2>{t('studioSettings.profileSectionTitle')}</h2>
+                <p>{t('studioSettings.profileSectionSubtitle')}</p>
               </div>
 
               <div className="profile-form">
                 <div className="form-section">
-                  <h3>Basic Information</h3>
+                  <h3>{t('studioSettings.basicInformation')}</h3>
                   <div className="form-grid">
                     <div className="form-group">
-                      <label>Photo Book Name</label>
+                      <label>{t('studioSettings.photoBookName')}</label>
                       <input
                         type="text"
                         value={studioProfile.name}
@@ -284,7 +289,7 @@ const StudioSettings: React.FC = () => {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Owner Name</label>
+                      <label>{t('studioSettings.ownerName')}</label>
                       <input
                         type="text"
                         value={studioProfile.ownerName}
@@ -292,7 +297,7 @@ const StudioSettings: React.FC = () => {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Email</label>
+                      <label>{t('studioSettings.email')}</label>
                       <input
                         type="email"
                         value={studioProfile.email}
@@ -300,7 +305,7 @@ const StudioSettings: React.FC = () => {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Phone</label>
+                      <label>{t('studioSettings.phone')}</label>
                       <input
                         type="tel"
                         value={studioProfile.phone}
@@ -308,7 +313,7 @@ const StudioSettings: React.FC = () => {
                       />
                     </div>
                     <div className="form-group full-width">
-                      <label>Address</label>
+                      <label>{t('studioSettings.address')}</label>
                       <input
                         type="text"
                         value={studioProfile.address}
@@ -316,7 +321,7 @@ const StudioSettings: React.FC = () => {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Website</label>
+                      <label>{t('studioSettings.website')}</label>
                       <input
                         type="url"
                         value={studioProfile.website}
@@ -324,7 +329,7 @@ const StudioSettings: React.FC = () => {
                       />
                     </div>
                     <div className="form-group full-width">
-                      <label>Description</label>
+                      <label>{t('studioSettings.description')}</label>
                       <textarea
                         value={studioProfile.description}
                         onChange={(e) => setStudioProfile(prev => prev ? { ...prev, description: e.target.value } : null)}
@@ -335,24 +340,24 @@ const StudioSettings: React.FC = () => {
                 </div>
 
                 <div className="form-section">
-                  <h3>Branding</h3>
+                  <h3>{t('studioSettings.branding')}</h3>
                   <div className="branding-section">
                     <div className="logo-upload">
                       <div className="logo-preview">
                         {studioProfile.logo ? (
-                          <img src={studioProfile.logo} alt="Photo Book Logo" />
+                          <img src={studioProfile.logo} alt={t('studioSettings.logoAlt')} />
                         ) : (
                           <FaCamera />
                         )}
                       </div>
                       <button className="upload-btn">
                         <FaUpload />
-                        Upload Logo
+                        {t('studioSettings.uploadLogo')}
                       </button>
                     </div>
                     <div className="color-settings">
                       <div className="color-group">
-                        <label>Primary Color</label>
+                        <label>{t('studioSettings.primaryColor')}</label>
                         <div className="color-input">
                           <input
                             type="color"
@@ -363,7 +368,7 @@ const StudioSettings: React.FC = () => {
                         </div>
                       </div>
                       <div className="color-group">
-                        <label>Secondary Color</label>
+                        <label>{t('studioSettings.secondaryColor')}</label>
                         <div className="color-input">
                           <input
                             type="color"
@@ -378,42 +383,42 @@ const StudioSettings: React.FC = () => {
                 </div>
 
                 <div className="form-section">
-                  <h3>Regional Settings</h3>
+                  <h3>{t('studioSettings.regionalSettings')}</h3>
                   <div className="form-grid">
                     <div className="form-group">
-                      <label>Timezone</label>
+                      <label>{t('studioSettings.timezone')}</label>
                       <select
                         value={studioProfile.timezone}
                         onChange={(e) => setStudioProfile(prev => prev ? { ...prev, timezone: e.target.value } : null)}
                       >
-                        <option value="America/New_York">Eastern Time</option>
-                        <option value="America/Chicago">Central Time</option>
-                        <option value="America/Denver">Mountain Time</option>
-                        <option value="America/Los_Angeles">Pacific Time</option>
+                        <option value="America/New_York">{t('studioSettings.easternTime')}</option>
+                        <option value="America/Chicago">{t('studioSettings.centralTime')}</option>
+                        <option value="America/Denver">{t('studioSettings.mountainTime')}</option>
+                        <option value="America/Los_Angeles">{t('studioSettings.pacificTime')}</option>
                       </select>
                     </div>
                     <div className="form-group">
-                      <label>Currency</label>
+                      <label>{t('studioSettings.currency')}</label>
                       <select
                         value={studioProfile.currency}
                         onChange={(e) => setStudioProfile(prev => prev ? { ...prev, currency: e.target.value } : null)}
                       >
-                        <option value="USD">USD ($)</option>
-                        <option value="EUR">EUR (€)</option>
-                        <option value="GBP">GBP (£)</option>
-                        <option value="CAD">CAD (C$)</option>
+                        <option value="USD">{t('studioSettings.usd')}</option>
+                        <option value="EUR">{t('studioSettings.eur')}</option>
+                        <option value="GBP">{t('studioSettings.gbp')}</option>
+                        <option value="CAD">{t('studioSettings.cad')}</option>
                       </select>
                     </div>
                     <div className="form-group">
-                      <label>Language</label>
+                      <label>{t('studioSettings.language')}</label>
                       <select
                         value={studioProfile.language}
                         onChange={(e) => setStudioProfile(prev => prev ? { ...prev, language: e.target.value } : null)}
                       >
-                        <option value="en">English</option>
-                        <option value="es">Spanish</option>
-                        <option value="fr">French</option>
-                        <option value="de">German</option>
+                        <option value="en">{t('studioSettings.english')}</option>
+                        <option value="es">{t('studioSettings.spanish')}</option>
+                        <option value="fr">{t('studioSettings.french')}</option>
+                        <option value="de">{t('studioSettings.german')}</option>
                       </select>
                     </div>
                   </div>
@@ -426,7 +431,7 @@ const StudioSettings: React.FC = () => {
                     disabled={saving}
                   >
                     <FaSave />
-                    Save Changes
+                    {t('studioSettings.saveChanges')}
                   </button>
                 </div>
               </div>
@@ -437,17 +442,17 @@ const StudioSettings: React.FC = () => {
           {activeTab === 'notifications' && (
             <div className="settings-section">
               <div className="section-header">
-                <h2>Notification Settings</h2>
-                <p>Configure how you receive notifications</p>
+                <h2>{t('studioSettings.notificationSettings')}</h2>
+                <p>{t('studioSettings.notificationSubtitle')}</p>
               </div>
 
               <div className="notification-settings">
                 <div className="setting-group">
-                  <h3>Communication Preferences</h3>
+                  <h3>{t('studioSettings.communicationPreferences')}</h3>
                   <div className="setting-item">
                     <div className="setting-info">
-                      <h4>Email Notifications</h4>
-                      <p>Receive notifications via email</p>
+                      <h4>{t('studioSettings.emailNotifications')}</h4>
+                      <p>{t('studioSettings.emailNotificationsDesc')}</p>
                     </div>
                     <label className="toggle-switch">
                       <input
@@ -460,8 +465,8 @@ const StudioSettings: React.FC = () => {
                   </div>
                   <div className="setting-item">
                     <div className="setting-info">
-                      <h4>SMS Notifications</h4>
-                      <p>Receive notifications via text message</p>
+                      <h4>{t('studioSettings.smsNotifications')}</h4>
+                      <p>{t('studioSettings.smsNotificationsDesc')}</p>
                     </div>
                     <label className="toggle-switch">
                       <input
@@ -475,11 +480,11 @@ const StudioSettings: React.FC = () => {
                 </div>
 
                 <div className="setting-group">
-                  <h3>Alert Types</h3>
+                  <h3>{t('studioSettings.alertTypes')}</h3>
                   <div className="setting-item">
                     <div className="setting-info">
-                      <h4>New Client Alerts</h4>
-                      <p>Get notified when new clients register</p>
+                      <h4>{t('studioSettings.newClientAlerts')}</h4>
+                      <p>{t('studioSettings.newClientAlertsDesc')}</p>
                     </div>
                     <label className="toggle-switch">
                       <input
@@ -492,8 +497,8 @@ const StudioSettings: React.FC = () => {
                   </div>
                   <div className="setting-item">
                     <div className="setting-info">
-                      <h4>Session Reminders</h4>
-                      <p>Receive reminders for upcoming sessions</p>
+                      <h4>{t('studioSettings.sessionReminders')}</h4>
+                      <p>{t('studioSettings.sessionRemindersDesc')}</p>
                     </div>
                     <label className="toggle-switch">
                       <input
@@ -506,8 +511,8 @@ const StudioSettings: React.FC = () => {
                   </div>
                   <div className="setting-item">
                     <div className="setting-info">
-                      <h4>Payment Alerts</h4>
-                      <p>Get notified about payment status</p>
+                      <h4>{t('studioSettings.paymentAlerts')}</h4>
+                      <p>{t('studioSettings.paymentAlertsDesc')}</p>
                     </div>
                     <label className="toggle-switch">
                       <input
@@ -520,8 +525,8 @@ const StudioSettings: React.FC = () => {
                   </div>
                   <div className="setting-item">
                     <div className="setting-info">
-                      <h4>System Updates</h4>
-                      <p>Receive updates about system maintenance</p>
+                      <h4>{t('studioSettings.systemUpdates')}</h4>
+                      <p>{t('studioSettings.systemUpdatesDesc')}</p>
                     </div>
                     <label className="toggle-switch">
                       <input
@@ -541,17 +546,17 @@ const StudioSettings: React.FC = () => {
           {activeTab === 'security' && (
             <div className="settings-section">
               <div className="section-header">
-                <h2>Security Settings</h2>
-                <p>Manage your account security and privacy</p>
+                <h2>{t('studioSettings.securitySettings')}</h2>
+                <p>{t('studioSettings.securitySubtitle')}</p>
               </div>
 
               <div className="security-settings">
                 <div className="setting-group">
-                  <h3>Authentication</h3>
+                  <h3>{t('studioSettings.authentication')}</h3>
                   <div className="setting-item">
                     <div className="setting-info">
-                      <h4>Two-Factor Authentication</h4>
-                      <p>Add an extra layer of security to your account</p>
+                      <h4>{t('studioSettings.twoFactor')}</h4>
+                      <p>{t('studioSettings.twoFactorDesc')}</p>
                     </div>
                     <label className="toggle-switch">
                       <input
@@ -564,8 +569,8 @@ const StudioSettings: React.FC = () => {
                   </div>
                   <div className="setting-item">
                     <div className="setting-info">
-                      <h4>Login Alerts</h4>
-                      <p>Get notified of new login attempts</p>
+                      <h4>{t('studioSettings.loginAlerts')}</h4>
+                      <p>{t('studioSettings.loginAlertsDesc')}</p>
                     </div>
                     <label className="toggle-switch">
                       <input
@@ -579,45 +584,45 @@ const StudioSettings: React.FC = () => {
                 </div>
 
                 <div className="setting-group">
-                  <h3>Session Management</h3>
+                  <h3>{t('studioSettings.sessionManagement')}</h3>
                   <div className="setting-item">
                     <div className="setting-info">
-                      <h4>Session Timeout</h4>
-                      <p>Automatically log out after inactivity (minutes)</p>
+                      <h4>{t('studioSettings.sessionTimeout')}</h4>
+                      <p>{t('studioSettings.sessionTimeoutDesc')}</p>
                     </div>
                     <select
                       value={securitySettings.sessionTimeout}
                       onChange={(e) => handleSecurityUpdate({ sessionTimeout: parseInt(e.target.value) })}
                     >
-                      <option value={15}>15 minutes</option>
-                      <option value={30}>30 minutes</option>
-                      <option value={60}>1 hour</option>
-                      <option value={120}>2 hours</option>
+                      <option value={15}>{t('studioSettings.min15')}</option>
+                      <option value={30}>{t('studioSettings.min30')}</option>
+                      <option value={60}>{t('studioSettings.hour1')}</option>
+                      <option value={120}>{t('studioSettings.hours2')}</option>
                     </select>
                   </div>
                   <div className="setting-item">
                     <div className="setting-info">
-                      <h4>Password Expiry</h4>
-                      <p>Require password change after (days)</p>
+                      <h4>{t('studioSettings.passwordExpiry')}</h4>
+                      <p>{t('studioSettings.passwordExpiryDesc')}</p>
                     </div>
                     <select
                       value={securitySettings.passwordExpiry}
                       onChange={(e) => handleSecurityUpdate({ passwordExpiry: parseInt(e.target.value) })}
                     >
-                      <option value={30}>30 days</option>
-                      <option value={60}>60 days</option>
-                      <option value={90}>90 days</option>
-                      <option value={180}>180 days</option>
+                      <option value={30}>{t('studioSettings.days30')}</option>
+                      <option value={60}>{t('studioSettings.days60')}</option>
+                      <option value={90}>{t('studioSettings.days90')}</option>
+                      <option value={180}>{t('studioSettings.days180')}</option>
                     </select>
                   </div>
                 </div>
 
                 <div className="setting-group">
-                  <h3>API Access</h3>
+                  <h3>{t('studioSettings.apiAccess')}</h3>
                   <div className="setting-item">
                     <div className="setting-info">
-                      <h4>API Access</h4>
-                      <p>Allow third-party applications to access your data</p>
+                      <h4>{t('studioSettings.apiAccess')}</h4>
+                      <p>{t('studioSettings.apiAccessDesc')}</p>
                     </div>
                     <label className="toggle-switch">
                       <input
@@ -636,7 +641,7 @@ const StudioSettings: React.FC = () => {
                     onClick={() => setShowPasswordModal(true)}
                   >
                     <FaKey />
-                    Change Password
+                    {t('studioSettings.changePassword')}
                   </button>
                 </div>
               </div>
@@ -647,22 +652,22 @@ const StudioSettings: React.FC = () => {
           {activeTab === 'danger' && (
             <div className="settings-section">
               <div className="section-header">
-                <h2>Danger Zone</h2>
-                <p>Irreversible and destructive actions</p>
+                <h2>{t('studioSettings.dangerZone')}</h2>
+                <p>{t('studioSettings.dangerSubtitle')}</p>
               </div>
 
               <div className="danger-zone">
                 <div className="danger-item">
                   <div className="danger-info">
-                    <h3>Delete Photo Book Account</h3>
-                    <p>Permanently delete your photo book account and all associated data. This action cannot be undone.</p>
+                    <h3>{t('studioSettings.deleteAccountTitle')}</h3>
+                    <p>{t('studioSettings.deleteAccountDesc')}</p>
                   </div>
                   <button 
                     className="danger-btn"
                     onClick={() => setShowDeleteModal(true)}
                   >
                     <FaTrash />
-                    Delete Account
+                    {t('studioSettings.deleteAccount')}
                   </button>
                 </div>
               </div>
@@ -676,7 +681,7 @@ const StudioSettings: React.FC = () => {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
-              <h2>Change Password</h2>
+              <h2>{t('studioSettings.changePasswordTitle')}</h2>
               <button 
                 className="close-btn"
                 onClick={() => setShowPasswordModal(false)}
@@ -686,7 +691,7 @@ const StudioSettings: React.FC = () => {
             </div>
             <div className="password-form">
               <div className="form-group">
-                <label>Current Password</label>
+                <label>{t('studioSettings.currentPassword')}</label>
                 <div className="password-input">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -703,7 +708,7 @@ const StudioSettings: React.FC = () => {
                 </div>
               </div>
               <div className="form-group">
-                <label>New Password</label>
+                <label>{t('studioSettings.newPassword')}</label>
                 <input
                   type="password"
                   value={passwordData.newPassword}
@@ -711,7 +716,7 @@ const StudioSettings: React.FC = () => {
                 />
               </div>
               <div className="form-group">
-                <label>Confirm New Password</label>
+                <label>{t('studioSettings.confirmNewPassword')}</label>
                 <input
                   type="password"
                   value={passwordData.confirmPassword}
@@ -723,14 +728,14 @@ const StudioSettings: React.FC = () => {
                   className="cancel-btn"
                   onClick={() => setShowPasswordModal(false)}
                 >
-                  Cancel
+                  {t('studioSettings.cancel')}
                 </button>
                 <button 
                   className="save-btn"
                   onClick={handlePasswordChange}
                   disabled={saving}
                 >
-                  {saving ? 'Updating...' : 'Update Password'}
+                  {saving ? t('studioSettings.updating') : t('studioSettings.updatePassword')}
                 </button>
               </div>
             </div>
@@ -743,7 +748,7 @@ const StudioSettings: React.FC = () => {
         <div className="modal-overlay">
           <div className="modal-content delete-modal">
             <div className="modal-header">
-              <h2>Delete Photo Book Account</h2>
+              <h2>{t('studioSettings.deleteModalTitle')}</h2>
               <button 
                 className="close-btn"
                 onClick={() => setShowDeleteModal(false)}
@@ -755,25 +760,25 @@ const StudioSettings: React.FC = () => {
               <div className="warning-icon">
                 <FaTrash />
               </div>
-              <h3>Are you absolutely sure?</h3>
-              <p>This action cannot be undone. This will permanently delete your photo book account and remove all data from our servers.</p>
+              <h3>{t('studioSettings.deleteConfirmTitle')}</h3>
+              <p>{t('studioSettings.deleteConfirmBody')}</p>
               <div className="confirmation-input">
-                <label>Type "DELETE" to confirm:</label>
-                <input type="text" placeholder="DELETE" />
+                <label>{t('studioSettings.typeDeleteConfirm')}</label>
+                <input type="text" placeholder={t('studioSettings.deletePlaceholder')} />
               </div>
               <div className="modal-actions">
                 <button 
                   className="cancel-btn"
                   onClick={() => setShowDeleteModal(false)}
                 >
-                  Cancel
+                  {t('studioSettings.cancel')}
                 </button>
                 <button 
                   className="danger-btn"
                   onClick={handleDeleteStudio}
                   disabled={saving}
                 >
-                  {saving ? 'Deleting...' : 'Delete Account'}
+                  {saving ? t('studioSettings.deleting') : t('studioSettings.deleteAccount')}
                 </button>
               </div>
             </div>

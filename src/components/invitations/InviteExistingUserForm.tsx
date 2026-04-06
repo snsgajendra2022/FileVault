@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useMutation } from '@tanstack/react-query';
 import { FaUserPlus, FaCheckCircle, FaSearch } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
@@ -13,6 +14,8 @@ type ValidateResponse = {
 };
 
 const InviteExistingUserForm: React.FC = () => {
+  const { t } = useTranslation();
+  const ic = 'invitationsComponents.inviteExisting';
   const { user } = useAuth();
   const [code, setCode] = React.useState('');
   const [note, setNote] = React.useState('');
@@ -26,14 +29,14 @@ const InviteExistingUserForm: React.FC = () => {
     onSuccess: (data) => {
       if (!data.valid) {
         setValidatedInfo(null);
-        toast.error('Invalid invitation code');
+        toast.error(t(`${ic}.toastInvalid`));
         return;
       }
       setValidatedInfo(data);
-      toast.success('Code is valid');
+      toast.success(t(`${ic}.toastValid`));
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.message ?? 'Failed to validate code';
+      const msg = err?.response?.data?.message ?? t(`${ic}.toastValidateFail`);
       toast.error(msg);
       setValidatedInfo(null);
     },
@@ -48,18 +51,17 @@ const InviteExistingUserForm: React.FC = () => {
       };
       if (inviterId != null) payload.inviterId = inviterId;
 
-      // Use new backend endpoint: POST /api/invitation/send
       const res = await api.post('/api/invitation/send', payload);
       return res.data;
     },
     onSuccess: () => {
-      toast.success('Invitation sent');
+      toast.success(t(`${ic}.toastSent`));
       setCode('');
       setNote('');
       setValidatedInfo(null);
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.message ?? 'Failed to send invitation';
+      const msg = err?.response?.data?.message ?? t(`${ic}.toastSendFail`);
       toast.error(msg);
     },
   });
@@ -67,7 +69,7 @@ const InviteExistingUserForm: React.FC = () => {
   const handleValidate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!code.trim()) {
-      toast.error('Enter an invitation code');
+      toast.error(t(`${ic}.toastEnterCode`));
       return;
     }
     validateMutation.mutate();
@@ -76,7 +78,7 @@ const InviteExistingUserForm: React.FC = () => {
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!code.trim()) {
-      toast.error('Enter an invitation code');
+      toast.error(t(`${ic}.toastEnterCode`));
       return;
     }
     sendMutation.mutate();
@@ -89,24 +91,22 @@ const InviteExistingUserForm: React.FC = () => {
           <FaUserPlus className="w-5 h-5 text-emerald-600" />
         </div>
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">Invite using an invitation code</h2>
-          <p className="text-xs text-slate-500">
-            Paste a code you received and connect to the owner&apos;s account.
-          </p>
+          <h2 className="text-sm font-semibold text-slate-900">{t(`${ic}.title`)}</h2>
+          <p className="text-xs text-slate-500">{t(`${ic}.subtitle`)}</p>
         </div>
       </div>
 
       <form className="space-y-3" onSubmit={handleSend}>
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1.5">
-            Invitation code
+            {t(`${ic}.codeLabel`)}
           </label>
           <div className="flex gap-2">
             <input
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="Enter invitation code"
+              placeholder={t(`${ic}.codePlaceholder`)}
               className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono tracking-[0.18em] uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
             />
             <button
@@ -118,12 +118,12 @@ const InviteExistingUserForm: React.FC = () => {
               {validateMutation.status === 'pending' ? (
                 <>
                   <FaSearch className="w-3.5 h-3.5 animate-spin" />
-                  Checking…
+                  {t(`${ic}.checking`)}
                 </>
               ) : (
                 <>
                   <FaSearch className="w-3.5 h-3.5" />
-                  Validate
+                  {t(`${ic}.validate`)}
                 </>
               )}
             </button>
@@ -135,11 +135,13 @@ const InviteExistingUserForm: React.FC = () => {
             <FaCheckCircle className="w-4 h-4 mt-0.5 text-emerald-500" />
             <div>
               <p className="font-semibold">
-                Code owner: {validatedInfo.inviterName || 'Unknown user'}
+                {t(`${ic}.codeOwner`, {
+                  name: validatedInfo.inviterName || t(`${ic}.unknownUser`),
+                })}
               </p>
               {validatedInfo.inviterAccountLabel && (
                 <p className="mt-0.5 text-[11px]">
-                  Account: <span className="font-medium">{validatedInfo.inviterAccountLabel}</span>
+                  {t(`${ic}.account`)} <span className="font-medium">{validatedInfo.inviterAccountLabel}</span>
                 </p>
               )}
             </div>
@@ -148,13 +150,13 @@ const InviteExistingUserForm: React.FC = () => {
 
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-1.5">
-            Optional message
+            {t(`${ic}.optionalMessage`)}
           </label>
           <textarea
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Add a short note with your invitation (optional)"
+            placeholder={t(`${ic}.messagePlaceholder`)}
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500"
           />
         </div>
@@ -168,12 +170,12 @@ const InviteExistingUserForm: React.FC = () => {
             {sendMutation.status === 'pending' ? (
               <>
                 <FaUserPlus className="w-3.5 h-3.5 animate-pulse" />
-                Sending invitation…
+                {t(`${ic}.sending`)}
               </>
             ) : (
               <>
                 <FaUserPlus className="w-3.5 h-3.5" />
-                Send invitation
+                {t(`${ic}.send`)}
               </>
             )}
           </button>
@@ -184,4 +186,3 @@ const InviteExistingUserForm: React.FC = () => {
 };
 
 export default InviteExistingUserForm;
-

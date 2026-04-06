@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { 
   FaCheck, 
   FaUpload, 
@@ -38,6 +39,7 @@ interface Service {
 }
 
 const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
+  const { t } = useTranslation();
   const { serviceId } = useParams<{ serviceId: string }>();
   const navigate = useNavigate();
   const [service, setService] = useState<Service | null>(null);
@@ -151,11 +153,11 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
             <FaExclamationTriangle className="h-4 w-4 text-red-500 mr-2" />
             <span className="text-red-700">
-              Service not found. Please check the URL and try again.
+              {t('serviceConfigPage.notFound')}
             </span>
           </div>
           <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-blue-900 mb-2">Available Services:</h3>
+            <h3 className="text-lg font-semibold text-blue-900 mb-2">{t('serviceConfigPage.availableServices')}</h3>
             <div className="grid grid-cols-2 gap-2">
               {servicesData.services.map((s) => (
                 <div key={s.id} className="text-sm text-blue-700">
@@ -179,7 +181,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
             className="mb-4 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors flex items-center"
           >
             <FaArrowLeft className="h-4 w-4 mr-2" />
-            Back to Services
+            {t('serviceConfigPage.backToServices')}
           </button>
           
           <div className="flex items-center gap-4 mb-4">
@@ -198,7 +200,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                 </span>
                 {service.popular && (
                   <span className="px-2 py-1 bg-green-500 text-white text-xs font-medium rounded-full">
-                    Popular
+                    {t('serviceConfigPage.popular')}
                   </span>
                 )}
               </div>
@@ -209,10 +211,13 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">
-                Setup Progress
+                {t('serviceConfigPage.setupProgress')}
               </span>
               <span className="text-sm text-gray-500">
-                {completedSteps.length} of {service.setupSteps.length} steps completed
+                {t('serviceConfigPage.stepsCompleted', {
+                  completed: completedSteps.length,
+                  total: service.setupSteps.length
+                })}
               </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -231,7 +236,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
               <div className="p-6 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
                   <span className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">i</span>
-                  Setup Steps
+                  {t('serviceConfigPage.setupSteps')}
                 </h2>
               </div>
               <div className="p-6 space-y-4">
@@ -257,17 +262,17 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="font-semibold text-gray-900">
-                            Step {step.step}: {step.title}
+                            {t('serviceConfigPage.stepHeading', { step: step.step, title: step.title })}
                           </h3>
                           {isStepCompleted(index) && (
                             <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                              Completed
+                              {t('serviceConfigPage.completed')}
                             </span>
                           )}
                         </div>
                         <p className="text-gray-600 mb-2">{step.description}</p>
                         <div className="bg-gray-50 p-3 rounded-md mb-3">
-                          <p className="text-sm font-medium text-gray-700 mb-1">Action Required:</p>
+                          <p className="text-sm font-medium text-gray-700 mb-1">{t('serviceConfigPage.actionRequired')}</p>
                           <p className="text-sm text-gray-600">{step.action}</p>
                         </div>
                         <p className="text-sm text-gray-500">{step.details}</p>
@@ -280,7 +285,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                               onClick={() => window.open('https://console.cloud.google.com', '_blank')}
                             >
                               <span className="mr-2">🔗</span>
-                              Open Google Cloud Console
+                              {t('serviceConfigPage.openGoogleCloudConsole')}
                             </button>
                             <div className="mt-3">
                               <img 
@@ -297,7 +302,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                           <div className="mt-3">
                             <div className="bg-blue-50 p-3 rounded-md mb-3">
                               <p className="text-sm text-blue-700">
-                                <strong>Tip:</strong> If you don't have a project, click "New Project" and follow the setup wizard.
+                                <strong>Tip:</strong> {t('serviceConfigPage.tipNoProject')}
                               </p>
                             </div>
                             <img 
@@ -382,7 +387,8 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                           <div className="mt-3">
                             <div className="bg-yellow-50 p-3 rounded-md mb-3">
                               <p className="text-sm text-yellow-700">
-                                <strong>Important:</strong> Make sure to add the exact redirect URI: <code className="bg-yellow-100 px-1 rounded">https://filevault.mytiny.us/api/drive/oauth/callback</code>
+                                {t('serviceConfigPage.importantRedirect')}{' '}
+                                <code className="bg-yellow-100 px-1 rounded">https://filevault.mytiny.us/api/drive/oauth/callback</code>
                               </p>
                             </div>
                             <img 
@@ -398,10 +404,10 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                           <div className="mt-3">
                             <div className="bg-green-50 p-3 rounded-md mb-3">
                               <p className="text-sm text-green-700 mb-2">
-                                <strong>Success!</strong> Your OAuth client has been created. Now copy your Client ID and Client Secret.
+                                {t('serviceConfigPage.successOAuth')}
                               </p>
                               <p className="text-xs text-green-600">
-                                Use these credentials in the configuration form below to complete the setup.
+                                {t('serviceConfigPage.useCredentialsBelow')}
                               </p>
                             </div>
                             <div className="space-y-3">
@@ -413,10 +419,10 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                               />
                               <div className="bg-blue-50 p-3 rounded-md">
                                 <p className="text-sm text-blue-700 mb-2">
-                                  <strong>Next:</strong> Copy your Client ID and Client Secret from the Google Cloud Console.
+                                  {t('serviceConfigPage.nextCopyCredentials')}
                                 </p>
                                 <p className="text-xs text-blue-600">
-                                  You can find these in your OAuth 2.0 Client ID details page.
+                                  {t('serviceConfigPage.findOAuthDetails')}
                                 </p>
                               </div>
                             </div>
@@ -428,7 +434,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                             className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
                             onClick={() => handleStepComplete(index)}
                           >
-                            Mark as Complete
+                            {t('serviceConfigPage.markComplete')}
                           </button>
                         )}
                       </div>
@@ -442,14 +448,14 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
             {service.id === 'google-drive' && (
               <div className="bg-white rounded-lg shadow-md mt-6">
                 <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Complete Setup Guide - All Images</h3>
-                  <p className="text-sm text-gray-600 mt-1">Click any image to view in full size</p>
+                  <h3 className="text-lg font-semibold text-gray-900">{t('serviceConfigPage.completeGuideTitle')}</h3>
+                  <p className="text-sm text-gray-600 mt-1">{t('serviceConfigPage.clickImageFullSize')}</p>
                 </div>
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {/* Step 1 */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 text-sm">Step 1: Get Started</h4>
+                      <h4 className="font-semibold text-gray-900 text-sm">{t('serviceConfigPage.galleryStep1')}</h4>
                       <img 
                         src="/drive-service-connect-images/Click get start.png" 
                         alt="Google Cloud Console - Get Started"
@@ -460,7 +466,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
 
                     {/* Step 2 */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 text-sm">Step 2: Project Configuration</h4>
+                      <h4 className="font-semibold text-gray-900 text-sm">{t('serviceConfigPage.galleryStep2')}</h4>
                       <img 
                         src="/drive-service-connect-images/project configuration complte.png" 
                         alt="Project Configuration Complete"
@@ -471,7 +477,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
 
                     {/* Step 3 - Image 1 */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 text-sm">Step 3: Select API from Library</h4>
+                      <h4 className="font-semibold text-gray-900 text-sm">{t('serviceConfigPage.galleryStep3a')}</h4>
                       <img 
                         src="/drive-service-connect-images/Drive-library-select.png" 
                         alt="Select Google Drive API from Library"
@@ -482,7 +488,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
 
                     {/* Step 3 - Image 2 */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 text-sm">Step 3: Select Google Drive API</h4>
+                      <h4 className="font-semibold text-gray-900 text-sm">{t('serviceConfigPage.galleryStep3b')}</h4>
                       <img 
                         src="/drive-service-connect-images/Select Google drive api.png" 
                         alt="Select Google Drive API"
@@ -493,7 +499,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
 
                     {/* Step 3 - Image 3 */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 text-sm">Step 3: Enable Google Drive API</h4>
+                      <h4 className="font-semibold text-gray-900 text-sm">{t('serviceConfigPage.galleryStep3c')}</h4>
                       <img 
                         src="/drive-service-connect-images/Enable google drive api .png" 
                         alt="Enable Google Drive API"
@@ -504,7 +510,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
 
                     {/* Step 4 - Image 1 */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 text-sm">Step 4: Select Credentials</h4>
+                      <h4 className="font-semibold text-gray-900 text-sm">{t('serviceConfigPage.galleryStep4a')}</h4>
                       <img 
                         src="/drive-service-connect-images/select credentials and create.png" 
                         alt="Select Credentials and Create"
@@ -515,7 +521,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
 
                     {/* Step 4 - Image 2 */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 text-sm">Step 4: Create Auth Clients</h4>
+                      <h4 className="font-semibold text-gray-900 text-sm">{t('serviceConfigPage.galleryStep4b')}</h4>
                       <img 
                         src="/drive-service-connect-images/create Auth clients.png" 
                         alt="Create Auth Clients"
@@ -526,7 +532,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
 
                     {/* Step 4 - Image 3 */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 text-sm">Step 4: Click OAuth Client ID</h4>
+                      <h4 className="font-semibold text-gray-900 text-sm">{t('serviceConfigPage.galleryStep4c')}</h4>
                       <img 
                         src="/drive-service-connect-images/Click OAuth client ID.png" 
                         alt="Click OAuth Client ID"
@@ -537,7 +543,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
 
                     {/* Step 5 - Image 1 */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 text-sm">Step 5: Configure Consent Screen</h4>
+                      <h4 className="font-semibold text-gray-900 text-sm">{t('serviceConfigPage.galleryStep5a')}</h4>
                       <img 
                         src="/drive-service-connect-images/click configure consent screen.png" 
                         alt="Configure OAuth Consent Screen"
@@ -548,7 +554,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
 
                     {/* Step 5 - Image 2 */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 text-sm">Step 5: Create Audience & Users</h4>
+                      <h4 className="font-semibold text-gray-900 text-sm">{t('serviceConfigPage.galleryStep5b')}</h4>
                       <img 
                         src="/drive-service-connect-images/create Audience and added users .png" 
                         alt="Create Audience and Added Users"
@@ -559,7 +565,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
 
                     {/* Step 6 */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 text-sm">Step 6: Create OAuth Client ID</h4>
+                      <h4 className="font-semibold text-gray-900 text-sm">{t('serviceConfigPage.galleryStep6')}</h4>
                       <img 
                         src="/drive-service-connect-images/Create OAuth client ID for Web.png" 
                         alt="Create OAuth Client ID for Web"
@@ -570,7 +576,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
 
                     {/* Step 7 */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 text-sm">Step 7: Download Credentials</h4>
+                      <h4 className="font-semibold text-gray-900 text-sm">{t('serviceConfigPage.galleryStep7')}</h4>
                       <img 
                         src="/drive-service-connect-images/OAuth Client Created Successfully Downloadded json file.png" 
                         alt="OAuth Client Created Successfully"
@@ -588,14 +594,14 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
               <div className="bg-white rounded-lg shadow-md mt-6">
                 <div className="p-6 border-b border-gray-200">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-gray-900">Configure {service.name}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">{t('serviceConfigPage.configureService', { name: service.name })}</h3>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-500">Need help?</span>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        Check the documentation for setup instructions
+                      <span className="text-sm text-gray-500">{t('serviceConfigPage.needHelp')}</span>
+                      <button type="button" className="text-sm text-blue-600 hover:text-blue-800 underline">
+                        {t('serviceConfigPage.checkDocumentation')}
                       </button>
-                      <button className="text-sm text-blue-600 hover:text-blue-800 underline">
-                        View Docs
+                      <button type="button" className="text-sm text-blue-600 hover:text-blue-800 underline">
+                        {t('serviceConfigPage.viewDocs')}
                       </button>
                     </div>
                   </div>
@@ -605,33 +611,33 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                     <div className="flex items-center">
                       <FaExclamationTriangle className="h-5 w-5 text-yellow-500 mr-2" />
                       <div>
-                        <h4 className="text-sm font-medium text-yellow-800">Configuration Form Not Available</h4>
+                        <h4 className="text-sm font-medium text-yellow-800">{t('serviceConfigPage.configUnavailableTitle')}</h4>
                         <p className="text-sm text-yellow-700 mt-1">
-                          The configuration form for {service.name} is not yet implemented. Please use the setup steps above to configure this service manually.
+                          {t('serviceConfigPage.configUnavailableBody', { name: service.name })}
                         </p>
                       </div>
                     </div>
                   </div>
                   
                   <div>
-                    <h4 className="text-md font-semibold text-gray-900 mb-4">Manual Configuration</h4>
+                    <h4 className="text-md font-semibold text-gray-900 mb-4">{t('serviceConfigPage.manualConfiguration')}</h4>
                     <p className="text-sm text-gray-600 mb-4">
-                      Please follow the setup steps above to configure {service.name}. Once you have completed the setup, you can manually enter your configuration details below.
+                      {t('serviceConfigPage.manualConfigurationDesc', { name: service.name })}
                     </p>
                     
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Configuration Data
+                          {t('serviceConfigPage.configurationData')}
                         </label>
                         <textarea
                           value={configData.manualConfig || ''}
                           onChange={(e) => handleConfigChange('manualConfig', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           rows={4}
-                          placeholder="Enter your configuration data (JSON format recommended)"
+                          placeholder={t('serviceConfigPage.placeholderManualConfig')}
                         />
-                        <p className="text-xs text-gray-500 mt-1">Enter your configuration data in JSON format or as key-value pairs</p>
+                        <p className="text-xs text-gray-500 mt-1">{t('serviceConfigPage.hintConfigFormat')}</p>
                       </div>
                     </div>
                   </div>
@@ -645,7 +651,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
             {/* Features */}
             <div className="bg-white rounded-lg shadow-md">
               <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Features</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{t('serviceConfigPage.features')}</h3>
               </div>
               <div className="p-6">
                 <ul className="space-y-2">
@@ -662,7 +668,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
             {/* Requirements */}
             <div className="bg-white rounded-lg shadow-md">
               <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Requirements</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{t('serviceConfigPage.requirements')}</h3>
               </div>
               <div className="p-6">
                 <ul className="space-y-2">
@@ -679,31 +685,31 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
             {/* Troubleshooting */}
             <div className="bg-white rounded-lg shadow-md">
               <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Troubleshooting</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{t('serviceConfigPage.troubleshooting')}</h3>
               </div>
               <div className="p-6">
                 <div className="space-y-4">
                   {/* API not enabled */}
                   <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-sm">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-2">API not enabled</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">{t('serviceConfigPage.troubleApiTitle')}</h4>
                     <p className="text-sm text-gray-600">
-                      Make sure Google Drive API is enabled in your Google Cloud Console
+                      {t('serviceConfigPage.troubleApiBody')}
                     </p>
                   </div>
 
                   {/* Invalid Client ID or Secret */}
                   <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-sm">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Invalid Client ID or Secret</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">{t('serviceConfigPage.troubleInvalidTitle')}</h4>
                     <p className="text-sm text-gray-600">
-                      Verify your OAuth 2.0 credentials are correct in Google Cloud Console
+                      {t('serviceConfigPage.troubleInvalidBody')}
                     </p>
                   </div>
 
                   {/* Redirect URI mismatch - Highlighted */}
                   <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 shadow-sm">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-2">Redirect URI mismatch</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">{t('serviceConfigPage.troubleRedirectTitle')}</h4>
                     <p className="text-sm text-gray-600 mb-2">
-                      Ensure the redirect URI in your OAuth client matches:
+                      {t('serviceConfigPage.troubleRedirectBody')}
                     </p>
                     <div className="bg-blue-100 px-3 py-2 rounded-md border border-blue-200">
                       <code className="text-sm font-mono text-blue-800">
@@ -714,9 +720,9 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
 
                   {/* OAuth consent screen not configured */}
                   <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-sm">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-2">OAuth consent screen not configured</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-2">{t('serviceConfigPage.troubleConsentTitle')}</h4>
                     <p className="text-sm text-gray-600">
-                      Complete the OAuth consent screen setup in Google Cloud Console
+                      {t('serviceConfigPage.troubleConsentBody')}
                     </p>
                   </div>
                 </div>
@@ -734,17 +740,17 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
                   {isConfiguring ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating Service...
+                      {t('serviceConfigPage.creatingService')}
                     </>
                   ) : (
-                    'Create Service'
+                    t('serviceConfigPage.createService')
                   )}
                 </button>
                 <p className="text-xs text-gray-500 mt-2 text-center">
-                  Complete all steps to create and configure your service
+                  {t('serviceConfigPage.completeAllSteps')}
                 </p>
                 <p className="text-xs text-gray-400 mt-1 text-center">
-                  This will create the service connection and save your configuration
+                  {t('serviceConfigPage.createConnectionHint')}
                 </p>
               </div>
             </div>
@@ -766,7 +772,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
             </button>
             <img
               src={selectedImage}
-              alt="Full size view"
+              alt={t('serviceConfigPage.fullSizeAlt')}
               className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             />

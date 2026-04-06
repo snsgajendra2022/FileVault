@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import HTMLFlipBook from 'react-pageflip';
 import { jsPDF } from 'jspdf';
 import JSZip from 'jszip';
@@ -111,6 +112,7 @@ function DraggableCropImage({
   onCropChange?: (pos: CropPos) => void;
   className?: string;
 }) {
+  const { t } = useTranslation(undefined, { keyPrefix: 'photoThemeAlbumBuilderPage' });
   const pos = cropPos ?? { x: 50, y: 50 };
   const imgRef = React.useRef<HTMLImageElement>(null);
   const dragRef = React.useRef<{ startX: number; startY: number; startPos: CropPos } | null>(null);
@@ -163,7 +165,7 @@ function DraggableCropImage({
       {onCropChange && !dragging && (
         <div className="absolute inset-x-0 bottom-0 flex justify-center pb-1 opacity-0 group-hover/crop:opacity-100 transition-opacity pointer-events-none z-10">
           <span className="text-[9px] font-semibold text-white bg-black/50 rounded-full px-2 py-0.5 backdrop-blur-sm">
-            Drag to reposition
+            {t('dragToReposition')}
           </span>
         </div>
       )}
@@ -330,6 +332,29 @@ const LAYOUT_GEOMETRY: Record<string, LayoutSlotRect[]> = {
 };
 
 const PAGE_LAYOUT_OPTIONS = PAGE_LAYOUT_CONFIG.map((c) => c.id);
+
+/** i18n keys for layout short labels (matches PAGE_LAYOUT_CONFIG ids) */
+const LAYOUT_SHORT_TKEY: Record<string, string> = {
+  'Single Full Bleed': 'layoutFullBleed',
+  'Cinematic Love': 'layoutCinematic',
+  'Love Side by Side': 'layoutSideBySide',
+  'Bride & Groom': 'layoutStacked',
+  'Hero + Memories': 'layoutHeroTwo',
+  'Three Grid': 'layoutThreeGrid',
+  'Romantic Collage': 'layoutRomanticCollage',
+  'Wedding Grid': 'layoutClassicGrid',
+  'Memory Collage': 'layoutOverlapCollage',
+  'Luxury Cover': 'layoutLuxuryCover',
+  'Cinematic Inner': 'layoutHeroThree',
+  'Hero Wedding Story': 'layoutHeroFour',
+  'Memories Spread': 'layoutSixGrid',
+  'Single Photo': 'layoutSingle',
+  'Hero + Two': 'layoutHeroTwo',
+  'Two Up': 'layoutTwoUp',
+  'Four Grid': 'layoutGrid4',
+  'Cinematic Spread': 'layoutCinema',
+  'Collage': 'layoutCollage',
+};
 
 /** Get arrangement for a layout id (for rendering); falls back to slotCount-based default */
 function getArrangementForLayoutId(layoutId: string): LayoutArrangement {
@@ -530,6 +555,7 @@ function AlbumSlotCard({
   onOpenPicker: () => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation(undefined, { keyPrefix: 'photoThemeAlbumBuilderPage' });
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({
     id,
     data: { slotIndex },
@@ -559,7 +585,7 @@ function AlbumSlotCard({
           <div
             className="absolute inset-0 flex items-center justify-center"
             onClick={(e) => { e.stopPropagation(); onOpenPicker(); }}
-            title="Click to replace · Drag to swap with another slot"
+            title={t('clickReplaceDragSwap')}
           >
             <img src={url} alt="" className="w-full h-full object-cover pointer-events-none" />
             <div
@@ -567,14 +593,14 @@ function AlbumSlotCard({
               {...(attributes as object)}
               {...(listeners as object)}
             >
-              <span className="text-[10px] font-semibold text-white bg-black/50 rounded-lg px-2 py-1">Drag to swap</span>
+              <span className="text-[10px] font-semibold text-white bg-black/50 rounded-lg px-2 py-1">{t('dragToSwap')}</span>
             </div>
           </div>
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onRemove(); }}
             className="absolute top-1 right-1 z-10 w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center hover:bg-red-600 shadow opacity-0 group-hover/slot:opacity-100 transition-opacity"
-            aria-label="Remove photo"
+            aria-label={t('removePhotoAria')}
           >
             ×
           </button>
@@ -582,7 +608,7 @@ function AlbumSlotCard({
       ) : (
         <div className="flex flex-col items-center justify-center h-full gap-1" onClick={onOpenPicker}>
           <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-          <span className="text-[10px] font-semibold text-slate-500">Add photo</span>
+          <span className="text-[10px] font-semibold text-slate-500">{t('addPhoto')}</span>
         </div>
       )}
     </div>
@@ -677,6 +703,12 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       openPreview?: 'flip' | 'page';
     };
   };
+
+  const { t } = useTranslation(undefined, { keyPrefix: 'photoThemeAlbumBuilderPage' });
+  const layoutShort = React.useCallback(
+    (id: string) => t(LAYOUT_SHORT_TKEY[id] || 'layoutSingle'),
+    [t],
+  );
 
   const STUDIO_ALBUM_KEY = `studioAlbum_${categorySlug}`;
 
@@ -908,30 +940,36 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     slotIndex?: number; // if set, replace this specific slot; otherwise fill next empty
   } | null>(null);
   
-  // Color theme options for Anniversary theme
-  const anniversaryColorThemes = [
-    { id: 'red-pink', name: 'Red & Pink', colors: ['rgba(220, 38, 38, 0.18)', 'rgba(236, 72, 153, 0.15)', 'rgba(219, 39, 119, 0.12)', 'rgba(251, 113, 133, 0.15)', 'rgba(239, 68, 68, 0.18)'], accent: ['rgba(251, 146, 60, 0.1)', 'rgba(244, 114, 182, 0.1)'], base: '#fef2f2', heartColors: ['text-red-400', 'text-pink-400', 'text-red-500', 'text-pink-500'] },
-    { id: 'purple-violet', name: 'Purple & Violet', colors: ['rgba(139, 92, 246, 0.18)', 'rgba(168, 85, 247, 0.15)', 'rgba(147, 51, 234, 0.12)', 'rgba(192, 132, 252, 0.15)', 'rgba(124, 58, 237, 0.18)'], accent: ['rgba(196, 181, 253, 0.1)', 'rgba(221, 214, 254, 0.1)'], base: '#faf5ff', heartColors: ['text-purple-400', 'text-violet-400', 'text-purple-500', 'text-violet-500'] },
-    { id: 'rose-gold', name: 'Rose Gold', colors: ['rgba(225, 29, 72, 0.18)', 'rgba(251, 146, 60, 0.15)', 'rgba(244, 63, 94, 0.12)', 'rgba(252, 165, 165, 0.15)', 'rgba(217, 119, 6, 0.18)'], accent: ['rgba(253, 186, 116, 0.1)', 'rgba(254, 215, 170, 0.1)'], base: '#fff1f2', heartColors: ['text-rose-400', 'text-amber-400', 'text-rose-500', 'text-orange-400'] },
-    { id: 'coral-peach', name: 'Coral & Peach', colors: ['rgba(249, 115, 22, 0.18)', 'rgba(251, 146, 60, 0.15)', 'rgba(234, 88, 12, 0.12)', 'rgba(253, 186, 116, 0.15)', 'rgba(239, 68, 68, 0.18)'], accent: ['rgba(254, 215, 170, 0.1)', 'rgba(255, 237, 213, 0.1)'], base: '#fff7ed', heartColors: ['text-orange-400', 'text-amber-400', 'text-orange-500', 'text-red-400'] },
-    { id: 'lavender', name: 'Lavender', colors: ['rgba(167, 139, 250, 0.18)', 'rgba(196, 181, 253, 0.15)', 'rgba(139, 92, 246, 0.12)', 'rgba(221, 214, 254, 0.15)', 'rgba(124, 58, 237, 0.18)'], accent: ['rgba(237, 233, 254, 0.1)', 'rgba(243, 240, 253, 0.1)'], base: '#f5f3ff', heartColors: ['text-purple-300', 'text-violet-300', 'text-purple-400', 'text-indigo-400'] },
-    { id: 'deep-pink', name: 'Deep Pink', colors: ['rgba(219, 39, 119, 0.18)', 'rgba(236, 72, 153, 0.15)', 'rgba(190, 24, 93, 0.12)', 'rgba(244, 114, 182, 0.15)', 'rgba(157, 23, 77, 0.18)'], accent: ['rgba(249, 168, 212, 0.1)', 'rgba(252, 211, 243, 0.1)'], base: '#fdf2f8', heartColors: ['text-pink-500', 'text-rose-500', 'text-pink-600', 'text-rose-600'] },
-    { id: 'burgundy', name: 'Burgundy', colors: ['rgba(185, 28, 28, 0.18)', 'rgba(220, 38, 38, 0.15)', 'rgba(153, 27, 27, 0.12)', 'rgba(239, 68, 68, 0.15)', 'rgba(127, 29, 29, 0.18)'], accent: ['rgba(254, 202, 202, 0.1)', 'rgba(252, 165, 165, 0.1)'], base: '#fef2f2', heartColors: ['text-red-600', 'text-red-500', 'text-red-700', 'text-red-400'] },
-    { id: 'blush', name: 'Blush', colors: ['rgba(251, 113, 133, 0.18)', 'rgba(244, 114, 182, 0.15)', 'rgba(236, 72, 153, 0.12)', 'rgba(249, 168, 212, 0.15)', 'rgba(219, 39, 119, 0.18)'], accent: ['rgba(252, 211, 243, 0.1)', 'rgba(253, 224, 71, 0.08)'], base: '#fdf2f8', heartColors: ['text-pink-300', 'text-rose-300', 'text-pink-400', 'text-rose-400'] },
-  ];
+  // Color theme options for Anniversary theme (translated labels)
+  const anniversaryColorThemes = React.useMemo(
+    () => [
+      { id: 'red-pink', nameKey: 'annivRedPink' as const, colors: ['rgba(220, 38, 38, 0.18)', 'rgba(236, 72, 153, 0.15)', 'rgba(219, 39, 119, 0.12)', 'rgba(251, 113, 133, 0.15)', 'rgba(239, 68, 68, 0.18)'], accent: ['rgba(251, 146, 60, 0.1)', 'rgba(244, 114, 182, 0.1)'], base: '#fef2f2', heartColors: ['text-red-400', 'text-pink-400', 'text-red-500', 'text-pink-500'] },
+      { id: 'purple-violet', nameKey: 'annivPurpleViolet' as const, colors: ['rgba(139, 92, 246, 0.18)', 'rgba(168, 85, 247, 0.15)', 'rgba(147, 51, 234, 0.12)', 'rgba(192, 132, 252, 0.15)', 'rgba(124, 58, 237, 0.18)'], accent: ['rgba(196, 181, 253, 0.1)', 'rgba(221, 214, 254, 0.1)'], base: '#faf5ff', heartColors: ['text-purple-400', 'text-violet-400', 'text-purple-500', 'text-violet-500'] },
+      { id: 'rose-gold', nameKey: 'annivRoseGold' as const, colors: ['rgba(225, 29, 72, 0.18)', 'rgba(251, 146, 60, 0.15)', 'rgba(244, 63, 94, 0.12)', 'rgba(252, 165, 165, 0.15)', 'rgba(217, 119, 6, 0.18)'], accent: ['rgba(253, 186, 116, 0.1)', 'rgba(254, 215, 170, 0.1)'], base: '#fff1f2', heartColors: ['text-rose-400', 'text-amber-400', 'text-rose-500', 'text-orange-400'] },
+      { id: 'coral-peach', nameKey: 'annivCoralPeach' as const, colors: ['rgba(249, 115, 22, 0.18)', 'rgba(251, 146, 60, 0.15)', 'rgba(234, 88, 12, 0.12)', 'rgba(253, 186, 116, 0.15)', 'rgba(239, 68, 68, 0.18)'], accent: ['rgba(254, 215, 170, 0.1)', 'rgba(255, 237, 213, 0.1)'], base: '#fff7ed', heartColors: ['text-orange-400', 'text-amber-400', 'text-orange-500', 'text-red-400'] },
+      { id: 'lavender', nameKey: 'annivLavender' as const, colors: ['rgba(167, 139, 250, 0.18)', 'rgba(196, 181, 253, 0.15)', 'rgba(139, 92, 246, 0.12)', 'rgba(221, 214, 254, 0.15)', 'rgba(124, 58, 237, 0.18)'], accent: ['rgba(237, 233, 254, 0.1)', 'rgba(243, 240, 253, 0.1)'], base: '#f5f3ff', heartColors: ['text-purple-300', 'text-violet-300', 'text-purple-400', 'text-indigo-400'] },
+      { id: 'deep-pink', nameKey: 'annivDeepPink' as const, colors: ['rgba(219, 39, 119, 0.18)', 'rgba(236, 72, 153, 0.15)', 'rgba(190, 24, 93, 0.12)', 'rgba(244, 114, 182, 0.15)', 'rgba(157, 23, 77, 0.18)'], accent: ['rgba(249, 168, 212, 0.1)', 'rgba(252, 211, 243, 0.1)'], base: '#fdf2f8', heartColors: ['text-pink-500', 'text-rose-500', 'text-pink-600', 'text-rose-600'] },
+      { id: 'burgundy', nameKey: 'annivBurgundy' as const, colors: ['rgba(185, 28, 28, 0.18)', 'rgba(220, 38, 38, 0.15)', 'rgba(153, 27, 27, 0.12)', 'rgba(239, 68, 68, 0.15)', 'rgba(127, 29, 29, 0.18)'], accent: ['rgba(254, 202, 202, 0.1)', 'rgba(252, 165, 165, 0.1)'], base: '#fef2f2', heartColors: ['text-red-600', 'text-red-500', 'text-red-700', 'text-red-400'] },
+      { id: 'blush', nameKey: 'annivBlush' as const, colors: ['rgba(251, 113, 133, 0.18)', 'rgba(244, 114, 182, 0.15)', 'rgba(236, 72, 153, 0.12)', 'rgba(249, 168, 212, 0.15)', 'rgba(219, 39, 119, 0.18)'], accent: ['rgba(252, 211, 243, 0.1)', 'rgba(253, 224, 71, 0.08)'], base: '#fdf2f8', heartColors: ['text-pink-300', 'text-rose-300', 'text-pink-400', 'text-rose-400'] },
+    ].map((row) => ({ ...row, name: t(row.nameKey) })),
+    [t],
+  );
 
   // Wedding theme – image background options for album pages
-  const weddingBackgroundThemes = [
-    { id: 'ivory-classic', name: 'Classic Ivory', base: '#fffff5', gradient: 'linear-gradient(160deg, #fffff5 0%, #faf8f0 50%, #f5f0e6 100%)' },
-    { id: 'blush-rose', name: 'Blush Rose', base: '#fdf2f4', gradient: 'linear-gradient(160deg, #fdf2f4 0%, #fce7eb 50%, #fadde2 100%)' },
-    { id: 'gold-cream', name: 'Gold & Cream', base: '#fefce8', gradient: 'linear-gradient(160deg, #fefce8 0%, #fef9c3 40%, #fde68a 100%)' },
-    { id: 'lavender-dream', name: 'Lavender Dream', base: '#f5f3ff', gradient: 'linear-gradient(160deg, #f5f3ff 0%, #ede9fe 50%, #ddd6fe 100%)' },
-    { id: 'sage-cream', name: 'Sage & Cream', base: '#f0fdf4', gradient: 'linear-gradient(160deg, #f0fdf4 0%, #dcfce7 40%, #bbf7d0 60%)' },
-    { id: 'champagne', name: 'Champagne', base: '#fffbeb', gradient: 'linear-gradient(160deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)' },
-    { id: 'pearl-white', name: 'Pearl White', base: '#fafafa', gradient: 'linear-gradient(160deg, #fafafa 0%, #f4f4f5 50%, #e4e4e7 100%)' },
-    { id: 'dusty-pink', name: 'Dusty Pink', base: '#fdf4f3', gradient: 'linear-gradient(160deg, #fdf4f3 0%, #fce7e5 50%, #f9d5d2 100%)' },
-    { id: 'mint-ivory', name: 'Mint & Ivory', base: '#f0fdf9', gradient: 'linear-gradient(160deg, #f0fdf9 0%, #ccfbf1 40%, #99f6e4 70%)' },
-  ];
+  const weddingBackgroundThemes = React.useMemo(
+    () => [
+      { id: 'ivory-classic', nameKey: 'wedIvoryClassic' as const, base: '#fffff5', gradient: 'linear-gradient(160deg, #fffff5 0%, #faf8f0 50%, #f5f0e6 100%)' },
+      { id: 'blush-rose', nameKey: 'wedBlushRose' as const, base: '#fdf2f4', gradient: 'linear-gradient(160deg, #fdf2f4 0%, #fce7eb 50%, #fadde2 100%)' },
+      { id: 'gold-cream', nameKey: 'wedGoldCream' as const, base: '#fefce8', gradient: 'linear-gradient(160deg, #fefce8 0%, #fef9c3 40%, #fde68a 100%)' },
+      { id: 'lavender-dream', nameKey: 'wedLavenderDream' as const, base: '#f5f3ff', gradient: 'linear-gradient(160deg, #f5f3ff 0%, #ede9fe 50%, #ddd6fe 100%)' },
+      { id: 'sage-cream', nameKey: 'wedSageCream' as const, base: '#f0fdf4', gradient: 'linear-gradient(160deg, #f0fdf4 0%, #dcfce7 40%, #bbf7d0 60%)' },
+      { id: 'champagne', nameKey: 'wedChampagne' as const, base: '#fffbeb', gradient: 'linear-gradient(160deg, #fffbeb 0%, #fef3c7 50%, #fde68a 100%)' },
+      { id: 'pearl-white', nameKey: 'wedPearlWhite' as const, base: '#fafafa', gradient: 'linear-gradient(160deg, #fafafa 0%, #f4f4f5 50%, #e4e4e7 100%)' },
+      { id: 'dusty-pink', nameKey: 'wedDustyPink' as const, base: '#fdf4f3', gradient: 'linear-gradient(160deg, #fdf4f3 0%, #fce7e5 50%, #f9d5d2 100%)' },
+      { id: 'mint-ivory', nameKey: 'wedMintIvory' as const, base: '#f0fdf9', gradient: 'linear-gradient(160deg, #f0fdf9 0%, #ccfbf1 40%, #99f6e4 70%)' },
+    ].map((row) => ({ ...row, name: t(row.nameKey) })),
+    [t],
+  );
 
   const [selectedColorTheme, setSelectedColorTheme] = React.useState<string>('red-pink');
   const [selectedWeddingBackground, setSelectedWeddingBackground] = React.useState<string>('ivory-classic');
@@ -981,7 +1019,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
 
   const handleSaveAlbum = async () => {
     if (!user?.id) {
-      setSaveError('Please log in first.');
+      setSaveError(t('errLoginFirst'));
       return;
     }
 
@@ -1022,7 +1060,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       let pbId = photobookId;
       if (!pbId) {
         if (!resolvedTemplateId) {
-          setSaveError('Could not determine template. Please go back to cover page and try again.');
+          setSaveError(t('errTemplateUnknown'));
           setIsSaving(false);
           return;
         }
@@ -1038,7 +1076,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         }
       }
       if (!pbId) {
-        setSaveError('Could not create photobook. Please try again.');
+        setSaveError(t('errCreatePhotobook'));
         setIsSaving(false);
         return;
       }
@@ -1136,7 +1174,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
       console.error('Failed to save album:', err);
-      setSaveError(err.response?.data?.error || err.message || 'Failed to save album.');
+      setSaveError(err.response?.data?.error || err.message || t('errSaveAlbum'));
     } finally {
       setIsSaving(false);
     }
@@ -1375,9 +1413,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     const isCover = page.type === 'cover';
     const isLast = page.type === 'last';
     const textState: EditablePageState | undefined = isCover
-      ? (coverFromState ?? { headline: 'Cover', subheadline: '', description: '' } as EditablePageState)
+      ? (coverFromState ?? { headline: t('cover'), subheadline: '', description: '' } as EditablePageState)
       : isLast
-      ? (lastFromState ?? { headline: 'The End', subheadline: '', description: '' } as EditablePageState)
+      ? (lastFromState ?? { headline: t('theEnd'), subheadline: '', description: '' } as EditablePageState)
       : undefined;
 
     const urls = st.imageDataUrls ?? (st.imageDataUrl ? [st.imageDataUrl] : []);
@@ -1400,12 +1438,13 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     // Unified image builder — uses DraggableCropImage when editable, plain <img> otherwise
     const mkImg = (i: number, extraClass = '') => {
       const cp = crops[i] ?? { x: 50, y: 50 };
+      const imgAlt = t('pageImgAlt', { page: page.index + 1, slot: i + 1 });
       if (editOpts?.editable) {
         return (
           <DraggableCropImage
             key={i}
             src={getSrc(i)}
-            alt={`Page ${page.index + 1} img ${i + 1}`}
+            alt={imgAlt}
             cropPos={cp}
             onCropChange={(p) => editOpts.onCropChange?.(i, p)}
             className={extraClass}
@@ -1416,7 +1455,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         <div key={i} className={`relative overflow-hidden ${extraClass}`} style={{ minWidth: 0, minHeight: 0 }}>
           <img
             src={getSrc(i)}
-            alt={`Page ${page.index + 1} img ${i + 1}`}
+            alt={imgAlt}
             draggable={false}
             className="absolute inset-0 w-full h-full object-cover"
             style={{ objectPosition: `${cp.x}% ${cp.y}%` }}
@@ -1473,7 +1512,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             <div className="absolute inset-0 grid gap-2 p-2" style={{ gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }}>
               <div className="relative overflow-hidden rounded-md" style={{ gridRow: '1 / 3', minWidth: 0, minHeight: 0 }}>
                 {editOpts?.editable ? (
-                  <DraggableCropImage src={getSrc(0)} alt={`Page ${page.index + 1} img 1`} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" />
+                  <DraggableCropImage src={getSrc(0)} alt={t('pageImgAlt', { page: page.index + 1, slot: 1 })} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" />
                 ) : (
                   <img src={getSrc(0)} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%` }} />
                 )}
@@ -1521,7 +1560,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             <div className="absolute inset-0 bg-black flex items-center justify-center p-3">
               <div className="relative w-full rounded-md overflow-hidden" style={{ aspectRatio: '2.35/1', maxHeight: '70%' }}>
                 {editOpts?.editable ? (
-                  <DraggableCropImage src={getSrc(0)} alt={`Page ${page.index + 1} img 1`} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" />
+                  <DraggableCropImage src={getSrc(0)} alt={t('pageImgAlt', { page: page.index + 1, slot: 1 })} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" />
                 ) : (
                   <img src={getSrc(0)} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%` }} />
                 )}
@@ -1590,7 +1629,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               {editOpts?.editable ? (
                 <DraggableCropImage
                   src={getSrc(0)}
-                  alt={`Page ${page.index + 1}`}
+                  alt={t('pageLabel', { n: page.index + 1 })}
                   cropPos={crops[0] ?? { x: 50, y: 50 }}
                   onCropChange={(p) => editOpts.onCropChange?.(0, p)}
                   className="w-full h-full"
@@ -1598,7 +1637,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               ) : (
                 <img
                   src={getSrc(0)}
-                  alt={`Page ${page.index + 1}`}
+                  alt={t('pageLabel', { n: page.index + 1 })}
                   draggable={false}
                   className="w-full h-full object-cover"
                   style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%` }}
@@ -1615,7 +1654,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         {imageContent ?? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
             <svg className="w-10 h-10 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-            <span className="text-xs text-white/25 font-medium tracking-wide">Add a photo</span>
+            <span className="text-xs text-white/25 font-medium tracking-wide">{t('addAPhoto')}</span>
           </div>
         )}
 
@@ -1670,7 +1709,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         {textState && (isCover || isLast) && !hasImg && (
           <div className="absolute inset-0 z-20 flex items-center justify-center">
             <div className="text-center">
-              <div className="text-xl font-bold text-white/60">{textState.headline || (isCover ? 'Cover' : 'Back')}</div>
+              <div className="text-xl font-bold text-white/60">{textState.headline || (isCover ? t('cover') : t('back'))}</div>
               {textState.subheadline && <div className="text-sm text-white/40 mt-1">{textState.subheadline}</div>}
             </div>
           </div>
@@ -1707,7 +1746,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             right: textState.style.logoPosition?.includes('right') ? '12px' : undefined,
             transform: textState.style.logoPosition?.includes('center') ? 'translateX(-50%)' : undefined,
           }}>
-            <img src={textState.style.logoDataUrl} alt="Logo" className="rounded-lg shadow-lg" style={{
+            <img src={textState.style.logoDataUrl} alt={t('logoAlt')} className="rounded-lg shadow-lg" style={{
               width: `${textState.style.logoSize ?? 60}px`, height: `${textState.style.logoSize ?? 60}px`, objectFit: 'contain',
             }} />
           </div>
@@ -1715,7 +1754,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       </div>
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageImages, pageLayouts, coverFromState, lastFromState, categorySlug, selectedWeddingTheme, selectedTheme]);
+  }, [pageImages, pageLayouts, coverFromState, lastFromState, categorySlug, selectedWeddingTheme, selectedTheme, t]);
 
   // Load an image as HTMLImageElement with CORS support
   const loadImage = React.useCallback((src: string): Promise<HTMLImageElement | null> => {
@@ -1934,14 +1973,14 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           ctx.fillStyle = 'rgba(255,255,255,0.1)';
           ctx.font = '16px sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText('No photo', W / 2, H / 2);
+          ctx.fillText(t('noPhoto'), W / 2, H / 2);
         }
 
         // Cover / last page text overlay
         if (isCover || isLast) {
           const ts = isCover
-            ? (coverFromState ?? { headline: 'Cover', subheadline: '' } as EditablePageState)
-            : (lastFromState ?? { headline: 'The End', subheadline: '' } as EditablePageState);
+            ? (coverFromState ?? { headline: t('cover'), subheadline: '' } as EditablePageState)
+            : (lastFromState ?? { headline: t('theEnd'), subheadline: '' } as EditablePageState);
 
           // Gradient overlay
           if (images[0]) {
@@ -2048,7 +2087,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
 
     return dataUrls;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [albumPages, pageImages, coverFromState, lastFromState, categorySlug, selectedWeddingTheme, selectedTheme, loadImage, bookOrientation]);
+  }, [albumPages, pageImages, coverFromState, lastFromState, categorySlug, selectedWeddingTheme, selectedTheme, loadImage, bookOrientation, t]);
 
   // PDF download — uses shared render, then compiles to PDF
   const handleDownloadPdf = React.useCallback(async () => {
@@ -2068,12 +2107,12 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       pdf.save(`${categorySlug}-album.pdf`);
     } catch (err) {
       console.error('PDF generation failed:', err);
-      alert('Failed to generate PDF. Please try again.');
+      alert(t('alertPdfFailed'));
     } finally {
       setIsGeneratingPdf(false);
       setPdfProgress(null);
     }
-  }, [albumPages.length, bookOrientation, categorySlug, isGeneratingPdf, isGeneratingFlipbook, isGeneratingZip, isGeneratingBase64, renderAllPagesToDataUrls]);
+  }, [albumPages.length, bookOrientation, categorySlug, isGeneratingPdf, isGeneratingFlipbook, isGeneratingZip, isGeneratingBase64, renderAllPagesToDataUrls, t]);
 
   // Flipbook download — same book as on screen, standalone HTML with touch/swipe flip
   const handleDownloadFlipbook = React.useCallback(async () => {
@@ -2093,7 +2132,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Album Flipbook</title>
+  <title>${t('titleFlipbookHtml')}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; overflow: hidden; background: linear-gradient(to bottom, #0f0f14, #16161d); touch-action: none; -webkit-tap-highlight-color: transparent; }
@@ -2107,7 +2146,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
 </head>
 <body>
   <div id="view"><div id="book"></div></div>
-  <div id="hint">Touch or drag to turn page</div>
+  <div id="hint">${t('hintTouchDrag')}</div>
   <div id="counter">1 / ${dataUrls.length}</div>
   <script>
     var pages = ${JSON.stringify(dataUrls)};
@@ -2150,12 +2189,12 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Flipbook export failed:', err);
-      alert('Failed to create flipbook. Please try again.');
+      alert(t('alertFlipbookFailed'));
     } finally {
       setIsGeneratingFlipbook(false);
       setPdfProgress(null);
     }
-  }, [albumPages.length, bookOrientation, categorySlug, isGeneratingPdf, isGeneratingFlipbook, isGeneratingZip, isGeneratingBase64, renderAllPagesToDataUrls]);
+  }, [albumPages.length, bookOrientation, categorySlug, isGeneratingPdf, isGeneratingFlipbook, isGeneratingZip, isGeneratingBase64, renderAllPagesToDataUrls, t]);
 
   // Download same book as ZIP of images (JPG per page) — easy to send, works on mobile (unzip & view in gallery)
   const handleDownloadImagesZip = React.useCallback(async () => {
@@ -2178,12 +2217,12 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('ZIP export failed:', err);
-      alert('Failed to create ZIP. Please try again.');
+      alert(t('alertZipFailed'));
     } finally {
       setIsGeneratingZip(false);
       setPdfProgress(null);
     }
-  }, [albumPages.length, categorySlug, isGeneratingPdf, isGeneratingFlipbook, isGeneratingZip, isGeneratingBase64, renderAllPagesToDataUrls]);
+  }, [albumPages.length, categorySlug, isGeneratingPdf, isGeneratingFlipbook, isGeneratingZip, isGeneratingBase64, renderAllPagesToDataUrls, t]);
 
   // Download same book as Base64 (JSON with data URLs or raw base64) — easy to send as text, use in APIs
   const handleDownloadBase64 = React.useCallback(async () => {
@@ -2209,12 +2248,12 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Base64 export failed:', err);
-      alert('Failed to create Base64 file. Please try again.');
+      alert(t('alertBase64Failed'));
     } finally {
       setIsGeneratingBase64(false);
       setPdfProgress(null);
     }
-  }, [albumPages.length, categorySlug, isGeneratingPdf, isGeneratingFlipbook, isGeneratingZip, isGeneratingBase64, renderAllPagesToDataUrls]);
+  }, [albumPages.length, categorySlug, isGeneratingPdf, isGeneratingFlipbook, isGeneratingZip, isGeneratingBase64, renderAllPagesToDataUrls, t]);
 
   // Sync cover & last page images from coverFromState / lastFromState (source of truth for these pages).
   // Always overwrite — the cover editing page is the authority for first/last page images.
@@ -2356,7 +2395,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     return (
       <div className="space-y-4 w-full">
         <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
-          Unknown theme configuration for <span className="font-semibold">{categorySlug}</span>.
+          {t('unknownTheme', { slug: categorySlug })}
         </div>
       </div>
     );
@@ -2395,8 +2434,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               <div className="absolute inset-0 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
             </div>
             <div>
-              <p className="font-semibold text-slate-800">Loading your album...</p>
-              <p className="text-xs text-slate-500 mt-0.5">Restoring pages and photos</p>
+              <p className="font-semibold text-slate-800">{t('loadingAlbum')}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{t('restoringPages')}</p>
             </div>
           </div>
         </div>
@@ -2408,8 +2447,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             <FaImages className="w-4 h-4 text-indigo-600" />
           </div>
           <span className="text-xs text-indigo-700">
-            <span className="font-bold">{studioAlbumName || 'Studio Album'}</span>
-            <span className="text-indigo-500"> — {studioAlbumImageIds.length} images available</span>
+            <span className="font-bold">{studioAlbumName || t('studioAlbum')}</span>
+            <span className="text-indigo-500"> — {t('imagesAvailable', { count: studioAlbumImageIds.length })}</span>
           </span>
         </div>
       )}
@@ -2421,26 +2460,26 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             type="button"
             onClick={() => navigate(`/photo-themes/${categorySlug}`, { state: { templateId: dbTemplateId, photobookId } })}
             className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-            aria-label="Back"
+            aria-label={t('backAria')}
           >
             <FaArrowLeft className="w-5 h-5" />
           </button>
           <div className="min-w-0">
             <h1 className="text-base font-bold text-slate-900 truncate">
-              {studioAlbumName || template?.name || 'My Album'}
+              {studioAlbumName || template?.name || t('myAlbum')}
             </h1>
             <p className="text-xs text-slate-500 truncate">
-              {template?.name} · {albumPages.length} pages
+              {template?.name} · {t('pagesCount', { count: albumPages.length })}
             </p>
           </div>
         </div>
 
           <div className="flex items-center gap-2 shrink-0">
-          <div className="hidden sm:flex items-center gap-1 rounded-lg bg-slate-100 p-1" title="Undo/Redo coming soon">
-            <button type="button" className="rounded-md px-2 py-1 text-[10px] font-semibold text-slate-400" disabled>Undo</button>
-            <button type="button" className="rounded-md px-2 py-1 text-[10px] font-semibold text-slate-400" disabled>Redo</button>
+          <div className="hidden sm:flex items-center gap-1 rounded-lg bg-slate-100 p-1" title={t('undoRedoSoon')}>
+            <button type="button" className="rounded-md px-2 py-1 text-[10px] font-semibold text-slate-400" disabled>{t('undo')}</button>
+            <button type="button" className="rounded-md px-2 py-1 text-[10px] font-semibold text-slate-400" disabled>{t('redo')}</button>
           </div>
-          <div className="w-24 h-2 rounded-full bg-slate-200 overflow-hidden" title={`${albumPages.filter((p) => pageImages[p.index]?.imageDataUrl || (pageImages[p.index]?.imageDataUrls?.length ?? 0) > 0).length} of ${albumPages.length} pages filled`}>
+          <div className="w-24 h-2 rounded-full bg-slate-200 overflow-hidden" title={t('pagesFilled', { filled: albumPages.filter((p) => pageImages[p.index]?.imageDataUrl || (pageImages[p.index]?.imageDataUrls?.length ?? 0) > 0).length, total: albumPages.length })}>
             <div
               className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-300"
               style={{ width: `${Math.round((albumPages.filter((p) => pageImages[p.index]?.imageDataUrl || (pageImages[p.index]?.imageDataUrls?.length ?? 0) > 0).length / Math.max(1, albumPages.length)) * 100)}%` }}
@@ -2451,7 +2490,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             onClick={handleOpenFlipBook}
             className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
           >
-            <FaImages className="w-3.5 h-3.5" /> Preview
+            <FaImages className="w-3.5 h-3.5" /> {t('preview')}
           </button>
           <button
             type="button"
@@ -2460,7 +2499,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm"
           >
             {isSaving ? <FaSpinner className="w-3.5 h-3.5 animate-spin" /> : <FaSave className="w-3.5 h-3.5" />}
-            Save
+            {t('save')}
           </button>
           <button
             type="button"
@@ -2469,7 +2508,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
           >
             {isGeneratingPdf ? <FaSpinner className="w-3.5 h-3.5 animate-spin" /> : <FaDownload className="w-3.5 h-3.5" />}
-            Export
+            {t('export')}
           </button>
         </div>
       </header>
@@ -2481,13 +2520,13 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           <div className="p-3 border-b border-slate-100">
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
               <FaImages className="w-3.5 h-3.5 text-indigo-500" />
-              Photo Library
+              {t('photoLibrary')}
             </h2>
             <div className="mt-2 relative">
               <FaSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search photos..."
+                placeholder={t('searchPhotos')}
                 value={librarySearch}
                 onChange={(e) => setLibrarySearch(e.target.value)}
                 className="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50/50 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
@@ -2503,17 +2542,17 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                     libraryFilter === f ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                   }`}
                 >
-                  {f}
+                  {f === 'all' ? t('filterAll') : t('filterRecent')}
                 </button>
               ))}
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             <p className="text-[10px] text-slate-400 mb-1.5 flex items-center justify-between">
-              <span>Photos in this album ({libraryPhotoUrls.length})</span>
+              <span>{t('photosInAlbum', { count: libraryPhotoUrls.length })}</span>
               {pendingLibraryImage && (
                 <span className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-[9px] font-semibold text-indigo-700 border border-indigo-200">
-                  Tap a slot to apply
+                  {t('tapSlotToApply')}
                 </span>
               )}
             </p>
@@ -2537,7 +2576,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                     <img src={url} alt="" className="w-full h-full object-cover" />
                     {isActive && (
                       <span className="absolute bottom-1 left-1 right-1 mx-auto text-[9px] font-semibold text-white bg-black/60 rounded-full px-1.5 py-0.5 text-center">
-                        Selected · click a slot
+                        {t('selectedClickSlot')}
                       </span>
                     )}
                   </button>
@@ -2556,7 +2595,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 text-xs font-semibold shadow-sm transition-colors"
             >
               <FaPlus className="w-3.5 h-3.5" />
-              Add from library
+              {t('addFromLibrary')}
             </button>
           </div>
         </aside>
@@ -2630,7 +2669,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   <span className={`text-xs font-semibold uppercase tracking-wider rounded-lg px-3 py-1.5 ${
                     isCover ? 'bg-amber-100 text-amber-900' : isLast ? 'bg-stone-100 text-stone-800' : 'bg-slate-100 text-slate-700'
                   }`}>
-                    {isCover ? 'Cover' : isLast ? 'Back' : `Page ${page.index + 1}`}
+                    {isCover ? t('cover') : isLast ? t('back') : t('pageLabel', { n: page.index + 1 })}
                   </span>
                   <div className="flex items-center gap-2">
                     {/* Zoom preset sizes: Small / Medium / Large */}
@@ -2691,7 +2730,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                     disabled={safeStep === 0}
                     onClick={() => setCurrentStep((s) => Math.max(0, s - 1))}
                     className="shrink-0 w-10 h-10 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    aria-label="Previous page"
+                    aria-label={t('previousPage')}
                   >
                     <FaChevronLeft className="w-4 h-4" />
                   </button>
@@ -2725,7 +2764,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                     disabled={safeStep >= albumPages.length - 1}
                     onClick={() => setCurrentStep((s) => Math.min(albumPages.length - 1, s + 1))}
                     className="shrink-0 w-10 h-10 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    aria-label="Next page"
+                    aria-label={t('nextPage')}
                   >
                     <FaChevronRight className="w-4 h-4" />
                   </button>
@@ -2737,12 +2776,12 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 <div className="p-3 border-b border-slate-100">
                   <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
                     <FaPalette className="w-3.5 h-3.5 text-indigo-500" />
-                    Layout & Settings
+                    {t('layoutSettings')}
                   </h2>
                 </div>
                 <div className="p-3 space-y-4">
                   <div>
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Photo count</p>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{t('photoCount')}</p>
                     <div className="flex flex-wrap gap-1">
                       {([1, 2, 3, 4, 5, 6, 'all'] as const).map((n) => (
                         <button
@@ -2753,13 +2792,13 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                             layoutQuickFilter === n ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                           }`}
                         >
-                          {n === 'all' ? 'All' : n}
+                          {n === 'all' ? t('all') : n}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Page layout</p>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{t('pageLayout')}</p>
                     <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto">
                       {filteredLayoutConfig.map((config) => {
                         const active = layoutLabel === config.id;
@@ -2767,7 +2806,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                           <button
                             key={config.id}
                             type="button"
-                            title={config.id}
+                            title={layoutShort(config.id)}
                             onClick={() => {
                               setPageLayouts((prev) => ({ ...prev, [page.index]: config.id }));
                               setPageImages((prev) => ({ ...prev, [page.index]: { ...(prev[page.index] ?? {}), layout: config.id } }));
@@ -2779,7 +2818,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                             <div className="w-full aspect-[4/3] rounded overflow-hidden bg-white border border-slate-200/60">
                               <LayoutOptionThumb layoutId={config.id} slotCount={config.slotCount} urls={urls} isActive={active} />
                             </div>
-                            <span className="text-[8px] font-semibold leading-none text-slate-600 truncate w-full text-center">{config.shortLabel}</span>
+                            <span className="text-[8px] font-semibold leading-none text-slate-600 truncate w-full text-center">{layoutShort(config.id)}</span>
                           </button>
                         );
                       })}
@@ -2787,34 +2826,34 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   </div>
                   {categorySlug === 'anniversary' && (
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Theme</p>
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{t('theme')}</p>
                       <select
                         className="w-full rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                         value={selectedColorTheme}
                         onChange={(e) => setSelectedColorTheme(e.target.value)}
                       >
-                        {anniversaryColorThemes.map((t) => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
+                        {anniversaryColorThemes.map((theme) => (
+                          <option key={theme.id} value={theme.id}>{theme.name}</option>
                         ))}
                       </select>
                     </div>
                   )}
                   {categorySlug === 'wedding' && (
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Background</p>
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{t('background')}</p>
                       <select
                         className="w-full rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                         value={selectedWeddingBackground}
                         onChange={(e) => setSelectedWeddingBackground(e.target.value)}
                       >
-                        {weddingBackgroundThemes.map((t) => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
+                        {weddingBackgroundThemes.map((theme) => (
+                          <option key={theme.id} value={theme.id}>{theme.name}</option>
                         ))}
                       </select>
                     </div>
                   )}
                   <div>
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Photo slots</p>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{t('photoSlots')}</p>
                     <DndContext sensors={slotDndSensors} onDragEnd={handleSlotDragEnd}>
                       <div className="flex flex-wrap gap-2">
                         {Array.from({ length: slotCount }).map((_, si) => {
@@ -2880,20 +2919,20 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                           onClick={() => setPageImagePickerFor({ pageIndex: page.index, layout: layoutLabel })}
                           className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white px-3 py-2 text-xs font-semibold transition-colors"
                         >
-                          <FaPlus className="w-3 h-3" /> Add photo
+                          <FaPlus className="w-3 h-3" /> {t('addPhoto')}
                         </button>
                       </div>
                     </DndContext>
                   </div>
                   {!isCover && !isLast && (
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Captions</p>
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{t('captions')}</p>
                       <div className="space-y-2">
                         {Array.from({ length: slotCount }).map((_, si) => (
                           <input
                             key={si}
                             type="text"
-                            placeholder={`Caption ${si + 1}...`}
+                            placeholder={t('captionPlaceholder', { n: si + 1 })}
                             value={captions[si] ?? ''}
                             onChange={(e) => setCaption(si, e.target.value)}
                             className="w-full rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-1.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
@@ -2904,8 +2943,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   )}
                   {(isCover || isLast) && (
                     <div className="rounded-xl bg-stone-50 border border-stone-200/80 px-3 py-2 text-[11px] text-stone-700">
-                      <strong>{isCover ? 'Front Cover' : 'Back Cover'}</strong> — edit in{' '}
-                      <button type="button" onClick={() => navigate(`/photo-themes/${categorySlug}`, { state: { templateId: dbTemplateId, photobookId } })} className="underline font-semibold text-stone-900">Cover Editor</button>
+                      <strong>{isCover ? t('frontCover') : t('backCover')}</strong>
+                      {' — '}{t('editIn')}{' '}
+                      <button type="button" onClick={() => navigate(`/photo-themes/${categorySlug}`, { state: { templateId: dbTemplateId, photobookId } })} className="underline font-semibold text-stone-900">{t('coverEditorLink')}</button>
                     </div>
                   )}
                 </div>
@@ -2932,21 +2972,21 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   active ? 'border-indigo-500 shadow-md ring-2 ring-indigo-500/30' : hasImg ? 'border-slate-200 hover:border-slate-300' : 'border-slate-200 opacity-80'
                 }`}
                 style={{ width: 48, height: 36 }}
-                title={p.type === 'cover' ? 'Cover' : p.type === 'last' ? 'Back' : `Page ${p.index + 1}`}
+                title={p.type === 'cover' ? t('cover') : p.type === 'last' ? t('back') : t('pageLabel', { n: p.index + 1 })}
               >
                 {hasImg && pState.imageDataUrl ? (
                   <img src={pState.imageDataUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className={`w-full h-full flex items-center justify-center text-[10px] font-semibold ${active ? 'bg-indigo-50 text-indigo-800' : 'bg-slate-100 text-slate-500'}`}>
-                    {p.type === 'cover' ? 'C' : p.type === 'last' ? 'B' : p.index + 1}
+                    {p.type === 'cover' ? t('thumbLetterCover') : p.type === 'last' ? t('thumbLetterBack') : p.index + 1}
                   </div>
                 )}
               </button>
             );
           })}
         </div>
-        <button type="button" onClick={() => setPageCount((c) => Math.min(18, c + 1))} disabled={pageCount >= 18} className="shrink-0 rounded-lg border-2 border-dashed border-slate-300 w-10 h-9 flex items-center justify-center text-slate-400 hover:border-indigo-400 hover:text-indigo-500 disabled:opacity-50 transition-colors" title="Add page"><FaPlus className="w-3.5 h-3.5" /></button>
-        <button type="button" onClick={() => setPageCount((c) => Math.max(6, c - 1))} disabled={pageCount <= 6} className="shrink-0 rounded-lg border border-slate-200 w-10 h-9 flex items-center justify-center text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 transition-colors" title="Delete page"><FaTrash className="w-3.5 h-3.5" /></button>
+        <button type="button" onClick={() => setPageCount((c) => Math.min(18, c + 1))} disabled={pageCount >= 18} className="shrink-0 rounded-lg border-2 border-dashed border-slate-300 w-10 h-9 flex items-center justify-center text-slate-400 hover:border-indigo-400 hover:text-indigo-500 disabled:opacity-50 transition-colors" title={t('addPageTitle')}><FaPlus className="w-3.5 h-3.5" /></button>
+        <button type="button" onClick={() => setPageCount((c) => Math.max(6, c - 1))} disabled={pageCount <= 6} className="shrink-0 rounded-lg border border-slate-200 w-10 h-9 flex items-center justify-center text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 transition-colors" title={t('deletePageTitle')}><FaTrash className="w-3.5 h-3.5" /></button>
       </div>
 
       {/* PDF generation overlay */}
@@ -2960,8 +3000,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 <span className="text-sm font-bold text-emerald-600">{Math.round((pdfProgress.current / pdfProgress.total) * 100)}%</span>
               </div>
             </div>
-            <h3 className="text-base font-bold text-slate-800 mb-1">{isGeneratingBase64 ? 'Creating Base64 file' : isGeneratingZip ? 'Creating images ZIP' : isGeneratingFlipbook ? 'Generating flipbook' : 'Generating PDF'}</h3>
-            <p className="text-xs text-slate-500 mb-4">Rendering page {pdfProgress.current} of {pdfProgress.total}...</p>
+            <h3 className="text-base font-bold text-slate-800 mb-1">{isGeneratingBase64 ? t('generatingBase64') : isGeneratingZip ? t('generatingZip') : isGeneratingFlipbook ? t('generatingFlipbook') : t('generatingPdf')}</h3>
+            <p className="text-xs text-slate-500 mb-4">{t('renderingPage', { current: pdfProgress.current, total: pdfProgress.total })}</p>
             <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-300"
@@ -2985,7 +3025,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           )}
           {saveSuccess && (
             <div className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-600/30 flex items-center gap-2">
-              <FaCheck className="w-3.5 h-3.5" /> Album saved!
+              <FaCheck className="w-3.5 h-3.5" /> {t('albumSaved')}
             </div>
           )}
         </div>,
@@ -3004,7 +3044,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
                 </div>
                 <div>
-                  <span className="text-sm font-bold text-white tracking-wide">Flip Book</span>
+                  <span className="text-sm font-bold text-white tracking-wide">{t('flipBook')}</span>
                   <span className="ml-2 text-[10px] text-white/40 capitalize">{categorySlug}</span>
                 </div>
               </div>
@@ -3020,7 +3060,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                         : 'text-white/40 hover:text-white/70'
                     }`}
                   >
-                    Landscape
+                    {t('landscape')}
                   </button>
                   <button
                     type="button"
@@ -3031,7 +3071,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                         : 'text-white/40 hover:text-white/70'
                     }`}
                   >
-                    Portrait
+                    {t('portrait')}
                   </button>
                 </div>
                 {/* Download same book — multiple formats: flipbook, images ZIP, PDF, or Base64 JSON */}
@@ -3039,41 +3079,41 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   type="button"
                   onClick={handleDownloadFlipbook}
                   disabled={isGeneratingPdf || isGeneratingFlipbook || isGeneratingZip || isGeneratingBase64}
-                  title="Same book as flipbook (HTML) — open in browser, touch to flip"
+                  title={t('flipbookDownloadTitle')}
                   className="rounded-lg bg-indigo-600/80 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-indigo-600 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
                 >
                   {isGeneratingFlipbook ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaDownload className="w-3 h-3" />}
-                  Flipbook
+                  {t('flipbookBtn')}
                 </button>
                 <button
                   type="button"
                   onClick={handleDownloadImagesZip}
                   disabled={isGeneratingPdf || isGeneratingFlipbook || isGeneratingZip || isGeneratingBase64}
-                  title="Same book as images in ZIP — easy to send, open on phone (unzip and view in gallery)"
+                  title={t('zipDownloadTitle')}
                   className="rounded-lg bg-amber-600/80 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-amber-600 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
                 >
                   {isGeneratingZip ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaDownload className="w-3 h-3" />}
-                  Images (ZIP)
+                  {t('imagesZip')}
                 </button>
                 <button
                   type="button"
                   onClick={handleDownloadBase64}
                   disabled={isGeneratingPdf || isGeneratingFlipbook || isGeneratingZip || isGeneratingBase64}
-                  title="Same book as Base64 JSON — pages in data URLs + raw base64, for APIs or sharing as text"
+                  title={t('base64DownloadTitle')}
                   className="rounded-lg bg-slate-600/80 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-slate-600 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
                 >
                   {isGeneratingBase64 ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaDownload className="w-3 h-3" />}
-                  Base64
+                  {t('base64')}
                 </button>
                 <button
                   type="button"
                   onClick={handleDownloadPdf}
                   disabled={isGeneratingPdf || isGeneratingFlipbook || isGeneratingZip || isGeneratingBase64}
-                  title="Same book as PDF — easy to send, opens on any phone"
+                  title={t('pdfDownloadTitle')}
                   className="rounded-lg bg-emerald-600/80 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
                 >
                   {isGeneratingPdf ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaDownload className="w-3 h-3" />}
-                  PDF
+                  {t('pdf')}
                 </button>
                 {/* Page view switch */}
                 <button
@@ -3081,7 +3121,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   onClick={() => { setShowFlipBook(false); setShowSinglePageView(true); setSinglePageIndex(0); }}
                   className="rounded-lg bg-white/[0.06] px-3 py-1.5 text-[10px] font-bold text-white/70 hover:text-white hover:bg-white/10 transition-colors border border-white/[0.06]"
                 >
-                  Page View
+                  {t('pageView')}
                 </button>
                 <button
                   type="button"
@@ -3149,9 +3189,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 {/* Page counter */}
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-white/70">
-                    Page {flipBookPage + 1}
+                    {t('pageNOfTotal', { n: flipBookPage + 1, total: albumPages.length })}
                   </span>
-                  <span className="text-[10px] text-white/30">of {albumPages.length}</span>
                 </div>
                 {/* Progress dots */}
                 <div className="hidden sm:flex items-center gap-1">
@@ -3169,11 +3208,11 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 <span className="flex items-center gap-1">
                   <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono text-[9px]">←</kbd>
                   <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono text-[9px]">→</kbd>
-                  <span>flip pages</span>
+                  <span>{t('flipPages')}</span>
                 </span>
                 <span className="flex items-center gap-1">
                   <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono text-[9px]">Esc</kbd>
-                  <span>close</span>
+                  <span>{t('closeHint')}</span>
                 </span>
               </div>
             </div>
@@ -3198,11 +3237,11 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-sm font-bold text-white tracking-wide">
-                    {albumPages[singlePageIndex]?.type === 'cover' ? 'Front Cover' :
-                     albumPages[singlePageIndex]?.type === 'last' ? 'Back Cover' :
-                     `Page ${singlePageIndex + 1}`}
+                    {albumPages[singlePageIndex]?.type === 'cover' ? t('frontCover') :
+                     albumPages[singlePageIndex]?.type === 'last' ? t('backCover') :
+                     t('pageLabel', { n: singlePageIndex + 1 })}
                   </span>
-                  <span className="ml-2 text-[10px] text-white/30">{singlePageIndex + 1} of {albumPages.length}</span>
+                  <span className="ml-2 text-[10px] text-white/30">{t('pageNOfTotal', { n: singlePageIndex + 1, total: albumPages.length })}</span>
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
@@ -3214,14 +3253,14 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                     className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all inline-flex items-center gap-1 ${
                       slideshowActive ? 'bg-indigo-500/30 text-indigo-300' : 'text-white/40 hover:text-white/70'
                     }`}
-                    title={slideshowActive ? 'Pause slideshow (Space)' : 'Start slideshow (Space)'}
+                    title={slideshowActive ? t('slideshowPause') : t('slideshowStart')}
                   >
                     {slideshowActive ? (
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
                     ) : (
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                     )}
-                    {slideshowActive ? 'Pause' : 'Play'}
+                    {slideshowActive ? t('pause') : t('play')}
                   </button>
                   {slideshowActive && (
                     <select
@@ -3244,7 +3283,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   className={`rounded-lg px-2 py-1.5 text-[10px] font-bold transition-all border border-white/[0.06] inline-flex items-center gap-1 ${
                     isZoomed ? 'bg-white/15 text-white' : 'bg-white/[0.06] text-white/40 hover:text-white/70'
                   }`}
-                  title="Toggle zoom (Z)"
+                  title={t('toggleZoom')}
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
                 </button>
@@ -3257,7 +3296,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                       bookOrientation === 'landscape' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
                     }`}
                   >
-                    Landscape
+                    {t('landscape')}
                   </button>
                   <button
                     type="button"
@@ -3266,7 +3305,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                       bookOrientation === 'portrait' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
                     }`}
                   >
-                    Portrait
+                    {t('portrait')}
                   </button>
                 </div>
                 {/* Download PDF */}
@@ -3277,7 +3316,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   className="rounded-lg bg-emerald-600/80 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 inline-flex items-center gap-1.5 border border-emerald-500/30"
                 >
                   {isGeneratingPdf ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaDownload className="w-3 h-3" />}
-                  PDF
+                  {t('pdf')}
                 </button>
                 {/* Switch to Flip Book */}
                 <button
@@ -3285,7 +3324,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   onClick={() => { setShowSinglePageView(false); setSlideshowActive(false); setShowFlipBook(true); }}
                   className="rounded-lg bg-white/[0.06] px-3 py-1.5 text-[10px] font-bold text-white/70 hover:text-white hover:bg-white/10 transition-colors border border-white/[0.06]"
                 >
-                  Flip Book
+                  {t('flipBook')}
                 </button>
                 {/* Close */}
                 <button
@@ -3382,10 +3421,10 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                       style={thumbAspect}
                     >
                       {thumbSrc ? (
-                        <img src={thumbSrc} alt={`Page ${idx + 1}`} className="w-full h-full object-cover" />
+                        <img src={thumbSrc} alt={t('pageLabel', { n: idx + 1 })} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full bg-slate-800 flex items-center justify-center">
-                          <span className="text-[8px] text-slate-500 font-bold">{page.type === 'cover' ? 'C' : page.type === 'last' ? 'L' : idx + 1}</span>
+                          <span className="text-[8px] text-slate-500 font-bold">{page.type === 'cover' ? t('thumbLetterCover') : page.type === 'last' ? t('thumbLetterLast') : idx + 1}</span>
                         </div>
                       )}
                     </button>
@@ -3395,16 +3434,16 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               <div className="hidden sm:flex items-center justify-center gap-4 mt-1.5 text-[9px] text-white/25">
                 <span className="flex items-center gap-1">
                   <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono">←</kbd>
-                  <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono">→</kbd> navigate
+                  <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono">→</kbd> {t('navigate')}
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono">Space</kbd> play/pause
+                  <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono">Space</kbd> {t('playPause')}
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono">Z</kbd> zoom
+                  <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono">Z</kbd> {t('zoom')}
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono">Esc</kbd> close
+                  <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono">Esc</kbd> {t('closeHint')}
                 </span>
               </div>
             </div>
@@ -3505,17 +3544,22 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   <div>
                     <h3 className="text-sm font-bold text-slate-800">
                       {targetSlotIndex !== undefined
-                        ? `Replace slot ${targetSlotIndex + 1}`
+                        ? t('replaceSlot', { n: targetSlotIndex + 1 })
                         : isMulti
-                        ? `Select ${totalSlots} Photos`
-                        : 'Select Photo'}
+                        ? t('selectPhotos', { count: totalSlots })
+                        : t('selectPhoto')}
                     </h3>
                     <p className="text-[11px] text-slate-500 mt-0.5">
                       {targetSlotIndex !== undefined
-                        ? `Choose a photo for slot ${targetSlotIndex + 1}`
+                        ? t('chooseForSlot', { n: targetSlotIndex + 1 })
                         : isMulti
-                        ? `Choose up to ${totalSlots} images${studioAlbumImageIds ? ' from your album' : ' from your library'}`
-                        : `Click an image${studioAlbumImageIds ? ' from your album' : ''} to select it`}
+                        ? t('chooseUpTo', {
+                            count: totalSlots,
+                            fromAlbum: studioAlbumImageIds ? t('fromAlbum') : t('fromLibrary'),
+                          })
+                        : t('clickToSelect', {
+                            fromAlbum: studioAlbumImageIds ? t('fromAlbumSuffix') : '',
+                          })}
                     </p>
                   </div>
                   <button
@@ -3523,7 +3567,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                     onClick={() => setPageImagePickerFor(null)}
                     className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-colors"
                   >
-                    Cancel
+                    {t('cancel')}
                   </button>
                 </div>
 

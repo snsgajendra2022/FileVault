@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from 'i18next';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -399,7 +401,7 @@ class UploadManager {
           update({ status: 'uploading', progress: 0 });
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Video processing failed';
+        const msg = err instanceof Error ? err.message : i18n.t('uploadPage.videoProcessingFailed');
         update({ status: 'failed', error: msg });
         return;
       }
@@ -433,8 +435,11 @@ class UploadManager {
       const message =
         data?.message ??
         (isFamily
-          ? `${currentItem.fileName} uploaded to ${currentItem.targetFamilyMember?.otherUserFirstName}'s account.`
-          : `${currentItem.fileName} uploaded successfully.`);
+          ? i18n.t('uploadPage.successOne', {
+              fileName: currentItem.fileName,
+              name: currentItem.targetFamilyMember?.otherUserFirstName ?? '',
+            })
+          : i18n.t('uploadPage.successDefault', { fileName: currentItem.fileName }));
 
       update({
         status: 'completed',
@@ -456,7 +461,7 @@ class UploadManager {
       const errorMessage =
         (err as { response?: { data?: { message?: string }; status?: number }; message?: string }).response?.data?.message ??
         (err as Error).message ??
-        'Upload failed';
+        i18n.t('uploadPage.uploadFailed');
       const newRetries = currentItem.retries + 1;
 
       if (newRetries >= MAX_RETRIES) {
@@ -500,6 +505,7 @@ interface Album {
 // ---------------------------------------------------------------------------
 
 const UploadPage = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [queueState, setQueueState] = useState(uploadManager.getState());
   const [familyMembers, setFamilyMembers] = useState<
@@ -698,16 +704,18 @@ const UploadPage = () => {
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
       if (!canUpload()) {
-        toast.error('You do not have permission to upload files');
+        toast.error(i18n.t('uploadPage.toastNoPermission'));
         return;
       }
       const invalid: string[] = [];
       const valid: File[] = [];
       acceptedFiles.forEach((file) => {
-        if (!isFileTypeAllowed(file)) invalid.push(`${file.name} - File type not allowed`);
+        if (!isFileTypeAllowed(file))
+          invalid.push(i18n.t('uploadPage.fileTypeNotAllowed', { name: file.name }));
         else valid.push(file);
       });
-      if (invalid.length) toast.error(`Some files were rejected:\n${invalid.join('\n')}`);
+      if (invalid.length)
+        toast.error(i18n.t('uploadPage.someFilesRejected', { list: invalid.join('\n') }));
       if (valid.length) {
         setIsAddingFiles(true);
         try {
@@ -715,9 +723,12 @@ const UploadPage = () => {
             targetAlbumId: selectedAlbumId ?? undefined,
           });
           setQueueState(uploadManager.getState());
-          if (added) toast.success(`${added} file(s) added to upload queue`);
-          if (skipped) toast(`Skipped ${skipped} duplicate(s).`);
-          if (skippedDueToLimit) toast.error(`Queue limit (${MAX_UPLOAD_QUEUE}) reached. ${skippedDueToLimit} file(s) not added.`);
+          if (added) toast.success(i18n.t('uploadPage.filesAddedQueue', { n: added }));
+          if (skipped) toast(i18n.t('uploadPage.skippedDuplicates', { n: skipped }));
+          if (skippedDueToLimit)
+            toast.error(
+              i18n.t('uploadPage.queueLimit', { max: MAX_UPLOAD_QUEUE, n: skippedDueToLimit })
+            );
         } finally {
           setIsAddingFiles(false);
         }
@@ -796,10 +807,11 @@ const UploadPage = () => {
 
   const getUploadDestinationText = (item: QueueItem) => {
     if (item.uploadDestination === 'family-account' && item.targetFamilyMember) {
-      return `👥 ${item.targetFamilyMember.otherUserFirstName}'s Account`;
+      return `👥 ${t('uploadPage.destOneAccount', { name: item.targetFamilyMember.otherUserFirstName })}`;
     }
-    if (item.uploadDestination === 'family-account') return '👥 Family Account (Select Member)';
-    return '🏠 My Account';
+    if (item.uploadDestination === 'family-account')
+      return `👥 ${t('uploadPage.familyAccountSelectMember')}`;
+    return `🏠 ${t('uploadPage.destMyAccount')}`;
   };
 
   const openUploadOptions = (item: QueueItem) => {
@@ -809,7 +821,7 @@ const UploadPage = () => {
 
   const handleCreateAlbum = async () => {
     if (!newAlbumName.trim()) {
-      toast.error('Please enter an album name');
+      toast.error(t('uploadPage.toastAlbumName'));
       return;
     }
     setIsCreatingAlbum(true);
@@ -824,7 +836,7 @@ const UploadPage = () => {
       const perPhoto = parseFloat(perPhotoPrice.trim());
       if (!isNaN(perPhoto) && perPhoto > 0) albumData.perPhotoPrice = perPhoto;
       const res = await api.post('/api/albums', albumData);
-      toast.success('Album created successfully!');
+      toast.success(t('uploadPage.toastAlbumCreated'));
       setShowCreateAlbumModal(false);
       setNewAlbumName('');
       setNewAlbumDescription('');
@@ -835,7 +847,9 @@ const UploadPage = () => {
       await refetchAlbums();
       if (res.data?.id) setSelectedAlbumId(res.data.id);
     } catch (err: unknown) {
-      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to create album';
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        t('uploadPage.toastAlbumCreateFail');
       toast.error(message);
     } finally {
       setIsCreatingAlbum(false);
@@ -843,19 +857,24 @@ const UploadPage = () => {
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return `0 ${t('uploadPage.sizeBytes')}`;
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = [
+      t('uploadPage.sizeBytes'),
+      t('uploadPage.sizeKB'),
+      t('uploadPage.sizeMB'),
+      t('uploadPage.sizeGB'),
+    ];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const formatRelativeTime = (timestamp: number) => {
     const sec = Math.floor((Date.now() - timestamp) / 1000);
-    if (sec < 60) return 'Just now';
-    if (sec < 3600) return `${Math.floor(sec / 60)} min ago`;
-    if (sec < 86400) return `${Math.floor(sec / 3600)} hr ago`;
-    return `${Math.floor(sec / 86400)} day(s) ago`;
+    if (sec < 60) return t('uploadPage.timeJustNow');
+    if (sec < 3600) return t('uploadPage.timeMinAgo', { n: Math.floor(sec / 60) });
+    if (sec < 86400) return t('uploadPage.timeHrAgo', { n: Math.floor(sec / 3600) });
+    return t('uploadPage.timeDayAgo', { n: Math.floor(sec / 86400) });
   };
 
   const getStatusIcon = (status: QueueItemStatus) => {
@@ -877,12 +896,18 @@ const UploadPage = () => {
 
   const getStatusLabel = (status: QueueItemStatus): string => {
     switch (status) {
-      case 'completed': return 'Completed';
-      case 'failed': return 'Failed';
-      case 'paused': return 'Paused';
-      case 'uploading': return 'Uploading';
-      case 'processing': return 'Processing';
-      default: return 'Waiting';
+      case 'completed':
+        return t('uploadPage.statusCompleted');
+      case 'failed':
+        return t('uploadPage.statusFailed');
+      case 'paused':
+        return t('uploadPage.statusPaused');
+      case 'uploading':
+        return t('uploadPage.statusUploading');
+      case 'processing':
+        return t('uploadPage.statusProcessing');
+      default:
+        return t('uploadPage.statusWaiting');
     }
   };
 
@@ -923,8 +948,8 @@ const UploadPage = () => {
     if (removedIds.length > 0) {
       toast.success(
         removedIds.length === 1
-          ? '1 item removed from queue'
-          : `${removedIds.length} items removed from queue`
+          ? i18n.t('uploadPage.toastRemovedOne')
+          : i18n.t('uploadPage.toastRemovedMany', { n: removedIds.length })
       );
     }
   }, []);
@@ -935,7 +960,6 @@ const UploadPage = () => {
     const ids = completedWithIds.map((i) => Number(i.imageId!));
     try {
       await api.post(`/api/albums/${selectedAlbumId}/images`, { imageIds: ids });
-      const name = albums.find((a) => a.id === selectedAlbumId)?.name ?? 'album';
       // Images are now linked to the selected album; we intentionally skip a toast here
       // to avoid duplicate "image(s) added to album" popups. The upload queue and UI
       // already reflect the updated state.
@@ -943,10 +967,12 @@ const UploadPage = () => {
       if (!addedToAlbumRef.current.has(selectedAlbumId)) addedToAlbumRef.current.set(selectedAlbumId, new Set());
       ids.forEach((id) => addedToAlbumRef.current.get(selectedAlbumId)!.add(id));
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to add to album';
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        t('uploadPage.toastAddAlbumFail');
       toast.error(msg);
     }
-  }, [selectedAlbumId, completedWithIds, albums]);
+  }, [selectedAlbumId, completedWithIds, t]);
 
   // When runOneUpload completes an item that has targetAlbumId, add that image to that album (e.g. folder-selected or album-selected when files were added)
   const completedWithTargetAlbum = queueState.items.filter(
@@ -993,7 +1019,9 @@ const UploadPage = () => {
           // User will only see a toast when they manually call "Add completed image(s) to this album".
         })
         .catch((err: unknown) => {
-          const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to add to album';
+          const msg =
+            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+            i18n.t('uploadPage.toastAddAlbumFail');
           toast.error(msg);
         });
     });
@@ -1003,7 +1031,7 @@ const UploadPage = () => {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <LoadingSpinner size="lg" text="Loading your profile..." />
+          <LoadingSpinner size="lg" text={t('uploadPage.loadingProfile')} />
         </div>
       </div>
     );
@@ -1014,10 +1042,10 @@ const UploadPage = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Profile Loading Failed</h1>
-          <p className="text-gray-600 mb-4">Unable to load your profile information</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('uploadPage.profileErrorTitle')}</h1>
+          <p className="text-gray-600 mb-4">{t('uploadPage.profileErrorBody')}</p>
           <button onClick={() => window.location.reload()} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       </div>
@@ -1029,8 +1057,8 @@ const UploadPage = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center max-w-md mx-auto">
           <div className="text-red-500 text-6xl mb-4">🔒</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Upload Not Available</h1>
-          <p className="text-gray-600 mb-4">You don't have permission to upload files.</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('uploadPage.uploadNotAvailable')}</h1>
+          <p className="text-gray-600 mb-4">{t('uploadPage.uploadNotAllowedBody')}</p>
         </div>
       </div>
     );
@@ -1040,10 +1068,10 @@ const UploadPage = () => {
     <div className="space-y-8">
       <div className="text-center">
         <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-6">
-          Upload Files
+          {t('uploadPage.title')}
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          Upload and secure your images and documents. Uploads continue in the background and survive refresh.
+          {t('uploadPage.subtitle')}
         </p>
         {userProfile && (
           <div className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 max-w-4xl mx-auto border border-blue-100">
@@ -1052,29 +1080,35 @@ const UploadPage = () => {
                 <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
                   <span className="text-white font-bold text-lg">{userProfile.accountType?.charAt(0) || 'U'}</span>
                 </div>
-                <h3 className="font-semibold text-gray-800">Account Type</h3>
-                <p className="text-sm text-gray-600">{userProfile.accountType || 'Unknown'}</p>
+                <h3 className="font-semibold text-gray-800">{t('uploadPage.accountType')}</h3>
+                <p className="text-sm text-gray-600">{userProfile.accountType || t('uploadPage.unknown')}</p>
               </div>
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
                   <span className="text-white font-bold text-xl">∞</span>
                 </div>
-                <h3 className="font-semibold text-gray-800">File Size</h3>
-                <p className="text-sm text-gray-600">Unlimited</p>
+                <h3 className="font-semibold text-gray-800">{t('uploadPage.fileSize')}</h3>
+                <p className="text-sm text-gray-600">{t('uploadPage.unlimited')}</p>
               </div>
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
                   <span className="text-white font-bold text-lg">{userProfile.allowedFileTypes?.split(',').length || 0}</span>
                 </div>
-                <h3 className="font-semibold text-gray-800">Allowed Types</h3>
-                <p className="text-sm text-gray-600">{userProfile.allowedFileTypes?.toUpperCase() || 'None'}</p>
+                <h3 className="font-semibold text-gray-800">{t('uploadPage.allowedTypes')}</h3>
+                <p className="text-sm text-gray-600">
+                  {userProfile.allowedFileTypes?.toUpperCase() || t('uploadPage.none')}
+                </p>
               </div>
               <div className="text-center">
                 <div className="w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-sm">{queueState.isOnline ? 'Online' : 'Offline'}</span>
+                  <span className="text-white font-bold text-sm">
+                    {queueState.isOnline ? t('uploadPage.online') : t('uploadPage.offline')}
+                  </span>
                 </div>
-                <h3 className="font-semibold text-gray-800">Network</h3>
-                <p className="text-sm text-gray-600">{queueState.isOnline ? 'Uploads active' : 'Paused (Offline)'}</p>
+                <h3 className="font-semibold text-gray-800">{t('uploadPage.network')}</h3>
+                <p className="text-sm text-gray-600">
+                  {queueState.isOnline ? t('uploadPage.uploadsActive') : t('uploadPage.pausedOffline')}
+                </p>
               </div>
             </div>
           </div>
@@ -1087,8 +1121,8 @@ const UploadPage = () => {
           <div className="flex items-center space-x-3">
             <FaFolder className="mr-3 font-medium text-[#2731db]" />
             <div>
-              <h3 className="text-lg font-semibold text-gray-800">Select Album (Optional)</h3>
-              <p className="text-sm text-gray-600">Add uploaded images to the selected album</p>
+              <h3 className="text-lg font-semibold text-gray-800">{t('uploadPage.selectAlbumTitle')}</h3>
+              <p className="text-sm text-gray-600">{t('uploadPage.selectAlbumHint')}</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
@@ -1099,7 +1133,7 @@ const UploadPage = () => {
               className="flex items-center px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FaPlus className="mr-2" />
-              Create Album
+              {t('uploadPage.createAlbum')}
             </button>
             {albums.length > 0 && (
               <select
@@ -1108,10 +1142,11 @@ const UploadPage = () => {
                 disabled={!canUpload()}
                 className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2731db] min-w-[200px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <option value="">No Album</option>
+                <option value="">{t('uploadPage.noAlbum')}</option>
                 {albums.map((album) => (
                   <option key={album.id} value={album.id}>
-                    {album.name} {album.imageCount != null ? `(${album.imageCount} images)` : ''}
+                    {album.name}{' '}
+                    {album.imageCount != null ? t('uploadPage.imagesCount', { n: album.imageCount }) : ''}
                   </option>
                 ))}
               </select>
@@ -1121,14 +1156,14 @@ const UploadPage = () => {
         {selectedAlbumId && (
           <div className="mt-3 p-3 bg-blue-100 rounded-lg border border-blue-200">
             <p className="text-sm text-blue-800">
-              ✓ Images can be added to: <strong>{albums.find((a) => a.id === selectedAlbumId)?.name}</strong>
+              ✓ {t('uploadPage.imagesAddedTo')} <strong>{albums.find((a) => a.id === selectedAlbumId)?.name}</strong>
             </p>
             {completedWithIds.length > 0 && (
               <button
                 onClick={addCompletedToAlbum}
                 className="mt-2 text-sm text-blue-700 underline hover:no-underline"
               >
-                Add {completedWithIds.length} completed image(s) to this album
+                {t('uploadPage.addCompletedHint', { n: completedWithIds.length })}
               </button>
             )}
           </div>
@@ -1142,8 +1177,8 @@ const UploadPage = () => {
             <div className="bg-white rounded-2xl shadow-xl px-8 py-6 flex items-center gap-4">
               <LoadingSpinner size="md" text="" />
               <div>
-                <p className="font-semibold text-gray-800">Adding files...</p>
-                <p className="text-sm text-gray-600">Max {MAX_UPLOAD_QUEUE} files · Please wait</p>
+                <p className="font-semibold text-gray-800">{t('uploadPage.addingFiles')}</p>
+                <p className="text-sm text-gray-600">{t('uploadPage.addingFilesWait', { max: MAX_UPLOAD_QUEUE })}</p>
               </div>
             </div>
           </div>
@@ -1158,10 +1193,12 @@ const UploadPage = () => {
             <input {...getInputProps()} />
             <FaCloudUploadAlt className="mx-auto h-20 w-20 text-indigo-500 mb-6" />
             <p className="mt-6 text-2xl font-bold text-gray-800">
-              {isDragActive ? 'Drop files here' : 'Drag & drop files here'}
+              {isDragActive ? t('uploadPage.dropFilesHere') : t('uploadPage.dragDropHere')}
             </p>
-            <p className="mt-3 text-lg text-gray-600">or click to select files</p>
-            <p className="mt-2 text-sm text-gray-500">Videos longer than 30s are auto-trimmed. Queue limit: {MAX_UPLOAD_QUEUE} files.</p>
+            <p className="mt-3 text-lg text-gray-600">{t('uploadPage.clickToSelect')}</p>
+            <p className="mt-2 text-sm text-gray-500">
+              {t('uploadPage.videoTrimHint', { max: MAX_UPLOAD_QUEUE })}
+            </p>
             <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm">
               {userProfile?.allowedFileTypes && (
                 <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
@@ -1171,12 +1208,14 @@ const UploadPage = () => {
               )}
               <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
                 <span className="w-3 h-3 bg-blue-400 rounded-full mr-3 animate-pulse" />
-                <span className="font-medium text-gray-700">Background upload · Survives refresh</span>
+                <span className="font-medium text-gray-700">{t('uploadPage.allowedTypesBadge')}</span>
               </span>
               {storageUsage && (
                 <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
                   <span className="w-3 h-3 bg-purple-400 rounded-full mr-3 animate-pulse" />
-                  <span className="font-medium text-gray-700">{storageUsage.total - storageUsage.used}MB Available</span>
+                  <span className="font-medium text-gray-700">
+                    {t('uploadPage.mbAvailable', { n: storageUsage.total - storageUsage.used })}
+                  </span>
                 </span>
               )}
             </div>
@@ -1194,24 +1233,30 @@ const UploadPage = () => {
                   <FaFileImage className="h-6 w-6 text-white" />
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Upload Queue</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800">{t('uploadPage.uploadQueue')}</h2>
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mt-1">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 font-semibold tabular-nums text-base shrink-0">
-                      {queueState.items.length} / {MAX_UPLOAD_QUEUE} files
+                      {t('uploadPage.filesOfMax', { current: queueState.items.length, max: MAX_UPLOAD_QUEUE })}
                     </span>
                     {queueState.items.length >= MAX_UPLOAD_QUEUE && (
-                      <span className="text-amber-600 text-sm font-medium shrink-0">(max limit)</span>
+                      <span className="text-amber-600 text-sm font-medium shrink-0">{t('uploadPage.maxLimit')}</span>
                     )}
                     <span className="text-gray-500 text-sm">·</span>
-                    <span className="text-gray-600 text-sm tabular-nums">{pendingCount} waiting</span>
+                    <span className="text-gray-600 text-sm tabular-nums">
+                      {t('uploadPage.waiting', { n: pendingCount })}
+                    </span>
                     {processingCount > 0 && (
                       <>
                         <span className="text-gray-400">·</span>
-                        <span className="text-indigo-600 text-sm tabular-nums">{processingCount} processing</span>
+                        <span className="text-indigo-600 text-sm tabular-nums">
+                          {t('uploadPage.processingCount', { n: processingCount })}
+                        </span>
                       </>
                     )}
                     <span className="text-gray-400">·</span>
-                    <span className="text-gray-600 text-sm">{queueState.isOnline ? 'Online' : 'Paused'}</span>
+                    <span className="text-gray-600 text-sm">
+                      {queueState.isOnline ? t('uploadPage.online') : t('uploadPage.paused')}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1221,7 +1266,7 @@ const UploadPage = () => {
                   onClick={handleClearFinished}
                   className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors shrink-0"
                 >
-                  Clear finished ({finishedCount})
+                  {t('uploadPage.clearFinished', { n: finishedCount })}
                 </button>
               )}
             </div>
@@ -1229,14 +1274,14 @@ const UploadPage = () => {
           {isAddingFiles && (
             <div className="px-6 py-3 bg-indigo-100 border-b border-indigo-200 flex items-center justify-center gap-2 text-sm text-indigo-800 font-medium">
               <LoadingSpinner size="sm" text="" />
-              <span>Adding more files... (max {MAX_UPLOAD_QUEUE})</span>
+              <span>{t('uploadPage.addingMoreFiles', { max: MAX_UPLOAD_QUEUE })}</span>
             </div>
           )}
           <div className="relative flex flex-col min-h-[320px] max-h-[70vh] h-[70vh]">
             <div className="sticky top-0 z-10 px-4 py-2 bg-indigo-50/95 border-b border-indigo-100/80 backdrop-blur-sm flex items-center justify-center gap-2 text-sm text-gray-700 shrink-0">
               <span className="tabular-nums font-semibold text-indigo-800">{queueState.items.length}</span>
-              <span>files in queue</span>
-              <span className="text-gray-400">(scroll to see all)</span>
+              <span>{t('uploadPage.filesInQueueLine')}</span>
+              <span className="text-gray-400">{t('uploadPage.scrollToSeeAll')}</span>
             </div>
             <div className="p-6 md:p-8 overflow-y-auto overflow-x-hidden scroll-smooth flex-1 min-h-0 basis-0">
             <div className="grid grid-cols-1 gap-4">
@@ -1275,13 +1320,13 @@ const UploadPage = () => {
                         {item.status === 'processing' && (
                           <>
                             {getStatusIcon(item.status)}
-                            <span className="text-sm font-medium text-indigo-600">Processing video...</span>
+                            <span className="text-sm font-medium text-indigo-600">{t('uploadPage.processingVideo')}</span>
                           </>
                         )}
                         {item.status === 'uploading' && (
                           <>
                             {getStatusIcon(item.status)}
-                            <span className="text-sm font-medium text-blue-600">Uploading</span>
+                            <span className="text-sm font-medium text-blue-600">{t('uploadPage.uploading')}</span>
                           </>
                         )}
                         {(item.status === 'waiting' || item.status === 'paused') && (
@@ -1290,13 +1335,13 @@ const UploadPage = () => {
                         {item.status === 'completed' && (
                           <span className="text-sm font-medium text-green-700 flex items-center gap-1.5">
                             {getStatusIcon(item.status)}
-                            Completed
+                            {t('uploadPage.completed')}
                           </span>
                         )}
                         {item.status === 'failed' && (
                           <span className="text-sm font-medium text-red-700 flex items-center gap-1.5">
                             {getStatusIcon(item.status)}
-                            Failed
+                            {t('uploadPage.failed')}
                           </span>
                         )}
                       </div>
@@ -1317,7 +1362,7 @@ const UploadPage = () => {
                           onClick={() => openUploadOptions(item)}
                           className="mt-1 text-sm font-medium text-purple-600 hover:text-purple-700"
                         >
-                          Choose Destination
+                          {t('uploadPage.chooseDestination')}
                         </button>
                       )}
                       {item.status === 'failed' && (
@@ -1326,11 +1371,11 @@ const UploadPage = () => {
                           onClick={() => retryUpload(item.id)}
                           className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-amber-600 hover:text-amber-700"
                         >
-                          <FaRedoAlt className="h-4 w-4" /> Retry
+                          <FaRedoAlt className="h-4 w-4" /> {t('uploadPage.retry')}
                         </button>
                       )}
                       {item.status === 'paused' && (
-                        <p className="text-xs text-amber-700 mt-0.5">Paused (Offline) – will resume when back online</p>
+                        <p className="text-xs text-amber-700 mt-0.5">{t('uploadPage.pausedOfflineResume')}</p>
                       )}
                       {item.successMessage && item.status === 'completed' && (
                         <p className="text-xs text-green-700 mt-0.5 truncate">{item.successMessage}</p>
@@ -1338,7 +1383,8 @@ const UploadPage = () => {
                       {item.error && (
                         <p className="text-xs text-red-700 mt-0.5 break-words">
                           {item.error}
-                          {item.retries > 0 && ` (retry ${item.retries}/${MAX_RETRIES})`}
+                          {item.retries > 0 &&
+                            ` ${t('uploadPage.retryProgress', { current: item.retries, max: MAX_RETRIES })}`}
                         </p>
                       )}
                     </div>
@@ -1351,7 +1397,7 @@ const UploadPage = () => {
                         // onClick={() => !isUploading && removeFromQueue(item.id)}
                         // disabled={isUploading}
                         className="w-10 h-10 rounded-full bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label="Remove from queue"
+                        aria-label={t('uploadPage.removeFromQueue')}
                       >
                         <FaTimes className="h-5 w-5" />
                       </button>
@@ -1372,7 +1418,7 @@ const UploadPage = () => {
             <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
               <FaCloudUploadAlt className="h-6 w-6 text-white" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-800">Upload Summary</h3>
+            <h3 className="text-2xl font-bold text-gray-800">{t('uploadPage.uploadSummary')}</h3>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
@@ -1380,8 +1426,8 @@ const UploadPage = () => {
                 <div className="w-14 h-14 bg-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
                   <span className="text-white font-bold text-lg tabular-nums">{queueState.items.length}</span>
                 </div>
-                <p className="text-sm font-semibold text-gray-800">Total</p>
-                <p className="text-xs text-gray-500 mt-0.5">max {MAX_UPLOAD_QUEUE} files</p>
+                <p className="text-sm font-semibold text-gray-800">{t('uploadPage.total')}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{t('uploadPage.maxFilesHint', { max: MAX_UPLOAD_QUEUE })}</p>
               </div>
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
@@ -1389,7 +1435,7 @@ const UploadPage = () => {
                 <div className="w-14 h-14 bg-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
                   <span className="text-white font-bold text-lg">{processingCount}</span>
                 </div>
-                <p className="text-sm font-semibold text-gray-800">Processing</p>
+                <p className="text-sm font-semibold text-gray-800">{t('uploadPage.processing')}</p>
               </div>
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
@@ -1399,7 +1445,7 @@ const UploadPage = () => {
                     {queueState.items.filter((i) => i.status === 'uploading').length}
                   </span>
                 </div>
-                <p className="text-sm font-semibold text-gray-800">Uploading</p>
+                <p className="text-sm font-semibold text-gray-800">{t('uploadPage.uploading')}</p>
               </div>
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
@@ -1409,7 +1455,7 @@ const UploadPage = () => {
                     {queueState.items.filter((i) => i.status === 'completed').length}
                   </span>
                 </div>
-                <p className="text-sm font-semibold text-gray-800">Completed</p>
+                <p className="text-sm font-semibold text-gray-800">{t('uploadPage.completed')}</p>
               </div>
             </div>
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
@@ -1419,7 +1465,7 @@ const UploadPage = () => {
                     {queueState.items.filter((i) => i.status === 'failed').length}
                   </span>
                 </div>
-                <p className="text-sm font-semibold text-gray-800">Failed</p>
+                <p className="text-sm font-semibold text-gray-800">{t('uploadPage.failed')}</p>
               </div>
             </div>
           </div>
@@ -1432,7 +1478,7 @@ const UploadPage = () => {
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-900">Choose Upload Destination</h3>
+                <h3 className="text-xl font-bold text-gray-900">{t('uploadPage.modalDestinationTitle')}</h3>
                 <button
                   onClick={() => {
                     setShowUploadOptions(false);
@@ -1445,7 +1491,7 @@ const UploadPage = () => {
               </div>
               <div className="space-y-4">
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-2">Selected File</h4>
+                  <h4 className="font-semibold text-gray-900 mb-2">{t('uploadPage.selectedFile')}</h4>
                   <div className="flex items-center space-x-3">
                     <FaFileImage className="h-8 w-8 text-blue-500" />
                     <div>
@@ -1465,8 +1511,8 @@ const UploadPage = () => {
                         className="text-blue-600"
                       />
                       <div>
-                        <label className="font-medium text-blue-900">🏠 My Account</label>
-                        <p className="text-sm text-blue-700">Store in your account</p>
+                        <label className="font-medium text-blue-900">🏠 {t('uploadPage.myAccountTitle')}</label>
+                        <p className="text-sm text-blue-700">{t('uploadPage.myAccountDesc')}</p>
                       </div>
                     </div>
                   </div>
@@ -1481,8 +1527,8 @@ const UploadPage = () => {
                           className="text-purple-600"
                         />
                         <div>
-                          <label className="font-medium text-purple-900">👥 Client Account</label>
-                          <p className="text-sm text-purple-700">Store in client's account</p>
+                          <label className="font-medium text-purple-900">👥 {t('uploadPage.clientAccountTitle')}</label>
+                          <p className="text-sm text-purple-700">{t('uploadPage.clientStoreDesc')}</p>
                         </div>
                       </div>
                       {selectedFileForOptions.uploadDestination === 'family-account' && (
@@ -1495,7 +1541,7 @@ const UploadPage = () => {
                             }}
                             className="w-full p-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500"
                           >
-                            <option value="">Select a client...</option>
+                            <option value="">{t('uploadPage.selectClient')}</option>
                             {familyMembers.map((member) => (
                               <option key={member.id} value={member.otherUserId}>
                                 {member.otherUserFirstName} {member.otherUserLastName} ({member.relationshipType})
@@ -1515,7 +1561,7 @@ const UploadPage = () => {
                     }}
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
-                    Done
+                    {t('uploadPage.done')}
                   </button>
                 </div>
               </div>
@@ -1531,7 +1577,7 @@ const UploadPage = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold text-gray-900 flex items-center">
                 <FaFolder className="mr-2 text-[#2731db]" />
-                Create New Album
+                {t('uploadPage.createNewAlbum')}
               </h2>
               <button
                 onClick={() => {
@@ -1548,44 +1594,44 @@ const UploadPage = () => {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Album Name *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadPage.albumName')}</label>
                 <input
                   type="text"
                   value={newAlbumName}
                   onChange={(e) => setNewAlbumName(e.target.value)}
-                  placeholder="Enter album name"
+                  placeholder={t('uploadPage.albumNamePlaceholder')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadPage.albumDesc')}</label>
                 <textarea
                   value={newAlbumDescription}
                   onChange={(e) => setNewAlbumDescription(e.target.value)}
-                  placeholder="Enter description"
+                  placeholder={t('uploadPage.albumDescPlaceholder')}
                   rows={3}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Album Price (₹) (optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadPage.albumPrice')}</label>
                 <input
                   type="number"
                   value={newAlbumPrice}
                   onChange={(e) => setNewAlbumPrice(e.target.value)}
-                  placeholder="Price per album"
+                  placeholder={t('uploadPage.albumPricePlaceholder')}
                   min="0"
                   step="0.01"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Price Per Photo (₹) (optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadPage.perPhotoPrice')}</label>
                 <input
                   type="number"
                   value={perPhotoPrice}
                   onChange={(e) => setPerPhotoPrice(e.target.value)}
-                  placeholder="Price per photo"
+                  placeholder={t('uploadPage.perPhotoPlaceholder')}
                   min="0"
                   step="0.01"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
@@ -1599,7 +1645,9 @@ const UploadPage = () => {
                   onChange={(e) => setNewAlbumIsPublic(e.target.checked)}
                   className="w-4 h-4 text-[#2731db] border-gray-300 rounded"
                 />
-                <label htmlFor="isPublic" className="text-sm font-medium text-gray-700">Make album public</label>
+                <label htmlFor="isPublic" className="text-sm font-medium text-gray-700">
+                  {t('uploadPage.makeAlbumPublic')}
+                </label>
               </div>
               <div className="flex space-x-3 pt-4">
                 <button
@@ -1607,7 +1655,7 @@ const UploadPage = () => {
                   disabled={isCreatingAlbum || !newAlbumName.trim()}
                   className="flex-1 px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isCreatingAlbum ? 'Creating...' : 'Create Album'}
+                  {isCreatingAlbum ? t('uploadPage.creating') : t('uploadPage.createAlbumBtn')}
                 </button>
                 <button
                   onClick={() => {
@@ -1617,7 +1665,7 @@ const UploadPage = () => {
                   }}
                   className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               </div>
             </div>

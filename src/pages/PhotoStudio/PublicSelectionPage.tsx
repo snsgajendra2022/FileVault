@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaChevronLeft, FaCheckCircle, FaCheck, FaCopy, FaShare, FaTimes, FaExpandArrowsAlt } from 'react-icons/fa';
@@ -55,6 +56,7 @@ interface FlagsResponse {
 }
 
 const PublicSelectionPage: React.FC = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -180,7 +182,7 @@ const PublicSelectionPage: React.FC = () => {
             });
             setVerifyStatus('otp_sent');
             setVerifyOtp('');
-            toast.success('OTP sent. Check your email or phone.');
+            toast.success(t('publicSelectionPage.toastOtpSentEmailPhone'));
           } catch {
             setVerifyStatus('needs_input');
           }
@@ -198,7 +200,7 @@ const PublicSelectionPage: React.FC = () => {
   const handleVerifySubmit = async () => {
     const email = verifyEmail.trim();
     if (!email) {
-      setVerifyError('Enter email address.');
+      setVerifyError(t('publicSelectionPage.verifyEnterEmail'));
       return;
     }
     setVerifyError('');
@@ -224,7 +226,7 @@ const PublicSelectionPage: React.FC = () => {
         });
         setVerifyStatus('otp_sent');
         setVerifyOtp('');
-        toast.success('OTP sent. Check your email.');
+        toast.success(t('publicSelectionPage.toastOtpSentEmail'));
         return;
       }
       // Not existing → call send-otp and show OTP page
@@ -237,14 +239,14 @@ const PublicSelectionPage: React.FC = () => {
       await api.post('/api/public-verify/send-otp', sendOtpBody);
       setVerifyStatus('otp_sent');
       setVerifyOtp('');
-      toast.success('OTP sent. Check your email.');
+      toast.success(t('publicSelectionPage.toastOtpSentEmail'));
     } catch (err: any) {
       if (err.response?.status === 404 || err.response?.status === 501) {
         sessionStorage.setItem(verifyStorageKey, '1');
         setVerifyStatus('verified');
-        toast.success('Verification skipped.');
+        toast.success(t('publicSelectionPage.toastVerificationSkipped'));
       } else {
-        setVerifyError(err.response?.data?.message || 'Something went wrong. Try again.');
+        setVerifyError(err.response?.data?.message || t('publicSelectionPage.verifyGenericError'));
       }
     } finally {
       setVerifySending(false);
@@ -262,9 +264,9 @@ const PublicSelectionPage: React.FC = () => {
           ...(validShareId != null ? { id: validShareId } : {}),
         });
         setVerifyOtp('');
-        toast.success('OTP sent again.');
+        toast.success(t('publicSelectionPage.toastOtpSentAgain'));
       } catch (err: any) {
-        setVerifyError(err.response?.data?.message || 'Failed to resend OTP.');
+        setVerifyError(err.response?.data?.message || t('publicSelectionPage.verifyFailedResendOtp'));
       } finally {
         setVerifySending(false);
       }
@@ -275,7 +277,7 @@ const PublicSelectionPage: React.FC = () => {
 
   const handleVerifyOtpSubmit = async () => {
     if (!verifyOtp.trim()) {
-      setVerifyError('Enter the OTP.');
+      setVerifyError(t('publicSelectionPage.verifyEnterOtp'));
       return;
     }
     setVerifyError('');
@@ -291,12 +293,12 @@ const PublicSelectionPage: React.FC = () => {
       if (res.data?.success) {
         sessionStorage.setItem(verifyStorageKey, '1');
         setVerifyStatus('verified');
-        toast.success('Verified. Loading...');
+        toast.success(t('publicSelectionPage.toastVerifiedLoading'));
       } else {
-        setVerifyError('Invalid OTP. Try again.');
+        setVerifyError(t('publicSelectionPage.verifyInvalidOtp'));
       }
     } catch (err: any) {
-      setVerifyError(err.response?.data?.message || 'Invalid OTP. Try again.');
+      setVerifyError(err.response?.data?.message || t('publicSelectionPage.verifyInvalidOtp'));
     } finally {
       setVerifySending(false);
     }
@@ -539,7 +541,7 @@ const PublicSelectionPage: React.FC = () => {
   }, [flagsData]);
 
   const getImageFilename = (image: AlbumImage): string => {
-    return image.originalFilename || image.filename || 'Unknown';
+    return image.originalFilename || image.filename || t('publicSelectionPage.unknownFile');
   };
 
   // Auto-select albums and images based on image IDs or filenames from URL
@@ -581,7 +583,7 @@ const PublicSelectionPage: React.FC = () => {
         let hasMatch = false;
 
         album.images.forEach(image => {
-          const imageFilename = image.originalFilename || image.filename || 'Unknown';
+          const imageFilename = image.originalFilename || image.filename || t('publicSelectionPage.unknownFile');
           // Check if this image's filename matches any target filename
           const isMatch = targetFilenames.some(targetFilename => {
             // Exact match or filename contains target (for partial matches)
@@ -612,7 +614,7 @@ const PublicSelectionPage: React.FC = () => {
       setUserSelectedImages(matchedImages);
       // Automatically show only selected albums when imageIds or files are provided
       setShowOnlySelected(true);
-      toast.success(`Found ${matchedAlbums.size} album(s) with matching images`);
+      toast.success(t('publicSelectionPage.foundAlbumsMatch', { count: matchedAlbums.size }));
     }
   }, [albums, targetImageIds, targetFilenames]);
 
@@ -741,7 +743,7 @@ const PublicSelectionPage: React.FC = () => {
   const handleDownload = (image: AlbumImage) => {
     const imageUrl = getImageUrl(image);
     if (!imageUrl) {
-      toast.error('Download URL not available');
+      toast.error(t('publicSelectionPage.downloadUrlUnavailable'));
       return;
     }
 
@@ -760,9 +762,9 @@ const PublicSelectionPage: React.FC = () => {
 
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(currentUrl).then(() => {
-      toast.success('URL copied to clipboard!');
+      toast.success(t('publicSelectionPage.toastUrlCopied'));
     }).catch(() => {
-      toast.error('Failed to copy URL');
+      toast.error(t('publicSelectionPage.toastCopyUrlFailed'));
     });
   };
 
@@ -778,7 +780,7 @@ const PublicSelectionPage: React.FC = () => {
 
   const handleSubmitSelection = async () => {
     if (allSelectedImages.length === 0) {
-      toast.error('Please select at least one image');
+      toast.error(t('publicSelectionPage.toastSelectOneImage'));
       return;
     }
 
@@ -807,13 +809,13 @@ const PublicSelectionPage: React.FC = () => {
       await queryClient.invalidateQueries({ queryKey: ['publicSelectionAlbums', effectiveToken] });
 
       toast.success(
-        `Successfully submitted ${allSelectedImages.length} photo${allSelectedImages.length !== 1 ? 's' : ''} for selection!`,
+        t('publicSelectionPage.toastSubmitSuccess', { count: allSelectedImages.length }),
         { duration: 5000 }
       );
       
     } catch (error: any) {
       console.error('Submission error:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Failed to submit selection. Please try again.';
+      const errorMessage = error.response?.data?.message || error.message || t('publicSelectionPage.toastSubmitFailed');
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -826,12 +828,12 @@ const PublicSelectionPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Incomplete link</h1>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('publicSelectionPage.incompleteLinkTitle')}</h1>
           <p className="text-gray-600 text-sm mb-4">
-            This page only works with a complete share link. Do not open the public selection URL without the full link (with <code className="bg-gray-100 px-1 rounded">sid</code>, <code className="bg-gray-100 px-1 rounded">q</code>, or <code className="bg-gray-100 px-1 rounded">token</code>) provided by your photographer.
+            {t('publicSelectionPage.incompleteLinkBody')}
           </p>
           <a href="/" className="inline-block px-4 py-2 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">
-            Go to home
+            {t('publicSelectionPage.goHome')}
           </a>
         </div>
       </div>
@@ -851,9 +853,9 @@ const PublicSelectionPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Invalid or expired link</h1>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('publicSelectionPage.invalidShortLinkTitle')}</h1>
           <p className="text-gray-600 text-sm">
-            This short link could not be loaded. It may have expired or been removed.
+            {t('publicSelectionPage.invalidShortLinkBody')}
           </p>
         </div>
       </div>
@@ -865,9 +867,9 @@ const PublicSelectionPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Invalid link</h1>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('publicSelectionPage.invalidLinkTitle')}</h1>
           <p className="text-gray-600 text-sm">
-            This link could not be read. Please use the link provided by your photographer.
+            {t('publicSelectionPage.invalidLinkBody')}
           </p>
         </div>
       </div>
@@ -879,12 +881,12 @@ const PublicSelectionPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Invalid or expired link</h1>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('publicSelectionPage.invalidTokenTitle')}</h1>
           <p className="text-gray-600 text-sm mb-4">
-            This selection link could not be loaded. Use the full link shared by your photographer.
+            {t('publicSelectionPage.invalidTokenBody')}
           </p>
           <a href="/" className="inline-block px-4 py-2 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">
-            Go to home
+            {t('publicSelectionPage.goHome')}
           </a>
         </div>
       </div>
@@ -894,7 +896,7 @@ const PublicSelectionPage: React.FC = () => {
   if (verifyStatus === 'idle' || verifyStatus === 'checking') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <LoadingSpinner size="lg" text="Verifying access..." />
+        <LoadingSpinner size="lg" text={t('publicSelectionPage.verifyingAccess')} />
       </div>
     );
   }
@@ -903,9 +905,9 @@ const PublicSelectionPage: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Notice</h2>
-          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">{verifyInfoMessage || 'No message.'}</p>
-          <p className="text-xs text-gray-500">You are not being moved to another page.</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('publicSelectionPage.noticeTitle')}</h2>
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">{verifyInfoMessage || t('publicSelectionPage.noMessage')}</p>
+          <p className="text-xs text-gray-500">{t('publicSelectionPage.notMovedToAnotherPage')}</p>
         </div>
       </div>
     );
@@ -915,32 +917,32 @@ const PublicSelectionPage: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Verify to continue</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('publicSelectionPage.verifyToContinue')}</h2>
           {verifyStatus === 'needs_input' && verifyInfoMessage ? (
             <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">{verifyInfoMessage}</p>
           ) : verifyStatus === 'needs_input' ? (
-            <p className="text-sm text-gray-600 mb-4">Enter your email to view this link.</p>
+            <p className="text-sm text-gray-600 mb-4">{t('publicSelectionPage.enterEmailToView')}</p>
           ) : null}
           {verifyStatus === 'needs_input' ? (
             <>
               <div className="space-y-3 mb-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input type="email" value={verifyEmail} onChange={(e) => setVerifyEmail(e.target.value)} placeholder="you@example.com" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('publicSelectionPage.emailLabel')}</label>
+                  <input type="email" value={verifyEmail} onChange={(e) => setVerifyEmail(e.target.value)} placeholder={t('publicSelectionPage.emailPlaceholder')} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
                 </div>
               </div>
               {verifyError && <p className="text-sm text-red-600 mb-2">{verifyError}</p>}
-              <button onClick={handleVerifySubmit} disabled={verifySending} className="w-full py-2 rounded-lg bg-[#2731db] text-white font-medium disabled:opacity-50">{verifySending ? 'Sending…' : 'Continue'}</button>
+              <button onClick={handleVerifySubmit} disabled={verifySending} className="w-full py-2 rounded-lg bg-[#2731db] text-white font-medium disabled:opacity-50">{verifySending ? t('publicSelectionPage.sending') : t('publicSelectionPage.continue')}</button>
             </>
           ) : (
             <>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Enter OTP</label>
-                <input type="text" inputMode="numeric" maxLength={6} value={verifyOtp} onChange={(e) => setVerifyOtp(e.target.value.replace(/\D/g, ''))} placeholder="123456" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('publicSelectionPage.enterOtpLabel')}</label>
+                <input type="text" inputMode="numeric" maxLength={6} value={verifyOtp} onChange={(e) => setVerifyOtp(e.target.value.replace(/\D/g, ''))} placeholder={t('publicSelectionPage.otpPlaceholder')} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
               </div>
               {verifyError && <p className="text-sm text-red-600 mb-2">{verifyError}</p>}
-              <button onClick={handleVerifyOtpSubmit} disabled={verifySending} className="w-full py-2 rounded-lg bg-[#2731db] text-white font-medium disabled:opacity-50 mb-2">{verifySending ? 'Verifying…' : 'Verify'}</button>
-              <button type="button" onClick={handleResendOtp} disabled={verifySending} className="w-full py-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50">Resend OTP</button>
+              <button onClick={handleVerifyOtpSubmit} disabled={verifySending} className="w-full py-2 rounded-lg bg-[#2731db] text-white font-medium disabled:opacity-50 mb-2">{verifySending ? t('publicSelectionPage.verifying') : t('publicSelectionPage.verify')}</button>
+              <button type="button" onClick={handleResendOtp} disabled={verifySending} className="w-full py-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50">{t('publicSelectionPage.resendOtp')}</button>
             </>
           )}
         </div>
@@ -954,7 +956,7 @@ const PublicSelectionPage: React.FC = () => {
   if (contentLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <LoadingSpinner size="lg" text={isBulkMode ? 'Loading images...' : 'Loading albums...'} />
+        <LoadingSpinner size="lg" text={isBulkMode ? t('publicSelectionPage.loadingImages') : t('publicSelectionPage.loadingAlbums')} />
       </div>
     );
   }
@@ -965,9 +967,9 @@ const PublicSelectionPage: React.FC = () => {
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
           <h1 className="text-xl font-semibold text-gray-900 mb-2">
-            {isBulkMode ? 'Unable to load images' : 'Unable to load albums'}
+            {isBulkMode ? t('publicSelectionPage.unableLoadImages') : t('publicSelectionPage.unableLoadAlbums')}
           </h1>
-          <p className="text-gray-600 text-sm">Please check the link or try again later.</p>
+          <p className="text-gray-600 text-sm">{t('publicSelectionPage.unableLoadBody')}</p>
         </div>
       </div>
     );
@@ -981,20 +983,20 @@ const PublicSelectionPage: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center">
               <FaImages className="mr-3 text-[#2731db]" />
-              {isBulkMode ? 'Shared Photos' : 'Select Your Photos'}
+              {isBulkMode ? t('publicSelectionPage.titleSharedPhotos') : t('publicSelectionPage.titleSelectPhotos')}
             </h1>
             <p className="text-gray-600 mt-2 text-sm sm:text-base">
               {isBulkMode
-                ? `Viewing ${bulkImages.length} shared photo${bulkImages.length !== 1 ? 's' : ''}.`
-                : 'Browse albums and select the photos you want. Click on an album to view images inside.'}
+                ? t('publicSelectionPage.subtitleBulk', { count: bulkImages.length })
+                : t('publicSelectionPage.subtitleAlbums')}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Secure Public Link</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide">{t('publicSelectionPage.securePublicLink')}</p>
             <p className="text-sm font-medium text-gray-800">
               {isBulkMode
-                ? `${bulkImages.length} photo${bulkImages.length !== 1 ? 's' : ''}`
-                : `${albums.length} album${albums.length !== 1 ? 's' : ''} • ${allSelectedImages.length} photo${allSelectedImages.length !== 1 ? 's' : ''} selected`}
+                ? t('publicSelectionPage.bulkHeaderCount', { count: bulkImages.length })
+                : t('publicSelectionPage.albumsModeStats', { albumCount: albums.length, photoCount: allSelectedImages.length })}
             </p>
           </div>
         </header>
@@ -1030,10 +1032,10 @@ const PublicSelectionPage: React.FC = () => {
                 <FaCheckCircle className="text-2xl" />
                 <div>
                   <p className="font-semibold text-lg">
-                    {allSelectedImages.length} photo{allSelectedImages.length !== 1 ? 's' : ''} selected
+                    {t('publicSelectionPage.photosSelectedBar', { count: allSelectedImages.length })}
                   </p>
                   <p className="text-sm text-blue-100">
-                    From {selectedAlbums.size} album{selectedAlbums.size !== 1 ? 's' : ''}
+                    {t('publicSelectionPage.fromAlbums', { count: selectedAlbums.size })}
                   </p>
                 </div>
               </div>
@@ -1044,7 +1046,7 @@ const PublicSelectionPage: React.FC = () => {
                   className="px-5 py-2 rounded-lg bg-white/20 hover:bg-white/30 text-white font-semibold transition-colors flex items-center gap-2 border border-white/40"
                 >
                   <FaImages className="mr-1" />
-                  View selected images only
+                  {t('publicSelectionPage.viewSelectedOnly')}
                 </button>
                 <button
                   onClick={handleSubmitSelection}
@@ -1056,12 +1058,12 @@ const PublicSelectionPage: React.FC = () => {
                   {isSubmitting ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#2731db] border-t-transparent"></div>
-                      <span>Submitting...</span>
+                      <span>{t('publicSelectionPage.submitting')}</span>
                     </>
                   ) : (
                     <>
                       <FaCheck className="mr-1" />
-                      <span>Submit Selection</span>
+                      <span>{t('publicSelectionPage.submitSelection')}</span>
                     </>
                   )}
                 </button>
@@ -1073,7 +1075,7 @@ const PublicSelectionPage: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-700">
-                  Select albums and images by clicking on them. Selected photos will appear here.
+                  {t('publicSelectionPage.selectHintEmpty')}
                 </p>
               </div>
             </div>
@@ -1173,8 +1175,8 @@ const PublicSelectionPage: React.FC = () => {
             {bulkImages.length === 0 ? (
               <div className="text-center py-16 text-gray-500">
                 <FaImages className="mx-auto mb-3 text-4xl" />
-                <p className="text-lg font-medium mb-2">No images found</p>
-                <p className="text-sm">The shared selection may be empty or the link may have expired.</p>
+                <p className="text-lg font-medium mb-2">{t('publicSelectionPage.noImagesFound')}</p>
+                <p className="text-sm">{t('publicSelectionPage.noImagesFoundBody')}</p>
               </div>
             ) : (
             <>
@@ -1195,7 +1197,7 @@ const PublicSelectionPage: React.FC = () => {
                         type="button"
                         onClick={() => openFullscreenFromBulk(index)}
                         className="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-black/50 hover:bg-black/70 text-white flex items-center justify-center"
-                        title="View full screen"
+                        title={t('publicSelectionPage.viewFullScreen')}
                       >
                         <FaExpandArrowsAlt className="text-sm" />
                       </button>
@@ -1229,7 +1231,7 @@ const PublicSelectionPage: React.FC = () => {
                             onClick={() => handleDownload(image)}
                             className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-[#2731db] text-white hover:bg-blue-800"
                           >
-                            <FaDownload className="mr-1" /> Download
+                            <FaDownload className="mr-1" /> {t('publicSelectionPage.download')}
                           </button>
                         )}
                       </div>
@@ -1241,7 +1243,7 @@ const PublicSelectionPage: React.FC = () => {
             <div ref={loadMoreBulkSentinelRef} className="h-4" aria-hidden />
             {bulkFetchingNextPage && (
               <div className="mt-4 flex justify-center py-4">
-                <LoadingSpinner size="md" text="Loading more..." />
+                <LoadingSpinner size="md" text={t('publicSelectionPage.loadingMore')} />
               </div>
             )}
             </>
@@ -1256,12 +1258,12 @@ const PublicSelectionPage: React.FC = () => {
             <div className="text-center py-16 text-gray-500">
               <FaImages className="mx-auto mb-3 text-4xl" />
               <p className="text-lg font-medium mb-2">
-                {effectiveHasValidAlbumId && !isLoading ? 'Album not found' : 'No albums available'}
+                {effectiveHasValidAlbumId && !isLoading ? t('publicSelectionPage.albumNotFound') : t('publicSelectionPage.noAlbumsAvailable')}
               </p>
               <p className="text-sm">
                 {effectiveHasValidAlbumId && !isLoading
-                  ? 'The album link may be invalid or the album was removed. Try the link without albumId or contact the photographer.'
-                  : 'The albums list is empty. Please contact the photographer.'}
+                  ? t('publicSelectionPage.albumInvalidHint')
+                  : t('publicSelectionPage.albumsEmptyHint')}
               </p>
             </div>
           ) : (
@@ -1270,8 +1272,8 @@ const PublicSelectionPage: React.FC = () => {
               <div className="mb-5 p-4 rounded-xl bg-gray-50 border border-gray-200">
                 <p className="text-sm text-gray-600 mb-2">
                   {showSelectionMode
-                    ? 'Click albums and images to select. Use the expand icon on each photo to view full screen.'
-                    : 'Click the button below to show checkboxes and select photos.'}
+                    ? t('publicSelectionPage.selectionModeOn')
+                    : t('publicSelectionPage.selectionModeOff')}
                 </p>
                 <button
                   type="button"
@@ -1283,7 +1285,7 @@ const PublicSelectionPage: React.FC = () => {
                   }`}
                 >
                   <FaCheck className="text-sm" />
-                  {showSelectionMode ? 'Done selecting' : 'Select'}
+                  {showSelectionMode ? t('publicSelectionPage.doneSelecting') : t('publicSelectionPage.select')}
                 </button>
               </div>
               {/* Filter Toggle */}
@@ -1298,11 +1300,11 @@ const PublicSelectionPage: React.FC = () => {
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
-                      {showOnlySelected ? 'Show All Albums' : 'Show Only Selected'}
+                      {showOnlySelected ? t('publicSelectionPage.showAllAlbums') : t('publicSelectionPage.showOnlySelected')}
                     </button>
                     {showOnlySelected && (
                       <span className="text-sm text-gray-600">
-                        Showing {selectedAlbums.size} of {albums.length} albums
+                        {t('publicSelectionPage.showingAlbums', { selected: selectedAlbums.size, total: albums.length })}
                       </span>
                     )}
                   </div>
@@ -1337,7 +1339,7 @@ const PublicSelectionPage: React.FC = () => {
                             className={`w-7 h-7 sm:w-6 sm:h-6 rounded border-2 flex items-center justify-center flex-shrink-0 touch-manipulation ${
                               isSelected ? 'bg-[#2731db] border-[#2731db]' : 'border-gray-300'
                             }`}
-                            aria-label={isSelected ? 'Deselect album' : 'Select album'}
+                            aria-label={isSelected ? t('publicSelectionPage.deselectAlbum') : t('publicSelectionPage.selectAlbum')}
                           >
                             {isSelected && <FaCheck className="text-white text-xs" />}
                           </button>
@@ -1370,10 +1372,10 @@ const PublicSelectionPage: React.FC = () => {
                             </p>
                           )}
                           <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-xs sm:text-sm text-gray-500 mt-1">
-                            <span>{albumImages.length} images</span>
+                            <span>{t('publicSelectionPage.imagesCount', { n: albumImages.length })}</span>
                             {showSelectionMode && albumImageIds.size > 0 && (
                               <span className="text-[#2731db] font-medium">
-                                {albumImageIds.size} selected
+                                {t('publicSelectionPage.selectedCount', { n: albumImageIds.size })}
                               </span>
                             )}
                           </div>
@@ -1383,7 +1385,7 @@ const PublicSelectionPage: React.FC = () => {
                       <button
                         onClick={() => toggleAlbumExpand(album.id)}
                         className="flex-shrink-0 min-w-[2.75rem] min-h-[2.75rem] sm:min-w-0 sm:min-h-0 ml-1 sm:ml-4 px-3 py-2.5 sm:py-2 rounded-lg border border-gray-300 hover:bg-gray-50 active:bg-gray-100 touch-manipulation flex items-center justify-center gap-1 sm:gap-2"
-                        aria-label={isExpanded ? 'Collapse album' : 'Expand album'}
+                        aria-label={isExpanded ? t('publicSelectionPage.collapseAlbum') : t('publicSelectionPage.expandAlbum')}
                       >
                         {isExpanded ? (
                           <FaFolderOpen className="text-[#2731db] text-lg sm:text-xl" />
@@ -1408,11 +1410,11 @@ const PublicSelectionPage: React.FC = () => {
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="text-sm font-semibold text-gray-900">
                             {showSelectionMode
-                              ? (isSelected ? 'Selected Images' : 'Select Images')
-                              : 'Images'}
+                              ? (isSelected ? t('publicSelectionPage.selectedImages') : t('publicSelectionPage.selectImages'))
+                              : t('publicSelectionPage.imagesHeading')}
                             {showSelectionMode && isSelected && albumImageIds.size > 0 && (
                               <span className="ml-2 text-[#2731db] font-medium">
-                                ({albumImageIds.size} of {albumImages.length})
+                                {t('publicSelectionPage.countOf', { selected: albumImageIds.size, total: albumImages.length })}
                               </span>
                             )}
                           </h4>
@@ -1421,7 +1423,7 @@ const PublicSelectionPage: React.FC = () => {
                               onClick={() => selectAllImagesInAlbum(album.id)}
                               className="text-xs text-[#2731db] hover:underline"
                             >
-                              {allSelected ? 'Deselect All' : 'Select All'}
+                              {allSelected ? t('publicSelectionPage.deselectAll') : t('publicSelectionPage.selectAll')}
                             </button>
                           )}
                         </div>
@@ -1473,7 +1475,7 @@ const PublicSelectionPage: React.FC = () => {
                                       openFullscreenFromAlbum(album.id, image.id);
                                     }}
                                     className="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-black/50 hover:bg-black/70 text-white flex items-center justify-center"
-                                    title="View full screen"
+                                    title={t('publicSelectionPage.viewFullScreen')}
                                   >
                                     <FaExpandArrowsAlt className="text-sm" />
                                   </button>
@@ -1518,7 +1520,7 @@ const PublicSelectionPage: React.FC = () => {
                                           }}
                                           className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-[#2731db] text-white hover:bg-blue-800"
                                         >
-                                          <FaDownload className="mr-1" /> Download
+                                          <FaDownload className="mr-1" /> {t('publicSelectionPage.download')}
                                         </button>
                                       )}
                                     </div>
@@ -1538,7 +1540,7 @@ const PublicSelectionPage: React.FC = () => {
                               })}
                               className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
                             >
-                              Load more ({albumImages.length - showCount} remaining)
+                              {t('publicSelectionPage.loadMoreRemaining', { remaining: albumImages.length - showCount })}
                             </button>
                           </div>
                         )}
@@ -1552,7 +1554,7 @@ const PublicSelectionPage: React.FC = () => {
               <div ref={loadMoreAlbumsRef} className="h-4" aria-hidden />
               {albumsFetchingNextPage && (
                 <div className="mt-4 flex justify-center py-4">
-                  <LoadingSpinner size="md" text="Loading more..." />
+                  <LoadingSpinner size="md" text={t('publicSelectionPage.loadingMore')} />
                 </div>
               )}
             </>
@@ -1567,13 +1569,13 @@ const PublicSelectionPage: React.FC = () => {
             onClick={closeFullscreenImage}
             role="dialog"
             aria-modal="true"
-            aria-label="View image full screen"
+            aria-label={t('publicSelectionPage.fullscreenDialogLabel')}
           >
             <button
               type="button"
               onClick={closeFullscreenImage}
               className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"
-              aria-label="Close"
+              aria-label={t('publicSelectionPage.close')}
             >
               <FaTimes className="text-xl" />
             </button>
@@ -1584,7 +1586,7 @@ const PublicSelectionPage: React.FC = () => {
                 goPrevFullscreenImage();
               }}
               className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-white text-blue-600 shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center justify-center"
-              aria-label="Previous image"
+              aria-label={t('publicSelectionPage.previousImage')}
             >
               <FaChevronLeft className="text-lg" />
             </button>
@@ -1595,7 +1597,7 @@ const PublicSelectionPage: React.FC = () => {
                 goNextFullscreenImage();
               }}
               className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-white text-blue-600 shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center justify-center"
-              aria-label="Next image"
+              aria-label={t('publicSelectionPage.nextImage')}
             >
               <FaChevronRight className="text-lg" />
             </button>
@@ -1611,7 +1613,7 @@ const PublicSelectionPage: React.FC = () => {
                   onClick={(e) => e.stopPropagation()}
                 />
               ) : (
-                <p className="text-white">Image not available</p>
+                <p className="text-white">{t('publicSelectionPage.imageNotAvailable')}</p>
               )}
             </div>
             <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-sm truncate max-w-[90vw]">

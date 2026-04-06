@@ -18,6 +18,7 @@ import {
   FaTrash
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
@@ -86,6 +87,7 @@ function normalizeInfiniteCache(old: unknown): { pages: unknown[]; pageParams: n
 }
 
 const PhotoStudioAlbum: React.FC = () => {
+  const { t } = useTranslation();
   const { user, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -384,7 +386,7 @@ const PhotoStudioAlbum: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['albums'] });
-      toast.success('Album created successfully!');
+      toast.success(t('photoStudioAlbumPage.toastAlbumCreated'));
       setShowCreateModal(false);
       setNewAlbumName('');
       setNewAlbumDescription('');
@@ -393,7 +395,7 @@ const PhotoStudioAlbum: React.FC = () => {
       setNewAlbumIsPublic(false);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to create album');
+      toast.error(error.response?.data?.message || t('photoStudioAlbumPage.toastFailedCreate'));
     },
   });
 
@@ -411,13 +413,13 @@ const PhotoStudioAlbum: React.FC = () => {
         next.delete(variables.albumId);
         return next;
       });
-      toast.success('Images added to album successfully!');
+      toast.success(t('photoStudioAlbumPage.toastImagesAdded'));
       setShowAddImagesModal(null);
       setSelectedImages(new Set());
       // Albums will be refetched, and images will be extracted when album is expanded
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to add images to album');
+      toast.error(error.response?.data?.message || t('photoStudioAlbumPage.toastFailedAddImages'));
     },
   });
 
@@ -429,7 +431,7 @@ const PhotoStudioAlbum: React.FC = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['albums'] });
-      toast.success('Album updated successfully!');
+      toast.success(t('photoStudioAlbumPage.toastAlbumUpdated'));
       setShowEditModal(null);
       setEditAlbumName('');
       setEditAlbumDescription('');
@@ -438,7 +440,7 @@ const PhotoStudioAlbum: React.FC = () => {
       setEditAlbumIsPublic(false);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update album');
+      toast.error(error.response?.data?.message || t('photoStudioAlbumPage.toastFailedUpdate'));
     },
   });
 
@@ -457,10 +459,10 @@ const PhotoStudioAlbum: React.FC = () => {
       });
       setMenuOpenAlbumId(null);
       setViewingAlbumId((id) => (id === albumId ? null : id));
-      toast.success('Album deleted');
+      toast.success(t('photoStudioAlbumPage.toastAlbumDeleted'));
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to delete album');
+      toast.error(error.response?.data?.message || t('photoStudioAlbumPage.toastFailedDelete'));
     },
   });
 
@@ -475,18 +477,18 @@ const PhotoStudioAlbum: React.FC = () => {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['albums'] });
-      toast.success(`Album shared successfully with ${variables.clientIds?.length} client${variables.clientIds?.length !== 1 ? 's' : ''}!`);
+      toast.success(t('photoStudioAlbumPage.toastSharedWith', { count: variables.clientIds?.length ?? 0 }));
       setShowShareModal(null);
       setSelectedClients(new Set());
     },
     onError: (error: any) => {
       const errorData = error.response?.data;
-      const errorMessage = errorData?.message || 'Failed to share album';
+      const errorMessage = errorData?.message || t('photoStudioAlbumPage.toastFailedShare');
       
       // Handle invalid client IDs specifically
       if (errorData?.invalidClientIds && Array.isArray(errorData.invalidClientIds) && errorData.invalidClientIds?.length > 0) {
         const invalidIds = errorData.invalidClientIds.join(', ');
-        toast.error(`${errorMessage} (Invalid client IDs: ${invalidIds})`, {
+        toast.error(t('photoStudioAlbumPage.toastInvalidClientIds', { message: errorMessage, ids: invalidIds }), {
           duration: 6000,
         });
         
@@ -559,12 +561,12 @@ const PhotoStudioAlbum: React.FC = () => {
       setClients(unique);
     } catch (error: any) {
       console.error('Error fetching family members:', error);
-      toast.error('Failed to load members');
+      toast.error(t('photoStudioAlbumPage.toastFailedLoadMembers'));
       setClients([]);
     } finally {
       setIsLoadingClients(false);
     }
-  }, []);
+  }, [t]);
 
   // Load clients when share modal opens
   useEffect(() => {
@@ -593,7 +595,7 @@ const PhotoStudioAlbum: React.FC = () => {
   const handleConfirmShare = () => {
     if (showShareModal === null) return;
     if (selectedClients.size === 0) {
-      toast.error('Please select at least one client');
+      toast.error(t('photoStudioAlbumPage.toastSelectClient'));
       return;
     }
     
@@ -605,7 +607,7 @@ const PhotoStudioAlbum: React.FC = () => {
 
   const handleCreateAlbum = () => {
     if (!newAlbumName.trim()) {
-      toast.error('Please enter an album name');
+      toast.error(t('photoStudioAlbumPage.toastEnterAlbumName'));
       return;
     }
     // Note: imageIds can be included when creating album, but we'll add images separately
@@ -632,7 +634,7 @@ const PhotoStudioAlbum: React.FC = () => {
   const handleUpdateAlbum = () => {
     if (!showEditModal) return;
     if (!editAlbumName.trim()) {
-      toast.error('Please enter an album name');
+      toast.error(t('photoStudioAlbumPage.toastEnterAlbumName'));
       return;
     }
     const perAlbumPrice = editAlbumPrice.trim() ? parseFloat(editAlbumPrice.trim()) : undefined;
@@ -649,7 +651,7 @@ const PhotoStudioAlbum: React.FC = () => {
 
   const handleAddImagesToAlbum = (albumId: number) => {
     if (selectedImages.size === 0) {
-      toast.error('Please select at least one image');
+      toast.error(t('photoStudioAlbumPage.toastSelectImage'));
       return;
     }
     // Convert string IDs back to numbers if needed for API
@@ -703,7 +705,7 @@ const PhotoStudioAlbum: React.FC = () => {
 
   // Get image filename
   const getImageFilename = (image: AlbumImage): string => {
-    return image.originalFilename || image.filename || 'Unknown';
+    return image.originalFilename || image.filename || t('photoStudioAlbumPage.unknown');
   };
 
   // Get file type from filename
@@ -937,21 +939,21 @@ const PhotoStudioAlbum: React.FC = () => {
   const handleShareLinkSend = useCallback(async () => {
     const urlToShare = shareLinkUrlType === 'checkout' ? publicCheckoutUrl : shareLinkUrlType === 'images_display' ? publicImagesDisplayUrl : publicSelectionUrl;
     if (!urlToShare) {
-      toast.error('No URL to share. Select at least one album first.');
+      toast.error(t('photoStudioAlbumPage.toastNoUrl'));
       return;
     }
     const emails = shareLinkNewEmails.split(/[\s,]+/).map((e) => e.trim()).filter(Boolean);
     const mobileParts = shareLinkNewMobiles.split(/[\s,]+/).map((m) => m.trim()).filter(Boolean);
     const mobiles = mobileParts.map((part) => (part.startsWith('+') ? part : `${shareLinkNewMobileCountryCode.replace(/\s/g, '')}${part}`));
     if (shareLinkContactIds.size === 0 && emails?.length === 0 && mobiles.length === 0) {
-      toast.error('Select at least one contact or enter email/mobile.');
+      toast.error(t('photoStudioAlbumPage.toastSelectContact'));
       return;
     }
     const channels: string[] = [];
     if (shareLinkChannels.email) channels.push('email');
     if (shareLinkChannels.sms) channels.push('sms');
     if (channels?.length === 0) {
-      toast.error('Select at least one channel (Email or SMS).');
+      toast.error(t('photoStudioAlbumPage.toastSelectChannel'));
       return;
     }
     setShareLinkSending(true);
@@ -972,11 +974,11 @@ const PhotoStudioAlbum: React.FC = () => {
         const emailCount = res.data.sent?.email ?? 0;
         const smsCount = res.data.sent?.sms ?? 0;
         const shareIds = res.data.shareIds;
-        const idList =
+        const suffix =
           shareIds?.email?.length || shareIds?.sms?.length
-            ? ` Share ID(s): ${[...(shareIds?.email ?? []), ...(shareIds?.sms ?? [])].join(', ')}.`
-            : ' Each recipient gets a Share ID in the email/SMS for reference.';
-        toast.success(`Link sent (email: ${emailCount}, SMS: ${smsCount}).${idList}`);
+            ? t('photoStudioAlbumPage.toastLinkSentSuffixIds', { ids: [...(shareIds?.email ?? []), ...(shareIds?.sms ?? [])].join(', ') })
+            : t('photoStudioAlbumPage.toastLinkSentSuffixGeneric');
+        toast.success(t('photoStudioAlbumPage.toastLinkSent', { email: emailCount, sms: smsCount, suffix }));
         setShowShareLinkModal(false);
         setShareLinkContactIds(new Set());
         setShareLinkNewEmails('');
@@ -984,18 +986,18 @@ const PhotoStudioAlbum: React.FC = () => {
         setShareLinkMessage('');
         setShareLinkAlreadySent(null);
       } else {
-        toast.error('Failed to send. Please try again.');
+        toast.error(t('photoStudioAlbumPage.toastFailedSend'));
       }
     } catch (err: any) {
       if (err.response?.status === 404 || err.response?.status === 501) {
-        toast.error('Share by email/SMS is not available yet. Use Copy link instead.');
+        toast.error(t('photoStudioAlbumPage.toastShareUnavailable'));
       } else {
-        toast.error(err.response?.data?.message || 'Failed to send share.');
+        toast.error(err.response?.data?.message || t('photoStudioAlbumPage.toastFailedSendShare'));
       }
     } finally {
       setShareLinkSending(false);
     }
-  }, [shareLinkUrlType, publicCheckoutUrl, publicSelectionUrl, publicImagesDisplayUrl, shareLinkNewEmails, shareLinkNewMobiles, shareLinkNewMobileCountryCode, shareLinkContactIds, shareLinkChannels, shareLinkMessage]);
+  }, [shareLinkUrlType, publicCheckoutUrl, publicSelectionUrl, publicImagesDisplayUrl, shareLinkNewEmails, shareLinkNewMobiles, shareLinkNewMobileCountryCode, shareLinkContactIds, shareLinkChannels, shareLinkMessage, t, selectedAlbumsName]);
 
   const blobToDataUrl = (blob: Blob) => {
     return new Promise<string>((resolve, reject) => {
@@ -1015,7 +1017,7 @@ const PhotoStudioAlbum: React.FC = () => {
 
   const transferAlbumsToPhotoBook = useCallback(async (albumIds: number[], categorySlug: string) => {
     if (!albumIds?.length) {
-      toast.error('Please select at least one album');
+      toast.error(t('photoStudioAlbumPage.toastSelectAlbumTransfer'));
       return;
     }
     if (isTransferringToPhotoBook) return;
@@ -1025,7 +1027,7 @@ const PhotoStudioAlbum: React.FC = () => {
     try {
       const selected = albums.filter((a) => albumIds.includes(a.id));
       if (!selected?.length) {
-        toast.error('Selected albums not found');
+        toast.error(t('photoStudioAlbumPage.toastAlbumsNotFound'));
         return;
       }
 
@@ -1047,11 +1049,11 @@ const PhotoStudioAlbum: React.FC = () => {
       }
 
       if (imageIds.length === 0) {
-        toast.error('No images found in the selected album(s)');
+        toast.error(t('photoStudioAlbumPage.toastNoImagesInAlbums'));
         return;
       }
 
-      const albumName = selected.length === 1 ? (selected[0]?.name || 'My Album') : `${selected.length} Albums`;
+      const albumName = selected.length === 1 ? (selected[0]?.name || t('photoStudioAlbumPage.myAlbum')) : t('photoStudioAlbumPage.nAlbums', { count: selected.length });
 
       // Navigate to the covers page first (design cover & last page), then user can go to album
       navigate(`/photo-themes/${categorySlug}`, {
@@ -1063,14 +1065,14 @@ const PhotoStudioAlbum: React.FC = () => {
         },
       });
 
-      toast.success(`Opening covers page with ${imageIds.length} image(s) — design cover, then continue to album`);
+      toast.success(t('photoStudioAlbumPage.toastOpeningCovers', { count: imageIds.length }));
     } catch (e: any) {
       console.error('PhotoBook transfer failed:', e);
-      toast.error(e?.message || 'Failed to open album builder');
+      toast.error(e?.message || t('photoStudioAlbumPage.toastFailedPhotoBook'));
     } finally {
       setIsTransferringToPhotoBook(false);
     }
-  }, [albums, albumImages, extractAlbumImages, getImageFilename, isTransferringToPhotoBook, navigate]);
+  }, [albums, albumImages, extractAlbumImages, getImageFilename, isTransferringToPhotoBook, navigate, t]);
 
   /** Single selection only: selecting an album replaces any previous selection. */
   const toggleAlbumSelection = useCallback((albumId: number) => {
@@ -1105,8 +1107,8 @@ const PhotoStudioAlbum: React.FC = () => {
   if (authLoading) {
     return (
       <DashboardLoading 
-        title="Loading User Information"
-        subtitle="Authenticating your session..."
+        title={t('photoStudioAlbumPage.loadingUserInfo')}
+        subtitle={t('photoStudioAlbumPage.authenticatingSession')}
         icon={FaUserFriends}
         showFeatures={false}
       />
@@ -1119,9 +1121,9 @@ const PhotoStudioAlbum: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center">
               <FaFolder className="mr-3 text-[#2731db]" />
-              Photo Albums
+              {t('photoStudioAlbumPage.photoAlbums')}
             </h1>
-            <p className="text-gray-600 mt-2">Create albums and organize your photos.</p>
+            <p className="text-gray-600 mt-2">{t('photoStudioAlbumPage.subtitle')}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
@@ -1144,13 +1146,13 @@ const PhotoStudioAlbum: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Unable to load albums</h1>
-          <p className="text-gray-600 text-sm mb-4">Failed to fetch albums. Please try again.</p>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('photoStudioAlbumPage.unableLoadAlbums')}</h1>
+          <p className="text-gray-600 text-sm mb-4">{t('photoStudioAlbumPage.failedFetchAlbums')}</p>
           <button
             onClick={() => refetch()}
             className="px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors"
           >
-            Retry
+            {t('photoStudioAlbumPage.retry')}
           </button>
         </div>
       </div>
@@ -1164,10 +1166,10 @@ const PhotoStudioAlbum: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center">
             <FaFolder className="mr-3 text-[#2731db]" />
-            Photo Albums
+            {t('photoStudioAlbumPage.photoAlbums')}
           </h1>
           <p className="text-gray-600 mt-2">
-            Create albums and organize your photos.
+            {t('photoStudioAlbumPage.subtitle')}
           </p>
         </div>
         <div className="flex items-center space-x-3">
@@ -1175,7 +1177,7 @@ const PhotoStudioAlbum: React.FC = () => {
             onClick={() => {
               const ids = Array.from(selectedAlbums);
               if (ids.length === 0) {
-                toast.error('Please select at least one album');
+                toast.error(t('photoStudioAlbumPage.toastSelectAlbum'));
                 return;
               }
               setPendingAlbumIds(ids);
@@ -1183,26 +1185,26 @@ const PhotoStudioAlbum: React.FC = () => {
             }}
             disabled={selectedAlbums.size === 0 || isTransferringToPhotoBook}
             className="px-4 py-2 rounded-lg bg-[#111827] text-white hover:bg-slate-800 transition-colors flex items-center disabled:opacity-60"
-            title="Transfer selected albums to PhotoBook"
+            title={t('photoStudioAlbumPage.transferTitle')}
           >
             <FaFolderOpen className="mr-2" />
-            Transfer to PhotoBook {selectedAlbums.size > 0 ? `(${selectedAlbums.size})` : ''}
+            {t('photoStudioAlbumPage.transferToPhotoBook')} {selectedAlbums.size > 0 ? `(${selectedAlbums.size})` : ''}
           </button>
           <button
             onClick={() => setShowShareLinkModal(true)}
             disabled={selectedAlbums.size === 0}
             className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center disabled:opacity-60 disabled:cursor-not-allowed"
-            title="Share public link (selection/checkout) for selected albums"
+            title={t('photoStudioAlbumPage.shareLinkTitle')}
           >
             <FaShare className="mr-2" />
-            Share link {selectedAlbums.size > 0 ? `(${selectedAlbums.size})` : ''}
+            {t('photoStudioAlbumPage.shareLink')} {selectedAlbums.size > 0 ? `(${selectedAlbums.size})` : ''}
           </button>
           <button
             onClick={() => setShowCreateModal(true)}
             className="px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors flex items-center"
           >
             <FaPlus className="mr-2" />
-            Create Album
+            {t('photoStudioAlbumPage.createAlbum')}
           </button>
         </div>
       </div>
@@ -1212,7 +1214,7 @@ const PhotoStudioAlbum: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Share link</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{t('photoStudioAlbumPage.shareLinkHeading')}</h3>
               <button
                 onClick={() => {
                   setShowShareLinkModal(false);
@@ -1227,7 +1229,7 @@ const PhotoStudioAlbum: React.FC = () => {
             <div className="p-4 space-y-4">
               {shareLinkSelectedImages.length === 0 ? (
                 <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  Select at least one album above to generate a shareable link.
+                  {t('photoStudioAlbumPage.selectAlbumForShareLink')}
                 </p>
               ) : (
                 <>
@@ -1258,7 +1260,7 @@ const PhotoStudioAlbum: React.FC = () => {
                           const url = shareLinkUrlType === 'checkout' ? publicCheckoutUrl : shareLinkUrlType === 'images_display' ? publicImagesDisplayUrl : publicSelectionUrl;
                           if (url) {
                             copyToClipboard(url);
-                            toast.success('Link copied to clipboard');
+                            toast.success(t('studioCheckoutPage.linkCopied'));
                           }
                         }}
                         className="shrink-0 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
@@ -1268,17 +1270,17 @@ const PhotoStudioAlbum: React.FC = () => {
                     </div>
                   </div> */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Existing contacts</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('photoStudioAlbumPage.shareLinkExistingContacts')}</label>
                     <input
                       type="text"
                       value={shareLinkContactSearch}
                       onChange={(e) => setShareLinkContactSearch(e.target.value)}
-                      placeholder="Search by name, email, mobile..."
+                      placeholder={t('photoStudioAlbumPage.shareLinkContactSearchPlaceholder')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2"
                     />
                     <div className="border border-gray-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
                       {shareLinkContacts.length === 0 ? (
-                        <p className="text-sm text-gray-500">No contacts yet. Add email or mobile below.</p>
+                        <p className="text-sm text-gray-500">{t('photoStudioAlbumPage.shareLinkNoContacts')}</p>
                       ) : (
                         shareLinkContacts.map((c) => (
                           <label key={c.id} className="flex items-center gap-2 cursor-pointer">
@@ -1305,18 +1307,18 @@ const PhotoStudioAlbum: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">New recipients – email (comma separated)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('photoStudioAlbumPage.shareLinkNewEmailsLabel')}</label>
                     <input
                       type="text"
                       value={shareLinkNewEmails}
                       onChange={(e) => { setShareLinkNewEmails(e.target.value); setShareLinkAlreadySent(null); }}
                       onBlur={() => checkShareLinkRecipient(shareLinkNewEmails, shareLinkNewMobiles)}
-                      placeholder="e.g. a@example.com, b@example.com"
+                      placeholder={t('photoStudioAlbumPage.emailPlaceholderList')}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">New recipients – mobile (comma separated)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('photoStudioAlbumPage.shareLinkNewMobilesLabel')}</label>
                     <div className="flex gap-2">
                       <select
                         value={shareLinkNewMobileCountryCode}
@@ -1339,22 +1341,22 @@ const PhotoStudioAlbum: React.FC = () => {
                         value={shareLinkNewMobiles}
                         onChange={(e) => { setShareLinkNewMobiles(e.target.value); setShareLinkAlreadySent(null); }}
                         onBlur={() => checkShareLinkRecipient(shareLinkNewEmails, shareLinkNewMobiles)}
-                        placeholder="e.g. 9876543210, 9123456789"
+                        placeholder={t('photoStudioAlbumPage.mobilePlaceholderList')}
                         className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm"
                       />
                     </div>
                   </div>
                   {shareLinkAlreadySent?.alreadySent && (
                     <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                      Already sent to this {shareLinkAlreadySent.email ? 'email' : 'mobile'}. You can resend if needed.
+                      {shareLinkAlreadySent.email ? t('photoStudioAlbumPage.shareLinkAlreadySentEmail') : t('photoStudioAlbumPage.shareLinkAlreadySentMobile')}
                     </p>
                   )}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Optional message</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('photoStudioAlbumPage.shareLinkOptionalMessage')}</label>
                     <textarea
                       value={shareLinkMessage}
                       onChange={(e) => setShareLinkMessage(e.target.value)}
-                      placeholder="Add a short message to include in the email/SMS"
+                      placeholder={t('photoStudioAlbumPage.shareLinkMessagePlaceholder')}
                       rows={2}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                     />
@@ -1367,7 +1369,7 @@ const PhotoStudioAlbum: React.FC = () => {
                         onChange={(e) => setShareLinkChannels((c) => ({ ...c, email: e.target.checked }))}
                         className="rounded border-gray-300"
                       />
-                      <span className="text-sm">Send via Email</span>
+                      <span className="text-sm">{t('photoStudioAlbumPage.sendViaEmail')}</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -1376,7 +1378,7 @@ const PhotoStudioAlbum: React.FC = () => {
                         onChange={(e) => setShareLinkChannels((c) => ({ ...c, sms: e.target.checked }))}
                         className="rounded border-gray-300"
                       />
-                      <span className="text-sm">Send via SMS</span>
+                      <span className="text-sm">{t('photoStudioAlbumPage.sendViaSms')}</span>
                     </label>
                   </div>
                 </>
@@ -1392,14 +1394,14 @@ const PhotoStudioAlbum: React.FC = () => {
                   }}
                   className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
                 >
-                  Cancel
+                  {t('photoStudioAlbumPage.cancel')}
                 </button>
                 <button
                   onClick={handleShareLinkSend}
                   disabled={shareLinkSending}
                   className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-sm font-semibold"
                 >
-                  {shareLinkSending ? 'Sending…' : 'Send'}
+                  {shareLinkSending ? t('photoStudioAlbumPage.shareLinkSendingBtn') : t('photoStudioAlbumPage.shareLinkSend')}
                 </button>
               </div>
             )}
@@ -1415,9 +1417,9 @@ const PhotoStudioAlbum: React.FC = () => {
           if (!album) {
             return (
               <div className="flex flex-col items-center justify-center py-16 text-gray-500">
-                <p className="mb-4">Album not found.</p>
+                <p className="mb-4">{t('photoStudioAlbumPage.albumNotFound')}</p>
                 <button type="button" onClick={() => setViewingAlbumId(null)} className="px-4 py-2 rounded-xl bg-[#2731db] text-white">
-                  Back to albums
+                  {t('photoStudioAlbumPage.backToAlbums')}
                 </button>
               </div>
             );
@@ -1432,7 +1434,7 @@ const PhotoStudioAlbum: React.FC = () => {
                   className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium"
                 >
                   <FaChevronLeft className="h-4 w-4" />
-                  Back to albums
+                  {t('photoStudioAlbumPage.backToAlbums')}
                 </button>
                 <h2 className="text-xl font-semibold text-gray-900 truncate flex-1">{album.name}</h2>
                 <div className="flex items-center gap-2">
@@ -1442,7 +1444,7 @@ const PhotoStudioAlbum: React.FC = () => {
                     className="px-4 py-2 rounded-xl bg-[#2731db] text-white hover:bg-blue-700 text-sm font-medium"
                   >
                     <FaPlus className="mr-1 inline" />
-                    Upload Images
+                    {t('photoStudioAlbumPage.uploadImages')}
                   </button>
                   <button
                     type="button"
@@ -1451,7 +1453,7 @@ const PhotoStudioAlbum: React.FC = () => {
                     className="px-4 py-2 rounded-xl bg-[#111827] text-white hover:bg-slate-800 text-sm font-medium disabled:opacity-60"
                   >
                     <FaFolderOpen className="mr-1 inline" />
-                    PhotoBook
+                    {t('photoStudioAlbumPage.photoBook')}
                   </button>
                 </div>
               </div>
@@ -1482,11 +1484,11 @@ const PhotoStudioAlbum: React.FC = () => {
                                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                 />
                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                                  <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium">View</span>
+                                  <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium">{t('photoStudioAlbumPage.view')}</span>
                                 </div>
                               </>
                             ) : (
-                              <div className="flex items-center justify-center h-full text-gray-500 text-xs">{fileType.toUpperCase() || 'FILE'}</div>
+                              <div className="flex items-center justify-center h-full text-gray-500 text-xs">{fileType.toUpperCase() || t('photoStudioAlbumPage.file')}</div>
                             )}
                           </div>
                           <div className="p-2 bg-white">
@@ -1499,15 +1501,15 @@ const PhotoStudioAlbum: React.FC = () => {
                 ) : (
                   <div className="text-center py-16 text-gray-500">
                     <FaImages className="mx-auto mb-3 text-5xl text-gray-300" />
-                    <p className="text-lg font-medium mb-2">No images in this album yet</p>
-                    <p className="text-sm mb-4">Upload images to get started.</p>
+                    <p className="text-lg font-medium mb-2">{t('photoStudioAlbumPage.noImagesInAlbum')}</p>
+                    <p className="text-sm mb-4">{t('photoStudioAlbumPage.uploadToGetStarted')}</p>
                     <button
                       type="button"
                       onClick={() => { setSelectedImages(new Set()); setShowAddImagesModal(album.id); }}
                       className="px-4 py-2 rounded-xl bg-[#2731db] text-white hover:bg-blue-700"
                     >
                       <FaPlus className="mr-1 inline" />
-                      Upload Images
+                      {t('photoStudioAlbumPage.uploadImages')}
                     </button>
                   </div>
                 )}
@@ -1520,7 +1522,7 @@ const PhotoStudioAlbum: React.FC = () => {
         <>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
-              <p className="text-sm text-gray-500">Total albums:</p>
+              <p className="text-sm text-gray-500">{t('photoStudioAlbumPage.totalAlbums')}</p>
               <p className="text-2xl font-bold text-gray-900">{albumsTotal}</p>
               <div className="flex items-center gap-2 ml-2">
                 <select
@@ -1528,8 +1530,8 @@ const PhotoStudioAlbum: React.FC = () => {
                   onChange={(e) => setAlbumSort(e.target.value as 'name' | 'date')}
                   className="border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-[#2731db] focus:border-[#2731db]"
                 >
-                  <option value="date">Sort by date</option>
-                  <option value="name">Sort by name</option>
+                  <option value="date">{t('photoStudioAlbumPage.sortByDate')}</option>
+                  <option value="name">{t('photoStudioAlbumPage.sortByName')}</option>
                 </select>
               </div>
             </div>
@@ -1537,7 +1539,7 @@ const PhotoStudioAlbum: React.FC = () => {
               <FaSearch className="text-gray-400 shrink-0" />
               <input
                 type="text"
-                placeholder="Search albums..."
+                placeholder={t('photoStudioAlbumPage.searchAlbumsPlaceholder')}
                 value={albumSearch}
                 onChange={(e) => setAlbumSearch(e.target.value)}
                 className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2731db] text-sm"
@@ -1548,13 +1550,13 @@ const PhotoStudioAlbum: React.FC = () => {
             {filteredAndSortedAlbums.length === 0 ? (
               <div className="text-center py-20 text-gray-500">
                 <FaFolder className="mx-auto mb-4 text-6xl text-gray-300" />
-                <p className="text-xl font-medium mb-2">No Albums Found</p>
-                <p className="text-sm mb-6">Create your first album to get started.</p>
+                <p className="text-xl font-medium mb-2">{t('photoStudioAlbumPage.noAlbumsFound')}</p>
+                <p className="text-sm mb-6">{t('photoStudioAlbumPage.createFirstAlbum')}</p>
                 <button
                   onClick={() => setShowCreateModal(true)}
                   className="px-5 py-2.5 rounded-xl bg-[#2731db] text-white hover:bg-blue-700 transition-colors font-medium shadow-sm"
                 >
-                  Create Album
+                  {t('photoStudioAlbumPage.createAlbum')}
                 </button>
               </div>
             ) : (
@@ -1608,17 +1610,17 @@ const PhotoStudioAlbum: React.FC = () => {
                                   setMenuOpenAlbumId((id) => (id === album.id ? null : album.id));
                                 }}
                                 className="p-2 rounded-full bg-white/90 hover:bg-white shadow-sm text-gray-700"
-                                aria-label="Menu"
+                                aria-label={t('photoStudioAlbumPage.menu')}
                               >
                                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 16 16" aria-hidden><circle cx="8" cy="2" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="8" cy="14" r="1.5" /></svg>
                               </button>
                               {isMenuOpen && (
                                 <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] py-1 bg-white rounded-xl shadow-lg border border-gray-200">
-                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); setAlbumImages((prev) => { const n = new Map(prev); n.set(album.id, extractAlbumImages(album)); return n; }); setViewingAlbumId(album.id); setMenuOpenAlbumId(null); }}><FaFolderOpen className="h-4 w-4" /> View Album</button>
-                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); setSelectedImages(new Set()); setShowAddImagesModal(album.id); setMenuOpenAlbumId(null); }}><FaPlus className="h-4 w-4" /> Upload Images</button>
-                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); handleEditAlbum(album); setMenuOpenAlbumId(null); }}><FaEdit className="h-4 w-4" /> Rename Album</button>
-                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete "${album.name}"? This cannot be undone.`)) deleteAlbumMutation.mutate(album.id); setMenuOpenAlbumId(null); }}><FaTrash className="h-4 w-4" /> Delete Album</button>
-                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); handleShareAlbum(album); setMenuOpenAlbumId(null); }}><FaShare className="h-4 w-4" /> Share Album</button>
+                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); setAlbumImages((prev) => { const n = new Map(prev); n.set(album.id, extractAlbumImages(album)); return n; }); setViewingAlbumId(album.id); setMenuOpenAlbumId(null); }}><FaFolderOpen className="h-4 w-4" /> {t('photoStudioAlbumPage.viewAlbum')}</button>
+                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); setSelectedImages(new Set()); setShowAddImagesModal(album.id); setMenuOpenAlbumId(null); }}><FaPlus className="h-4 w-4" /> {t('photoStudioAlbumPage.uploadImagesMenu')}</button>
+                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); handleEditAlbum(album); setMenuOpenAlbumId(null); }}><FaEdit className="h-4 w-4" /> {t('photoStudioAlbumPage.renameAlbum')}</button>
+                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); if (window.confirm(t('photoStudioAlbumPage.deleteAlbumConfirm', { name: album.name }))) deleteAlbumMutation.mutate(album.id); setMenuOpenAlbumId(null); }}><FaTrash className="h-4 w-4" /> {t('photoStudioAlbumPage.deleteAlbum')}</button>
+                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); handleShareAlbum(album); setMenuOpenAlbumId(null); }}><FaShare className="h-4 w-4" /> {t('photoStudioAlbumPage.shareAlbum')}</button>
                                 </div>
                               )}
                             </div>
@@ -1631,7 +1633,7 @@ const PhotoStudioAlbum: React.FC = () => {
                                   toggleAlbumSelection(album.id);
                                 }}
                                 className="p-1.5 rounded-lg bg-white/90 hover:bg-white shadow-sm"
-                                title={selectedAlbums.has(album.id) ? 'Unselect' : 'Select'}
+                                title={selectedAlbums.has(album.id) ? t('photoStudioAlbumPage.unselect') : t('photoStudioAlbumPage.select')}
                               >
                                 <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${selectedAlbums.has(album.id) ? 'border-[#2731db] bg-[#2731db]' : 'border-gray-400 bg-white'}`}>
                                   {selectedAlbums.has(album.id) && <FaCheck className="h-2.5 w-2.5 text-white" />}
@@ -1643,7 +1645,7 @@ const PhotoStudioAlbum: React.FC = () => {
                             <h3 className="font-semibold text-gray-900 truncate capitalize">{album.name}</h3>
                             <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
                               <FaImages className="h-3.5 w-3 shrink-0" />
-                              {count} {count === 1 ? 'Photo' : 'Photos'}
+                              {count} {count === 1 ? t('photoStudioAlbumPage.photo') : t('photoStudioAlbumPage.photos')}
                             </p>
                           </div>
                         </button>
@@ -1656,7 +1658,7 @@ const PhotoStudioAlbum: React.FC = () => {
                 <div ref={loadMoreAlbumsRef} className="h-4" aria-hidden />
                 {isFetchingMoreAlbums && (
                   <div className="flex justify-center py-6">
-                    <LoadingSpinner size="md" text="Loading more..." />
+                    <LoadingSpinner size="md" text={t('photoStudioAlbumPage.loadingMore')} />
                   </div>
                 )}
               </>
@@ -1672,7 +1674,7 @@ const PhotoStudioAlbum: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold text-gray-900 flex items-center">
                 <FaEdit className="mr-2 text-[#2731db]" />
-                Edit Album
+                {t('photoStudioAlbumPage.editAlbum')}
               </h2>
               <button
                 onClick={() => {
@@ -1690,13 +1692,13 @@ const PhotoStudioAlbum: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Album Name *
+                  {t('photoStudioAlbumPage.albumName')}
                 </label>
                 <input
                   type="text"
                   value={editAlbumName}
                   onChange={(e) => setEditAlbumName(e.target.value)}
-                  placeholder="Enter album name"
+                  placeholder={t('photoStudioAlbumPage.enterAlbumNamePlaceholder')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && editAlbumName.trim()) {
@@ -1707,48 +1709,48 @@ const PhotoStudioAlbum: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description (optional)
+                  {t('photoStudioAlbumPage.descriptionOptional')}
                 </label>
                 <textarea
                   value={editAlbumDescription}
                   onChange={(e) => setEditAlbumDescription(e.target.value)}
-                  placeholder="Enter album description"
+                  placeholder={t('photoStudioAlbumPage.enterDescriptionPlaceholder')}
                   rows={3}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Album Price (₹) (optional)
+                  {t('photoStudioAlbumPage.albumPrice')}
                 </label>
                 <input
                   type="number"
                   value={editAlbumPrice}
                   onChange={(e) => setEditAlbumPrice(e.target.value)}
-                  placeholder="Enter album price"
+                  placeholder={t('photoStudioAlbumPage.albumPricePlaceholder')}
                   min="0"
                   step="0.01"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Set a price for the entire album. If set, customers can purchase the full album at this price.
+                  {t('photoStudioAlbumPage.albumPriceHint')}
                 </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Price Per Photo (₹) (optional)
+                  {t('photoStudioAlbumPage.perPhotoPrice')}
                 </label>
                 <input
                   type="number"
                   value={editPerPhotoPrice}
                   onChange={(e) => setEditPerPhotoPrice(e.target.value)}
-                  placeholder="Enter price per photo"
+                  placeholder={t('photoStudioAlbumPage.perPhotoPlaceholder')}
                   min="0"
                   step="0.01"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Set a price for purchasing each photo individually
+                  {t('photoStudioAlbumPage.perPhotoHint')}
                 </p>
               </div>
               <div className="flex items-center space-x-3">
@@ -1760,11 +1762,11 @@ const PhotoStudioAlbum: React.FC = () => {
                   className="w-4 h-4 text-[#2731db] border-gray-300 rounded focus:ring-[#2731db]"
                 />
                 <label htmlFor="editAlbumIsPublic" className="text-sm font-medium text-gray-700">
-                  Make album public
+                  {t('photoStudioAlbumPage.makePublic')}
                 </label>
               </div>
               <p className="text-xs text-gray-500">
-                Public albums can be accessed by anyone with the link.
+                {t('photoStudioAlbumPage.publicAlbumsHint')}
               </p>
               <div className="flex items-center space-x-3 pt-4">
                 <button
@@ -1772,7 +1774,7 @@ const PhotoStudioAlbum: React.FC = () => {
                   disabled={updateAlbumMutation.isPending || !editAlbumName.trim()}
                   className="flex-1 px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {updateAlbumMutation.isPending ? 'Updating...' : 'Update Album'}
+                  {updateAlbumMutation.isPending ? t('photoStudioAlbumPage.updating') : t('photoStudioAlbumPage.updateAlbum')}
                 </button>
                 <button
                   onClick={() => {
@@ -1785,7 +1787,7 @@ const PhotoStudioAlbum: React.FC = () => {
                   }}
                   className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  {t('photoStudioAlbumPage.cancel')}
                 </button>
               </div>
             </div>
@@ -1798,7 +1800,7 @@ const PhotoStudioAlbum: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">Create New Album</h2>
+              <h2 className="text-2xl font-bold text-gray-900">{t('photoStudioAlbumPage.createNewAlbum')}</h2>
               <button
                 onClick={() => {
                   setShowCreateModal(false);
@@ -1816,60 +1818,60 @@ const PhotoStudioAlbum: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Album Name *
+                  {t('photoStudioAlbumPage.albumName')}
                 </label>
                 <input
                   type="text"
                   value={newAlbumName}
                   onChange={(e) => setNewAlbumName(e.target.value)}
-                  placeholder="Enter album name"
+                  placeholder={t('photoStudioAlbumPage.enterAlbumNamePlaceholder')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description (optional)
+                  {t('photoStudioAlbumPage.descriptionOptional')}
                 </label>
                 <textarea
                   value={newAlbumDescription}
                   onChange={(e) => setNewAlbumDescription(e.target.value)}
-                  placeholder="Enter album description"
+                  placeholder={t('photoStudioAlbumPage.enterDescriptionPlaceholder')}
                   rows={3}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Album Price (₹) (optional)
+                  {t('photoStudioAlbumPage.albumPrice')}
                 </label>
                 <input
                   type="number"
                   value={newAlbumPrice}
                   onChange={(e) => setNewAlbumPrice(e.target.value)}
-                  placeholder="Enter album price"
+                  placeholder={t('photoStudioAlbumPage.albumPricePlaceholder')}
                   min="0"
                   step="0.01"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Set a price for the entire album. If set, customers can purchase the full album at this price.
+                  {t('photoStudioAlbumPage.albumPriceHint')}
                 </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Price Per Photo (₹) (optional)
+                  {t('photoStudioAlbumPage.perPhotoPrice')}
                 </label>
                 <input
                   type="number"
                   value={newPerPhotoPrice}
                   onChange={(e) => setNewPerPhotoPrice(e.target.value)}
-                  placeholder="Enter price per photo"
+                  placeholder={t('photoStudioAlbumPage.perPhotoPlaceholder')}
                   min="0"
                   step="0.01"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Set a price for purchasing each photo individually
+                  {t('photoStudioAlbumPage.perPhotoHint')}
                 </p>
               </div>
               <div className="flex items-center space-x-3">
@@ -1881,11 +1883,11 @@ const PhotoStudioAlbum: React.FC = () => {
                   className="w-4 h-4 text-[#2731db] border-gray-300 rounded focus:ring-[#2731db]"
                 />
                 <label htmlFor="newAlbumIsPublic" className="text-sm font-medium text-gray-700">
-                  Make album public
+                  {t('photoStudioAlbumPage.makePublic')}
                 </label>
               </div>
               <p className="text-xs text-gray-500">
-                Public albums can be accessed by anyone with the link.
+                {t('photoStudioAlbumPage.publicAlbumsHint')}
               </p>
               <div className="flex items-center space-x-3 pt-4">
                 <button
@@ -1893,7 +1895,7 @@ const PhotoStudioAlbum: React.FC = () => {
                   disabled={createAlbumMutation.isPending}
                   className="flex-1 px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  {createAlbumMutation.isPending ? 'Creating...' : 'Create Album'}
+                  {createAlbumMutation.isPending ? t('photoStudioAlbumPage.creating') : t('photoStudioAlbumPage.createAlbum')}
                 </button>
                 <button
                   onClick={() => {
@@ -1906,7 +1908,7 @@ const PhotoStudioAlbum: React.FC = () => {
                   }}
                   className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  {t('photoStudioAlbumPage.cancel')}
                 </button>
               </div>
             </div>
@@ -1920,7 +1922,7 @@ const PhotoStudioAlbum: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">
-                Add Images to Album
+                {t('photoStudioAlbumPage.addImagesToAlbum')}
               </h2>
               <button
                 onClick={() => {
@@ -1936,7 +1938,7 @@ const PhotoStudioAlbum: React.FC = () => {
               {userImages.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <FaImages className="mx-auto mb-3 text-4xl" />
-                  <p>No images available</p>
+                  <p>{t('photoStudioAlbumPage.noImagesAvailable')}</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -1997,13 +1999,13 @@ const PhotoStudioAlbum: React.FC = () => {
               {userImages.length > 0 && <div ref={addImagesModalSentinelRef} className="h-4" aria-hidden />}
               {userImages?.length > 0 && isFetchingMoreUserImages && (
                 <div className="flex justify-center py-4">
-                  <LoadingSpinner size="md" text="Loading more..." />
+                  <LoadingSpinner size="md" text={t('photoStudioAlbumPage.loadingMore')} />
                 </div>
               )}
             </div>
             <div className="p-6 border-t border-gray-200 flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                {selectedImages.size} image{selectedImages.size !== 1 ? 's' : ''} selected
+                {t('photoStudioAlbumPage.imagesSelected', { count: selectedImages.size })}
               </p>
               <div className="flex items-center space-x-3">
                 <button
@@ -2013,14 +2015,14 @@ const PhotoStudioAlbum: React.FC = () => {
                   }}
                   className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  {t('photoStudioAlbumPage.cancel')}
                 </button>
                 <button
                   onClick={() => handleAddImagesToAlbum(showAddImagesModal)}
                   disabled={selectedImages.size === 0 || addImagesMutation.isPending}
                   className="px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
-                  {addImagesMutation.isPending ? 'Adding...' : `Add ${selectedImages.size} Image${selectedImages.size !== 1 ? 's' : ''}`}
+                  {addImagesMutation.isPending ? t('photoStudioAlbumPage.adding') : t('photoStudioAlbumPage.addImagesCount', { count: selectedImages.size })}
                 </button>
               </div>
             </div>
@@ -2039,7 +2041,7 @@ const PhotoStudioAlbum: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">
-                    Share Album
+                    {t('photoStudioAlbumPage.shareAlbum')}
                   </h2>
                   <p className="text-sm text-gray-600 mt-1">
                     {albums.find(a => a.id === showShareModal)?.name}
@@ -2061,22 +2063,22 @@ const PhotoStudioAlbum: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-6">
               {isLoadingClients ? (
                 <div className="flex flex-col items-center justify-center py-12">
-                  <LoadingSpinner size="lg" text="Loading clients..." />
+                  <LoadingSpinner size="lg" text={t('photoStudioAlbumPage.loadingClients')} />
                 </div>
               ) : clients?.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                   <FaUserFriends className="mx-auto mb-3 text-4xl text-gray-300" />
-                  <p className="text-lg font-medium mb-2">No members available</p>
-                  <p className="text-sm">You don't have any family members or clients to share with yet.</p>
+                  <p className="text-lg font-medium mb-2">{t('photoStudioAlbumPage.noMembersAvailable')}</p>
+                  <p className="text-sm">{t('photoStudioAlbumPage.noMembersHint')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <div className="mb-4">
                     <p className="text-sm font-medium text-gray-700 mb-2">
-                      Select members to share this album with (family & clients):
+                      {t('photoStudioAlbumPage.selectMembersPrompt')}
                     </p>
                     <p className="text-xs text-gray-500">
-                      Selected: {selectedClients.size} member{selectedClients.size !== 1 ? 's' : ''}
+                      {t('photoStudioAlbumPage.selectedCount', { count: selectedClients.size })}
                     </p>
                   </div>
                   
@@ -2140,10 +2142,10 @@ const PhotoStudioAlbum: React.FC = () => {
                 <div className="text-sm text-gray-600">
                   {selectedClients.size > 0 ? (
                     <span className="font-medium text-purple-600">
-                      {selectedClients.size} member{selectedClients.size !== 1 ? 's' : ''} selected
+                      {t('photoStudioAlbumPage.membersSelected', { count: selectedClients.size })}
                     </span>
                   ) : (
-                    <span>No members selected</span>
+                    <span>{t('photoStudioAlbumPage.noMembersSelected')}</span>
                   )}
                 </div>
                 <div className="flex items-center space-x-3">
@@ -2155,7 +2157,7 @@ const PhotoStudioAlbum: React.FC = () => {
                     disabled={shareAlbumMutation.isPending}
                     className="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Cancel
+                    {t('photoStudioAlbumPage.cancel')}
                   </button>
                   <button
                     onClick={handleConfirmShare}
@@ -2165,12 +2167,12 @@ const PhotoStudioAlbum: React.FC = () => {
                     {shareAlbumMutation.isPending ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Sharing...</span>
+                        <span>{t('photoStudioAlbumPage.sharing')}</span>
                       </>
                     ) : (
                       <>
                         <FaShare />
-                        <span>Share Album</span>
+                        <span>{t('photoStudioAlbumPage.shareAlbumBtn')}</span>
                       </>
                     )}
                   </button>
@@ -2187,9 +2189,9 @@ const PhotoStudioAlbum: React.FC = () => {
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
               <div>
-                <div className="text-lg font-bold text-slate-900">Choose Album Theme</div>
+                <div className="text-lg font-bold text-slate-900">{t('photoStudioAlbumPage.chooseTheme')}</div>
                 <div className="mt-0.5 text-sm text-slate-500">
-                  Select a theme for your photo album
+                  {t('photoStudioAlbumPage.chooseThemeSubtitle')}
                 </div>
               </div>
               <button
@@ -2207,10 +2209,10 @@ const PhotoStudioAlbum: React.FC = () => {
             <div className="p-5">
               <div className="grid gap-3 sm:grid-cols-2">
                 {[
-                  { id: 'birthday', name: 'Birthday', desc: 'Celebrate special birthdays', icon: '🎂', color: 'from-pink-500 to-rose-500' },
-                  { id: 'wedding', name: 'Wedding', desc: 'Elegant wedding memories', icon: '💍', color: 'from-amber-500 to-orange-500' },
-                  { id: 'anniversary', name: 'Anniversary', desc: 'Romantic anniversary keepsake', icon: '❤️', color: 'from-red-500 to-pink-500' },
-                  { id: 'family', name: 'Family', desc: 'Family moments together', icon: '👨‍👩‍👧‍👦', color: 'from-emerald-500 to-teal-500' },
+                  { id: 'birthday', nameKey: 'themeBirthday', descKey: 'themeBirthdayDesc', icon: '🎂', color: 'from-pink-500 to-rose-500' },
+                  { id: 'wedding', nameKey: 'themeWedding', descKey: 'themeWeddingDesc', icon: '💍', color: 'from-amber-500 to-orange-500' },
+                  { id: 'anniversary', nameKey: 'themeAnniversary', descKey: 'themeAnniversaryDesc', icon: '❤️', color: 'from-red-500 to-pink-500' },
+                  { id: 'family', nameKey: 'themeFamily', descKey: 'themeFamilyDesc', icon: '👨‍👩‍👧‍👦', color: 'from-emerald-500 to-teal-500' },
                 ].map((theme) => (
                   <button
                     key={theme.id}
@@ -2228,8 +2230,8 @@ const PhotoStudioAlbum: React.FC = () => {
                         {theme.icon}
                       </div>
                       <div>
-                        <div className="text-sm font-bold text-slate-800 group-hover:text-indigo-700 transition-colors">{theme.name}</div>
-                        <div className="text-xs text-slate-500">{theme.desc}</div>
+                        <div className="text-sm font-bold text-slate-800 group-hover:text-indigo-700 transition-colors">{t(`photoStudioAlbumPage.${theme.nameKey}`)}</div>
+                        <div className="text-xs text-slate-500">{t(`photoStudioAlbumPage.${theme.descKey}`)}</div>
                       </div>
                     </div>
                   </button>
@@ -2273,7 +2275,7 @@ const PhotoStudioAlbum: React.FC = () => {
             <button
               onClick={handleClose}
               className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-3"
-              aria-label="Close"
+              aria-label={t('photoStudioAlbumPage.close')}
             >
               <FaTimes className="text-2xl" />
             </button>
@@ -2285,7 +2287,7 @@ const PhotoStudioAlbum: React.FC = () => {
                 handlePrevious();
               }}
               className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-4"
-              aria-label="Previous image"
+              aria-label={t('photoStudioAlbumPage.previousImage')}
             >
               <FaChevronLeft className="text-2xl" />
             </button>
@@ -2297,7 +2299,7 @@ const PhotoStudioAlbum: React.FC = () => {
                 handleNext();
               }}
               className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-4"
-              aria-label="Next image"
+              aria-label={t('photoStudioAlbumPage.nextImage')}
             >
               <FaChevronRight className="text-2xl" />
             </button>
@@ -2318,7 +2320,7 @@ const PhotoStudioAlbum: React.FC = () => {
                 />
               ) : (
                 <div className="text-white text-center">
-                  <p className="text-lg mb-2">Image not available</p>
+                  <p className="text-lg mb-2">{t('photoStudioAlbumPage.imageNotAvailable')}</p>
                   <p className="text-sm text-gray-400">{filename}</p>
                 </div>
               )}
@@ -2328,7 +2330,7 @@ const PhotoStudioAlbum: React.FC = () => {
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-center z-10 bg-black bg-opacity-50 rounded-lg px-4 py-2">
               <p className="text-sm font-medium">{filename}</p>
               <p className="text-xs text-gray-300 mt-1">
-                {index + 1} of {total}
+                {t('photoStudioAlbumPage.counterOf', { n: index + 1, total })}
               </p>
             </div>
           </div>
@@ -2340,6 +2342,7 @@ const PhotoStudioAlbum: React.FC = () => {
 
 // Wrapper: normalize infinite-query cache BEFORE mounting PhotoStudioAlbum so the library never sees undefined .pages
 function PhotoStudioAlbumWrapper() {
+  const { t } = useTranslation();
   const [cacheReady, setCacheReady] = useState(false);
   const queryClient = useQueryClient();
   useLayoutEffect(() => {
@@ -2350,8 +2353,8 @@ function PhotoStudioAlbumWrapper() {
   if (!cacheReady) {
     return (
       <DashboardLoading
-        title="Loading"
-        subtitle="Preparing albums..."
+        title={t('photoStudioAlbumPage.loading')}
+        subtitle={t('photoStudioAlbumPage.preparingAlbums')}
         icon={FaFolder}
         showFeatures={false}
       />

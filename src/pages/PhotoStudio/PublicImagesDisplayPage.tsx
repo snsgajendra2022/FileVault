@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, Link } from 'react-router-dom';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { FaImages, FaDownload, FaExclamationTriangle, FaTimes, FaExpandArrowsAlt } from 'react-icons/fa';
@@ -21,6 +22,7 @@ interface DisplayImage {
 const IMAGES_PAGE_SIZE = 20;
 
 const PublicImagesDisplayPage: React.FC = () => {
+  const { t } = useTranslation();
   const location = useLocation();
   const queryClient = useQueryClient();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
@@ -133,7 +135,7 @@ const PublicImagesDisplayPage: React.FC = () => {
   const handleVerifySubmit = async () => {
     const email = verifyEmail.trim();
     if (!email) {
-      setVerifyError('Enter email address.');
+      setVerifyError(t('publicImagesDisplay.enterEmail'));
       return;
     }
     setVerifyError('');
@@ -164,7 +166,7 @@ const PublicImagesDisplayPage: React.FC = () => {
         });
         setVerifyStatus('otp_sent');
         setVerifyOtp('');
-        toast.success('OTP sent. Check your email.');
+        toast.success(t('publicImagesDisplay.otpSentCheckEmail'));
         return;
       }
       await api.post('/api/public-verify/send-otp', {
@@ -175,15 +177,15 @@ const PublicImagesDisplayPage: React.FC = () => {
       });
       setVerifyStatus('otp_sent');
       setVerifyOtp('');
-      toast.success('OTP sent. Check your email.');
+      toast.success(t('publicImagesDisplay.otpSentCheckEmail'));
     } catch (err: unknown) {
       const ax = err as { response?: { status?: number } };
       if (ax.response?.status === 404 || ax.response?.status === 501) {
         sessionStorage.setItem(verifyStorageKey, '1');
         setVerifyStatus('verified');
-        toast.success('Verification skipped.');
+        toast.success(t('publicImagesDisplay.verificationSkipped'));
       } else {
-        setVerifyError('Something went wrong. Try again.');
+        setVerifyError(t('publicImagesDisplay.genericError'));
       }
     } finally {
       setVerifySending(false);
@@ -201,9 +203,9 @@ const PublicImagesDisplayPage: React.FC = () => {
           ...(validShareId != null ? { id: validShareId } : {}),
         });
         setVerifyOtp('');
-        toast.success('OTP sent again.');
+        toast.success(t('publicImagesDisplay.otpSentAgain'));
       } catch {
-        setVerifyError('Failed to resend OTP.');
+        setVerifyError(t('publicImagesDisplay.failedResendOtp'));
       } finally {
         setVerifySending(false);
       }
@@ -214,7 +216,7 @@ const PublicImagesDisplayPage: React.FC = () => {
 
   const handleVerifyOtpSubmit = async () => {
     if (!verifyOtp.trim()) {
-      setVerifyError('Enter the OTP.');
+      setVerifyError(t('publicImagesDisplay.enterOtpError'));
       return;
     }
     setVerifyError('');
@@ -232,13 +234,13 @@ const PublicImagesDisplayPage: React.FC = () => {
       if (res.data?.success) {
         sessionStorage.setItem(verifyStorageKey, '1');
         setVerifyStatus('verified');
-        toast.success('Verified. Loading images...');
+        toast.success(t('publicImagesDisplay.verifiedLoading'));
         queryClient.invalidateQueries({ queryKey: ['publicImagesDisplayBulk'] });
       } else {
-        setVerifyError('Invalid OTP. Try again.');
+        setVerifyError(t('publicImagesDisplay.invalidOtp'));
       }
     } catch {
-      setVerifyError('Invalid OTP. Try again.');
+      setVerifyError(t('publicImagesDisplay.invalidOtp'));
     } finally {
       setVerifySending(false);
     }
@@ -301,7 +303,7 @@ const PublicImagesDisplayPage: React.FC = () => {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage, allOkToCallBulk]);
 
   const getImageFilename = (img: DisplayImage) =>
-    img.originalFilename || img.filename || 'Image';
+    img.originalFilename || img.filename || t('publicImagesDisplay.defaultImageName');
   const getThumbnailUrl = (img: DisplayImage) =>
     img.thumbnailUrl || img.previewUrl || img.downloadUrl || null;
   const getImageUrl = (img: DisplayImage) => img.previewUrl || img.downloadUrl || null;
@@ -314,7 +316,7 @@ const PublicImagesDisplayPage: React.FC = () => {
   const handleDownload = (img: DisplayImage) => {
     const url = getImageUrl(img);
     if (!url) {
-      toast.error('Download not available');
+      toast.error(t('publicImagesDisplay.downloadNotAvailable'));
       return;
     }
     const link = document.createElement('a');
@@ -331,12 +333,12 @@ const PublicImagesDisplayPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Incomplete link</h1>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('publicImagesDisplay.incompleteLink')}</h1>
           <p className="text-gray-600 text-sm mb-4">
-            This page needs a share link with token and image IDs (or <code className="bg-gray-100 px-1 rounded">sid</code>). Open the link from the selection page &quot;View selected images only&quot;.
+            {t('publicImagesDisplay.incompleteHint')}
           </p>
           <Link to="/" className="inline-block px-4 py-2 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">
-            Go to home
+            {t('publicImagesDisplay.goHome')}
           </Link>
         </div>
       </div>
@@ -356,8 +358,8 @@ const PublicImagesDisplayPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Invalid or expired link</h1>
-          <p className="text-gray-600 text-sm">This link could not be loaded.</p>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('publicImagesDisplay.invalidExpired')}</h1>
+          <p className="text-gray-600 text-sm">{t('publicImagesDisplay.linkNotLoaded')}</p>
         </div>
       </div>
     );
@@ -366,7 +368,7 @@ const PublicImagesDisplayPage: React.FC = () => {
   if (verifyStatus === 'idle' || verifyStatus === 'checking') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <LoadingSpinner size="lg" text="Loading..." />
+        <LoadingSpinner size="lg" text={t('publicImagesDisplay.loading')} />
       </div>
     );
   }
@@ -375,9 +377,9 @@ const PublicImagesDisplayPage: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Notice</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('publicImagesDisplay.notice')}</h2>
           <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
-            {verifyInfoMessage || 'No message.'}
+            {verifyInfoMessage?.trim() ? verifyInfoMessage : t('publicImagesDisplay.noMessage')}
           </p>
         </div>
       </div>
@@ -388,17 +390,17 @@ const PublicImagesDisplayPage: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Verify to continue</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('publicImagesDisplay.verifyToContinue')}</h2>
           {verifyStatus === 'needs_input' ? (
             <>
               <div className="space-y-3 mb-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('publicImagesDisplay.email')}</label>
                   <input
                     type="email"
                     value={verifyEmail}
                     onChange={(e) => setVerifyEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder={t('publicImagesDisplay.emailPlaceholder')}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                   />
                 </div>
@@ -409,20 +411,20 @@ const PublicImagesDisplayPage: React.FC = () => {
                 disabled={verifySending}
                 className="w-full py-2 rounded-lg bg-[#2731db] text-white font-medium disabled:opacity-50"
               >
-                {verifySending ? 'Sending…' : 'Continue'}
+                {verifySending ? t('publicImagesDisplay.sending') : t('publicImagesDisplay.continue')}
               </button>
             </>
           ) : (
             <>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Enter OTP</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('publicImagesDisplay.enterOtp')}</label>
                 <input
                   type="text"
                   inputMode="numeric"
                   maxLength={6}
                   value={verifyOtp}
                   onChange={(e) => setVerifyOtp(e.target.value.replace(/\D/g, ''))}
-                  placeholder="123456"
+                  placeholder={t('publicImagesDisplay.otpPlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 />
               </div>
@@ -432,7 +434,7 @@ const PublicImagesDisplayPage: React.FC = () => {
                 disabled={verifySending}
                 className="w-full py-2 rounded-lg bg-[#2731db] text-white font-medium disabled:opacity-50 mb-2"
               >
-                {verifySending ? 'Verifying…' : 'Verify'}
+                {verifySending ? t('publicImagesDisplay.verifying') : t('publicImagesDisplay.verify')}
               </button>
               <button
                 type="button"
@@ -440,7 +442,7 @@ const PublicImagesDisplayPage: React.FC = () => {
                 disabled={verifySending}
                 className="w-full py-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
               >
-                Resend OTP
+                {t('publicImagesDisplay.resendOtp')}
               </button>
             </>
           )}
@@ -452,7 +454,7 @@ const PublicImagesDisplayPage: React.FC = () => {
   if (verifyStatus === 'verified' && bulkLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <LoadingSpinner size="lg" text="Loading images..." />
+        <LoadingSpinner size="lg" text={t('publicImagesDisplay.loadingImages')} />
       </div>
     );
   }
@@ -462,8 +464,8 @@ const PublicImagesDisplayPage: React.FC = () => {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">Unable to load images</h1>
-          <p className="text-gray-600 text-sm">The link may be invalid or expired.</p>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('publicImagesDisplay.unableLoad')}</h1>
+          <p className="text-gray-600 text-sm">{t('publicImagesDisplay.linkInvalidExpired')}</p>
         </div>
       </div>
     );
@@ -475,10 +477,10 @@ const PublicImagesDisplayPage: React.FC = () => {
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center">
             <FaImages className="mr-3 text-[#2731db]" />
-            Selected images
+            {t('publicImagesDisplay.titleSelected')}
           </h1>
           <p className="text-gray-600 mt-2 text-sm sm:text-base">
-            {images.length} photo{images.length !== 1 ? 's' : ''} from your selection. View and download only.
+            {t('publicImagesDisplay.photoCount', { count: images.length })}
           </p>
         </header>
 
@@ -486,14 +488,14 @@ const PublicImagesDisplayPage: React.FC = () => {
           {!allOkToCallBulk && bulkIds.length === 0 ? (
             <div className="text-center py-16 text-gray-500">
               <FaImages className="mx-auto mb-3 text-4xl" />
-              <p className="text-lg font-medium mb-2">No image IDs in this link</p>
-              <p className="text-sm">Add <code className="bg-gray-100 px-1 rounded">imageIds=1,2,3</code> to the URL (e.g. <code className="bg-gray-100 px-1 rounded">?token=...&amp;imageIds=1,2,3</code>) or ask the sender to share again from &quot;View selected images only&quot;.</p>
+              <p className="text-lg font-medium mb-2">{t('publicImagesDisplay.noImageIds')}</p>
+              <p className="text-sm">{t('publicImagesDisplay.noImageIdsHint')}</p>
             </div>
           ) : images.length === 0 ? (
             <div className="text-center py-16 text-gray-500">
               <FaImages className="mx-auto mb-3 text-4xl" />
-              <p className="text-lg font-medium mb-2">No images found</p>
-              <p className="text-sm">The bulk API was called with {bulkIds.length} ID(s). The selection may be empty or the link may have expired.</p>
+              <p className="text-lg font-medium mb-2">{t('publicImagesDisplay.noImagesFound')}</p>
+              <p className="text-sm">{t('publicImagesDisplay.bulkCalledWith', { count: bulkIds.length })}</p>
             </div>
           ) : (
             <>
@@ -514,7 +516,7 @@ const PublicImagesDisplayPage: React.FC = () => {
                         type="button"
                         onClick={() => setFullscreenImage(img)}
                         className="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-black/50 hover:bg-black/70 text-white flex items-center justify-center"
-                        title="View full screen"
+                        title={t('publicImagesDisplay.viewFullScreen')}
                       >
                         <FaExpandArrowsAlt className="text-sm" />
                       </button>
@@ -574,7 +576,7 @@ const PublicImagesDisplayPage: React.FC = () => {
             <div ref={loadMoreSentinelRef} className="h-4" aria-hidden />
             {isFetchingNextPage && (
               <div className="mt-4 flex justify-center py-4">
-                <LoadingSpinner size="md" text="Loading more..." />
+                <LoadingSpinner size="md" text={t('publicImagesDisplay.loadingMore')} />
               </div>
             )}
             </>
@@ -587,13 +589,13 @@ const PublicImagesDisplayPage: React.FC = () => {
             onClick={() => setFullscreenImage(null)}
             role="dialog"
             aria-modal="true"
-            aria-label="View image full screen"
+            aria-label={t('publicImagesDisplay.fullscreenDialogLabel')}
           >
             <button
               type="button"
               onClick={() => setFullscreenImage(null)}
               className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center"
-              aria-label="Close"
+              aria-label={t('publicImagesDisplay.close')}
             >
               <FaTimes className="text-xl" />
             </button>
@@ -611,7 +613,7 @@ const PublicImagesDisplayPage: React.FC = () => {
                  />
                 </>
               ) : (
-                <p className="text-white">Image not available</p>
+                <p className="text-white">{t('publicImagesDisplay.imageNotAvailable')}</p>
               )}
             </div>
             <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-sm truncate max-w-[90vw]">

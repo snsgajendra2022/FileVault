@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { FaEnvelope, FaUsers, FaPlus } from 'react-icons/fa';
 import CreateInvitationForm from '../components/invitations/CreateInvitationForm';
@@ -13,18 +14,18 @@ import ConnectedAccountsList from '../components/invitations/ConnectedAccountsLi
 
 // Legacy + new invitation system combined as tabs
 const InvitationsPage: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'create' | 'history' | 'shared' | 'global'>('create');
 
   const tabs = [
-    { id: 'create', name: 'Create Client Invitation', icon: FaPlus },
-    { id: 'history', name: 'Client Invitation History', icon: FaUsers },
-    // { id: 'shared', name: 'Shared Images', icon: FaEnvelope },
-    { id: 'global', name: 'Global Invitation System', icon: FaEnvelope },
-  ] as const;
+    { id: 'create' as const, nameKey: 'invitationsPage.tabCreate', icon: FaPlus },
+    { id: 'history' as const, nameKey: 'invitationsPage.tabHistory', icon: FaUsers },
+    { id: 'global' as const, nameKey: 'invitationsPage.tabGlobal', icon: FaEnvelope },
+  ];
 
   const handleInvitationCreated = () => {
-    toast.success('Invitation sent successfully!');
+    toast.success(t('invitationsPage.toastSent'));
   };
 
   const renderTabContent = () => {
@@ -60,9 +61,9 @@ const InvitationsPage: React.FC = () => {
         <div className="px-6 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Invitation System</h1>
+              <h1 className="text-3xl font-bold text-gray-900">{t('invitationsPage.title')}</h1>
               <p className="text-gray-600 mt-2">
-                Invite members to view and share images, or use the global invitation system.
+                {t('invitationsPage.subtitle')}
               </p>
             </div>
             <div className="flex items-center space-x-3">
@@ -93,7 +94,7 @@ const InvitationsPage: React.FC = () => {
                   }`}
                 >
                   <Icon className="h-4 w-4 mr-2" />
-                  {tab.name}
+                  {t(tab.nameKey)}
                 </button>
               );
             })}
@@ -110,4 +111,3 @@ const InvitationsPage: React.FC = () => {
 };
 
 export default InvitationsPage;
-

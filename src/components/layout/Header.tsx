@@ -1,23 +1,23 @@
-// @ts-nocheck
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { FaBars, FaBell, FaUser, FaCog, FaSignOutAlt, FaStar, FaCrown } from 'react-icons/fa';
+import { FaBars, FaBell, FaUser, FaSignOutAlt, FaCrown, FaGlobe } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { FaRocket } from 'react-icons/fa';
 
 interface HeaderProps {
   setSidebarOpen: (open: boolean) => void;
 }
 
 const Header = ({ setSidebarOpen }: HeaderProps) => {
+  const { t, i18n } = useTranslation();
   const { user, logout, isAdmin } = useAuth();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const navigate = useNavigate();
   const handleLogout = () => {
     logout();
-    toast.success('Logged out successfully');
+    toast.success(t('header.loggedOut'));
     // Navigate to login page after logout
     navigate('/login', { replace: true });
   };
@@ -48,7 +48,27 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
         </div>
 
         {/* Right side - User controls */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3 sm:space-x-4">
+          {/* Language (next to notifications) */}
+          <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white/90 px-2 py-1.5 shadow-sm hover:border-blue-200 transition-colors">
+            <FaGlobe className="h-4 w-4 text-gray-500 shrink-0 hidden sm:block" aria-hidden />
+            <label htmlFor="header-language" className="sr-only">
+              {t('header.language')}
+            </label>
+            <select
+              id="header-language"
+              value={i18n.language?.startsWith('hi') ? 'hi' : 'en'}
+              onChange={(e) => {
+                void i18n.changeLanguage(e.target.value);
+              }}
+              className="text-sm font-medium text-gray-800 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-md max-w-[7.5rem] sm:max-w-none py-0.5 pr-6 pl-1"
+              aria-label={t('header.language')}
+            >
+              <option value="en">{t('header.english')}</option>
+              <option value="hi">{t('header.hindi')}</option>
+            </select>
+          </div>
+
           {/* Notifications */}
           <div className="relative">
             <button
@@ -68,7 +88,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-2">
                       <FaBell className="h-5 w-5 text-blue-600" />
-                      <h3 className="font-bold text-gray-900 text-lg">Notifications</h3>
+                      <h3 className="font-bold text-gray-900 text-lg">{t('header.notifications')}</h3>
                     </div>
                     <button
                       onClick={() => setNotificationsOpen(false)}
@@ -82,8 +102,8 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                       <div className="flex items-start space-x-3">
                         {/* <FaStar className="h-4 w-4 text-blue-600 mt-0.5" /> */}
                         <div>
-                          <p className="text-sm font-semibold text-blue-900">Welcome to Portal!</p>
-                          <p className="text-xs text-blue-600 mt-1">2 minutes ago</p>
+                          <p className="text-sm font-semibold text-blue-900">{t('header.welcomeTitle')}</p>
+                          <p className="text-xs text-blue-600 mt-1">{t('header.welcomeTime')}</p>
                         </div>
                       </div>
                     </div>
@@ -91,8 +111,8 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                       <div className="flex items-start space-x-3">
                         <FaCrown className="h-4 w-4 text-green-600 mt-0.5" />
                         <div>
-                          <p className="text-sm font-semibold text-green-900">Your account has been verified</p>
-                          <p className="text-xs text-green-600 mt-1">1 hour ago</p>
+                          <p className="text-sm font-semibold text-green-900">{t('header.verifiedTitle')}</p>
+                          <p className="text-xs text-green-600 mt-1">{t('header.verifiedTime')}</p>
                         </div>
                       </div>
                     </div>
@@ -169,7 +189,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                       className="group flex items-center w-full px-4 py-3 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl transition-all duration-300 cursor-pointer border border-transparent hover:border-blue-200"
                     >
                       <FaUser className="mr-3 h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform duration-300" />
-                      <span className="font-semibold">Profile</span>
+                      <span className="font-semibold">{t('header.profile')}</span>
                     </button>
                     
                     {/* <button
@@ -190,7 +210,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                       className="group flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-gradient-to-r hover:from-red-50 hover:to-pink-50 rounded-xl transition-all duration-300 border border-transparent hover:border-red-200"
                     >
                       <FaSignOutAlt className="mr-3 h-4 w-4 group-hover:scale-110 transition-transform duration-300" />
-                      <span className="font-semibold">Sign out</span>
+                      <span className="font-semibold">{t('header.signOut')}</span>
                     </button>
                   </div>
                 </div>

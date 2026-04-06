@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from 'i18next';
 import { useAuth } from '../context/AuthContext';
 import { 
   FaCloud, 
@@ -79,6 +81,7 @@ interface UserAnalytics {
 }
 
 const DashboardPage = () => {
+  const { t, i18n } = useTranslation();
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -136,7 +139,7 @@ const DashboardPage = () => {
       if (fileStatsResult.status === 'fulfilled') {
         setStats(fileStatsResult.value);
       } else {
-        errors.fileStats = 'Failed to load file statistics';
+        errors.fileStats = i18n.t('mainDashboard.errFileStats');
         console.error('File stats error:', fileStatsResult.reason);
       }
 
@@ -144,7 +147,7 @@ const DashboardPage = () => {
       if (servicesResult.status === 'fulfilled') {
         setServiceData(servicesResult.value);
       } else {
-        errors.services = 'Failed to load services data';
+        errors.services = i18n.t('mainDashboard.errServices');
         console.error('Services error:', servicesResult.reason);
       }
 
@@ -152,7 +155,7 @@ const DashboardPage = () => {
       if (systemHealthResult.status === 'fulfilled') {
         setSystemHealth(systemHealthResult.value);
       } else {
-        errors.systemHealth = 'Failed to load system health';
+        errors.systemHealth = i18n.t('mainDashboard.errSystemHealth');
         console.error('System health error:', systemHealthResult.reason);
       }
 
@@ -160,7 +163,7 @@ const DashboardPage = () => {
       if (userStatsResult.status === 'fulfilled' && userStatsResult.value) {
         setUserAnalytics(userStatsResult.value);
       } else if (isAdmin && userStatsResult.status === 'rejected') {
-        errors.userAnalytics = 'Failed to load user analytics';
+        errors.userAnalytics = i18n.t('mainDashboard.errUserAnalytics');
         console.error('User analytics error:', userStatsResult.reason);
       }
 
@@ -178,7 +181,7 @@ const DashboardPage = () => {
 
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
-      setError('Failed to load dashboard data');
+      setError(i18n.t('mainDashboard.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -366,8 +369,8 @@ const DashboardPage = () => {
       activities.push({
         id: 1,
         type: 'upload',
-        title: 'File Uploaded Successfully',
-        message: `${stats.recentUploads} files uploaded today`,
+        title: i18n.t('mainDashboard.activityUploadTitle'),
+        message: i18n.t('mainDashboard.activityUploadMsg', { count: stats.recentUploads }),
         time: '2 minutes ago',
         icon: FaUpload,
         color: 'text-green-600',
@@ -382,8 +385,8 @@ const DashboardPage = () => {
       activities.push({
         id: 2,
         type: 'service',
-        title: 'Service Status Updated',
-        message: `${activeServices} cloud services connected`,
+        title: i18n.t('mainDashboard.activityServiceTitle'),
+        message: i18n.t('mainDashboard.activityServiceMsg', { count: activeServices }),
         time: '1 hour ago',
         icon: FaCloud,
         color: 'text-blue-600',
@@ -396,8 +399,8 @@ const DashboardPage = () => {
     activities.push({
       id: 3,
       type: 'security',
-      title: 'Security Scan Completed',
-      message: 'All files scanned with zero threats detected',
+      title: i18n.t('mainDashboard.activitySecurityTitle'),
+      message: i18n.t('mainDashboard.activitySecurityMsg'),
       time: '3 hours ago',
       icon: FaShieldAlt,
       color: 'text-purple-600',
@@ -415,17 +418,22 @@ const DashboardPage = () => {
 
     if (stats) {
       insights.push({
-        title: 'Total Files',
+        title: t('mainDashboard.totalFiles'),
         value: stats.totalFiles.toLocaleString(),
-        description: 'Files in your account',
+        description: i18n.t('mainDashboard.insightFilesInAccount'),
         icon: FaCloud,
         color: 'text-blue-600'
       });
 
       insights.push({
-        title: 'Security Score',
+        title: t('mainDashboard.securityScore'),
         value: `${stats.securityScore}%`,
-        description: stats.securityScore >= 95 ? 'Excellent protection' : stats.securityScore >= 80 ? 'Good protection' : 'Needs attention',
+        description:
+          stats.securityScore >= 95
+            ? t('mainDashboard.excellentProtection')
+            : stats.securityScore >= 80
+              ? t('mainDashboard.goodProtection')
+              : t('mainDashboard.needsAttention'),
         icon: FaShieldAlt,
         color: stats.securityScore >= 95 ? 'text-emerald-600' : stats.securityScore >= 80 ? 'text-yellow-600' : 'text-red-600'
       });
@@ -434,18 +442,18 @@ const DashboardPage = () => {
     if (serviceData.length > 0) {
       const activeServices = serviceData.filter(s => s.status === 'Connected').length;
       insights.push({
-        title: 'Active Services',
+        title: t('mainDashboard.activeServices'),
         value: activeServices.toString(),
-        description: 'Cloud services connected',
+        description: t('mainDashboard.cloudConnected'),
         icon: FaUpload,
         color: 'text-green-600'
       });
     }
 
     insights.push({
-      title: 'Account Status',
+      title: t('mainDashboard.insightAccountStatus'),
       value: 'Active',
-      description: 'Your account is secure',
+      description: t('mainDashboard.insightAccountSecure'),
       icon: FaStar,
       color: 'text-purple-600'
     });
@@ -458,13 +466,86 @@ const DashboardPage = () => {
     fetchDashboardData();
   };
 
+  useEffect(() => {
+    if (loading || !stats) return;
+    generateRecentActivity();
+    generateQuickInsights();
+  }, [i18n.language]);
+
+  const dynamicStats = useMemo(() => {
+    if (!stats) return [];
+    return [
+      {
+        name: t('mainDashboard.totalFiles'),
+        value: stats.totalFiles.toLocaleString(),
+        change: '+23%',
+        changeType: 'positive' as const,
+        icon: FaCloud,
+        color: 'from-blue-500 via-blue-600 to-blue-700',
+        description: t('mainDashboard.secureFiles'),
+        trend: 'up' as const,
+        details: stats.fileTypes
+      },
+      {
+        name: t('mainDashboard.securityScore'),
+        value: `${stats.securityScore}%`,
+        change: '+2.3%',
+        changeType: 'positive' as const,
+        icon: FaShieldAlt,
+        color: 'from-emerald-500 via-emerald-600 to-emerald-700',
+        description:
+          stats.securityScore >= 95
+            ? t('mainDashboard.excellentProtection')
+            : stats.securityScore >= 80
+              ? t('mainDashboard.goodProtection')
+              : t('mainDashboard.needsAttention'),
+        trend: 'up' as const,
+        details: {
+          encryption: '100%',
+          scanning: '98%',
+          backup: '99%',
+          access: '97%'
+        }
+      },
+      {
+        name: t('mainDashboard.activeServices'),
+        value: serviceData.filter((s) => s.status === 'Connected').length.toString(),
+        change: '+1',
+        changeType: 'positive' as const,
+        icon: FaUpload,
+        color: 'from-orange-500 via-orange-600 to-orange-700',
+        description: t('mainDashboard.cloudConnected'),
+        trend: 'up' as const,
+        details: serviceData.reduce((acc, service) => {
+          acc[service.name.toLowerCase().replace(' ', '')] = service.status;
+          return acc;
+        }, {} as Record<string, string>)
+      },
+      {
+        name: t('mainDashboard.recentUploads'),
+        value: stats.recentUploads.toString(),
+        change: '+5',
+        changeType: 'positive' as const,
+        icon: FaChartBar,
+        color: 'from-purple-500 via-purple-600 to-purple-700',
+        description: t('mainDashboard.filesUploadedToday'),
+        trend: 'up' as const,
+        details: {
+          today: stats.recentUploads.toString(),
+          thisWeek: Math.round(stats.recentUploads * 1.5).toString(),
+          thisMonth: Math.round(stats.recentUploads * 4).toString()
+        }
+      }
+    ];
+  }, [stats, serviceData, t]);
+
   // Loading component
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <FaSpinner className="h-12 w-12 text-blue-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading dashboard data...</p>
+          <p className="text-gray-600">{t('mainDashboard.loading')}</p>
         </div>
       </div>
     );
@@ -482,72 +563,12 @@ const DashboardPage = () => {
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 mx-auto"
           >
             <FaRedoAlt className="h-4 w-4" />
-            <span>Retry</span>
+            <span>{t('common.retry')}</span>
           </button>
         </div>
       </div>
     );
   }
-
-  // Create dynamic stats array for rendering
-  const dynamicStats = stats ? [
-    {
-      name: 'Total Files',
-      value: stats.totalFiles.toLocaleString(),
-      change: '+23%',
-      changeType: 'positive' as const,
-      icon: FaCloud,
-      color: 'from-blue-500 via-blue-600 to-blue-700',
-      description: 'Securely stored files',
-      trend: 'up' as const,
-      details: stats.fileTypes
-    },
-    {
-      name: 'Security Score',
-      value: `${stats.securityScore}%`,
-      change: '+2.3%',
-      changeType: 'positive' as const,
-      icon: FaShieldAlt,
-      color: 'from-emerald-500 via-emerald-600 to-emerald-700',
-      description: stats.securityScore >= 95 ? 'Excellent protection' : stats.securityScore >= 80 ? 'Good protection' : 'Needs attention',
-      trend: 'up' as const,
-      details: {
-        encryption: '100%',
-        scanning: '98%',
-        backup: '99%',
-        access: '97%'
-      }
-    },
-    {
-      name: 'Active Services',
-      value: serviceData.filter(s => s.status === 'Connected').length.toString(),
-      change: '+1',
-      changeType: 'positive' as const,
-      icon: FaUpload,
-      color: 'from-orange-500 via-orange-600 to-orange-700',
-      description: 'Cloud services connected',
-      trend: 'up' as const,
-      details: serviceData.reduce((acc, service) => {
-        acc[service.name.toLowerCase().replace(' ', '')] = service.status;
-        return acc;
-      }, {} as Record<string, string>)
-    },
-    {
-      name: 'Recent Uploads',
-      value: stats.recentUploads.toString(),
-      change: '+5',
-      changeType: 'positive' as const,
-      icon: FaChartBar,
-      color: 'from-purple-500 via-purple-600 to-purple-700',
-      description: 'Files uploaded today',
-      trend: 'up' as const,
-      details: {
-        today: stats.recentUploads.toString(),
-        thisWeek: Math.round(stats.recentUploads * 1.5).toString(),
-        thisMonth: Math.round(stats.recentUploads * 4).toString()
-      }
-    }
-  ] : [];
 
   return (
     <div className="space-y-8 w-full">
@@ -561,19 +582,16 @@ const DashboardPage = () => {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-5xl font-bold mb-3 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
-                Welcome back, {user?.firstName || 'User'}! 👋
+                {t('mainDashboard.welcome', { name: user?.firstName || 'User' })}
         </h1>
               <p className="text-xl text-blue-100 mb-4">
-                {isAdmin 
-                  ? 'Here\'s your comprehensive admin dashboard with real-time system overview and advanced user management capabilities.'
-                  : 'Here\'s what\'s happening with your ImageSecurity account today with enhanced security and performance insights.'
-                }
+                {isAdmin ? t('mainDashboard.subtitleAdmin') : t('mainDashboard.subtitleUser')}
               </p>
               <div className="flex items-center space-x-4">
                 {user?.accountType && (
                   <div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-white bg-opacity-20 backdrop-blur-sm border border-white border-opacity-30">
                     <FaStar className="mr-2 text-yellow-300" />
-                    {user.accountType} Plan
+                    {t('mainDashboard.plan', { type: user.accountType })}
                   </div>
                 )}
                 <div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-white bg-opacity-20 backdrop-blur-sm border border-white border-opacity-30">
@@ -595,7 +613,7 @@ const DashboardPage = () => {
           <div className="flex items-start space-x-3">
             <FaExclamationTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-yellow-800">Some data could not be loaded</h3>
+              <h3 className="text-sm font-medium text-yellow-800">{t('mainDashboard.apiPartial')}</h3>
               <div className="mt-2 text-sm text-yellow-700">
                 <ul className="list-disc list-inside space-y-1">
                   {Object.entries(apiErrors).map(([key, error]) => (
@@ -618,7 +636,9 @@ const DashboardPage = () => {
       <div className="flex justify-between items-center">
         <div className="text-sm text-gray-600">
           {lastUpdated && (
-            <span>Last updated: {lastUpdated.toLocaleTimeString()}</span>
+            <span>
+              {t('mainDashboard.lastUpdated')} {lastUpdated.toLocaleTimeString()}
+            </span>
           )}
         </div>
         <button
@@ -627,7 +647,7 @@ const DashboardPage = () => {
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2"
         >
           <FaRedoAlt className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          <span>{loading ? 'Refreshing...' : 'Refresh Data'}</span>
+          <span>{loading ? t('mainDashboard.refreshing') : t('mainDashboard.refreshData')}</span>
         </button>
       </div>
 
@@ -677,7 +697,7 @@ const DashboardPage = () => {
                       }`}>
                         {stat.change}
                       </span>
-                      <span className="text-xs text-gray-500">from last month</span>
+                      <span className="text-xs text-gray-500">{t('mainDashboard.fromLastMonth')}</span>
                     </div>
                   </div>
                   <div className={`w-16 h-16 bg-gradient-to-br ${stat.color} rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
@@ -688,7 +708,7 @@ const DashboardPage = () => {
                 {/* Hover details panel */}
                 <div className="absolute inset-0 bg-white rounded-2xl p-6 opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:scale-100 scale-95 pointer-events-none group-hover:pointer-events-auto">
                   <div className="space-y-3">
-                    <h4 className="font-semibold text-gray-900 text-lg">Detailed Breakdown</h4>
+                    <h4 className="font-semibold text-gray-900 text-lg">{t('mainDashboard.detailedBreakdown')}</h4>
                     {Object.entries(stat.details).map(([key, value]) => (
                       <div key={key} className="flex justify-between items-center">
                         <span className="text-sm text-gray-600 capitalize">{key}:</span>
@@ -710,10 +730,10 @@ const DashboardPage = () => {
         <div className="xl:col-span-2 2xl:col-span-2">
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">Recent Activity</h3>
+              <h3 className="text-2xl font-bold text-gray-900">{t('mainDashboard.recentActivity')}</h3>
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-sm text-gray-600">Live Updates</span>
+                <span className="text-sm text-gray-600">{t('mainDashboard.liveUpdates')}</span>
               </div>
             </div>
             <div className="space-y-4">
@@ -737,7 +757,7 @@ const DashboardPage = () => {
                             {activity.status === 'completed' && (
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                 <FaStar className="w-3 h-3 mr-1" />
-                                Completed
+                                {t('mainDashboard.completed')}
                               </span>
                             )}
                           </div>
@@ -770,7 +790,7 @@ const DashboardPage = () => {
         {/* System Health Status */}
         <div className="xl:col-span-1 2xl:col-span-1">
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">System Health</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">{t('mainDashboard.systemHealth')}</h3>
             <div className="space-y-4">
               {systemHealth.map((health) => {
                 const Icon = health.icon;
@@ -806,7 +826,7 @@ const DashboardPage = () => {
         <div className="xl:col-span-1 2xl:col-span-1">
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
             <h3 className="text-2xl font-bold text-gray-900 mb-6">
-              {isAdmin ? 'Admin Actions' : 'Quick Actions'}
+              {isAdmin ? t('mainDashboard.adminActions') : t('mainDashboard.quickActions')}
             </h3>
             <div className="space-y-4">
               {isAdmin ? (
@@ -816,21 +836,21 @@ const DashboardPage = () => {
                     className="w-full group relative bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-xl font-semibold transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
                   >
                     <FaUsers className="h-5 w-5" />
-                    <span>User Management</span>
+                    <span>{t('mainDashboard.userManagement')}</span>
                   </button>
                   <button 
                     onClick={() => navigate('/analytics')}
                     className="w-full group relative bg-gradient-to-r from-purple-500 to-purple-600 text-white py-3 px-4 rounded-xl font-semibold transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
                   >
                     <FaChartBar className="h-5 w-5" />
-                    <span>System Analytics</span>
+                    <span>{t('mainDashboard.systemAnalytics')}</span>
                   </button>
                   <button 
                     onClick={() => navigate('/services')}
                     className="w-full group relative bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl font-semibold transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
                   >
                     <FaCloud className="h-5 w-5" />
-                    <span>Service Management</span>
+                    <span>{t('mainDashboard.serviceManagement')}</span>
                   </button>
                 </>
               ) : (
@@ -840,21 +860,21 @@ const DashboardPage = () => {
                     className="w-full group relative bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-xl font-semibold transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
                   >
                 <FaUpload className="h-5 w-5" />
-                <span>Upload Files</span>
+                <span>{t('mainDashboard.uploadFiles')}</span>
               </button>
                   <button 
                     onClick={() => navigate('/images')}
                     className="w-full group relative bg-gradient-to-r from-purple-500 to-purple-600 text-white py-3 px-4 rounded-xl font-semibold transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
                   >
                 <FaShieldAlt className="h-5 w-5" />
-                    <span>My Files</span>
+                    <span>{t('mainDashboard.myFiles')}</span>
               </button>
                   <button 
                     onClick={() => navigate('/services')}
                     className="w-full group relative bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl font-semibold transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
                   >
                     <FaCloud className="h-5 w-5" />
-                    <span>Cloud Services</span>
+                    <span>{t('mainDashboard.cloudServices')}</span>
               </button>
                 </>
               )}
@@ -865,7 +885,7 @@ const DashboardPage = () => {
 
       {/* Quick Insights Section */}
       <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-        <h3 className="text-2xl font-bold text-gray-900 mb-6">Quick Insights</h3>
+        <h3 className="text-2xl font-bold text-gray-900 mb-6">{t('mainDashboard.quickInsights')}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {quickInsights.map((insight) => {
             const Icon = insight.icon;
@@ -894,10 +914,10 @@ const DashboardPage = () => {
       {stats && !apiErrors.fileStats && (
         <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-3xl font-bold text-gray-900">📁 File Analytics Dashboard</h3>
+            <h3 className="text-3xl font-bold text-gray-900">{t('mainDashboard.fileAnalyticsTitle')}</h3>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-600">Real-time Data</span>
+              <span className="text-sm text-gray-600">{t('mainDashboard.realtimeData')}</span>
             </div>
           </div>
           
@@ -905,18 +925,18 @@ const DashboardPage = () => {
             {/* File Overview */}
             <div className="lg:col-span-1">
               <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
-                <h4 className="text-xl font-bold text-blue-900 mb-4">📊 File Overview</h4>
+                <h4 className="text-xl font-bold text-blue-900 mb-4">{t('mainDashboard.fileOverviewTitle')}</h4>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-blue-700 font-semibold">Total Files:</span>
+                    <span className="text-blue-700 font-semibold">{t('mainDashboard.totalFilesLabel')}</span>
                     <span className="text-2xl font-bold text-blue-900">{stats.totalFiles.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-blue-700 font-semibold">Total Size:</span>
+                    <span className="text-blue-700 font-semibold">{t('mainDashboard.totalSizeLabel')}</span>
                     <span className="text-xl font-bold text-blue-900">{stats.totalSize}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-blue-700 font-semibold">Recent Uploads:</span>
+                    <span className="text-blue-700 font-semibold">{t('mainDashboard.recentUploadsLabel')}</span>
                     <span className="text-lg font-bold text-blue-900">{stats.recentUploads}</span>
                   </div>
                 </div>
@@ -926,7 +946,7 @@ const DashboardPage = () => {
             {/* File Types Breakdown */}
             <div className="lg:col-span-2">
               <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
-                <h4 className="text-xl font-bold text-green-900 mb-4">📈 File Types Breakdown</h4>
+                <h4 className="text-xl font-bold text-green-900 mb-4">{t('mainDashboard.fileTypesBreakdownTitle')}</h4>
                 {Object.keys(stats.fileTypes).length > 0 ? (
                   <div className="grid grid-cols-2 gap-4">
                     {Object.entries(stats.fileTypes).map(([type, data]) => (
@@ -947,7 +967,7 @@ const DashboardPage = () => {
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <p className="text-gray-500">No file type data available</p>
+                    <p className="text-gray-500">{t('mainDashboard.noFileTypeData')}</p>
                   </div>
                 )}
               </div>
@@ -961,14 +981,14 @@ const DashboardPage = () => {
         <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
           <div className="text-center py-8">
             <FaExclamationTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">File Analytics Unavailable</h3>
-            <p className="text-gray-600 mb-4">Unable to load file statistics. Please try refreshing the page.</p>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('mainDashboard.fileAnalyticsUnavailable')}</h3>
+            <p className="text-gray-600 mb-4">{t('mainDashboard.fileStatsRefresh')}</p>
             <button
               onClick={handleRefresh}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 mx-auto"
             >
               <FaRedoAlt className="h-4 w-4" />
-              <span>Retry</span>
+              <span>{t('common.retry')}</span>
             </button>
           </div>
         </div>
@@ -978,24 +998,26 @@ const DashboardPage = () => {
       {serviceData.length > 0 && !apiErrors.services && (
         <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-3xl font-bold text-gray-900">☁️ Service Analytics Dashboard</h3>
+            <h3 className="text-3xl font-bold text-gray-900">{t('mainDashboard.serviceAnalyticsTitle')}</h3>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-600">All Services Connected</span>
+              <span className="text-sm text-gray-600">{t('mainDashboard.allServicesConnected')}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Connected Services */}
             <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
-              <h4 className="text-xl font-bold text-blue-900 mb-4">🔗 Connected Services</h4>
+              <h4 className="text-xl font-bold text-blue-900 mb-4">{t('mainDashboard.connectedServicesTitle')}</h4>
               <div className="space-y-4">
                 {serviceData.map((service, index) => (
                   <div key={index} className="bg-white rounded-xl p-4 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <h5 className="font-semibold text-gray-900">{service.name}</h5>
-                        <p className="text-sm text-gray-600">Last sync: {service.lastSync}</p>
+                        <p className="text-sm text-gray-600">
+                          {t('mainDashboard.lastSync')} {service.lastSync}
+                        </p>
                       </div>
                       <div className="text-right">
                         <div className="flex items-center space-x-2">
@@ -1004,7 +1026,9 @@ const DashboardPage = () => {
                             {service.status}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600">{service.files} files</p>
+                        <p className="text-sm text-gray-600">
+                          {service.files} {t('mainDashboard.filesSuffix')}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -1014,7 +1038,7 @@ const DashboardPage = () => {
 
             {/* Service Performance */}
             <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 border border-purple-200">
-              <h4 className="text-xl font-bold text-purple-900 mb-4">📊 Service Performance</h4>
+              <h4 className="text-xl font-bold text-purple-900 mb-4">{t('mainDashboard.servicePerformanceTitle')}</h4>
               <div className="space-y-4">
                 {serviceData.map((service, index) => (
                   <div key={index} className="bg-white rounded-xl p-4 shadow-sm">
@@ -1023,8 +1047,10 @@ const DashboardPage = () => {
                       <span className="text-lg font-bold text-purple-600">{service.uptime}%</span>
                     </div>
                     <div className="flex justify-between text-sm text-gray-600">
-                      <span>Speed: {service.speed}</span>
-                      <span className="font-semibold text-purple-600">Good</span>
+                      <span>
+                        {t('mainDashboard.speedLabel')} {service.speed}
+                      </span>
+                      <span className="font-semibold text-purple-600">{t('mainDashboard.good')}</span>
                     </div>
                   </div>
                 ))}
@@ -1039,14 +1065,14 @@ const DashboardPage = () => {
         <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
           <div className="text-center py-8">
             <FaExclamationTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Service Analytics Unavailable</h3>
-            <p className="text-gray-600 mb-4">Unable to load services data. Please try refreshing the page.</p>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('mainDashboard.serviceAnalyticsUnavailable')}</h3>
+            <p className="text-gray-600 mb-4">{t('mainDashboard.serviceDataRefresh')}</p>
             <button
               onClick={handleRefresh}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 mx-auto"
             >
               <FaRedoAlt className="h-4 w-4" />
-              <span>Retry</span>
+              <span>{t('common.retry')}</span>
             </button>
           </div>
         </div>
@@ -1056,10 +1082,10 @@ const DashboardPage = () => {
       {isAdmin && userAnalytics && !apiErrors.userAnalytics && (
         <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-3xl font-bold text-gray-900">👥 User Analytics Dashboard</h3>
+            <h3 className="text-3xl font-bold text-gray-900">{t('mainDashboard.userAnalyticsTitle')}</h3>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-600">Active Users</span>
+              <span className="text-sm text-gray-600">{t('mainDashboard.activeUsers')}</span>
             </div>
           </div>
 
@@ -1067,19 +1093,19 @@ const DashboardPage = () => {
             {/* User Overview */}
             <div className="lg:col-span-1">
               <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-2xl p-6 border border-pink-200">
-                <h4 className="text-xl font-bold text-pink-900 mb-4">📊 User Overview</h4>
+                <h4 className="text-xl font-bold text-pink-900 mb-4">{t('mainDashboard.userOverviewTitle')}</h4>
                 <div className="space-y-4">
                   <div className="text-center">
                     <div className="text-4xl font-bold text-pink-600 mb-2">{userAnalytics.totalUsers.toLocaleString()}</div>
-                    <p className="text-pink-700 font-semibold">Total Users</p>
+                    <p className="text-pink-700 font-semibold">{t('mainDashboard.totalUsers')}</p>
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-pink-700">Active:</span>
+                      <span className="text-pink-700">{t('mainDashboard.active')}</span>
                       <span className="font-semibold text-pink-900">{userAnalytics.activeUsers.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-pink-700">New Today:</span>
+                      <span className="text-pink-700">{t('mainDashboard.newToday')}</span>
                       <span className="font-semibold text-pink-900">{userAnalytics.newUsers}</span>
                     </div>
                   </div>
@@ -1090,12 +1116,14 @@ const DashboardPage = () => {
             {/* User Activity */}
             <div className="lg:col-span-2">
               <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-6 border border-orange-200">
-                <h4 className="text-xl font-bold text-orange-900 mb-4">📈 User Activity</h4>
+                <h4 className="text-xl font-bold text-orange-900 mb-4">{t('mainDashboard.userActivityTitle')}</h4>
                 <div className="grid grid-cols-3 gap-4">
                   {Object.entries(userAnalytics.userActivity).map(([period, count]) => (
                     <div key={period} className="bg-white rounded-xl p-4 shadow-sm text-center">
                       <div className="text-2xl font-bold text-orange-600 mb-1">{count.toLocaleString()}</div>
-                      <p className="text-sm text-orange-700 capitalize">{period} Users</p>
+                      <p className="text-sm text-orange-700 capitalize">
+                        {period} {t('mainDashboard.usersSuffix')}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -1107,7 +1135,7 @@ const DashboardPage = () => {
           {userAnalytics.userStats.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
               <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
-                <h4 className="text-xl font-bold text-green-900 mb-4">💳 User Plans</h4>
+                <h4 className="text-xl font-bold text-green-900 mb-4">{t('mainDashboard.userPlansTitle')}</h4>
                 <div className="space-y-3">
                   {userAnalytics.userStats.map((plan, index) => (
                     <div key={index} className="bg-white rounded-xl p-4 shadow-sm">
@@ -1118,14 +1146,16 @@ const DashboardPage = () => {
                       <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                         <div className="bg-green-500 h-2 rounded-full" style={{ width: `${plan.percentage}%` }}></div>
                       </div>
-                      <p className="text-sm text-green-600 mt-1">{plan.percentage}% of total</p>
+                      <p className="text-sm text-green-600 mt-1">
+                        {t('mainDashboard.percentOfTotal', { n: plan.percentage })}
+                      </p>
                     </div>
                   ))}
                 </div>
               </div>
 
               <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
-                <h4 className="text-xl font-bold text-blue-900 mb-4">🕒 Recent User Activity</h4>
+                <h4 className="text-xl font-bold text-blue-900 mb-4">{t('mainDashboard.recentUserActivityTitle')}</h4>
                 <div className="space-y-3">
                   {userAnalytics.recentActivity.length > 0 ? (
                     userAnalytics.recentActivity.map((activity, index) => (
@@ -1141,7 +1171,7 @@ const DashboardPage = () => {
                     ))
                   ) : (
                     <div className="text-center py-4">
-                      <p className="text-gray-500">No recent activity data available</p>
+                      <p className="text-gray-500">{t('mainDashboard.noRecentActivityData')}</p>
                     </div>
                   )}
                 </div>
@@ -1156,14 +1186,14 @@ const DashboardPage = () => {
         <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
           <div className="text-center py-8">
             <FaExclamationTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">User Analytics Unavailable</h3>
-            <p className="text-gray-600 mb-4">Unable to load user analytics data. Please try refreshing the page.</p>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('mainDashboard.userAnalyticsUnavailable')}</h3>
+            <p className="text-gray-600 mb-4">{t('mainDashboard.userAnalyticsRefresh')}</p>
             <button
               onClick={handleRefresh}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 mx-auto"
             >
               <FaRedoAlt className="h-4 w-4" />
-              <span>Retry</span>
+              <span>{t('common.retry')}</span>
             </button>
           </div>
         </div>

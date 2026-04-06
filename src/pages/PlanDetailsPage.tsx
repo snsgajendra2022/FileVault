@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -47,6 +48,7 @@ interface UserPlan {
 }
 
 const PlanDetailsPage = () => {
+  const { t } = useTranslation();
   const { planId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -89,12 +91,12 @@ const PlanDetailsPage = () => {
       return response.data;
     },
     onSuccess: () => {
-      toast.success('Successfully subscribed to plan!');
+      toast.success(t('planDetailsPage.toastSubscribed'));
       queryClient.invalidateQueries({ queryKey: ['userPlan'] });
       setShowSubscribeModal(false);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to subscribe to plan');
+      toast.error(error.response?.data?.message || t('planDetailsPage.toastSubscribeFailed'));
     }
   });
 
@@ -173,13 +175,13 @@ const PlanDetailsPage = () => {
     return (
       <div className="space-y-6">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-red-900 mb-2">Plan Not Found</h2>
-          <p className="text-red-600 mb-4">The requested plan could not be found.</p>
+          <h2 className="text-xl font-semibold text-red-900 mb-2">{t('planDetailsPage.notFoundTitle')}</h2>
+          <p className="text-red-600 mb-4">{t('planDetailsPage.notFoundBody')}</p>
           <button
             onClick={() => navigate('/plans')}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
           >
-            Back to Plans
+            {t('planDetailsPage.backToPlans')}
           </button>
         </div>
       </div>
@@ -195,7 +197,7 @@ const PlanDetailsPage = () => {
           className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
         >
           <FaArrowLeft className="h-4 w-4" />
-          <span>Back to Plans</span>
+          <span>{t('planDetailsPage.backToPlans')}</span>
         </button>
       </div>
 
@@ -211,7 +213,7 @@ const PlanDetailsPage = () => {
               <p className="text-lg opacity-90">{plan.description}</p>
               {plan.isPopular && (
                 <span className="inline-block bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm font-medium mt-2">
-                  Most Popular
+                  {t('planDetailsPage.mostPopular')}
                 </span>
               )}
             </div>
@@ -221,7 +223,7 @@ const PlanDetailsPage = () => {
         <div className="p-8">
           {/* Pricing Section */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Pricing</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('planDetailsPage.pricing')}</h2>
             
             {/* Billing Cycle Toggle */}
             <div className="flex justify-center mb-6">
@@ -234,7 +236,7 @@ const PlanDetailsPage = () => {
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  Monthly
+                  {t('planDetailsPage.monthly')}
                 </button>
                 <button
                   onClick={() => setSelectedCycle('YEARLY')}
@@ -244,10 +246,10 @@ const PlanDetailsPage = () => {
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  Yearly
+                  {t('planDetailsPage.yearly')}
                   {selectedCycle === 'YEARLY' && (
                     <span className="ml-1 bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                      Save {getSavings(plan)}%
+                      {t('planDetailsPage.savePercent', { n: getSavings(plan) })}
                     </span>
                   )}
                 </button>
@@ -258,12 +260,12 @@ const PlanDetailsPage = () => {
               <div className="flex items-baseline justify-center">
                 <span className="text-5xl font-bold text-gray-900">${getPrice(plan)}</span>
                 <span className="text-gray-500 ml-2 text-xl">
-                  /{selectedCycle === 'MONTHLY' ? 'month' : 'year'}
+                  {selectedCycle === 'MONTHLY' ? t('planDetailsPage.perMonth') : t('planDetailsPage.perYear')}
                 </span>
               </div>
               {getSavings(plan) > 0 && (
                 <p className="text-lg text-green-600 mt-2">
-                  Save {getSavings(plan)}% with yearly billing
+                  {t('planDetailsPage.saveYearly', { n: getSavings(plan) })}
                 </p>
               )}
             </div>
@@ -271,31 +273,31 @@ const PlanDetailsPage = () => {
 
           {/* Features Section */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Features</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('planDetailsPage.features')}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div className="flex items-center">
                   <FaCheck className="h-5 w-5 text-green-500 mr-3" />
                   <span className="text-gray-700">
-                    <strong>{plan.maxUploadsPerMonth.toLocaleString()}</strong> uploads per month
+                    {t('planDetailsPage.uploadsPerMonth', { n: plan.maxUploadsPerMonth.toLocaleString() })}
                   </span>
                 </div>
                 <div className="flex items-center">
                   <FaCheck className="h-5 w-5 text-green-500 mr-3" />
                   <span className="text-gray-700">
-                    <strong>{plan.storageQuotaGB} GB</strong> storage quota
+                    {t('planDetailsPage.storageQuota', { n: plan.storageQuotaGB })}
                   </span>
                 </div>
                 <div className="flex items-center">
                   <FaCheck className="h-5 w-5 text-green-500 mr-3" />
                   <span className="text-gray-700">
-                    Up to <strong>{plan.maxFileSizeMB} MB</strong> per file
+                    {t('planDetailsPage.maxFileSize', { n: plan.maxFileSizeMB })}
                   </span>
                 </div>
                 <div className="flex items-center">
                   <FaCheck className="h-5 w-5 text-green-500 mr-3" />
                   <span className="text-gray-700">
-                    <strong>{plan.maxConcurrentUploads}</strong> concurrent uploads
+                    {t('planDetailsPage.concurrentUploads', { n: plan.maxConcurrentUploads })}
                   </span>
                 </div>
               </div>
@@ -303,25 +305,25 @@ const PlanDetailsPage = () => {
                 {plan.encryptionEnabled && (
                   <div className="flex items-center">
                     <FaCheck className="h-5 w-5 text-green-500 mr-3" />
-                    <span className="text-gray-700">Encryption & compression</span>
+                    <span className="text-gray-700">{t('planDetailsPage.encryptionCompression')}</span>
                   </div>
                 )}
                 {plan.cloudStorageEnabled && (
                   <div className="flex items-center">
                     <FaCheck className="h-5 w-5 text-green-500 mr-3" />
-                    <span className="text-gray-700">Cloud storage integration</span>
+                    <span className="text-gray-700">{t('planDetailsPage.cloudStorageIntegration')}</span>
                   </div>
                 )}
                 {plan.prioritySupport && (
                   <div className="flex items-center">
                     <FaCheck className="h-5 w-5 text-green-500 mr-3" />
-                    <span className="text-gray-700">Priority support</span>
+                    <span className="text-gray-700">{t('planDetailsPage.prioritySupport')}</span>
                   </div>
                 )}
                 <div className="flex items-center">
                   <FaCheck className="h-5 w-5 text-green-500 mr-3" />
                   <span className="text-gray-700">
-                    File types: <strong>{plan.allowedFileTypes}</strong>
+                    {t('planDetailsPage.fileTypes', { types: plan.allowedFileTypes })}
                   </span>
                 </div>
               </div>
@@ -335,7 +337,7 @@ const PlanDetailsPage = () => {
                 disabled
                 className="bg-gray-300 text-gray-500 px-8 py-3 rounded-lg font-medium cursor-not-allowed"
               >
-                Current Plan
+                {t('planDetailsPage.currentPlan')}
               </button>
             ) : (
               <button
@@ -346,7 +348,7 @@ const PlanDetailsPage = () => {
                     : 'bg-gray-600 text-white hover:bg-gray-700'
                 }`}
               >
-                {isUpgrade(plan) ? 'Upgrade to This Plan' : 'Subscribe to This Plan'}
+                {isUpgrade(plan) ? t('planDetailsPage.upgradeToPlan') : t('planDetailsPage.subscribeToPlan')}
               </button>
             )}
           </div>
@@ -356,12 +358,12 @@ const PlanDetailsPage = () => {
       {/* Plan Comparison */}
       {allPlans && allPlans.length > 1 && (
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Compare Plans</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('planDetailsPage.comparePlans')}</h2>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-3 px-4">Feature</th>
+                  <th className="text-left py-3 px-4">{t('planDetailsPage.featureColumn')}</th>
                   {allPlans.map((p) => (
                     <th key={p.id} className={`text-center py-3 px-4 ${p.id === plan.id ? 'bg-primary-50' : ''}`}>
                       {p.displayName}
@@ -371,7 +373,7 @@ const PlanDetailsPage = () => {
               </thead>
               <tbody>
                 <tr className="border-b">
-                  <td className="py-3 px-4 font-medium">Monthly Price</td>
+                  <td className="py-3 px-4 font-medium">{t('planDetailsPage.monthlyPrice')}</td>
                   {allPlans.map((p) => (
                     <td key={p.id} className={`text-center py-3 px-4 ${p.id === plan.id ? 'bg-primary-50' : ''}`}>
                       ${p.monthlyPrice}
@@ -379,7 +381,7 @@ const PlanDetailsPage = () => {
                   ))}
                 </tr>
                 <tr className="border-b">
-                  <td className="py-3 px-4 font-medium">Uploads/Month</td>
+                  <td className="py-3 px-4 font-medium">{t('planDetailsPage.uploadsMonth')}</td>
                   {allPlans.map((p) => (
                     <td key={p.id} className={`text-center py-3 px-4 ${p.id === plan.id ? 'bg-primary-50' : ''}`}>
                       {p.maxUploadsPerMonth.toLocaleString()}
@@ -387,7 +389,7 @@ const PlanDetailsPage = () => {
                   ))}
                 </tr>
                 <tr className="border-b">
-                  <td className="py-3 px-4 font-medium">Storage</td>
+                  <td className="py-3 px-4 font-medium">{t('planDetailsPage.storage')}</td>
                   {allPlans.map((p) => (
                     <td key={p.id} className={`text-center py-3 px-4 ${p.id === plan.id ? 'bg-primary-50' : ''}`}>
                       {p.storageQuotaGB} GB
@@ -395,7 +397,7 @@ const PlanDetailsPage = () => {
                   ))}
                 </tr>
                 <tr className="border-b">
-                  <td className="py-3 px-4 font-medium">Max File Size</td>
+                  <td className="py-3 px-4 font-medium">{t('planDetailsPage.maxFileSizeCol')}</td>
                   {allPlans.map((p) => (
                     <td key={p.id} className={`text-center py-3 px-4 ${p.id === plan.id ? 'bg-primary-50' : ''}`}>
                       {p.maxFileSizeMB} MB
@@ -403,7 +405,7 @@ const PlanDetailsPage = () => {
                   ))}
                 </tr>
                 <tr className="border-b">
-                  <td className="py-3 px-4 font-medium">Cloud Storage</td>
+                  <td className="py-3 px-4 font-medium">{t('planDetailsPage.cloudStorage')}</td>
                   {allPlans.map((p) => (
                     <td key={p.id} className={`text-center py-3 px-4 ${p.id === plan.id ? 'bg-primary-50' : ''}`}>
                       {p.cloudStorageEnabled ? <FaCheck className="h-5 w-5 text-green-500 mx-auto" /> : <FaTimes className="h-5 w-5 text-gray-400 mx-auto" />}
@@ -411,7 +413,7 @@ const PlanDetailsPage = () => {
                   ))}
                 </tr>
                 <tr>
-                  <td className="py-3 px-4 font-medium">Priority Support</td>
+                  <td className="py-3 px-4 font-medium">{t('planDetailsPage.prioritySupportCol')}</td>
                   {allPlans.map((p) => (
                     <td key={p.id} className={`text-center py-3 px-4 ${p.id === plan.id ? 'bg-primary-50' : ''}`}>
                       {p.prioritySupport ? <FaCheck className="h-5 w-5 text-green-500 mx-auto" /> : <FaTimes className="h-5 w-5 text-gray-400 mx-auto" />}
@@ -430,18 +432,22 @@ const PlanDetailsPage = () => {
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Subscribe to {plan.displayName}
+                {t('planDetailsPage.modalTitle', { name: plan.displayName })}
               </h3>
               
               <div className="space-y-4">
                 <div className="bg-gray-50 p-4 rounded-md">
-                  <h4 className="font-medium text-gray-900">Plan Summary</h4>
+                  <h4 className="font-medium text-gray-900">{t('planDetailsPage.planSummary')}</h4>
                   <div className="mt-2 space-y-1 text-sm text-gray-600">
-                    <p>• {plan.maxUploadsPerMonth.toLocaleString()} uploads/month</p>
-                    <p>• {plan.storageQuotaGB} GB storage</p>
-                    <p>• Up to {plan.maxFileSizeMB} MB per file</p>
-                    <p>• {plan.maxConcurrentUploads} concurrent uploads</p>
-                    <p>• {selectedCycle === 'YEARLY' ? 'Yearly' : 'Monthly'} billing</p>
+                    <p>{t('planDetailsPage.summaryUploads', { n: plan.maxUploadsPerMonth.toLocaleString() })}</p>
+                    <p>{t('planDetailsPage.summaryStorage', { n: plan.storageQuotaGB })}</p>
+                    <p>{t('planDetailsPage.summaryMaxFile', { n: plan.maxFileSizeMB })}</p>
+                    <p>{t('planDetailsPage.summaryConcurrent', { n: plan.maxConcurrentUploads })}</p>
+                    <p>
+                      {selectedCycle === 'YEARLY'
+                        ? t('planDetailsPage.summaryBillingYearly')
+                        : t('planDetailsPage.summaryBillingMonthly')}
+                    </p>
                   </div>
                 </div>
 
@@ -449,12 +455,12 @@ const PlanDetailsPage = () => {
                   <p className="text-2xl font-bold text-gray-900">
                     ${getPrice(plan)}
                     <span className="text-sm text-gray-500">
-                      /{selectedCycle === 'MONTHLY' ? 'month' : 'year'}
+                      {selectedCycle === 'MONTHLY' ? t('planDetailsPage.perMonth') : t('planDetailsPage.perYear')}
                     </span>
                   </p>
                   {getSavings(plan) > 0 && (
                     <p className="text-sm text-green-600">
-                      Save {getSavings(plan)}% with yearly billing
+                      {t('planDetailsPage.saveYearly', { n: getSavings(plan) })}
                     </p>
                   )}
                 </div>
@@ -468,7 +474,7 @@ const PlanDetailsPage = () => {
                     className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                   />
                   <label htmlFor="autoRenew" className="ml-2 block text-sm text-gray-900">
-                    Auto-renew subscription
+                    {t('planDetailsPage.autoRenew')}
                   </label>
                 </div>
 
@@ -477,7 +483,7 @@ const PlanDetailsPage = () => {
                     onClick={() => setShowSubscribeModal(false)}
                     className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400"
                   >
-                    Cancel
+                    {t('planDetailsPage.cancel')}
                   </button>
                   <button
                     onClick={confirmSubscribe}
@@ -485,9 +491,9 @@ const PlanDetailsPage = () => {
                     className="flex-1 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 disabled:opacity-50"
                   >
                     {subscribeMutation.isPending ? (
-                      <LoadingSpinner size="sm" text="Processing..." />
+                      <LoadingSpinner size="sm" text={t('planDetailsPage.processing')} />
                     ) : (
-                      'Subscribe'
+                      t('planDetailsPage.subscribe')
                     )}
                   </button>
                 </div>
