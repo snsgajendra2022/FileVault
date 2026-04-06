@@ -19,6 +19,8 @@ import {
   FaUser,
   FaShare,
   FaCheck,
+  FaChevronLeft,
+  FaChevronRight,
 } from 'react-icons/fa';
 import { FiDownload, FiTrash2 } from 'react-icons/fi';
 import { compressFileList, shouldUseCompressedFileList } from '../../utils/checkoutUrlEncoding';
@@ -26,6 +28,10 @@ import toast from 'react-hot-toast';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import { FamilyRelationship } from '../../types/user';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
 const SCROLL_RESTORE_KEY = 'photo-studio-images-scroll';
 const ASPECT_RATIO = 4 / 3;
 const IMAGE_ROOT_MARGIN = '100px';
@@ -386,6 +392,7 @@ const ImageCard = memo(function ImageCard({
 const ClientImagesPage = () => {
   const { user } = useAuth();
   const [selectedImage, setSelectedImage] = useState<UserImage | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number>(-1);
   const [lightboxPreviewReady, setLightboxPreviewReady] = useState(false);
   const [lightboxPreviewFailed, setLightboxPreviewFailed] = useState(false);
   const [lightboxPreviewVisible, setLightboxPreviewVisible] = useState(false);
@@ -745,6 +752,33 @@ const ClientImagesPage = () => {
     }
   }, []);
 
+  const navigateToImageIndex = useCallback((targetIndex: number) => {
+    if (images.length === 0) return;
+    const normalizedIndex = (targetIndex + images.length) % images.length;
+    setSelectedImage(images[normalizedIndex]);
+    setSelectedImageIndex(normalizedIndex);
+  }, [images]);
+
+  const handlePrevImage = useCallback((e?: React.MouseEvent<HTMLButtonElement>) => {
+    e?.stopPropagation();
+    if (!selectedImage || images.length === 0) return;
+    const currentIndex =
+      selectedImageIndex >= 0
+        ? selectedImageIndex
+        : images.findIndex((img) => getImageKey(img) === getImageKey(selectedImage));
+    navigateToImageIndex((currentIndex >= 0 ? currentIndex : 0) - 1);
+  }, [selectedImage, images, selectedImageIndex, getImageKey, navigateToImageIndex]);
+
+  const handleNextImage = useCallback((e?: React.MouseEvent<HTMLButtonElement>) => {
+    e?.stopPropagation();
+    if (!selectedImage || images.length === 0) return;
+    const currentIndex =
+      selectedImageIndex >= 0
+        ? selectedImageIndex
+        : images.findIndex((img) => getImageKey(img) === getImageKey(selectedImage));
+    navigateToImageIndex((currentIndex >= 0 ? currentIndex : 0) + 1);
+  }, [selectedImage, images, selectedImageIndex, getImageKey, navigateToImageIndex]);
+
   // Save scroll when opening lightbox
   const handleView = useCallback((image: UserImage) => {
     try {
@@ -752,8 +786,10 @@ const ClientImagesPage = () => {
     } catch {
       // ignore
     }
+    const index = images.findIndex((img) => getImageKey(img) === getImageKey(image));
+    setSelectedImageIndex(index);
     setSelectedImage(image);
-  }, []);
+  }, [images, getImageKey]);
 
   const handleDownload = useCallback((image: UserImage) => {
     toast.success(`Downloading ${image.filename}...`);
@@ -853,7 +889,10 @@ const ClientImagesPage = () => {
     cardRefsMapRef.current.set(index, el);
   }, []);
 
-  const closeLightbox = useCallback(() => setSelectedImage(null), []);
+  const closeLightbox = useCallback(() => {
+    setSelectedImage(null);
+    setSelectedImageIndex(-1);
+  }, []);
 
   // Progressive image loading in lightbox: show thumbnail immediately, preload previewUrl, then fade in preview when ready
   useEffect(() => {
@@ -905,12 +944,21 @@ const ClientImagesPage = () => {
   }, [lightboxPreviewReady]);
 
   useEffect(() => {
+    if (!selectedImage) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'Escape') {
+        closeLightbox();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrevImage();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNextImage();
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [closeLightbox]);
+  }, [selectedImage, closeLightbox, handlePrevImage, handleNextImage]);
 
   const LIGHTBOX_MIN_ZOOM = 1;
   const LIGHTBOX_MAX_ZOOM = 5;
@@ -1184,56 +1232,89 @@ const ClientImagesPage = () => {
                 <p className="text-sm text-gray-400">You haven't been invited to any family accounts yet</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {familyRelationships.map((member) => (
-                  <div
-                    key={member.inviterId}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleUserSelect(member)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleUserSelect(member)}
-                    className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  >
-                    <div className="flex items-center mb-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <FaUser className="h-5 w-5 text-blue-600" />
+              <div className="relative">
+                <Swiper
+                  modules={[Navigation]}
+                  navigation={{
+                    prevEl: '.family-swiper-prev',
+                    nextEl: '.family-swiper-next',
+                  }}
+                  spaceBetween={14}
+                  slidesPerView={1.2}
+                  speed={600}
+                  grabCursor
+                  breakpoints={{
+                    768: { slidesPerView: 2.2, spaceBetween: 16 },
+                    1024: { slidesPerView: 3.2, spaceBetween: 18 },
+                  }}
+                  className="family-members-swiper px-1 md:px-2 py-1"
+                >
+                  {familyRelationships.map((member) => (
+                    <SwiperSlide key={member.inviterId} className="h-auto">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleUserSelect(member)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleUserSelect(member)}
+                        className="h-full p-3.5 md:p-4 rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300 ease-out cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      >
+                        <div className="flex items-center mb-3">
+                          <div className="w-9 h-9 md:w-10 md:h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <FaUser className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
+                          </div>
+                          <div className="ml-3 min-w-0">
+                            <h4 className="font-semibold text-gray-900 leading-tight truncate">
+                              {member.inviterFirstName} {member.inviterLastName}
+                            </h4>
+                            <p className="text-sm text-gray-500">{member.relationshipType}</p>
+                          </div>
+                        </div>
+                        {member.relationshipNotes && (
+                          <p className="text-xs text-gray-600 leading-relaxed mb-3">
+                            <span className="font-medium text-gray-700">Notes:</span> {member.relationshipNotes}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-1.5">
+                          {member.canViewImages && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              View
+                            </span>
+                          )}
+                          {member.canUploadImages && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              Upload
+                            </span>
+                          )}
+                          {member.canDeleteImages && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              Delete
+                            </span>
+                          )}
+                          {member.canManageAlbums && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              Albums
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="ml-3">
-                        <h4 className="font-medium text-gray-900">
-                          {member.inviterFirstName} {member.inviterLastName}
-                        </h4>
-                        <p className="text-sm text-gray-500">{member.relationshipType}</p>
-                      </div>
-                    </div>
-                    {member.relationshipNotes && (
-                      <p className="text-xs text-gray-600 mb-2">
-                        <span className="font-medium">Notes:</span> {member.relationshipNotes}
-                      </p>
-                    )}
-                    <div className="flex flex-wrap gap-1">
-                      {member.canViewImages && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          View
-                        </span>
-                      )}
-                      {member.canUploadImages && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          Upload
-                        </span>
-                      )}
-                      {member.canDeleteImages && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          Delete
-                        </span>
-                      )}
-                      {member.canManageAlbums && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                          Albums
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                    </SwiperSlide>
+                  ))}
+                </Swiper>
+
+                <button
+                  type="button"
+                  aria-label="Previous"
+                  className="family-swiper-prev absolute left-0 md:-left-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white text-blue-600 border border-blue-100 shadow-sm hover:shadow-md hover:bg-blue-50 transition-all flex items-center justify-center"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  aria-label="Next"
+                  className="family-swiper-next absolute right-0 md:-right-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white text-blue-600 border border-blue-100 shadow-sm hover:shadow-md hover:bg-blue-50 transition-all flex items-center justify-center"
+                >
+                  ›
+                </button>
               </div>
             )}
           </div>
@@ -1605,6 +1686,26 @@ const ClientImagesPage = () => {
             </div>
           </div>
           <div className="absolute inset-0 pt-14">
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={handlePrevImage}
+                  aria-label="Previous image"
+                  className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 h-11 w-11 rounded-full bg-white/95 text-blue-600 shadow-md hover:shadow-lg hover:scale-105 hover:text-blue-700 transition-all flex items-center justify-center"
+                >
+                  <FaChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextImage}
+                  aria-label="Next image"
+                  className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 z-30 h-11 w-11 rounded-full bg-white/95 text-blue-600 shadow-md hover:shadow-lg hover:scale-105 hover:text-blue-700 transition-all flex items-center justify-center"
+                >
+                  <FaChevronRight className="h-4 w-4" />
+                </button>
+              </>
+            )}
             {isImageType(selectedImage.fileType) ? (
               (() => {
                 const thumbUrl = selectedImage.thumbnailUrl || selectedImage.previewUrl;

@@ -332,16 +332,18 @@ const PhotoStudioAlbum: React.FC = () => {
     
     const { albumId, index } = fullScreenImage;
     const images = albumImages.get(albumId) || extractAlbumImages(albums.find(a => a.id === albumId) || {} as Album);
-    const hasPrevious = index > 0;
-    const hasNext = index < images?.length - 1;
+    const total = images?.length || 0;
     
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (total === 0) return;
       if (e.key === 'Escape') {
         setFullScreenImage(null);
-      } else if (e.key === 'ArrowLeft' && hasPrevious) {
-        setFullScreenImage({ image: images[index - 1], albumId, index: index - 1 });
-      } else if (e.key === 'ArrowRight' && hasNext) {
-        setFullScreenImage({ image: images[index + 1], albumId, index: index + 1 });
+      } else if (e.key === 'ArrowLeft') {
+        const previousIndex = (index - 1 + total) % total;
+        setFullScreenImage({ image: images[previousIndex], albumId, index: previousIndex });
+      } else if (e.key === 'ArrowRight') {
+        const nextIndex = (index + 1) % total;
+        setFullScreenImage({ image: images[nextIndex], albumId, index: nextIndex });
       }
     };
     
@@ -811,25 +813,101 @@ const PhotoStudioAlbum: React.FC = () => {
     }
   }, []);
 
-  // Fetch contacts for Share link modal
+  // Fetch invited contacts for Share link modal
   const { data: shareLinkContactsData } = useQuery({
-    queryKey: ['publicShareContacts', shareLinkContactSearch],
+    queryKey: ['invitedContacts', shareLinkContactSearch],
     queryFn: async () => {
       try {
-        const params = new URLSearchParams();
-        if (shareLinkContactSearch.trim()) params.set('search', shareLinkContactSearch.trim());
-        params.set('limit', '50');
-        params.set('offset', '0');
-        const res = await api.get<{ contacts?: { id: string; email?: string; mobile?: string; countryCode?: string; displayName?: string }[]; total?: number }>(`/api/public-share/contacts?${params.toString()}`);
-        return res.data ?? { contacts: [] };
-      } catch {
+        const res = await api.get('/api/simple-invitations/family-relationships');
+        console.log('[ShareLink] family-relationships response:', res?.data);
+
+        const payload = res?.data;
+        const maybeList = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload?.data
+            : Array.isArray(payload?.relationships)
+              ? payload?.relationships
+              : [];
+
+        const allNodes: any[] = [];
+        const addNode = (node: any) => {
+          if (node && typeof node === 'object') allNodes.push(node);
+        };
+        const addList = (list: any[]) => {
+          if (!Array.isArray(list)) return;
+          list.forEach((item) => {
+            addNode(item);
+            if (Array.isArray(item?.clients)) addList(item.clients);
+          });
+        };
+
+        addList(maybeList);
+        const familyData = payload?.familyData;
+        if (familyData && typeof familyData === 'object') {
+          addNode(familyData?.you);
+          addList(familyData?.parents ?? []);
+          addList(familyData?.siblings ?? []);
+          addNode(familyData?.spouse);
+          addList(familyData?.children ?? []);
+          addList(familyData?.grandparents ?? []);
+          addList(familyData?.unclesAunts ?? []);
+          addList(familyData?.cousins ?? []);
+          addList(familyData?.clients ?? []);
+        }
+
+        const currentUserId = userId != null ? String(userId) : '';
+        const invitedOnly = allNodes.filter((item) => {
+          const inviterCandidates = [
+            item?.invitedBy,
+            item?.invitedById,
+            item?.createdBy,
+            item?.createdById,
+            item?.ownerId,
+            item?.ownerUserId,
+          ].filter((v) => v != null);
+
+          // Preferred: explicit inviter/owner mapping from API
+          if (inviterCandidates.some((v) => String(v) === currentUserId)) return true;
+
+          // Fallback for family-relationships payloads that expose invited users as relation=Client
+          // with fields like { userId, name, username } but no invitedBy/owner keys.
+          return String(item?.relation ?? '').toLowerCase() === 'client' && !!item?.userId && !item?.isYou;
+        });
+
+        const mapped = invitedOnly.map((item) => ({
+          id: String(item?.id ?? item?.userId ?? item?.inviteeId ?? ''),
+          email: item?.email ?? item?.username ?? item?.inviteeEmail ?? '',
+          mobile: item?.mobile ?? item?.phone ?? item?.phoneNumber ?? '',
+          displayName:
+            item?.name ??
+            item?.displayName ??
+            [item?.firstName, item?.lastName].filter(Boolean).join(' ').trim() ??
+            '',
+        })).filter((c) => c.id);
+
+        const uniqueContacts = mapped.filter(
+          (c, i, arr) => i === arr.findIndex((x) => x.id === c.id)
+        );
+
+        return { contacts: uniqueContacts };
+      } catch (error) {
+        console.log('[ShareLink] family-relationships error:', error);
         return { contacts: [] };
       }
     },
     enabled: showShareLinkModal,
     retry: 0,
   });
-  const shareLinkContacts = shareLinkContactsData?.contacts ?? [];
+  const shareLinkContacts = useMemo(() => {
+    const contacts = shareLinkContactsData?.contacts ?? [];
+    const q = shareLinkContactSearch?.trim()?.toLowerCase?.() ?? '';
+    if (!q) return contacts;
+    return contacts.filter((c) => {
+      const haystack = `${c?.displayName ?? ''} ${c?.email ?? ''} ${c?.mobile ?? ''}`.toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [shareLinkContactsData?.contacts, shareLinkContactSearch]);
 
   const checkShareLinkRecipient = useCallback(async (emailInput: string, mobileInput: string) => {
     const firstEmail = emailInput.split(/[\s,]+/).map((e) => e.trim()).filter(Boolean)[0] ?? '';
@@ -2168,20 +2246,18 @@ const PhotoStudioAlbum: React.FC = () => {
         const images = albumImages.get(albumId) || extractAlbumImages(albums.find(a => a.id === albumId) || {} as Album);
         const imageUrl = getImageUrl(image);
         const filename = getImageFilename(image);
-        const hasPrevious = index > 0;
-        const hasNext = index;
-        // const hasNext = index < images?.length - 1;
+        const total = images?.length || 0;
         
         const handlePrevious = () => {
-          if (hasPrevious) {
-            setFullScreenImage({ image: images[index - 1], albumId, index: index - 1 });
-          }
+          if (total === 0) return;
+          const previousIndex = (index - 1 + total) % total;
+          setFullScreenImage({ image: images[previousIndex], albumId, index: previousIndex });
         };
         
         const handleNext = () => {
-          if (hasNext) {
-            setFullScreenImage({ image: images[index + 1], albumId, index: index + 1 });
-          }
+          if (total === 0) return;
+          const nextIndex = (index + 1) % total;
+          setFullScreenImage({ image: images[nextIndex], albumId, index: nextIndex });
         };
         
         const handleClose = () => {
@@ -2203,32 +2279,28 @@ const PhotoStudioAlbum: React.FC = () => {
             </button>
             
             {/* Previous Button */}
-            {hasPrevious && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlePrevious();
-                }}
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-4"
-                aria-label="Previous image"
-              >
-                <FaChevronLeft className="text-2xl" />
-              </button>
-            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePrevious();
+              }}
+              className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-4"
+              aria-label="Previous image"
+            >
+              <FaChevronLeft className="text-2xl" />
+            </button>
             
             {/* Next Button */}
-            {hasNext && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleNext();
-                }}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-4"
-                aria-label="Next image"
-              >
-                <FaChevronRight className="text-2xl" />
-              </button>
-            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleNext();
+              }}
+              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-4"
+              aria-label="Next image"
+            >
+              <FaChevronRight className="text-2xl" />
+            </button>
             
             {/* Image Container */}
             <div 
@@ -2256,7 +2328,7 @@ const PhotoStudioAlbum: React.FC = () => {
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-center z-10 bg-black bg-opacity-50 rounded-lg px-4 py-2">
               <p className="text-sm font-medium">{filename}</p>
               <p className="text-xs text-gray-300 mt-1">
-                {index + 1} of {images?.length}
+                {index + 1} of {total}
               </p>
             </div>
           </div>

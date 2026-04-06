@@ -105,8 +105,6 @@ const PublicImagesDisplayPage: React.FC = () => {
   type VerifyStatus = 'idle' | 'checking' | 'show_message' | 'needs_input' | 'otp_sent' | 'verified';
   const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>('idle');
   const [verifyEmail, setVerifyEmail] = useState('');
-  const [verifyMobile, setVerifyMobile] = useState('');
-  const [verifyCountryCode, setVerifyCountryCode] = useState('+91');
   const [verifyOtp, setVerifyOtp] = useState('');
   const [verifySending, setVerifySending] = useState(false);
   const [verifyError, setVerifyError] = useState('');
@@ -134,11 +132,8 @@ const PublicImagesDisplayPage: React.FC = () => {
 
   const handleVerifySubmit = async () => {
     const email = verifyEmail.trim();
-    const mobile = verifyMobile.trim()
-      ? `${verifyCountryCode.replace(/\s/g, '')}${verifyMobile.trim().replace(/\s/g, '')}`
-      : '';
-    if (!email && !mobile) {
-      setVerifyError('Enter email or mobile number.');
+    if (!email) {
+      setVerifyError('Enter email address.');
       return;
     }
     setVerifyError('');
@@ -151,7 +146,6 @@ const PublicImagesDisplayPage: React.FC = () => {
         message?: string;
       }>('/api/public-verify/check-user', {
         email: email || undefined,
-        mobile: mobile || undefined,
         ...(validShareId != null ? { id: validShareId } : {}),
       });
       const isExisting = checkRes.data?.isExistingUser === true || checkRes.data?.existingUser === true;
@@ -164,26 +158,24 @@ const PublicImagesDisplayPage: React.FC = () => {
       if (isExisting && sendNotification) {
         await api.post('/api/public-verify/send-otp', {
           email: email || undefined,
-          mobile: mobile || undefined,
-          channel: mobile ? 'sms' : 'email',
+          channel: 'email',
           linkId: effectiveToken,
           ...(validShareId != null ? { id: validShareId } : {}),
         });
         setVerifyStatus('otp_sent');
         setVerifyOtp('');
-        toast.success('OTP sent. Check your email or phone.');
+        toast.success('OTP sent. Check your email.');
         return;
       }
       await api.post('/api/public-verify/send-otp', {
         email: email || undefined,
-        mobile: mobile || undefined,
-        channel: mobile ? 'sms' : 'email',
+        channel: 'email',
         linkId: effectiveToken,
         ...(validShareId != null ? { id: validShareId } : {}),
       });
       setVerifyStatus('otp_sent');
       setVerifyOtp('');
-      toast.success('OTP sent. Check your email or phone.');
+      toast.success('OTP sent. Check your email.');
     } catch (err: unknown) {
       const ax = err as { response?: { status?: number } };
       if (ax.response?.status === 404 || ax.response?.status === 501) {
@@ -229,13 +221,10 @@ const PublicImagesDisplayPage: React.FC = () => {
     setVerifySending(true);
     try {
       const email = verifyEmail.trim();
-      const mobile = verifyMobile.trim()
-        ? `${verifyCountryCode.replace(/\s/g, '')}${verifyMobile.trim().replace(/\s/g, '')}`
-        : '';
       const res = await api.post<{ success?: boolean }>('/api/public-verify/verify-otp', {
         ...(verifyUserId
           ? { userId: verifyUserId }
-          : { email: email || undefined, mobile: mobile || undefined }),
+          : { email: email || undefined }),
         otp: verifyOtp.trim(),
         linkId: effectiveToken,
         ...(validShareId != null ? { id: validShareId } : {}),
@@ -412,29 +401,6 @@ const PublicImagesDisplayPage: React.FC = () => {
                     placeholder="you@example.com"
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mobile (with country code)</label>
-                  <div className="flex gap-2">
-                    <select
-                      value={verifyCountryCode}
-                      onChange={(e) => setVerifyCountryCode(e.target.value)}
-                      className="border border-gray-300 rounded-lg px-2 py-2 text-sm w-24"
-                    >
-                      <option value="+91">+91</option>
-                      <option value="+1">+1</option>
-                      <option value="+44">+44</option>
-                      <option value="+971">+971</option>
-                      <option value="+61">+61</option>
-                    </select>
-                    <input
-                      type="tel"
-                      value={verifyMobile}
-                      onChange={(e) => setVerifyMobile(e.target.value)}
-                      placeholder="9876543210"
-                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                    />
-                  </div>
                 </div>
               </div>
               {verifyError && <p className="text-sm text-red-600 mb-2">{verifyError}</p>}

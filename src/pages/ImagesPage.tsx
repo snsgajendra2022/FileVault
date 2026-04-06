@@ -307,7 +307,7 @@ const ImagesPage = () => {
                 <p className="text-sm text-gray-400">You haven't been invited to any family accounts yet</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-red-500">
                 {familyRelationships.map((familyMember, index) => (
                   <div
                     key={familyMember.inviterId}

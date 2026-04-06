@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  FaUsers, 
-  FaSearch, 
-  FaFilter, 
-  FaEye, 
-  FaEnvelope, 
-  FaCalendarAlt,
+import {
+  FaUsers,
+  FaSearch,
+  FaEye,
+  FaEnvelope,
   FaArrowLeft,
   FaUser,
+  FaUserTag,
   FaFolder,
-  FaImages
+  FaImages,
+  FaArrowRight
 } from 'react-icons/fa';
 import './ClientManagement.css';
 import toast from 'react-hot-toast';
@@ -48,6 +48,21 @@ interface Invitation {
   acceptedByUserId: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+function getClientInitials(client: Client): string {
+  const first = (client.firstName || '').trim();
+  const last = (client.lastName || '').trim();
+  if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+  const name = (client.name || '').trim();
+  if (name) {
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    if (parts[0]) return parts[0].slice(0, 2).toUpperCase();
+  }
+  const email = (client.email || '').trim();
+  if (email) return email.slice(0, 2).toUpperCase();
+  return '?';
 }
 
 const ClientManagement: React.FC = () => {
@@ -172,92 +187,100 @@ const ClientManagement: React.FC = () => {
   }
 
   if (selectedClient) {
+    const displayName =
+      selectedClient.name ||
+      `${selectedClient.firstName} ${selectedClient.lastName}`.trim() ||
+      selectedClient.email;
     return (
-      <div className="client-detail">
-        <div className="detail-header">
-          <button 
-            className="back-btn"
-            onClick={() => setSelectedClient(null)}
-          >
-            <FaArrowLeft />
-            Back to Clients
-          </button>
-        </div>
-
-        <div className="client-profile">
-          <div className="profile-header">
-            <div className="client-avatar-large">
-              <span>{(selectedClient.firstName || selectedClient.name || selectedClient.email || '?').charAt(0).toUpperCase()}</span>
+      <div className="client-management client-management--detail">
+        <div className="client-shell client-shell--detail">
+          <div className="client-detail">
+            <div className="detail-header">
+              <button
+                type="button"
+                className="back-btn"
+                onClick={() => setSelectedClient(null)}
+              >
+                <FaArrowLeft />
+                Back to Clients
+              </button>
             </div>
-            <div className="profile-info">
-              <h1>
-                {selectedClient.name || `${selectedClient.firstName} ${selectedClient.lastName}`.trim() || selectedClient.email}
-              </h1>
-              <p className="client-status">
-                <span className="status-badge ACCEPTED">
-                  Client
-                </span>
-              </p>
-              {selectedClient.email && (
-                <div className="contact-info">
-                  <div className="contact-item">
-                    <FaEnvelope />
-                    <span>{selectedClient.email}</span>
-                  </div>
+
+            <div className="client-profile">
+              <div className="profile-header">
+                <div className="client-avatar-large" aria-hidden>
+                  <span>{getClientInitials(selectedClient)}</span>
                 </div>
-              )}
-            </div>
-          </div>
-
-          <div className="profile-stats">
-            {selectedClient.username && (
-              <div className="stat-item">
-                <FaUser />
-                <div>
-                  <h3 style={{fontSize: '1rem',color:'#000'}}>{selectedClient.username}</h3>
-                  <p style={{color:'#000'}}>Username</p>
+                <div className="profile-info">
+                  <h1>{displayName}</h1>
+                  <p className="client-status">
+                    <span className="client-role-pill">{selectedClient.relation || 'Client'}</span>
+                  </p>
+                  {selectedClient.email && (
+                    <div className="contact-info profile-contact">
+                      <div className="contact-item">
+                        <FaEnvelope className="meta-icon" aria-hidden />
+                        <span>{selectedClient.email}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-            {selectedClient.userId && (
-              <div className="stat-item">
-                <FaUser />
-                <div>
-                  <h3 style={{fontSize: '1rem',color:'#000'}}>ID: {selectedClient.userId}</h3>
-                  <p style={{color:'#000'}}>User ID</p>
-                </div>
-              </div>
-            )}
-          </div>
 
-          <div className="profile-sections">
-            <div className="section">
-              <h3>Client Information</h3>
-              <div className="sessions-list">
-                {selectedClient.relation && (
-                  <div className="session-item" style={{justifyContent: 'flex-start', gap: 12}}>
-                    <div className="session-info">
-                      <h4>Relationship Type</h4>
-                      <p style={{color:'#000'}}>{selectedClient.relation}</p>
-                    </div>
-                  </div>
-                )}
-                {selectedClient.email && (
-                  <div className="session-item" style={{justifyContent: 'flex-start', gap: 12}}>
-                    <div className="session-info">
-                      <h4>Email</h4>
-                      <p style={{color:'#000'}}>{selectedClient.email}</p>
-                    </div>
-                  </div>
-                )}
+              <div className="profile-stats">
                 {selectedClient.username && (
-                  <div className="session-item" style={{justifyContent: 'flex-start', gap: 12}}>
-                    <div className="session-info">
-                      <h4>Username</h4>
-                      <p style={{color:'#000'}}>{selectedClient.username}</p>
+                  <div className="stat-item">
+                    <FaUser className="stat-item-icon" aria-hidden />
+                    <div>
+                      <p className="stat-item-label">Username</p>
+                      <h3 className="stat-item-value">{selectedClient.username}</h3>
                     </div>
                   </div>
                 )}
+                {selectedClient.userId ? (
+                  <div className="stat-item">
+                    <FaUsers className="stat-item-icon" aria-hidden />
+                    <div>
+                      <p className="stat-item-label">User ID</p>
+                      <h3 className="stat-item-value">{selectedClient.userId}</h3>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="profile-sections">
+                <div className="section section--elevated">
+                  <h3>Client information</h3>
+                  <div className="sessions-list">
+                    {selectedClient.relation && (
+                      <div className="session-item session-item--row">
+                        <FaUserTag className="session-item-leading" aria-hidden />
+                        <div className="session-info">
+                          <h4>Relationship</h4>
+                          <p>{selectedClient.relation}</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedClient.email && (
+                      <div className="session-item session-item--row">
+                        <FaEnvelope className="session-item-leading" aria-hidden />
+                        <div className="session-info">
+                          <h4>Email</h4>
+                          <p>{selectedClient.email}</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedClient.username && (
+                      <div className="session-item session-item--row">
+                        <FaUser className="session-item-leading" aria-hidden />
+                        <div className="session-info">
+                          <h4>Username</h4>
+                          <p>{selectedClient.username}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -268,95 +291,131 @@ const ClientManagement: React.FC = () => {
 
   return (
     <div className="client-management">
-      {/* Header */}
-      <header className="clients-header">
-        <div className="header-left">
-          <Link to="/studio/dashboard" className="back-link">
-            <FaArrowLeft />
-            Dashboard
-          </Link>
-          <div className="page-title">
-            <FaUsers className="title-icon" />
-            <h1>Clients</h1>
-          </div>
-        </div>
-      </header>
-
-      {/* Filters */}
-      <div className="filters-section">
-        <div className="search-box">
-          <FaSearch className="search-icon" />
-          <input
-            type="text"
-            placeholder="Search by name, email, username..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {/* Clients Grid */}
-      <div className="clients-grid">
-        {filteredClients.map((client) => (
-          <div key={client.userId} className="client-card">
-            <div className="card-header">
-              <div className="client-avatar">
-                <span>{(client.firstName || client.name || client.email || '?').charAt(0).toUpperCase()}</span>
-              </div>
-              <div className="client-basic-info">
-                <h3>
-                  {client.name || `${client.firstName} ${client.lastName}`.trim() || client.email}
-                </h3>
-                {client.email && <p>{client.email}</p>}
-                <span className="status-badge ACCEPTED">
-                  Client
+      <div className="client-shell">
+        {/* Header */}
+        <header className="clients-header">
+          <div className="header-left">
+            <Link to="/studio/dashboard" className="back-link">
+              <FaArrowLeft />
+              Dashboard
+            </Link>
+            <div className="page-intro">
+              <div className="page-title">
+                <span className="title-icon-wrap" aria-hidden>
+                  <FaUsers className="title-icon" />
                 </span>
+                <div className="page-title-text">
+                  <h1>Clients</h1>
+                  <p className="page-subtitle">Manage people with access to your studio</p>
+                </div>
               </div>
-            </div>
-
-            <div className="card-content">
-              <div className="client-stats">
-                {client.username && (
-                  <div className="stat">
-                    <FaUser />
-                    <span>@{client.username}</span>
-                  </div>
-                )}
-                {client.email && (
-                  <div className="stat">
-                    <FaEnvelope />
-                    <span>{client.email}</span>
-                  </div>
-                )}
-                {client.relation && (
-                  <div className="stat">
-                    <FaUser />
-                    <span>{client.relation}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="card-actions">
-              <button 
-                className="action-btn view"
-                onClick={() => setSelectedClient(client)}
-              >
-                <FaEye />
-                View
-              </button>
             </div>
           </div>
-        ))}
-      </div>
+        </header>
 
-      {filteredClients.length === 0 && !loading && (
-        <div className="empty-state">
-          <FaUsers className="empty-icon" />
-          <h3>No clients found</h3>
-          <p>{searchTerm ? 'Try adjusting your search.' : 'You don\'t have any clients yet.'}</p>
+        {/* Filters */}
+        <div className="filters-section">
+          <div className="search-box">
+            <FaSearch className="search-icon" aria-hidden />
+            <input
+              type="search"
+              placeholder="Search by name, email, or username..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search clients"
+            />
+          </div>
         </div>
-      )}
+
+        {/* Clients Grid */}
+        <div className="clients-grid">
+          {filteredClients.map((client, index) => {
+            const displayName =
+              client.name || `${client.firstName} ${client.lastName}`.trim() || client.email;
+            return (
+              <article
+                key={client.userId}
+                className="client-card"
+                style={{ animationDelay: `${Math.min(index, 16) * 0.045}s` }}
+              >
+                <div className="card-header">
+                  <div className="client-avatar" aria-hidden>
+                    <span>{getClientInitials(client)}</span>
+                  </div>
+                  <div className="client-basic-info">
+                    <h3 className="client-name" title={displayName}>
+                      {displayName}
+                    </h3>
+                    {client.email ? (
+                      <p className="client-email-line" title={client.email}>
+                        {client.email}
+                      </p>
+                    ) : (
+                      <p className="client-email-line client-email-line--muted">No email on file</p>
+                    )}
+                    <span className="client-role-pill">{client.relation || 'Client'}</span>
+                  </div>
+                </div>
+
+                <div className="card-meta">
+                  <div className="meta-row">
+                    <span className="meta-row-icon" aria-hidden>
+                      <FaEnvelope />
+                    </span>
+                    <span className="meta-row-text" title={client.email || undefined}>
+                      {client.email || '—'}
+                    </span>
+                  </div>
+                  <div className="meta-row">
+                    <span className="meta-row-icon" aria-hidden>
+                      <FaUser />
+                    </span>
+                    <span
+                      className="meta-row-text"
+                      title={client.username ? `@${client.username}` : undefined}
+                    >
+                      {client.username ? `@${client.username}` : 'No username'}
+                    </span>
+                  </div>
+                  <div className="meta-row">
+                    <span className="meta-row-icon" aria-hidden>
+                      <FaUserTag />
+                    </span>
+                    <span
+                      className="meta-row-text"
+                      title={client.relation || 'Client'}
+                    >
+                      {client.relation || 'Client'}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="client-card-cta"
+                  onClick={() => setSelectedClient(client)}
+                >
+                  <FaEye aria-hidden />
+                  <span>View profile</span>
+                  <FaArrowRight className="client-card-cta-chevron" aria-hidden />
+                </button>
+              </article>
+            );
+          })}
+        </div>
+
+        {filteredClients.length === 0 && !loading && (
+          <div className="empty-state">
+            <div className="empty-state-icon-wrap" aria-hidden>
+              <FaUsers className="empty-icon" />
+            </div>
+            <h3>No clients found</h3>
+            <p>
+              {searchTerm ? 'Try adjusting your search.' : "You don't have any clients yet."}
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
