@@ -813,25 +813,101 @@ const PhotoStudioAlbum: React.FC = () => {
     }
   }, []);
 
-  // Fetch contacts for Share link modal
+  // Fetch invited contacts for Share link modal
   const { data: shareLinkContactsData } = useQuery({
-    queryKey: ['publicShareContacts', shareLinkContactSearch],
+    queryKey: ['invitedContacts', shareLinkContactSearch],
     queryFn: async () => {
       try {
-        const params = new URLSearchParams();
-        if (shareLinkContactSearch.trim()) params.set('search', shareLinkContactSearch.trim());
-        params.set('limit', '50');
-        params.set('offset', '0');
-        const res = await api.get<{ contacts?: { id: string; email?: string; mobile?: string; countryCode?: string; displayName?: string }[]; total?: number }>(`/api/public-share/contacts?${params.toString()}`);
-        return res.data ?? { contacts: [] };
-      } catch {
+        const res = await api.get('/api/simple-invitations/family-relationships');
+        console.log('[ShareLink] family-relationships response:', res?.data);
+
+        const payload = res?.data;
+        const maybeList = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload?.data
+            : Array.isArray(payload?.relationships)
+              ? payload?.relationships
+              : [];
+
+        const allNodes: any[] = [];
+        const addNode = (node: any) => {
+          if (node && typeof node === 'object') allNodes.push(node);
+        };
+        const addList = (list: any[]) => {
+          if (!Array.isArray(list)) return;
+          list.forEach((item) => {
+            addNode(item);
+            if (Array.isArray(item?.clients)) addList(item.clients);
+          });
+        };
+
+        addList(maybeList);
+        const familyData = payload?.familyData;
+        if (familyData && typeof familyData === 'object') {
+          addNode(familyData?.you);
+          addList(familyData?.parents ?? []);
+          addList(familyData?.siblings ?? []);
+          addNode(familyData?.spouse);
+          addList(familyData?.children ?? []);
+          addList(familyData?.grandparents ?? []);
+          addList(familyData?.unclesAunts ?? []);
+          addList(familyData?.cousins ?? []);
+          addList(familyData?.clients ?? []);
+        }
+
+        const currentUserId = userId != null ? String(userId) : '';
+        const invitedOnly = allNodes.filter((item) => {
+          const inviterCandidates = [
+            item?.invitedBy,
+            item?.invitedById,
+            item?.createdBy,
+            item?.createdById,
+            item?.ownerId,
+            item?.ownerUserId,
+          ].filter((v) => v != null);
+
+          // Preferred: explicit inviter/owner mapping from API
+          if (inviterCandidates.some((v) => String(v) === currentUserId)) return true;
+
+          // Fallback for family-relationships payloads that expose invited users as relation=Client
+          // with fields like { userId, name, username } but no invitedBy/owner keys.
+          return String(item?.relation ?? '').toLowerCase() === 'client' && !!item?.userId && !item?.isYou;
+        });
+
+        const mapped = invitedOnly.map((item) => ({
+          id: String(item?.id ?? item?.userId ?? item?.inviteeId ?? ''),
+          email: item?.email ?? item?.username ?? item?.inviteeEmail ?? '',
+          mobile: item?.mobile ?? item?.phone ?? item?.phoneNumber ?? '',
+          displayName:
+            item?.name ??
+            item?.displayName ??
+            [item?.firstName, item?.lastName].filter(Boolean).join(' ').trim() ??
+            '',
+        })).filter((c) => c.id);
+
+        const uniqueContacts = mapped.filter(
+          (c, i, arr) => i === arr.findIndex((x) => x.id === c.id)
+        );
+
+        return { contacts: uniqueContacts };
+      } catch (error) {
+        console.log('[ShareLink] family-relationships error:', error);
         return { contacts: [] };
       }
     },
     enabled: showShareLinkModal,
     retry: 0,
   });
-  const shareLinkContacts = shareLinkContactsData?.contacts ?? [];
+  const shareLinkContacts = useMemo(() => {
+    const contacts = shareLinkContactsData?.contacts ?? [];
+    const q = shareLinkContactSearch?.trim()?.toLowerCase?.() ?? '';
+    if (!q) return contacts;
+    return contacts.filter((c) => {
+      const haystack = `${c?.displayName ?? ''} ${c?.email ?? ''} ${c?.mobile ?? ''}`.toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [shareLinkContactsData?.contacts, shareLinkContactSearch]);
 
   const checkShareLinkRecipient = useCallback(async (emailInput: string, mobileInput: string) => {
     const firstEmail = emailInput.split(/[\s,]+/).map((e) => e.trim()).filter(Boolean)[0] ?? '';

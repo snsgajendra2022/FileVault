@@ -1,7 +1,7 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheckCircle, FaCheck, FaCopy, FaShare, FaTimes, FaExpandArrowsAlt } from 'react-icons/fa';
+import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaChevronLeft, FaCheckCircle, FaCheck, FaCopy, FaShare, FaTimes, FaExpandArrowsAlt } from 'react-icons/fa';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -66,6 +66,9 @@ const PublicSelectionPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOnlySelected, setShowOnlySelected] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState<AlbumImage | null>(null);
+  const [fullscreenContext, setFullscreenContext] = useState<
+    { mode: 'bulk'; index: number } | { mode: 'album'; albumId: number; index: number } | null
+  >(null);
   /** When false, checkboxes are hidden; click "Select" to show them and enable selection */
   const [showSelectionMode, setShowSelectionMode] = useState(false);
   /** Per album: how many images to show (pagination). Key = albumId, value = count. */
@@ -140,8 +143,6 @@ const PublicSelectionPage: React.FC = () => {
   type VerifyStatus = 'idle' | 'checking' | 'skip' | 'existing_user' | 'show_message' | 'needs_input' | 'otp_sent' | 'verified';
   const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>('idle');
   const [verifyEmail, setVerifyEmail] = useState('');
-  const [verifyMobile, setVerifyMobile] = useState('');
-  const [verifyCountryCode, setVerifyCountryCode] = useState('+91');
   const [verifyOtp, setVerifyOtp] = useState('');
   const [verifySending, setVerifySending] = useState(false);
   const [verifyError, setVerifyError] = useState('');
@@ -196,9 +197,8 @@ const PublicSelectionPage: React.FC = () => {
 
   const handleVerifySubmit = async () => {
     const email = verifyEmail.trim();
-    const mobile = verifyMobile.trim() ? `${verifyCountryCode.replace(/^\s+|\s+$/g, '')}${verifyMobile.trim().replace(/\s/g, '')}` : '';
-    if (!email && !mobile) {
-      setVerifyError('Enter email or mobile number.');
+    if (!email) {
+      setVerifyError('Enter email address.');
       return;
     }
     setVerifyError('');
@@ -206,7 +206,6 @@ const PublicSelectionPage: React.FC = () => {
     try {
       const checkRes = await api.post<{ isExistingUser?: boolean; existingUser?: boolean; sendNotification?: boolean; message?: string }>('/api/public-verify/check-user', {
         email: email || undefined,
-        mobile: mobile || undefined,
         ...(validShareId != null ? { id: validShareId } : {}),
       });
       const isExisting = checkRes.data?.isExistingUser === true || checkRes.data?.existingUser === true;
@@ -219,28 +218,26 @@ const PublicSelectionPage: React.FC = () => {
       if (isExisting && sendNotification) {
         await api.post('/api/public-verify/send-otp', {
           email: email || undefined,
-          mobile: mobile || undefined,
-          channel: mobile ? 'sms' : 'email',
+          channel: 'email',
           linkId: effectiveToken,
           ...(validShareId != null ? { id: validShareId } : {}),
         });
         setVerifyStatus('otp_sent');
         setVerifyOtp('');
-        toast.success('OTP sent. Check your email or phone.');
+        toast.success('OTP sent. Check your email.');
         return;
       }
       // Not existing → call send-otp and show OTP page
-      const sendOtpBody: { email?: string; mobile?: string; channel: string; linkId?: string; id?: number } = {
+      const sendOtpBody: { email?: string; channel: string; linkId?: string; id?: number } = {
         email: email || undefined,
-        mobile: mobile || undefined,
-        channel: mobile ? 'sms' : 'email',
+        channel: 'email',
         linkId: effectiveToken,
       };
       if (validShareId != null) sendOtpBody.id = validShareId;
       await api.post('/api/public-verify/send-otp', sendOtpBody);
       setVerifyStatus('otp_sent');
       setVerifyOtp('');
-      toast.success('OTP sent. Check your email or phone.');
+      toast.success('OTP sent. Check your email.');
     } catch (err: any) {
       if (err.response?.status === 404 || err.response?.status === 501) {
         sessionStorage.setItem(verifyStorageKey, '1');
@@ -285,9 +282,8 @@ const PublicSelectionPage: React.FC = () => {
     setVerifySending(true);
     try {
       const email = verifyEmail.trim();
-      const mobile = verifyMobile.trim() ? `${verifyCountryCode.replace(/^\s+|\s+$/g, '')}${verifyMobile.trim().replace(/\s/g, '')}` : '';
       const res = await api.post<{ success?: boolean }>('/api/public-verify/verify-otp', {
-        ...(verifyUserId ? { userId: verifyUserId } : { email: email || undefined, mobile: mobile || undefined }),
+        ...(verifyUserId ? { userId: verifyUserId } : { email: email || undefined }),
         otp: verifyOtp.trim(),
         linkId: effectiveToken,
         ...(validShareId != null ? { id: validShareId } : {}),
@@ -452,6 +448,64 @@ const PublicSelectionPage: React.FC = () => {
     if (!albumsData?.pages?.length) return [];
     return albumsData.pages.flatMap((p) => (p && (p as { albums?: Album[] }).albums) ?? []);
   }, [albumsData]);
+
+  const closeFullscreenImage = useCallback(() => {
+    setFullscreenImage(null);
+    setFullscreenContext(null);
+  }, []);
+
+  const openFullscreenFromBulk = useCallback((index: number) => {
+    if (bulkImages.length === 0) return;
+    const normalizedIndex = ((index % bulkImages.length) + bulkImages.length) % bulkImages.length;
+    setFullscreenContext({ mode: 'bulk', index: normalizedIndex });
+    setFullscreenImage(bulkImages[normalizedIndex] || null);
+  }, [bulkImages]);
+
+  const openFullscreenFromAlbum = useCallback((albumId: number, imageId: number) => {
+    const albumImages = albums.find((a) => a.id === albumId)?.images || [];
+    if (albumImages.length === 0) return;
+    const foundIndex = albumImages.findIndex((img) => img.id === imageId);
+    const normalizedIndex = foundIndex >= 0 ? foundIndex : 0;
+    setFullscreenContext({ mode: 'album', albumId, index: normalizedIndex });
+    setFullscreenImage(albumImages[normalizedIndex] || null);
+  }, [albums]);
+
+  const goPrevFullscreenImage = useCallback(() => {
+    if (!fullscreenContext) return;
+    if (fullscreenContext.mode === 'bulk') {
+      openFullscreenFromBulk(fullscreenContext.index - 1);
+      return;
+    }
+    const albumImages = albums.find((a) => a.id === fullscreenContext.albumId)?.images || [];
+    if (albumImages.length === 0) return;
+    const nextIndex = (fullscreenContext.index - 1 + albumImages.length) % albumImages.length;
+    setFullscreenContext({ mode: 'album', albumId: fullscreenContext.albumId, index: nextIndex });
+    setFullscreenImage(albumImages[nextIndex] || null);
+  }, [fullscreenContext, albums, openFullscreenFromBulk]);
+
+  const goNextFullscreenImage = useCallback(() => {
+    if (!fullscreenContext) return;
+    if (fullscreenContext.mode === 'bulk') {
+      openFullscreenFromBulk(fullscreenContext.index + 1);
+      return;
+    }
+    const albumImages = albums.find((a) => a.id === fullscreenContext.albumId)?.images || [];
+    if (albumImages.length === 0) return;
+    const nextIndex = (fullscreenContext.index + 1) % albumImages.length;
+    setFullscreenContext({ mode: 'album', albumId: fullscreenContext.albumId, index: nextIndex });
+    setFullscreenImage(albumImages[nextIndex] || null);
+  }, [fullscreenContext, albums, openFullscreenFromBulk]);
+
+  useEffect(() => {
+    if (!fullscreenImage) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeFullscreenImage();
+      if (e.key === 'ArrowLeft') goPrevFullscreenImage();
+      if (e.key === 'ArrowRight') goNextFullscreenImage();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [fullscreenImage, closeFullscreenImage, goPrevFullscreenImage, goNextFullscreenImage]);
 
   // Infinite scroll: albums list
   useEffect(() => {
@@ -865,7 +919,7 @@ const PublicSelectionPage: React.FC = () => {
           {verifyStatus === 'needs_input' && verifyInfoMessage ? (
             <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">{verifyInfoMessage}</p>
           ) : verifyStatus === 'needs_input' ? (
-            <p className="text-sm text-gray-600 mb-4">Enter your email or mobile to view this link.</p>
+            <p className="text-sm text-gray-600 mb-4">Enter your email to view this link.</p>
           ) : null}
           {verifyStatus === 'needs_input' ? (
             <>
@@ -873,19 +927,6 @@ const PublicSelectionPage: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                   <input type="email" value={verifyEmail} onChange={(e) => setVerifyEmail(e.target.value)} placeholder="you@example.com" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mobile (with country code)</label>
-                  <div className="flex gap-2">
-                    <select value={verifyCountryCode} onChange={(e) => setVerifyCountryCode(e.target.value)} className="border border-gray-300 rounded-lg px-2 py-2 text-sm w-24">
-                      <option value="+91">+91</option>
-                      <option value="+1">+1</option>
-                      <option value="+44">+44</option>
-                      <option value="+971">+971</option>
-                      <option value="+61">+61</option>
-                    </select>
-                    <input type="tel" value={verifyMobile} onChange={(e) => setVerifyMobile(e.target.value)} placeholder="9876543210" className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-                  </div>
                 </div>
               </div>
               {verifyError && <p className="text-sm text-red-600 mb-2">{verifyError}</p>}
@@ -1138,7 +1179,7 @@ const PublicSelectionPage: React.FC = () => {
             ) : (
             <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-              {bulkImages.map((image) => {
+              {bulkImages.map((image, index) => {
                 const imageUrl = getImageUrl(image);
                 const thumbUrl = getThumbnailUrl(image);
                 const filename = getImageFilename(image);
@@ -1152,7 +1193,7 @@ const PublicSelectionPage: React.FC = () => {
                     <div className="h-48 bg-gray-100 overflow-hidden relative">
                       <button
                         type="button"
-                        onClick={() => setFullscreenImage(image)}
+                        onClick={() => openFullscreenFromBulk(index)}
                         className="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-black/50 hover:bg-black/70 text-white flex items-center justify-center"
                         title="View full screen"
                       >
@@ -1163,7 +1204,7 @@ const PublicSelectionPage: React.FC = () => {
                           src={(thumbUrl || imageUrl)!}
                           alt={filename}
                           className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
-                          onClick={() => setFullscreenImage(image)}
+                          onClick={() => openFullscreenFromBulk(index)}
                         />
                       ) : (
                         <div className="flex items-center justify-center h-full text-gray-500 text-sm">
@@ -1429,7 +1470,7 @@ const PublicSelectionPage: React.FC = () => {
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setFullscreenImage(image);
+                                      openFullscreenFromAlbum(album.id, image.id);
                                     }}
                                     className="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-black/50 hover:bg-black/70 text-white flex items-center justify-center"
                                     title="View full screen"
@@ -1447,7 +1488,7 @@ const PublicSelectionPage: React.FC = () => {
                                         }`}
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setFullscreenImage(image);
+                                          openFullscreenFromAlbum(album.id, image.id);
                                         }}
                                       />
                                     ) : (
@@ -1523,18 +1564,40 @@ const PublicSelectionPage: React.FC = () => {
         {fullscreenImage && (
           <div
             className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4"
-            onClick={() => setFullscreenImage(null)}
+            onClick={closeFullscreenImage}
             role="dialog"
             aria-modal="true"
             aria-label="View image full screen"
           >
             <button
               type="button"
-              onClick={() => setFullscreenImage(null)}
+              onClick={closeFullscreenImage}
               className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"
               aria-label="Close"
             >
               <FaTimes className="text-xl" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                goPrevFullscreenImage();
+              }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-white text-blue-600 shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center justify-center"
+              aria-label="Previous image"
+            >
+              <FaChevronLeft className="text-lg" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                goNextFullscreenImage();
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-white text-blue-600 shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center justify-center"
+              aria-label="Next image"
+            >
+              <FaChevronRight className="text-lg" />
             </button>
             <div
               className="max-w-[90vw] max-h-[90vh] flex items-center justify-center"
