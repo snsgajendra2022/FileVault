@@ -10,13 +10,13 @@ const LoginPage = () => {
     username: '',
     password: ''
   });
-  const [loginMode, setLoginMode] = useState<'password' | 'emailOtp' | 'phoneOtp'>('emailOtp');
+  const [loginMode, setLoginMode] = useState<'password' | 'emailOtp' | 'phoneOtp'>('password');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [otpRequested, setOtpRequested] = useState(false);
-  const [showEmailOtp, setShowEmailOtp] = useState(true);
-  const [showPhoneOtp, setShowPhoneOtp] = useState(true);
+  const [showEmailOtp, setShowEmailOtp] = useState(false);
+  const [showPhoneOtp, setShowPhoneOtp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login, requestLoginOtp, verifyLoginOtp, user, isLoading } = useAuth();
@@ -53,8 +53,9 @@ const LoginPage = () => {
         if (loginMode === 'emailOtp' && !canEmail) setLoginMode(canPhone ? 'phoneOtp' : 'password');
         if (loginMode === 'phoneOtp' && !canPhone) setLoginMode(canEmail ? 'emailOtp' : 'password');
       } catch {
-        setShowEmailOtp(true);
-        setShowPhoneOtp(true);
+        // Keep OTP methods hidden by default on initial paint to avoid flicker.
+        setShowEmailOtp(false);
+        setShowPhoneOtp(false);
       }
     };
     fetchFlags();
