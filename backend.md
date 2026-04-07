@@ -46,6 +46,11 @@ This section is a **quick diff** for backend developers. “Old/existing” mean
 - **Text-leaf “glass & background” (currently client-side only)**
   - **No API yet** (stored in browser `localStorage` per photobook)
   - **Optional backend extension**: see [Optional backend enhancements](#optional-backend-enhancements-not-required-for-current-app).
+- **Floating text labels on the text-side preview (currently client-side only)**
+  - **Storage**: same `localStorage` blob as text-leaf extras — key `filevault_cover_leaf_v1_{photobookId}`, JSON `{ front: { …style }, back: { …style } }`.
+  - **Field**: `style.textSideOverlays` — array of draggable overlay objects (not sent on `POST` cover APIs today).
+  - **UI**: user can add multiple labels, type text, drag via handle, and set font family (CSS stack), weight, size, color, alignment, italic, letter spacing, line height, text shadow.
+  - **Optional backend extension**: persist as JSON on each cover side — see [Optional backend enhancements](#optional-backend-enhancements-not-required-for-current-app).
 
 ---
 
@@ -182,9 +187,19 @@ Used for “My albums” and continuing an album with the correct `templateId` f
 
 ---
 
+## Client-only `localStorage` blob (`filevault_cover_leaf_v1_{photobookId}`)
+
+The theme category editor persists **extras that are not in the standard `ApiCoverSide` payload** in browser storage so the UI can reload them for that album:
+
+- **Shape**: `{ front: Partial<style>, back: Partial<style> }` where `style` matches the rich editor state in `PhotoThemeCategoryPage.tsx` (`pickLeafStyleForStorage` filters what is written).
+- **Included today** (non-exhaustive): text-leaf background mode/gradient/image id, glass blur/opacity/tint, and **`textSideOverlays`** (floating labels).
+- **Not synced** across devices or browsers until the backend stores equivalent fields.
+
+---
+
 ## Optional backend enhancements (not required for current app)
 
-The **text page / glass panel** settings (gradient vs image behind text, blur, glass opacity, tint, optional **text-leaf background image id**) are currently **persisted only in the browser (`localStorage`) per photobook** because they are not part of the cover payload above.
+The **text page / glass panel** settings (gradient vs image behind text, blur, glass opacity, tint, optional **text-leaf background image id**) and **floating text overlays** are currently **persisted only in the browser (`localStorage`) per photobook** because they are not part of the cover payload above.
 
 If you want these **server-side** and synced across devices, extend your cover-side model with optional fields, for example:
 
@@ -196,6 +211,26 @@ If you want these **server-side** and synced across devices, extend your cover-s
 | `textPanelBlurPx` | number | Frosted panel blur. |
 | `textPanelGlassOpacity` | number | 0–100. |
 | `textPanelGlassColor` | string | Hex tint for glass. |
+| `textSideOverlays` | array | Free-position labels on the **text side** preview. See table below. |
+
+### Suggested `textSideOverlays[]` item shape (if you add it to the API)
+
+Each element mirrors the frontend `TextSideOverlay` type:
+
+| Field | Type | Notes |
+|-------|------|--------|
+| `id` | string | Stable id for edits (client generates e.g. `tx_<timestamp>_<random>`). |
+| `text` | string | UTF-8; may include emoji. |
+| `x`, `y` | number | Position as **percent** (0–100) of the text-side preview box (anchor center). |
+| `fontSize` | number | e.g. 8–40. |
+| `color` | string | Hex (e.g. `#f8fafc`). |
+| `fontFamily` | string | Optional; **full CSS `font-family` stack** (same convention as main `fontFamily` on the cover). |
+| `fontWeight` | number | e.g. 400, 600, 700, 800. |
+| `fontStyle` | `"normal"` \| `"italic"` | |
+| `textAlign` | `"left"` \| `"center"` \| `"right"` | |
+| `letterSpacing` | number | CSS px-ish value (UI uses roughly −2…8). |
+| `lineHeight` | number | e.g. 1–2.5. |
+| `textShadow` | boolean | Whether to draw a soft shadow for legibility. |
 
 Then update the React app to read/write these in `mapPageStateToApiFormat` / `mapApiSideToEditableState` and remove or reduce reliance on `localStorage` for `filevault_cover_leaf_v1_*`.
 
@@ -210,6 +245,7 @@ Then update the React app to read/write these in `mapPageStateToApiFormat` / `ma
 5. **Image previews** work via **`GET /api/images/{id}/preview`** with optional **`token`** query for auth.
 6. Prefer **`imageId`** over opaque **`imageUrl`** for web previews.
 7. **`fontFamily`:** store and return the **full CSS stack string**; do not require enum values — see [Font family (cover text)](#font-family-cover-text).
+8. **Floating overlays** are **not** in the current cover JSON contract; they live in **`localStorage`** until you add optional `textSideOverlays` (see [Optional backend enhancements](#optional-backend-enhancements-not-required-for-current-app)).
 
 ---
 

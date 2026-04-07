@@ -68,6 +68,15 @@ export type TextSideOverlay = {
   y: number;
   fontSize?: number;
   color?: string;
+  /** Full CSS font stack (same preset system as main cover text). */
+  fontFamily?: string;
+  fontWeight?: number;
+  fontStyle?: 'normal' | 'italic';
+  textAlign?: 'left' | 'center' | 'right';
+  letterSpacing?: number;
+  lineHeight?: number;
+  /** Extra legibility on busy backgrounds */
+  textShadow?: boolean;
 };
 
 export type EditablePageState = {
@@ -401,7 +410,7 @@ const PageEditorCard: React.FC<{
   const [showTextLeafBgPicker, setShowTextLeafBgPicker] = React.useState(false);
   const [previewTab, setPreviewTab] = React.useState<'text' | 'photo'>('text');
   type Section = 'text' | 'textLeaf' | 'effects' | 'extras';
-  const [openSection, setOpenSection] = React.useState<Section | null>(null);
+  const [openSection, setOpenSection] = React.useState<Section | null>('text');
   const toggle = (s: Section) => setOpenSection((v) => (v === s ? null : s));
 
   const previewRef = React.useRef<HTMLDivElement>(null);
@@ -490,8 +499,25 @@ const PageEditorCard: React.FC<{
       y: 72,
       fontSize: 13,
       color: '#f8fafc',
+      fontWeight: 600,
+      fontStyle: 'normal',
+      textAlign: 'center',
+      letterSpacing: 0,
+      lineHeight: 1.25,
+      textShadow: true,
     });
     onChange({ ...state, style: { ...state.style, textSideOverlays: list } });
+  };
+
+  const patchTextSideOverlay = (id: string, patch: Partial<TextSideOverlay>) => {
+    const list = state.style?.textSideOverlays ?? [];
+    onChange({
+      ...state,
+      style: {
+        ...state.style,
+        textSideOverlays: list.map((x) => (x.id === id ? { ...x, ...patch } : x)),
+      },
+    });
   };
 
   const defaultTextLeafGradient = isCover
@@ -692,7 +718,7 @@ const PageEditorCard: React.FC<{
                 {(state.style?.textSideOverlays ?? []).map((o) => (
                   <div
                     key={o.id}
-                    className="absolute z-20 flex max-w-[min(85%,220px)] flex-col items-stretch gap-0.5"
+                    className="absolute z-20 flex max-w-[min(92%,280px)] flex-col items-stretch gap-0.5"
                     style={{
                       left: `${o.x}%`,
                       top: `${o.y}%`,
@@ -737,10 +763,20 @@ const PageEditorCard: React.FC<{
                           });
                         }}
                         onMouseDown={(e) => e.stopPropagation()}
-                        className="min-w-0 flex-1 rounded-lg border border-white/35 bg-black/30 px-2 py-1 text-left text-[11px] text-white shadow-md backdrop-blur-sm placeholder:text-white/45 focus:border-white/60 focus:outline-none focus:ring-1 focus:ring-white/40"
+                        className="min-w-0 flex-1 rounded-lg border border-white/35 bg-black/30 px-2 py-1 text-[11px] text-white shadow-md backdrop-blur-sm placeholder:text-white/45 focus:border-white/60 focus:outline-none focus:ring-1 focus:ring-white/40"
                         style={{
                           fontSize: o.fontSize ?? 13,
                           color: o.color ?? '#f8fafc',
+                          fontFamily: o.fontFamily?.trim() ? o.fontFamily : undefined,
+                          fontWeight: o.fontWeight ?? 600,
+                          fontStyle: o.fontStyle ?? 'normal',
+                          textAlign: o.textAlign ?? 'center',
+                          letterSpacing: o.letterSpacing ?? 0,
+                          lineHeight: o.lineHeight ?? 1.25,
+                          textShadow:
+                            o.textShadow !== false
+                              ? '0 1px 3px rgba(0,0,0,0.55), 0 0 12px rgba(0,0,0,0.25)'
+                              : 'none',
                         }}
                         placeholder={t('floatingTextPlaceholder')}
                       />
@@ -807,6 +843,19 @@ const PageEditorCard: React.FC<{
               </>
             )}
           </div>
+
+          {previewTab === 'text' && (
+            <div className="w-full max-w-sm rounded-2xl border-2 border-cyan-400/50 bg-gradient-to-r from-cyan-50 via-white to-indigo-50 px-3 py-3 shadow-md flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <p className="text-[11px] text-slate-700 font-medium leading-snug">{t('floatingTextBarHint')}</p>
+              <button
+                type="button"
+                onClick={addTextSideOverlay}
+                className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl border-2 border-cyan-500 bg-gradient-to-r from-cyan-500 to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:from-cyan-600 hover:to-indigo-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/50 transition-all"
+              >
+                + {t('floatingTextAdd')}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4 w-full min-w-0">
@@ -1175,64 +1224,16 @@ const PageEditorCard: React.FC<{
                 </div>
 
                 {(state.style?.textSideOverlays ?? []).length > 0 ? (
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 space-y-3">
                     {(state.style?.textSideOverlays ?? []).map((o) => (
-                      <div key={o.id} className="rounded-xl border border-slate-200/70 bg-white/90 p-2">
-                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_110px_110px_auto] gap-2 items-center">
+                      <div key={o.id} className="rounded-xl border border-slate-200/70 bg-white/90 p-3 space-y-3">
+                        <div className="flex flex-col sm:flex-row gap-2 sm:items-start">
                           <input
                             value={o.text}
-                            onChange={(e) => {
-                              const list = state.style?.textSideOverlays ?? [];
-                              onChange({
-                                ...state,
-                                style: {
-                                  ...state.style,
-                                  textSideOverlays: list.map((x) => (x.id === o.id ? { ...x, text: e.target.value } : x)),
-                                },
-                              });
-                            }}
-                            className="w-full rounded-xl border border-slate-200/80 px-3 py-2 text-[12px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                            onChange={(e) => patchTextSideOverlay(o.id, { text: e.target.value })}
+                            className="flex-1 min-w-0 rounded-xl border border-slate-200/80 px-3 py-2 text-[12px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                             placeholder={t('floatingTextPlaceholder')}
                           />
-                          <div className="flex items-center gap-2">
-                            <label className="text-[10px] font-semibold text-slate-500 whitespace-nowrap">{t('floatingTextSize')}</label>
-                            <input
-                              type="number"
-                              min={8}
-                              max={40}
-                              value={o.fontSize ?? 13}
-                              onChange={(e) => {
-                                const list = state.style?.textSideOverlays ?? [];
-                                const val = Number(e.target.value);
-                                onChange({
-                                  ...state,
-                                  style: {
-                                    ...state.style,
-                                    textSideOverlays: list.map((x) => (x.id === o.id ? { ...x, fontSize: val } : x)),
-                                  },
-                                });
-                              }}
-                              className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
-                            />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <label className="text-[10px] font-semibold text-slate-500 whitespace-nowrap">{t('floatingTextColor')}</label>
-                            <input
-                              type="color"
-                              value={o.color ?? '#f8fafc'}
-                              onChange={(e) => {
-                                const list = state.style?.textSideOverlays ?? [];
-                                onChange({
-                                  ...state,
-                                  style: {
-                                    ...state.style,
-                                    textSideOverlays: list.map((x) => (x.id === o.id ? { ...x, color: e.target.value } : x)),
-                                  },
-                                });
-                              }}
-                              className="h-8 w-full rounded-xl border border-slate-200 p-0 bg-white"
-                            />
-                          </div>
                           <button
                             type="button"
                             onClick={() => {
@@ -1242,11 +1243,139 @@ const PageEditorCard: React.FC<{
                                 style: { ...state.style, textSideOverlays: list.filter((x) => x.id !== o.id) },
                               });
                             }}
-                            className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition-all"
+                            className="shrink-0 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition-all"
                           >
                             {t('remove')}
                           </button>
                         </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-600 mb-1">{t('fontFamily')}</label>
+                            <select
+                              className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                              value={fontFamilyStoredToPreset(o.fontFamily)}
+                              onChange={(e) =>
+                                patchTextSideOverlay(o.id, {
+                                  fontFamily: fontPresetToStored(e.target.value as FontFamilyPreset),
+                                })
+                              }
+                            >
+                              <option value="system">{t('fontSystem')}</option>
+                              <option value="sans">{t('fontSans')}</option>
+                              <option value="serif">{t('fontSerif')}</option>
+                              <option value="mono">{t('fontMono')}</option>
+                              <option value="rounded">{t('fontRounded')}</option>
+                              <option value="display">{t('fontDisplay')}</option>
+                              <option value="elegant">{t('fontElegant')}</option>
+                              <option value="script">{t('fontScript')}</option>
+                              <option value="slab">{t('fontSlab')}</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-600 mb-1">{t('weight')}</label>
+                            <select
+                              className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                              value={o.fontWeight ?? 600}
+                              onChange={(e) => patchTextSideOverlay(o.id, { fontWeight: Number(e.target.value) })}
+                            >
+                              <option value={400}>{t('weightRegular')}</option>
+                              <option value={600}>{t('weightSemiBold')}</option>
+                              <option value={700}>{t('weightBold')}</option>
+                              <option value={800}>{t('weightExtraBold')}</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-600 mb-1">{t('floatingTextSize')}</label>
+                            <input
+                              type="range"
+                              min={8}
+                              max={40}
+                              value={o.fontSize ?? 13}
+                              onChange={(e) => patchTextSideOverlay(o.id, { fontSize: Number(e.target.value) })}
+                              className="w-full accent-cyan-500"
+                            />
+                            <div className="text-[10px] text-slate-500 tabular-nums">{o.fontSize ?? 13}px</div>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-600 mb-1">{t('floatingTextColor')}</label>
+                            <input
+                              type="color"
+                              value={o.color ?? '#f8fafc'}
+                              onChange={(e) => patchTextSideOverlay(o.id, { color: e.target.value })}
+                              className="h-8 w-full rounded-xl border border-slate-200 p-0 bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-600 mb-1">{t('align')}</label>
+                            <select
+                              className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                              value={o.textAlign ?? 'center'}
+                              onChange={(e) =>
+                                patchTextSideOverlay(o.id, {
+                                  textAlign: e.target.value as 'left' | 'center' | 'right',
+                                })
+                              }
+                            >
+                              <option value="left">{t('alignLeft')}</option>
+                              <option value="center">{t('alignCenter')}</option>
+                              <option value="right">{t('alignRight')}</option>
+                            </select>
+                          </div>
+                          <div className="flex items-end">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={(o.fontStyle ?? 'normal') === 'italic'}
+                                onChange={(e) =>
+                                  patchTextSideOverlay(o.id, { fontStyle: e.target.checked ? 'italic' : 'normal' })
+                                }
+                                className="rounded border-slate-200 accent-cyan-500"
+                              />
+                              <span className="text-[11px] font-semibold text-slate-600">{t('floatingTextItalic')}</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-600 mb-1">{t('letterSpacing')}</label>
+                            <input
+                              type="range"
+                              min={-2}
+                              max={8}
+                              step={0.5}
+                              value={o.letterSpacing ?? 0}
+                              onChange={(e) => patchTextSideOverlay(o.id, { letterSpacing: Number(e.target.value) })}
+                              className="w-full accent-cyan-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-600 mb-1">{t('lineHeight')}</label>
+                            <input
+                              type="range"
+                              min={1}
+                              max={2.5}
+                              step={0.05}
+                              value={o.lineHeight ?? 1.25}
+                              onChange={(e) => patchTextSideOverlay(o.id, { lineHeight: Number(e.target.value) })}
+                              className="w-full accent-cyan-500"
+                            />
+                          </div>
+                        </div>
+
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={o.textShadow !== false}
+                            onChange={(e) => patchTextSideOverlay(o.id, { textShadow: e.target.checked })}
+                            className="rounded border-slate-200 accent-cyan-500"
+                          />
+                          <span className="text-[11px] font-semibold text-slate-600">{t('textShadow')}</span>
+                        </label>
                       </div>
                     ))}
                   </div>
