@@ -9,6 +9,7 @@ import {
   FaTimes,
 } from 'react-icons/fa';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { getStoredToken } from '../utils/authUtils';
 
 const ThreeDotsIcon = () => (
@@ -19,11 +20,59 @@ const ThreeDotsIcon = () => (
   </svg>
 );
 
-const API_BASE = process.env.REACT_APP_API_URL || '';
+/** Same host as `api` — `<img src>` must be absolute when the SPA is not served from the API origin. */
+function getApiBaseForAssets(): string {
+  const env = (process.env.REACT_APP_API_URL || '').trim().replace(/\/+$/, '');
+  if (env) return env;
+  const ax = api.defaults.baseURL;
+  if (typeof ax === 'string' && ax.trim()) return ax.replace(/\/+$/, '');
+  if (typeof window !== 'undefined') return window.location.origin;
+  return '';
+}
 
-function buildCoverPreviewUrl(imageId: number): string {
+/** `<img src>` cannot send Authorization headers; backend preview accepts `token` query (and often Bearer via separate requests). */
+function appendPreviewToken(url: string): string {
   const token = getStoredToken();
-  return `${API_BASE}/api/images/${imageId}/preview${token ? `?token=${token}` : ''}`;
+  if (!token || url.startsWith('data:')) return url;
+  if (/[?&]token=/.test(url)) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}token=${encodeURIComponent(token)}`;
+}
+
+/**
+ * Turn a cover side (front or back) into a browser-loadable preview URL.
+ * Prefer `/api/images/{id}/preview` — raw `imageUrl` may point at `.enc` objects that the browser cannot decode.
+ */
+function resolveCoverSideDisplayUrl(side: {
+  imageId?: number | null;
+  imageUrl?: string | null;
+} | undefined | null): string {
+  if (!side) return '';
+
+  const base = getApiBaseForAssets();
+  const id = side.imageId != null ? Number(side.imageId) : 0;
+
+  if (id > 0) {
+    return appendPreviewToken(`${base}/api/images/${id}/preview`);
+  }
+
+  const raw = side.imageUrl;
+  if (!raw || typeof raw !== 'string') return '';
+
+  if (raw.startsWith('data:')) return raw;
+
+  const idMatch = raw.match(/\/api\/images\/(\d+)\/(preview|download|thumbnail)/i);
+  if (idMatch) {
+    return appendPreviewToken(`${base}/api/images/${idMatch[1]}/preview`);
+  }
+
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    if (/\.enc(\?|$)/i.test(raw)) return '';
+    return appendPreviewToken(raw);
+  }
+
+  const path = raw.startsWith('/') ? raw : `/${raw}`;
+  return appendPreviewToken(`${base}${path}`);
 }
 
 /** Category slugs matching API: /api/photobooks/by-category/{slug} */
@@ -47,13 +96,164 @@ type ThemeInfo = {
 
 type BookWithTheme = PhotobookProgress & { theme: ThemeInfo };
 
+type CoverSide = { imageId?: number | null; imageUrl?: string | null };
+
 type CoversResponse = {
-  frontCover?: { imageId?: number | null; imageUrl?: string | null };
-  backCover?: { imageId?: number | null; imageUrl?: string | null };
+  frontCover?: CoverSide;
+  backCover?: CoverSide;
+};
+
+function normalizeCoversPayload(data: unknown): CoversResponse | null {
+  if (!data || typeof data !== 'object') return null;
+  const row = Array.isArray(data) ? (data as unknown[])[0] : data;
+  if (!row || typeof row !== 'object') return null;
+  const o = row as CoversResponse;
+  if (!o.frontCover && !o.backCover) return null;
+  return o;
+}
+
+/**
+ * Prefer per-photobook `/api/photobooks/:id/covers`; fill gaps from `GET /api/covers?userId=&templateId=`
+ * (same payload as studio — front/back with imageId pointing at previewable images).
+ */
+async function loadMergedCovers(
+  book: BookWithTheme,
+  userId: number | undefined,
+  headers: Record<string, string>
+): Promise<CoversResponse | null> {
+  let fromPhotobook: CoversResponse | null = null;
+  try {
+    const res = await api.get<CoversResponse>(`/api/photobooks/${book.id}/covers`, { headers });
+    fromPhotobook = normalizeCoversPayload(res.data) ?? (res.data as CoversResponse);
+  } catch {
+    /* use template only */
+  }
+
+  let fromTemplate: CoversResponse | null = null;
+  const templateId = book.theme.templateId;
+  if (userId && templateId) {
+    try {
+      const res = await api.get<CoversResponse | CoversResponse[]>('/api/covers', {
+        headers,
+        params: { userId, templateId },
+      });
+      fromTemplate = normalizeCoversPayload(res.data);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const front = coverSideHasRenderableImage(fromPhotobook?.frontCover)
+    ? fromPhotobook!.frontCover
+    : fromTemplate?.frontCover;
+  const back = coverSideHasRenderableImage(fromPhotobook?.backCover)
+    ? fromPhotobook!.backCover
+    : fromTemplate?.backCover;
+
+  if (!coverSideHasRenderableImage(front) && !coverSideHasRenderableImage(back)) return null;
+  return { frontCover: front, backCover: back };
+}
+
+/** True when we can resolve a preview (imageId, or non-.enc http URL). */
+function coverSideHasRenderableImage(side: CoverSide | undefined): boolean {
+  if (!side) return false;
+  const id = side.imageId != null ? Number(side.imageId) : 0;
+  if (id > 0) return true;
+  const raw = side.imageUrl;
+  if (!raw || typeof raw !== 'string') return false;
+  if (raw.startsWith('data:')) return true;
+  if (/\.enc(\?|$)/i.test(raw)) return false;
+  return true;
+}
+
+/** Folder card cover: try `<img src>` with token query; if that fails, fetch preview as blob with axios (Bearer + X-API-KEY). */
+const PhotobookCoverImage: React.FC<{
+  previewUrl: string;
+  imageId?: number;
+  alt: string;
+  fallbackTitle: string;
+  fallbackTheme: string;
+}> = ({ previewUrl, imageId, alt, fallbackTitle, fallbackTheme }) => {
+  const [phase, setPhase] = React.useState<'direct' | 'blob' | 'dead'>('direct');
+  const [blobSrc, setBlobSrc] = React.useState<string | null>(null);
+  const blobRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    setPhase('direct');
+    setBlobSrc(null);
+    if (blobRef.current) {
+      URL.revokeObjectURL(blobRef.current);
+      blobRef.current = null;
+    }
+  }, [previewUrl, imageId]);
+
+  React.useEffect(
+    () => () => {
+      if (blobRef.current) {
+        URL.revokeObjectURL(blobRef.current);
+        blobRef.current = null;
+      }
+    },
+    []
+  );
+
+  const loadBlobFallback = React.useCallback(async () => {
+    if (!imageId || imageId <= 0) {
+      setPhase('dead');
+      return;
+    }
+    try {
+      const token = getStoredToken();
+      const res = await api.get(`/api/images/${imageId}/preview`, {
+        responseType: 'blob',
+        headers: token ? { 'X-API-KEY': token } : {},
+      });
+      const u = URL.createObjectURL(res.data);
+      if (blobRef.current) URL.revokeObjectURL(blobRef.current);
+      blobRef.current = u;
+      setBlobSrc(u);
+      setPhase('blob');
+    } catch {
+      setPhase('dead');
+    }
+  }, [imageId]);
+
+  if (phase === 'dead' || !previewUrl) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-2 text-center">
+        <span className="text-amber-200/95 font-semibold text-xs leading-tight line-clamp-3">{fallbackTitle}</span>
+        <span className="text-amber-300/70 text-[10px] mt-1">{fallbackTheme}</span>
+      </div>
+    );
+  }
+
+  const src = phase === 'blob' ? blobSrc : previewUrl;
+  if (!src) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-2 text-center">
+        <span className="text-amber-200/95 font-semibold text-xs leading-tight line-clamp-3">{fallbackTitle}</span>
+        <span className="text-amber-300/70 text-[10px] mt-1">{fallbackTheme}</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      key={src}
+      src={src}
+      alt={alt}
+      className="absolute inset-0 w-full h-full object-cover"
+      onError={() => {
+        if (phase === 'direct') void loadBlobFallback();
+        else setPhase('dead');
+      }}
+    />
+  );
 };
 
 const PhotoBook: React.FC = () => {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const PHOTOBOOK_CATEGORIES = useMemo(
     () =>
       [
@@ -76,6 +276,10 @@ const PhotoBook: React.FC = () => {
   const [books, setBooks] = useState<BookWithTheme[]>([]);
   const [loading, setLoading] = useState(true);
   const [coverUrls, setCoverUrls] = useState<Record<number, string>>({});
+  /** For blob fallback when `<img src={previewUrl}>` fails (wrong host, auth, etc.) */
+  const [coverImageIds, setCoverImageIds] = useState<Record<number, number>>({});
+  const [backCoverUrls, setBackCoverUrls] = useState<Record<number, string>>({});
+  const [backCoverImageIds, setBackCoverImageIds] = useState<Record<number, number>>({});
   const [openMenuBookId, setOpenMenuBookId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -118,38 +322,53 @@ const PhotoBook: React.FC = () => {
     return () => { isMounted = false; };
   }, [PHOTOBOOK_CATEGORIES]);
 
-  // Fetch cover image for each book that has covers (for display on folder front)
+  // Fetch front + back cover previews per book: photobook covers first, then `/api/covers?userId=&templateId=`.
   useEffect(() => {
     const token = getStoredToken();
     if (!token || books.length === 0) return;
     const headers = { 'X-API-KEY': token };
     let isMounted = true;
-    const withCovers = books.filter((b) => b.hasCovers && b.id);
+    const toFetch = books.filter((b) => b.id);
+    const uid = user?.id;
     const loadCovers = async () => {
-      const next: Record<number, string> = {};
+      const nextFront: Record<number, string> = {};
+      const nextFrontIds: Record<number, number> = {};
+      const nextBack: Record<number, string> = {};
+      const nextBackIds: Record<number, number> = {};
       await Promise.all(
-        withCovers.map(async (book) => {
+        toFetch.map(async (book) => {
           try {
-            const res = await api.get<CoversResponse>(`/api/photobooks/${book.id}/covers`, { headers });
-            const front = res.data?.frontCover;
-            if (!front) return;
-            let url = '';
-            if (front.imageId) {
-              url = buildCoverPreviewUrl(front.imageId);
-            } else if (front.imageUrl) {
-              url = front.imageUrl.startsWith('http') ? front.imageUrl : `${API_BASE}${front.imageUrl}`;
+            const merged = await loadMergedCovers(book, uid, headers);
+            if (!merged || !isMounted) return;
+            const front = merged.frontCover;
+            const back = merged.backCover;
+            if (front && coverSideHasRenderableImage(front)) {
+              const url = resolveCoverSideDisplayUrl(front);
+              const iid = front.imageId != null ? Number(front.imageId) : 0;
+              if (iid > 0) nextFrontIds[book.id] = iid;
+              if (url) nextFront[book.id] = url;
             }
-            if (url && isMounted) next[book.id] = url;
+            if (back && coverSideHasRenderableImage(back)) {
+              const url = resolveCoverSideDisplayUrl(back);
+              const iid = back.imageId != null ? Number(back.imageId) : 0;
+              if (iid > 0) nextBackIds[book.id] = iid;
+              if (url) nextBack[book.id] = url;
+            }
           } catch {
-            // no cover or failed
+            /* no cover */
           }
         })
       );
-      if (isMounted) setCoverUrls((prev) => ({ ...prev, ...next }));
+      if (isMounted) {
+        setCoverUrls((prev) => ({ ...prev, ...nextFront }));
+        setCoverImageIds((prev) => ({ ...prev, ...nextFrontIds }));
+        setBackCoverUrls((prev) => ({ ...prev, ...nextBack }));
+        setBackCoverImageIds((prev) => ({ ...prev, ...nextBackIds }));
+      }
     };
     loadCovers();
     return () => { isMounted = false; };
-  }, [books]);
+  }, [books, user?.id]);
 
   const handleEdit = (book: BookWithTheme) => {
     navigate(`/photo-themes/${book.theme.id}/album`, {
@@ -240,23 +459,53 @@ const PhotoBook: React.FC = () => {
                     }} className="book-on-front flex-1 w-full flex items-center justify-center mt-1">
                     <div style={{ borderRadius: '2px 10px 10px 1px' }} className="relative w-full max-w-[100%] aspect-[3/4] rounded-sm shadow-lg border-2 border-amber-800/30 overflow-hidden bg-gradient-to-br from-slate-700 to-slate-900 flex flex-col">
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-black/20 z-[1]" />
-                      {coverUrls[book.id] ? (
-                        <img
-                          src={coverUrls[book.id]}
-                          alt={book.title || t('photoBookHub.coverAlt')}
-                          className="absolute inset-0 w-full h-full object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center p-2 text-center">
-                          <span className="text-amber-200/95 font-semibold text-xs leading-tight line-clamp-3">
-                            {book.title || t('photoBookHub.bookNum', { id: book.id })}
-                          </span>
-                          <span className="text-amber-300/70 text-[10px] mt-1">{book.theme.title}</span>
-                        </div>
-                      )}
+                      {(() => {
+                        const frontUrl = coverUrls[book.id];
+                        const backUrl = backCoverUrls[book.id];
+                        const split = !!(frontUrl && backUrl);
+                        if (!frontUrl && !backUrl) {
+                          return (
+                            <div className="flex-1 flex flex-col items-center justify-center p-2 text-center">
+                              <span className="text-amber-200/95 font-semibold text-xs leading-tight line-clamp-3">
+                                {book.title || t('photoBookHub.bookNum', { id: book.id })}
+                              </span>
+                              <span className="text-amber-300/70 text-[10px] mt-1">{book.theme.title}</span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className={`absolute inset-0 flex ${split ? 'flex-row' : ''}`}>
+                            {frontUrl ? (
+                              <div className={split ? 'relative w-1/2 h-full min-w-0' : 'absolute inset-0'}>
+                                <PhotobookCoverImage
+                                  previewUrl={frontUrl}
+                                  imageId={coverImageIds[book.id]}
+                                  alt={book.title || t('photoBookHub.coverAlt')}
+                                  fallbackTitle={book.title || t('photoBookHub.bookNum', { id: book.id })}
+                                  fallbackTheme={book.theme.title}
+                                />
+                              </div>
+                            ) : null}
+                            {backUrl ? (
+                              <div
+                                className={
+                                  split
+                                    ? 'relative w-1/2 h-full min-w-0 border-l border-black/25'
+                                    : 'absolute inset-0'
+                                }
+                              >
+                                <PhotobookCoverImage
+                                  previewUrl={backUrl}
+                                  imageId={backCoverImageIds[book.id]}
+                                  alt={t('photoBookHub.backCoverAlt')}
+                                  fallbackTitle={book.title || t('photoBookHub.bookNum', { id: book.id })}
+                                  fallbackTheme={book.theme.title}
+                                />
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

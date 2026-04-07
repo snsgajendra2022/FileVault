@@ -2,6 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import HTMLFlipBook from 'react-pageflip';
 import { jsPDF } from 'jspdf';
 import JSZip from 'jszip';
@@ -29,25 +30,131 @@ import imageService from '../services/imageService';
 import { useAuth } from '../context/AuthContext';
 import { getStoredToken } from '../utils/authUtils';
 
-const API_BASE = process.env.REACT_APP_API_URL || '';
+/** Same host as axios — required for `<img src>` on photobook thumbnails. */
+function getApiBaseForAssets(): string {
+  const env = (process.env.REACT_APP_API_URL || '').trim().replace(/\/+$/, '');
+  if (env) return env;
+  const ax = api.defaults.baseURL;
+  if (typeof ax === 'string' && ax.trim()) return ax.replace(/\/+$/, '');
+  if (typeof window !== 'undefined') return window.location.origin;
+  return '';
+}
+
+function appendPreviewToken(url: string): string {
+  const token = getStoredToken();
+  if (!token || url.startsWith('data:')) return url;
+  if (/[?&]token=/.test(url)) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}token=${encodeURIComponent(token)}`;
+}
 
 /** Build a reliable preview URL from an image ID */
 function buildPreviewUrl(imageId: number): string {
-  const token = getStoredToken();
-  return `${API_BASE}/api/images/${imageId}/preview${token ? `?token=${token}` : ''}`;
+  const base = getApiBaseForAssets();
+  return appendPreviewToken(`${base}/api/images/${imageId}/preview`);
 }
 
 /** Turn relative backend URLs into absolute ones the browser can render */
 function resolveImageUrl(url: string | undefined | null): string | undefined {
   if (!url) return undefined;
   if (url.startsWith('data:')) return url;
-  // Extract image ID from URL and build a fresh preview URL with current token
-  const idMatch = url.match(/\/api\/images\/(\d+)\/(preview|download|thumbnail)/);
+  if (/\.enc(\?|$)/i.test(url)) return undefined;
+  const idMatch = url.match(/\/api\/images\/(\d+)\/(preview|download|thumbnail)/i);
   if (idMatch) return buildPreviewUrl(Number(idMatch[1]));
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  const token = getStoredToken();
-  const sep = url.includes('?') ? '&' : '?';
-  return `${API_BASE}${url}${token ? `${sep}token=${token}` : ''}`;
+  if (url.startsWith('http://') || url.startsWith('https://')) return appendPreviewToken(url);
+  const base = getApiBaseForAssets();
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return appendPreviewToken(`${base}${path}`);
+}
+
+/** Small inline SVGs as data URLs for cover “logo” badges (no network). */
+const COVER_DECAL_SVGS: Record<string, string> = {
+  cake: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none"><path fill="#fff" d="M32 8c-4 4-8 8-8 14h16c0-6-4-10-8-14z"/><rect x="12" y="28" width="40" height="8" rx="4" fill="#f9a8d4"/><rect x="8" y="36" width="48" height="20" rx="6" fill="#fce7f3"/><path stroke="#fff" stroke-width="2" d="M20 44h24"/></svg>'),
+  rings: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="26" cy="36" r="14" fill="none" stroke="#fff" stroke-width="4"/><circle cx="38" cy="36" r="14" fill="none" stroke="#e9d5ff" stroke-width="4"/></svg>'),
+  heart: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path fill="#fda4af" d="M32 54S8 36 8 22a12 12 0 0 1 20-8 12 12 0 0 1 20 8c0 14-24 32-24 32z"/></svg>'),
+  balloon: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><ellipse cx="32" cy="24" rx="18" ry="22" fill="#93c5fd"/><path stroke="#fff" stroke-width="2" d="M32 46v14"/></svg>'),
+  star: 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path fill="#fde047" d="M32 6l8 20h20l-16 12 6 20-18-12-18 12 6-20L6 26h20z"/></svg>'),
+};
+
+function buildThemeDefaultCover(slug: string, t: TFunction): EditablePageState {
+  const baseStyle: NonNullable<EditablePageState['style']> = {
+    fontSize: 28,
+    fontWeight: 700,
+    align: 'center',
+    verticalAlign: 'center',
+    headlineColor: '#ffffff',
+    subheadlineColor: '#e5e7eb',
+    logoPosition: 'top-center',
+    logoSize: 56,
+  };
+  switch (slug) {
+    case 'birthday':
+    case 'festival':
+      return {
+        headline: t('defaultBirthdayHeadline'),
+        subheadline: t('defaultBirthdaySub'),
+        description: t('defaultBirthdayDesc'),
+        style: { ...baseStyle, logoDataUrl: COVER_DECAL_SVGS.cake },
+      };
+    case 'wedding':
+      return {
+        headline: t('defaultWeddingHeadline'),
+        subheadline: t('defaultWeddingSub'),
+        description: t('defaultWeddingDesc'),
+        style: { ...baseStyle, logoDataUrl: COVER_DECAL_SVGS.rings },
+      };
+    case 'anniversary':
+      return {
+        headline: t('defaultAnniversaryHeadline'),
+        subheadline: t('defaultAnniversarySub'),
+        description: t('defaultAnniversaryDesc'),
+        style: { ...baseStyle, logoDataUrl: COVER_DECAL_SVGS.heart },
+      };
+    default:
+      return {
+        headline: t('defaultGenericHeadline'),
+        subheadline: t('defaultGenericSub'),
+        description: t('defaultGenericDesc'),
+        style: { ...baseStyle, fontSize: 26, logoDataUrl: COVER_DECAL_SVGS.star },
+      };
+  }
+}
+
+function buildThemeDefaultLast(_slug: string, t: TFunction): EditablePageState {
+  return {
+    headline: t('defaultLastHeadline'),
+    subheadline: t('defaultLastSub'),
+    description: t('defaultLastDesc'),
+    style: {
+      fontSize: 22,
+      fontWeight: 600,
+      align: 'center',
+      verticalAlign: 'center',
+      headlineColor: '#ffffff',
+      subheadlineColor: '#d1d5db',
+      logoDataUrl: COVER_DECAL_SVGS.heart,
+      logoPosition: 'bottom-center',
+      logoSize: 48,
+    },
+  };
+}
+
+function buildMinimalPresetCover(t: TFunction): EditablePageState {
+  return {
+    headline: t('presetMinimalHeadline'),
+    subheadline: '',
+    description: '',
+    style: {
+      fontSize: 24,
+      fontWeight: 600,
+      align: 'center',
+      verticalAlign: 'center',
+      headlineColor: '#ffffff',
+      subheadlineColor: '#e5e7eb',
+      logoPosition: 'top-center',
+      logoSize: 0,
+    },
+  };
 }
 
 function extractImageIdFromUrl(url: string | undefined | null): number | null {
@@ -1005,6 +1112,35 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   const [saveSuccess, setSaveSuccess] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
 
+  const themeDefaultsAppliedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!categorySlug || isLoading) return;
+    if (location.state?.coverPage) {
+      themeDefaultsAppliedRef.current = true;
+      return;
+    }
+    if (themeDefaultsAppliedRef.current) return;
+
+    setEffectiveCover((prev) => {
+      if (prev?.headline?.trim()) {
+        themeDefaultsAppliedRef.current = true;
+        return prev;
+      }
+      themeDefaultsAppliedRef.current = true;
+      return buildThemeDefaultCover(categorySlug, t);
+    });
+    setEffectiveLast((prev) => {
+      if (prev?.headline?.trim()) return prev;
+      return buildThemeDefaultLast(categorySlug, t);
+    });
+  }, [categorySlug, isLoading, location.state?.coverPage, t]);
+
+  React.useEffect(() => {
+    if (!categorySlug) return;
+    if (!effectiveCover || !effectiveLast) return;
+    setStoredCoverLast(categorySlug, effectiveCover, effectiveLast);
+  }, [categorySlug, effectiveCover, effectiveLast]);
+
   const uploadImageFromDataUrl = async (dataUrl: string, name: string): Promise<number | null> => {
     try {
       const file = dataUrlToFile(dataUrl, name);
@@ -1422,16 +1558,27 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     const coverOrLastUrl = (isCover && coverFromState?.imageDataUrl) || (isLast && lastFromState?.imageDataUrl) || '';
     const getSrc = (i: number) => urls[i] ?? urls[0] ?? st.imageDataUrl ?? (i === 0 ? coverOrLastUrl : '') ?? '';
     const hasImg = !!getSrc(0);
+    const hasOverlayCopy = !!(
+      textState?.headline?.trim() ||
+      textState?.subheadline?.trim() ||
+      textState?.description?.trim()
+    );
+    const showLogo = !!(textState?.style?.logoDataUrl && (textState.style.logoSize ?? 56) > 0);
 
     // Editor preview: clean white canvas for inner pages (photo album style)
     const useWhiteCanvas = editOpts?.forceWhiteBackground && !isCover && !isLast;
-    const pageBg = useWhiteCanvas
+    const pageBgThemed = useWhiteCanvas
       ? '#ffffff'
       : categorySlug === 'wedding'
         ? selectedWeddingTheme.gradient
         : categorySlug === 'anniversary'
         ? `linear-gradient(135deg, ${selectedTheme.colors[0]}, ${selectedTheme.colors[2]}, ${selectedTheme.colors[4]})`
         : 'linear-gradient(135deg, #fafafa, #f1f5f9)';
+    const needsDarkCoverBg =
+      (isCover || isLast) && !hasImg && (hasOverlayCopy || showLogo);
+    const pageBg = needsDarkCoverBg
+      ? 'linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)'
+      : pageBgThemed;
 
     const crops = st.cropPositions ?? {};
 
@@ -1652,13 +1799,15 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     return (
       <div className="relative w-full h-full overflow-hidden" style={{ background: pageBg }}>
         {imageContent ?? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <svg className="w-10 h-10 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-            <span className="text-xs text-white/25 font-medium tracking-wide">{t('addAPhoto')}</span>
-          </div>
+          (isCover || isLast) && needsDarkCoverBg ? null : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+              <svg className="w-10 h-10 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              <span className="text-xs text-white/25 font-medium tracking-wide">{t('addAPhoto')}</span>
+            </div>
+          )
         )}
 
-        {textState && (isCover || isLast) && hasImg && (
+        {textState && (isCover || isLast) && (hasImg || hasOverlayCopy || showLogo) && (
           <div
             className={`absolute inset-0 z-20 flex px-6 py-8 ${
               textState.style?.overlayOpacity != null ? '' : 'bg-gradient-to-t from-black/60 via-transparent to-transparent'
@@ -1706,15 +1855,6 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           </div>
         )}
 
-        {textState && (isCover || isLast) && !hasImg && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-xl font-bold text-white/60">{textState.headline || (isCover ? t('cover') : t('back'))}</div>
-              {textState.subheadline && <div className="text-sm text-white/40 mt-1">{textState.subheadline}</div>}
-            </div>
-          </div>
-        )}
-
         {/* Captions + page number overlay for inner pages */}
         {!isCover && !isLast && (() => {
           const pageCaptions = st.slotCaptions ?? {};
@@ -1738,7 +1878,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           );
         })()}
 
-        {textState?.style?.logoDataUrl && (isCover || isLast) && (
+        {textState?.style?.logoDataUrl && (textState.style.logoSize ?? 60) > 0 && (isCover || isLast) && (
           <div className="absolute z-30" style={{
             top: textState.style.logoPosition?.includes('top') ? '12px' : undefined,
             bottom: textState.style.logoPosition?.includes('bottom') ? '12px' : undefined,
@@ -2772,7 +2912,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               </main>
 
               {/* 4. Right Sidebar — Layout & Settings */}
-              <aside className="w-72 shrink-0 border-l border-slate-200/80 bg-white flex flex-col overflow-y-auto">
+              <aside className="w-[22rem] shrink-0 border-l border-slate-200/80 bg-white flex flex-col overflow-y-auto">
                 <div className="p-3 border-b border-slate-100">
                   <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
                     <FaPalette className="w-3.5 h-3.5 text-indigo-500" />
@@ -2941,13 +3081,178 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                       </div>
                     </div>
                   )}
-                  {(isCover || isLast) && (
-                    <div className="rounded-xl bg-stone-50 border border-stone-200/80 px-3 py-2 text-[11px] text-stone-700">
-                      <strong>{isCover ? t('frontCover') : t('backCover')}</strong>
-                      {' — '}{t('editIn')}{' '}
-                      <button type="button" onClick={() => navigate(`/photo-themes/${categorySlug}`, { state: { templateId: dbTemplateId, photobookId } })} className="underline font-semibold text-stone-900">{t('coverEditorLink')}</button>
-                    </div>
-                  )}
+                  {(isCover || isLast) && (() => {
+                    const side = isCover ? effectiveCover : effectiveLast;
+                    const merge = (patch: Partial<EditablePageState>) => {
+                      const def = isCover ? buildThemeDefaultCover(categorySlug, t) : buildThemeDefaultLast(categorySlug, t);
+                      const cur = side ?? def;
+                      const next: EditablePageState = {
+                        ...cur,
+                        ...patch,
+                        style: patch.style ? { ...(cur.style ?? {}), ...patch.style } : cur.style,
+                      };
+                      if (isCover) setEffectiveCover(next);
+                      else setEffectiveLast(next);
+                    };
+                    const fs = side?.style?.fontSize ?? 26;
+                    return (
+                      <div className="rounded-xl border border-indigo-100 bg-gradient-to-b from-indigo-50/90 to-white p-3 space-y-3 shadow-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider">{t('coverTextPanel')}</p>
+                          <span className="text-[9px] font-semibold text-indigo-600/80">{isCover ? t('frontCover') : t('backCover')}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {([
+                            ['birthday', () => {
+                              if (isCover) setEffectiveCover(buildThemeDefaultCover('birthday', t));
+                              else setEffectiveLast(buildThemeDefaultLast(categorySlug, t));
+                            }],
+                            ['wedding', () => {
+                              if (isCover) setEffectiveCover(buildThemeDefaultCover('wedding', t));
+                              else setEffectiveLast(buildThemeDefaultLast(categorySlug, t));
+                            }],
+                            ['anniversary', () => {
+                              if (isCover) setEffectiveCover(buildThemeDefaultCover('anniversary', t));
+                              else setEffectiveLast(buildThemeDefaultLast(categorySlug, t));
+                            }],
+                            ['minimal', () => {
+                              if (isCover) setEffectiveCover(buildMinimalPresetCover(t));
+                              else {
+                                setEffectiveLast({
+                                  headline: t('presetMinimalHeadline'),
+                                  subheadline: '',
+                                  description: '',
+                                  style: {
+                                    fontSize: 20,
+                                    fontWeight: 600,
+                                    align: 'center',
+                                    verticalAlign: 'center',
+                                    headlineColor: '#ffffff',
+                                    subheadlineColor: '#e5e7eb',
+                                    logoPosition: 'bottom-center',
+                                    logoSize: 0,
+                                  },
+                                });
+                              }
+                            }],
+                          ] as const).map(([key, fn]) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={fn}
+                              className="rounded-lg bg-white border border-slate-200 px-2 py-1 text-[10px] font-semibold text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/80 transition-colors"
+                            >
+                              {key === 'birthday' ? t('presetBirthday') : key === 'wedding' ? t('presetWedding') : key === 'anniversary' ? t('presetAnniversary') : t('presetMinimal')}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block">
+                            <span className="text-[10px] font-semibold text-slate-500">{t('fieldTitle')}</span>
+                            <input
+                              type="text"
+                              value={side?.headline ?? ''}
+                              onChange={(e) => merge({ headline: e.target.value })}
+                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/25"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="text-[10px] font-semibold text-slate-500">{t('fieldSubtitle')}</span>
+                            <input
+                              type="text"
+                              value={side?.subheadline ?? ''}
+                              onChange={(e) => merge({ subheadline: e.target.value })}
+                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/25"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="text-[10px] font-semibold text-slate-500">{t('fieldDescription')}</span>
+                            <textarea
+                              rows={2}
+                              value={side?.description ?? ''}
+                              onChange={(e) => merge({ description: e.target.value })}
+                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 resize-none"
+                            />
+                          </label>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-semibold text-slate-500 mb-1.5">{t('decorativeIcon')}</p>
+                          <div className="flex flex-wrap gap-1">
+                            <button
+                              type="button"
+                              onClick={() => merge({ style: { ...side?.style, logoDataUrl: undefined, logoSize: 0 } })}
+                              className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[9px] font-semibold text-slate-600 hover:bg-slate-100"
+                            >
+                              {t('decalNone')}
+                            </button>
+                            {([
+                              ['cake', COVER_DECAL_SVGS.cake],
+                              ['rings', COVER_DECAL_SVGS.rings],
+                              ['heart', COVER_DECAL_SVGS.heart],
+                              ['balloon', COVER_DECAL_SVGS.balloon],
+                              ['star', COVER_DECAL_SVGS.star],
+                            ] as const).map(([id, src]) => (
+                              <button
+                                key={id}
+                                type="button"
+                                onClick={() => merge({ style: { ...side?.style, logoDataUrl: src, logoSize: 52, logoPosition: 'top-center' } })}
+                                className="h-9 w-9 rounded-lg border border-slate-200 bg-white p-0.5 hover:border-indigo-400"
+                              >
+                                <img src={src} alt="" className="h-full w-full object-contain" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="block col-span-2">
+                            <span className="text-[10px] font-semibold text-slate-500">{t('titleSize')}</span>
+                            <input
+                              type="range"
+                              min={16}
+                              max={48}
+                              value={fs}
+                              onChange={(e) => merge({ style: { ...side?.style, fontSize: Number(e.target.value) } })}
+                              className="mt-1 w-full accent-indigo-600"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="text-[10px] font-semibold text-slate-500">{t('textAlign')}</span>
+                            <select
+                              value={side?.style?.align ?? 'center'}
+                              onChange={(e) => merge({ style: { ...side?.style, align: e.target.value as 'left' | 'center' | 'right' } })}
+                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-800"
+                            >
+                              <option value="left">{t('alignLeft')}</option>
+                              <option value="center">{t('alignCenter')}</option>
+                              <option value="right">{t('alignRight')}</option>
+                            </select>
+                          </label>
+                          <label className="block">
+                            <span className="text-[10px] font-semibold text-slate-500">{t('verticalAlignLabel')}</span>
+                            <select
+                              value={side?.style?.verticalAlign ?? 'center'}
+                              onChange={(e) => merge({ style: { ...side?.style, verticalAlign: e.target.value as 'top' | 'center' | 'bottom' } })}
+                              className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-800"
+                            >
+                              <option value="top">{t('alignTop')}</option>
+                              <option value="center">{t('alignCenter')}</option>
+                              <option value="bottom">{t('alignBottom')}</option>
+                            </select>
+                          </label>
+                        </div>
+                        <p className="text-[10px] text-slate-600 leading-snug">
+                          {t('editIn')}{' '}
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/photo-themes/${categorySlug}`, { state: { templateId: dbTemplateId, photobookId } })}
+                            className="font-semibold text-indigo-700 underline decoration-indigo-300 underline-offset-2"
+                          >
+                            {t('coverEditorLink')}
+                          </button>
+                        </p>
+                      </div>
+                    );
+                  })()}
                 </div>
               </aside>
             </>

@@ -21,21 +21,28 @@ import { FileVaultImagePicker } from '../components/PhotoBook/FileVaultImagePick
 
 const API_BASE = process.env.REACT_APP_API_URL || '';
 
+/** `<img src>` cannot send Authorization; append token for authenticated preview (same as PhotoBook hub). */
+function appendPreviewToken(url: string): string {
+  const token = getStoredToken();
+  if (!token || url.startsWith('data:')) return url;
+  if (/[?&]token=/.test(url)) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}token=${encodeURIComponent(token)}`;
+}
+
 /** Build a reliable preview URL from an image ID */
 function buildPreviewUrl(imageId: number): string {
-  const token = getStoredToken();
-  return `${API_BASE}/api/images/${imageId}/preview${token ? `?token=${token}` : ''}`;
+  return appendPreviewToken(`${API_BASE}/api/images/${imageId}/preview`);
 }
 
 function resolveBackendImageUrl(url: string | undefined | null): string | undefined {
   if (!url) return undefined;
   if (url.startsWith('data:')) return url;
-  const idMatch = url.match(/\/api\/images\/(\d+)\/(preview|download|thumbnail)/);
+  const idMatch = url.match(/\/api\/images\/(\d+)\/(preview|download|thumbnail)/i);
   if (idMatch) return buildPreviewUrl(Number(idMatch[1]));
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  const token = getStoredToken();
-  const sep = url.includes('?') ? '&' : '?';
-  return `${API_BASE}${url}${token ? `${sep}token=${token}` : ''}`;
+  if (url.startsWith('http://') || url.startsWith('https://')) return appendPreviewToken(url);
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return appendPreviewToken(`${API_BASE}${path}`);
 }
 
 type PageKind = 'cover' | 'last';
@@ -71,7 +78,7 @@ export type EditablePageState = {
     subtleAnimation?: boolean;
     logoDataUrl?: string;
     logoImageId?: number;
-    logoPosition?: 'top-left' | 'top-right' | 'bottom-center';
+    logoPosition?: 'top-left' | 'top-right' | 'top-center' | 'bottom-center';
     logoPositionX?: number;
     logoPositionY?: number;
     logoSize?: number;
@@ -163,8 +170,9 @@ const PageEditorCard: React.FC<{
 
   const [logoDrag, setLogoDrag] = React.useState<{ startX: number; startY: number; startPX: number; startPY: number } | null>(null);
 
-  const getLogoPreset = (pos?: 'top-left' | 'top-right' | 'bottom-center') => {
+  const getLogoPreset = (pos?: 'top-left' | 'top-right' | 'top-center' | 'bottom-center') => {
     if (pos === 'top-right') return { x: 88, y: 12 };
+    if (pos === 'top-center') return { x: 50, y: 12 };
     if (pos === 'bottom-center') return { x: 50, y: 88 };
     return { x: 12, y: 12 };
   };
@@ -1143,6 +1151,9 @@ const PhotoThemeCategoryPage: React.FC = () => {
   const [photobookId, setPhotobookId] = React.useState<number | null>(
     location.state?.photobookId ?? storedTemplateId?.photobookId ?? null
   );
+  const photobookIdRef = React.useRef(photobookId);
+  photobookIdRef.current = photobookId;
+
   const [isLoadingSelectedTheme, setIsLoadingSelectedTheme] = React.useState(false);
 
   type PhotobookListItem = {
@@ -1226,17 +1237,19 @@ const PhotoThemeCategoryPage: React.FC = () => {
         },
       };
 
-      // Capture existing imageId so we don't re-upload on save
-      if (side.imageId) mapped.imageId = side.imageId;
+      // Capture existing imageId so we don't re-upload on save (use explicit > 0; 0 is falsy in JS)
+      const imgId = side.imageId != null ? Number(side.imageId) : 0;
+      if (imgId > 0) mapped.imageId = imgId;
 
-      if (side.imageId) {
-        mapped.imageDataUrl = buildPreviewUrl(side.imageId);
+      if (imgId > 0) {
+        mapped.imageDataUrl = buildPreviewUrl(imgId);
       } else if (side.imageUrl) {
         mapped.imageDataUrl = resolveBackendImageUrl(side.imageUrl);
       }
 
-      if (side.logoImageId) {
-        mapped.style = { ...mapped.style, logoImageId: side.logoImageId, logoDataUrl: buildPreviewUrl(side.logoImageId) };
+      const logoId = side.logoImageId != null ? Number(side.logoImageId) : 0;
+      if (logoId > 0) {
+        mapped.style = { ...mapped.style, logoImageId: logoId, logoDataUrl: buildPreviewUrl(logoId) };
       } else if (side.logoImageUrl) {
         mapped.style = { ...mapped.style, logoDataUrl: resolveBackendImageUrl(side.logoImageUrl) };
       }
@@ -1275,22 +1288,27 @@ const PhotoThemeCategoryPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, activeTemplateId]);
 
-  // Load saved covers from API when editing an existing album
+  // Load saved covers from API when editing an existing album (not when "Create new" with no photobookId).
   React.useEffect(() => {
-    const loadSavedCovers = async () => {
-      // Only load covers when we are working with an existing photobook
-      // (for "New Album" flows we keep pages blank).
-      if (!user?.id || !photobookId) return;
+    let cancelled = false;
+    const loadId = photobookId;
 
+    if (!user?.id || !loadId) {
+      setIsLoadingCovers(false);
+      return;
+    }
+
+    const loadSavedCovers = async () => {
       setIsLoadingCovers(true);
       try {
         const token = getStoredToken();
         const headers = { ...(token ? { 'X-API-KEY': token } : {}) };
         let payload: any = null;
 
-        // For existing albums, prefer photobook-scoped covers
-        const res = await api.get(`/api/photobooks/${photobookId}/covers`, { headers }).catch(() => null);
+        const res = await api.get(`/api/photobooks/${loadId}/covers`, { headers }).catch(() => null);
         if (res?.data?.frontCover || res?.data?.backCover) payload = res.data;
+
+        if (cancelled || photobookIdRef.current !== loadId) return;
 
         if (payload) {
           const { frontCover, backCover } = payload;
@@ -1300,13 +1318,17 @@ const PhotoThemeCategoryPage: React.FC = () => {
       } catch (error: any) {
         console.error('Failed to load saved covers:', error);
       } finally {
-        setIsLoadingCovers(false);
+        // Avoid clearing spinner for a newer in-flight load, or leaving it stuck when superseded
+        if (photobookIdRef.current === loadId) setIsLoadingCovers(false);
       }
     };
 
     loadSavedCovers();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, photobookId, activeTemplateId, mapApiSideToEditableState]);
+  }, [user?.id, photobookId, mapApiSideToEditableState]);
 
   const handleEditTheme = async (templateId: number) => {
     if (!user?.id) return;
@@ -1420,19 +1442,11 @@ const PhotoThemeCategoryPage: React.FC = () => {
 
   // ── Album management handlers ──
 
-  const handleContinueAlbum = async (album: PhotobookListItem) => {
+  /** Select an existing album; saved covers load via the photobookId effect only (avoids duplicate requests and races with "Create new"). */
+  const handleContinueAlbum = (album: PhotobookListItem) => {
     setPhotobookId(album.id);
     setActiveTemplateId(album.templateId);
     localStorage.setItem(PHOTOBOOK_KEY, JSON.stringify({ templateId: album.templateId, photobookId: album.id }));
-    setIsLoadingCovers(true);
-    try {
-      const token = getStoredToken();
-      const headers = { ...(token ? { 'X-API-KEY': token } : {}) };
-      const res = await api.get(`/api/photobooks/${album.id}/covers`, { headers });
-      if (res.data?.frontCover) setCoverPage(await mapApiSideToEditableState(res.data.frontCover, 'cover'));
-      if (res.data?.backCover) setLastPage(await mapApiSideToEditableState(res.data.backCover, 'last'));
-    } catch { /* covers may not exist yet */ }
-    finally { setIsLoadingCovers(false); }
   };
 
   const handleDeleteAlbum = async (albumId: number) => {
@@ -1454,7 +1468,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
 
   const handleCreateNewAlbum = () => {
     setPhotobookId(null);
-    // Clear to a completely blank state for a fresh album
+    // Clear to a completely blank state for a fresh album (edit flows must not leave stale cover loads applying)
     setCoverPage({ ...defaultPageState });
     setLastPage({ ...defaultPageState });
     localStorage.removeItem(PHOTOBOOK_KEY);
