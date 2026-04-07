@@ -19,7 +19,15 @@ import imageService from '../services/imageService';
 import { getStoredToken } from '../utils/authUtils';
 import { FileVaultImagePicker } from '../components/PhotoBook/FileVaultImagePicker';
 
-const API_BASE = process.env.REACT_APP_API_URL || '';
+/** Same host as `api` — `<img src>` must be absolute when the SPA is not served from the API origin. */
+function getApiBaseForAssets(): string {
+  const env = (process.env.REACT_APP_API_URL || '').trim().replace(/\/+$/, '');
+  if (env) return env;
+  const ax = api.defaults.baseURL;
+  if (typeof ax === 'string' && ax.trim()) return ax.replace(/\/+$/, '');
+  if (typeof window !== 'undefined') return window.location.origin;
+  return '';
+}
 
 /** `<img src>` cannot send Authorization; append token for authenticated preview (same as PhotoBook hub). */
 function appendPreviewToken(url: string): string {
@@ -32,7 +40,8 @@ function appendPreviewToken(url: string): string {
 
 /** Build a reliable preview URL from an image ID */
 function buildPreviewUrl(imageId: number): string {
-  return appendPreviewToken(`${API_BASE}/api/images/${imageId}/preview`);
+  const base = getApiBaseForAssets();
+  return appendPreviewToken(`${base}/api/images/${imageId}/preview`);
 }
 
 function resolveBackendImageUrl(url: string | undefined | null): string | undefined {
@@ -41,8 +50,9 @@ function resolveBackendImageUrl(url: string | undefined | null): string | undefi
   const idMatch = url.match(/\/api\/images\/(\d+)\/(preview|download|thumbnail)/i);
   if (idMatch) return buildPreviewUrl(Number(idMatch[1]));
   if (url.startsWith('http://') || url.startsWith('https://')) return appendPreviewToken(url);
+  const base = getApiBaseForAssets();
   const path = url.startsWith('/') ? url : `/${url}`;
-  return appendPreviewToken(`${API_BASE}${path}`);
+  return appendPreviewToken(`${base}${path}`);
 }
 
 type PageKind = 'cover' | 'last';
@@ -82,6 +92,15 @@ export type EditablePageState = {
     logoPositionX?: number;
     logoPositionY?: number;
     logoSize?: number;
+    /** First flip side: text on glass / gradient (not stored on server — see localStorage). */
+    textLeafBgMode?: 'gradient' | 'image';
+    textLeafBgGradient?: string;
+    textLeafBgImageUrl?: string;
+    textLeafBgImageId?: number;
+    textPanelBlurPx?: number;
+    /** 0–100 glass fill opacity (over blur) */
+    textPanelGlassOpacity?: number;
+    textPanelGlassColor?: string;
   };
 };
 
@@ -131,6 +150,164 @@ type ApiCoverRecord = {
   backCover: ApiCoverSide;
 };
 
+const COVER_LEAF_EXTRAS_KEY = (photobookId: number) => `filevault_cover_leaf_v1_${photobookId}`;
+
+type CoverLeafExtrasBlob = {
+  front?: Partial<NonNullable<EditablePageState['style']>>;
+  back?: Partial<NonNullable<EditablePageState['style']>>;
+};
+
+function loadCoverLeafExtras(photobookId: number | null): CoverLeafExtrasBlob {
+  if (!photobookId) return {};
+  try {
+    const raw = localStorage.getItem(COVER_LEAF_EXTRAS_KEY(photobookId));
+    if (!raw) return {};
+    return JSON.parse(raw) as CoverLeafExtrasBlob;
+  } catch {
+    return {};
+  }
+}
+
+function saveCoverLeafExtras(
+  photobookId: number,
+  front: EditablePageState['style'],
+  back: EditablePageState['style']
+) {
+  try {
+    localStorage.setItem(
+      COVER_LEAF_EXTRAS_KEY(photobookId),
+      JSON.stringify({ front: pickLeafStyleForStorage(front), back: pickLeafStyleForStorage(back) })
+    );
+  } catch {
+    /* ignore quota */
+  }
+}
+
+function pickLeafStyleForStorage(style: EditablePageState['style'] | undefined): Partial<NonNullable<EditablePageState['style']>> {
+  if (!style) return {};
+  const {
+    textLeafBgMode,
+    textLeafBgGradient,
+    textLeafBgImageUrl,
+    textLeafBgImageId,
+    textPanelBlurPx,
+    textPanelGlassOpacity,
+    textPanelGlassColor,
+  } = style;
+  return {
+    ...(textLeafBgMode != null ? { textLeafBgMode } : {}),
+    ...(textLeafBgGradient != null ? { textLeafBgGradient } : {}),
+    ...(textLeafBgImageUrl != null ? { textLeafBgImageUrl } : {}),
+    ...(textLeafBgImageId != null ? { textLeafBgImageId } : {}),
+    ...(textPanelBlurPx != null ? { textPanelBlurPx } : {}),
+    ...(textPanelGlassOpacity != null ? { textPanelGlassOpacity } : {}),
+    ...(textPanelGlassColor != null ? { textPanelGlassColor } : {}),
+  };
+}
+
+function mergeLeafExtrasIntoPage(
+  page: EditablePageState,
+  extras: Partial<NonNullable<EditablePageState['style']>> | undefined
+): EditablePageState {
+  if (!extras || Object.keys(extras).length === 0) return page;
+  return { ...page, style: { ...page.style, ...extras } };
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '').slice(0, 6);
+  if (h.length !== 6) return `rgba(255,255,255,${alpha})`;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function isApiCoverSideEmpty(side: ApiCoverSide | undefined | null): boolean {
+  if (!side) return true;
+  const h = (side.headline || '').trim();
+  const s = (side.subheadline || '').trim();
+  const d = (side.description || '').trim();
+  const imgId = side.imageId != null && Number(side.imageId) > 0;
+  const url = typeof side.imageUrl === 'string' && side.imageUrl.length > 3;
+  return !h && !s && !d && !imgId && !url;
+}
+
+function normalizeLogoPosition(
+  p?: string | null
+): 'top-left' | 'top-right' | 'top-center' | 'bottom-center' | undefined {
+  if (!p) return undefined;
+  const u = String(p).toUpperCase().replace(/-/g, '_');
+  if (u.includes('TOP') && u.includes('CENTER')) return 'top-center';
+  if (u.includes('TOP') && u.includes('RIGHT')) return 'top-right';
+  if (u.includes('BOTTOM')) return 'bottom-center';
+  if (u.includes('TOP') && u.includes('LEFT')) return 'top-left';
+  return undefined;
+}
+
+function getLogoPresetCoords(pos?: 'top-left' | 'top-right' | 'top-center' | 'bottom-center') {
+  if (pos === 'top-right') return { x: 88, y: 12 };
+  if (pos === 'top-center') return { x: 50, y: 12 };
+  if (pos === 'bottom-center') return { x: 50, y: 88 };
+  return { x: 12, y: 12 };
+}
+
+/** Full CSS stacks saved in state / API; dropdown uses preset keys — keep in sync with PageEditorCard `<option>` list. */
+type FontFamilyPreset =
+  | 'system'
+  | 'sans'
+  | 'serif'
+  | 'mono'
+  | 'rounded'
+  | 'display'
+  | 'elegant'
+  | 'script'
+  | 'slab';
+
+const FONT_FAMILY_PRESETS: Record<Exclude<FontFamilyPreset, 'system'>, string> = {
+  sans: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  serif: 'Georgia, Cambria, "Times New Roman", serif',
+  mono: '"SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+  rounded: '"Nunito", "Segoe UI", "Helvetica Neue", Arial, sans-serif',
+  display: '"Oswald", "Arial Narrow", "Franklin Gothic Medium", "Helvetica Neue", sans-serif',
+  elegant: '"Cormorant Garamond", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif',
+  script: '"Brush Script MT", "Segoe Script", "Lucida Handwriting", "Apple Chancery", cursive',
+  slab: 'Rockwell, "Courier New", "Courier Bold", "Rockwell Nova", serif',
+};
+
+const FONT_PRESET_ORDER: Exclude<FontFamilyPreset, 'system'>[] = [
+  'sans',
+  'serif',
+  'mono',
+  'rounded',
+  'display',
+  'elegant',
+  'script',
+  'slab',
+];
+
+function fontFamilyStoredToPreset(stored: string | undefined): FontFamilyPreset {
+  if (stored == null || String(stored).trim() === '') return 'system';
+  const s = String(stored).trim();
+  for (const key of FONT_PRESET_ORDER) {
+    if (s === FONT_FAMILY_PRESETS[key]) return key;
+  }
+  const lower = s.toLowerCase();
+  if (lower.includes('brush script') || lower.includes('chancery') || (lower.includes('script') && !lower.includes('description'))) return 'script';
+  if (lower.includes('oswald') || lower.includes('impact') || lower.includes('arial narrow')) return 'display';
+  if (lower.includes('cormorant') || lower.includes('garamond') || lower.includes('palatino') || lower.includes('book antiqua')) return 'elegant';
+  if (lower.includes('nunito') || lower.includes('rounded')) return 'rounded';
+  if (lower.includes('rockwell') || lower.includes('slab')) return 'slab';
+  if (lower.includes('georgia') || lower.includes('times new roman') || lower.includes('cambria')) return 'serif';
+  if (lower.includes('courier') || lower.includes('consolas') || /\bmono\b/i.test(s)) return 'mono';
+  if (lower.includes('system-ui') || lower.includes('segoe ui') || lower.includes('apple-system')) return 'sans';
+  return 'sans';
+}
+
+function fontPresetToStored(preset: FontFamilyPreset): string | undefined {
+  if (preset === 'system') return undefined;
+  return FONT_FAMILY_PRESETS[preset];
+}
+
 const defaultPageState: EditablePageState = {
   headline: '',
   subheadline: '',
@@ -158,7 +335,9 @@ const PageEditorCard: React.FC<{
   const hint = isCover ? t('hintFrontCover') : t('hintBackCover');
   const [showAlbumPicker, setShowAlbumPicker] = React.useState(false);
   const [showLogoPicker, setShowLogoPicker] = React.useState(false);
-  type Section = 'text' | 'effects' | 'extras';
+  const [showTextLeafBgPicker, setShowTextLeafBgPicker] = React.useState(false);
+  const [previewTab, setPreviewTab] = React.useState<'text' | 'photo'>('text');
+  type Section = 'text' | 'textLeaf' | 'effects' | 'extras';
   const [openSection, setOpenSection] = React.useState<Section | null>(null);
   const toggle = (s: Section) => setOpenSection((v) => (v === s ? null : s));
 
@@ -202,6 +381,16 @@ const PageEditorCard: React.FC<{
     };
   }, [logoDrag]);
 
+  const defaultTextLeafGradient = isCover
+    ? 'linear-gradient(145deg, #0f172a 0%, #312e81 45%, #5b21b6 100%)'
+    : 'linear-gradient(145deg, #1c1917 0%, #7c2d12 48%, #9a3412 100%)';
+  const textLeafBgMode = state.style?.textLeafBgMode ?? 'gradient';
+  const textLeafBgUrl = state.style?.textLeafBgImageUrl;
+  const textPanelBlurPx = state.style?.textPanelBlurPx ?? 20;
+  const textPanelGlassOpacity = (state.style?.textPanelGlassOpacity ?? 35) / 100;
+  const textPanelGlassColor = state.style?.textPanelGlassColor ?? '#ffffff';
+  const textLeafGlassBg = hexToRgba(textPanelGlassColor, textPanelGlassOpacity);
+
   return (
     <>
     <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-gradient-to-b from-white to-slate-50/50 p-6 shadow-[0_0_0_1px_rgba(148,163,184,0.06),0_20px_50px_-12px_rgba(15,23,42,0.12),0_0_80px_-20px_rgba(99,102,241,0.15)] backdrop-blur-sm">
@@ -236,153 +425,217 @@ const PageEditorCard: React.FC<{
         </div>
       </div>
 
-      {/* Preview on top, settings below so image shows properly */}
+      {/* Preview: tab between text leaf (glass) and photo-only leaf (flip book) */}
       <div className="mt-5 flex flex-col gap-6">
-        <div className="flex justify-center">
+        <div className="flex flex-col items-center gap-3 w-full">
+          <div className="inline-flex rounded-full border border-slate-200/90 bg-white/95 p-0.5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setPreviewTab('text')}
+              className={`rounded-full px-3.5 py-1.5 text-[11px] font-bold transition-all ${
+                previewTab === 'text'
+                  ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-md'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {t('previewTextSide')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreviewTab('photo')}
+              className={`rounded-full px-3.5 py-1.5 text-[11px] font-bold transition-all ${
+                previewTab === 'photo'
+                  ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-md'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {t('previewPhotoSide')}
+            </button>
+          </div>
+          <p className="text-[10px] text-slate-500 text-center max-w-sm leading-relaxed">{t('previewTabHint')}</p>
+
           <div
             ref={previewRef}
             className={`relative w-full max-w-sm aspect-[3/4] rounded-2xl overflow-hidden flex items-center justify-center transition-all duration-500 ring-2 ring-slate-200/80 ring-offset-2 ring-offset-slate-50 shadow-[0_8px_30px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 ${state.style?.subtleAnimation ? 'cover-fade-in' : ''} ${state.style?.darkModeCover ? 'brightness-90' : ''}`}
-          style={state.style?.vignette ? { boxShadow: 'inset 0 0 80px rgba(0,0,0,0.35), 0 8px 30px rgba(15,23,42,0.12)' } : undefined}
-        >
-          {state.imageDataUrl ? (
-            <img
-              src={state.imageDataUrl}
-              alt={`${title} preview`}
-              role="button"
-              title={t('clickToZoom')}
-              className={`w-full h-full object-cover ${state.style?.blurBackground ? 'blur-sm' : ''} cursor-zoom-in`}
-              style={{
-                transform: `scale(${state.style?.imageScale ?? 1})`,
-                transformOrigin: 'center center',
-              }}
-              onClick={() => {
-                const next = Math.min(1.6, (state.style?.imageScale ?? 1) + 0.15);
-                onChange({ ...state, style: { ...state.style, imageScale: next } });
-              }}
-            />
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-3 px-4 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-200/90 to-slate-300/80 flex items-center justify-center shadow-inner border border-white/50">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('preview')}</span>
-              </div>
-              <span className="text-[11px] leading-snug text-slate-500 font-medium">
-                {t('previewEmpty')}
-              </span>
-            </div>
-          )}
-          {/* Text overlay with adjustable font & position */}
-          {(state.headline || state.subheadline) && (
-            <div
-              className={`absolute inset-0 flex px-4 py-4 transition-all duration-200 ${
-                (state.style?.overlayOpacity != null || state.style?.overlayColor || state.style?.overlayGradientDirection)
-                  ? ''
-                  : 'bg-gradient-to-t from-black/75 via-black/15 to-transparent'
-              } ${
-                state.style?.verticalAlign === 'top'
-                  ? 'items-start justify-start'
-                  : state.style?.verticalAlign === 'center'
-                  ? 'items-center justify-center'
-                  : 'items-end justify-end'
-              }`}
-              style={
-                (state.style?.overlayOpacity != null || state.style?.overlayColor)
-                  ? {
-                      background:
-                        state.style?.overlayGradientDirection === 'radial'
-                          ? `radial-gradient(circle, ${state.style?.overlayColor ?? '#000000'}${Math.round(((state.style?.overlayOpacity ?? 50) / 100) * 255).toString(16).padStart(2, '0')} 0%, transparent 70%)`
-                          : state.style?.overlayGradientDirection === 'bottom-top'
-                          ? `linear-gradient(to top, ${state.style?.overlayColor ?? '#000000'}${Math.round(((state.style?.overlayOpacity ?? 50) / 100) * 255).toString(16).padStart(2, '0')}, transparent 40%)`
-                          : `linear-gradient(to bottom, ${state.style?.overlayColor ?? '#000000'}${Math.round(((state.style?.overlayOpacity ?? 50) / 100) * 255).toString(16).padStart(2, '0')}, transparent 40%)`,
-                    }
-                  : undefined
-              }
-            >
-              <div
-                className={`w-full max-w-full ${
-                  state.style?.align === 'center'
-                    ? 'text-center'
-                    : state.style?.align === 'right'
-                    ? 'text-right'
-                    : 'text-left'
-                }`}
-              >
-                {state.headline && (
+            style={state.style?.vignette && previewTab === 'photo' ? { boxShadow: 'inset 0 0 80px rgba(0,0,0,0.35), 0 8px 30px rgba(15,23,42,0.12)' } : undefined}
+          >
+            {previewTab === 'text' ? (
+              <>
+                <div
+                  className="absolute inset-0"
+                  style={
+                    textLeafBgMode === 'image' && textLeafBgUrl
+                      ? {
+                          backgroundImage: `url(${textLeafBgUrl})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                        }
+                      : { background: state.style?.textLeafBgGradient || defaultTextLeafGradient }
+                  }
+                />
+                <div className="absolute inset-0 bg-black/15 pointer-events-none" />
+                <div
+                  className={`absolute inset-0 flex px-4 py-5 z-[1] ${
+                    state.style?.verticalAlign === 'top'
+                      ? 'items-start'
+                      : state.style?.verticalAlign === 'center'
+                      ? 'items-center'
+                      : 'items-end'
+                  }`}
+                >
                   <div
-                    className="truncate"
+                    className={`w-full max-w-[95%] mx-auto rounded-2xl border border-white/25 px-4 py-4 shadow-lg ${
+                      state.style?.align === 'center'
+                        ? 'text-center'
+                        : state.style?.align === 'right'
+                        ? 'text-right ml-auto'
+                        : 'text-left'
+                    }`}
                     style={{
-                      fontSize: state.style?.fontSize ?? 20,
-                      fontWeight: state.style?.fontWeight ?? 700,
-                      color: state.style?.headlineColor ?? '#ffffff',
-                      fontFamily: state.style?.fontFamily,
-                      letterSpacing: state.style?.letterSpacing ?? 0,
-                      lineHeight: state.style?.lineHeight ?? 1.2,
-                      textShadow: state.style?.textShadow !== false ? '0 4px 8px rgba(0,0,0,0.45)' : 'none',
+                      backdropFilter: `saturate(1.2) blur(${textPanelBlurPx}px)`,
+                      WebkitBackdropFilter: `saturate(1.2) blur(${textPanelBlurPx}px)`,
+                      background: textLeafGlassBg,
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35)',
                     }}
                   >
-                    {state.headline}
+                    <div
+                      className="line-clamp-3"
+                      style={{
+                        fontSize: state.style?.fontSize ?? 20,
+                        fontWeight: state.style?.fontWeight ?? 700,
+                        color: state.style?.headlineColor ?? '#0f172a',
+                        fontFamily: state.style?.fontFamily,
+                        letterSpacing: state.style?.letterSpacing ?? 0,
+                        lineHeight: state.style?.lineHeight ?? 1.2,
+                        textShadow: state.style?.textShadow !== false ? '0 1px 2px rgba(255,255,255,0.4)' : 'none',
+                      }}
+                    >
+                      {state.headline || t('previewPlaceholderTitle')}
+                    </div>
+                    {state.style?.dividerEnabled && (
+                      <div
+                        className="mt-2 h-px"
+                        style={{
+                          width: `${state.style?.dividerWidth ?? 60}%`,
+                          backgroundColor: state.style?.dividerColor ?? '#64748b',
+                          marginLeft: state.style?.align === 'center' || state.style?.align === 'right' ? 'auto' : 0,
+                          marginRight: state.style?.align === 'center' || state.style?.align === 'left' ? 'auto' : 0,
+                        }}
+                      />
+                    )}
+                    <div
+                      className="line-clamp-2 mt-1"
+                      style={{
+                        fontSize: (state.style?.fontSize ?? 20) - 4,
+                        fontWeight: (state.style?.fontWeight ?? 700) - 200 || 400,
+                        color: state.style?.subheadlineColor ?? '#334155',
+                        fontFamily: state.style?.fontFamily,
+                        letterSpacing: state.style?.letterSpacing ?? 0,
+                        lineHeight: state.style?.lineHeight ?? 1.2,
+                      }}
+                    >
+                      {state.subheadline || t('previewPlaceholderSubtitle')}
+                    </div>
+                    {state.description ? (
+                      <p
+                        className="mt-2 text-[11px] leading-relaxed text-slate-700/90 line-clamp-4 whitespace-pre-wrap"
+                        style={{ fontFamily: state.style?.fontFamily }}
+                      >
+                        {state.description}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+                {state.style?.logoDataUrl && (
+                  <div
+                    className="absolute z-10 select-none"
+                    style={{
+                      left: `${logoX}%`,
+                      top: `${logoY}%`,
+                      transform: 'translate(-50%, -50%)',
+                      width: state.style?.logoSize ?? 60,
+                      height: state.style?.logoSize ?? 60,
+                      cursor: logoDrag ? 'grabbing' : 'grab',
+                    }}
+                    onMouseDown={(e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
+                      setLogoDrag({
+                        startX: e.clientX,
+                        startY: e.clientY,
+                        startPX: logoX,
+                        startPY: logoY,
+                      });
+                    }}
+                  >
+                    <img
+                      src={state.style.logoDataUrl}
+                      alt={t('logoAlt')}
+                      className="w-full h-full object-contain pointer-events-none drop-shadow-md"
+                      draggable={false}
+                    />
                   </div>
                 )}
-                {state.style?.dividerEnabled && state.headline && (
-                  <div
-                    className="mt-1 h-px"
+              </>
+            ) : (
+              <>
+                {state.imageDataUrl ? (
+                  <img
+                    src={state.imageDataUrl}
+                    alt={`${title} preview`}
+                    role="button"
+                    title={t('clickToZoom')}
+                    className={`absolute inset-0 w-full h-full object-cover ${state.style?.blurBackground ? 'blur-sm' : ''} cursor-zoom-in`}
                     style={{
-                      width: `${state.style?.dividerWidth ?? 60}%`,
-                      backgroundColor: state.style?.dividerColor ?? '#ffffff',
-                      marginLeft: (state.style?.align === 'center' || state.style?.align === 'right') ? 'auto' : 0,
-                      marginRight: (state.style?.align === 'center' || state.style?.align === 'left') ? 'auto' : 0,
+                      transform: `scale(${state.style?.imageScale ?? 1})`,
+                      transformOrigin: 'center center',
+                    }}
+                    onClick={() => {
+                      const next = Math.min(1.6, (state.style?.imageScale ?? 1) + 0.15);
+                      onChange({ ...state, style: { ...state.style, imageScale: next } });
                     }}
                   />
-                )}
-                {state.subheadline && (
-                  <div
-                    className="truncate mt-1"
-                    style={{
-                      fontSize: (state.style?.fontSize ?? 20) - 4,
-                      fontWeight: (state.style?.fontWeight ?? 700) - 200 || 400,
-                      color: state.style?.subheadlineColor ?? '#e5e7eb',
-                      fontFamily: state.style?.fontFamily,
-                      letterSpacing: state.style?.letterSpacing ?? 0,
-                      lineHeight: state.style?.lineHeight ?? 1.2,
-                      textShadow: state.style?.textShadow !== false ? '0 3px 6px rgba(0,0,0,0.4)' : 'none',
-                    }}
-                  >
-                    {state.subheadline}
+                ) : (
+                  <div className="flex flex-col items-center justify-center gap-3 px-4 text-center">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-200/90 to-slate-300/80 flex items-center justify-center shadow-inner border border-white/50">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{t('preview')}</span>
+                    </div>
+                    <span className="text-[11px] leading-snug text-slate-500 font-medium">{t('previewPhotoEmpty')}</span>
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-          {state.style?.logoDataUrl && (
-            <div
-              className="absolute z-10 select-none"
-              style={{
-                left: `${logoX}%`,
-                top: `${logoY}%`,
-                transform: 'translate(-50%, -50%)',
-                width: state.style?.logoSize ?? 60,
-                height: state.style?.logoSize ?? 60,
-                cursor: logoDrag ? 'grabbing' : 'grab',
-              }}
-              onMouseDown={(e) => {
-                if (e.button !== 0) return;
-                e.preventDefault();
-                setLogoDrag({
-                  startX: e.clientX,
-                  startY: e.clientY,
-                  startPX: logoX,
-                  startPY: logoY,
-                });
-              }}
-            >
-              <img
-                src={state.style.logoDataUrl}
-                alt={t('logoAlt')}
-                className="w-full h-full object-contain pointer-events-none"
-                draggable={false}
-              />
-            </div>
-          )}
-        </div>
+                {state.style?.logoDataUrl && (
+                  <div
+                    className="absolute z-10 select-none"
+                    style={{
+                      left: `${logoX}%`,
+                      top: `${logoY}%`,
+                      transform: 'translate(-50%, -50%)',
+                      width: state.style?.logoSize ?? 60,
+                      height: state.style?.logoSize ?? 60,
+                      cursor: logoDrag ? 'grabbing' : 'grab',
+                    }}
+                    onMouseDown={(e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
+                      setLogoDrag({
+                        startX: e.clientX,
+                        startY: e.clientY,
+                        startPX: logoX,
+                        startPY: logoY,
+                      });
+                    }}
+                  >
+                    <img
+                      src={state.style.logoDataUrl}
+                      alt={t('logoAlt')}
+                      className="w-full h-full object-contain pointer-events-none"
+                      draggable={false}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -562,20 +815,13 @@ const PageEditorCard: React.FC<{
                 </label>
                 <select
                   className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
-                  value={state.style?.fontFamily ?? 'system'}
+                  value={fontFamilyStoredToPreset(state.style?.fontFamily)}
                   onChange={(e) =>
                     onChange({
                       ...state,
                       style: {
                         ...state.style,
-                        fontFamily:
-                          e.target.value === 'system'
-                            ? undefined
-                            : e.target.value === 'serif'
-                            ? 'Georgia, Cambria, "Times New Roman", serif'
-                            : e.target.value === 'mono'
-                            ? '"SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
-                            : 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                        fontFamily: fontPresetToStored(e.target.value as FontFamilyPreset),
                       },
                     })
                   }
@@ -584,6 +830,11 @@ const PageEditorCard: React.FC<{
                   <option value="sans">{t('fontSans')}</option>
                   <option value="serif">{t('fontSerif')}</option>
                   <option value="mono">{t('fontMono')}</option>
+                  <option value="rounded">{t('fontRounded')}</option>
+                  <option value="display">{t('fontDisplay')}</option>
+                  <option value="elegant">{t('fontElegant')}</option>
+                  <option value="script">{t('fontScript')}</option>
+                  <option value="slab">{t('fontSlab')}</option>
                 </select>
               </div>
               <div>
@@ -724,6 +975,136 @@ const PageEditorCard: React.FC<{
 
                 <button
                   type="button"
+                  onClick={() => toggle('textLeaf')}
+                  className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-gradient-to-r hover:from-cyan-50/50 hover:to-indigo-50/50 transition-all"
+                >
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">{t('textLeafSection')}</span>
+                  <span className="text-slate-400 text-[10px]">{openSection === 'textLeaf' ? '▼' : '▶'}</span>
+                </button>
+                {openSection === 'textLeaf' && (
+                  <div className="p-4 pt-2 border-b border-slate-100 bg-gradient-to-b from-slate-50/80 to-white space-y-4">
+                    <p className="text-[11px] text-slate-600 leading-relaxed">{t('textLeafSectionHint')}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('textLeafBgMode')}</label>
+                        <select
+                          className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm"
+                          value={textLeafBgMode}
+                          onChange={(e) =>
+                            onChange({
+                              ...state,
+                              style: {
+                                ...state.style,
+                                textLeafBgMode: e.target.value as 'gradient' | 'image',
+                              },
+                            })
+                          }
+                        >
+                          <option value="gradient">{t('textLeafBgGradient')}</option>
+                          <option value="image">{t('textLeafBgImage')}</option>
+                        </select>
+                      </div>
+                      <div className="flex flex-col justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowTextLeafBgPicker(true)}
+                          disabled={textLeafBgMode !== 'image'}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-gradient-to-r from-cyan-50 to-indigo-50 px-3 py-2 text-[11px] font-bold text-cyan-800 hover:from-cyan-100 hover:to-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <FaImages className="h-3.5 w-3.5 shrink-0" />
+                          {t('textLeafPickBgImage')}
+                        </button>
+                        {textLeafBgMode === 'image' && textLeafBgUrl && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onChange({
+                                ...state,
+                                style: {
+                                  ...state.style,
+                                  textLeafBgImageUrl: undefined,
+                                  textLeafBgImageId: undefined,
+                                  textLeafBgMode: 'gradient',
+                                },
+                              })
+                            }
+                            className="text-[10px] font-semibold text-slate-500 hover:text-rose-600"
+                          >
+                            {t('textLeafClearBgImage')}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {textLeafBgMode === 'gradient' && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('textLeafGradientCss')}</label>
+                        <textarea
+                          rows={2}
+                          className="w-full rounded-xl border border-slate-200/80 px-3 py-2 text-[11px] font-mono bg-white/90"
+                          placeholder={defaultTextLeafGradient}
+                          value={state.style?.textLeafBgGradient ?? ''}
+                          onChange={(e) =>
+                            onChange({
+                              ...state,
+                              style: { ...state.style, textLeafBgGradient: e.target.value || undefined },
+                            })
+                          }
+                        />
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('textPanelBlur')}</label>
+                        <input
+                          type="range"
+                          min={4}
+                          max={40}
+                          value={textPanelBlurPx}
+                          onChange={(e) =>
+                            onChange({
+                              ...state,
+                              style: { ...state.style, textPanelBlurPx: Number(e.target.value) },
+                            })
+                          }
+                          className="w-full accent-cyan-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('textPanelGlassOpacity')}</label>
+                        <input
+                          type="range"
+                          min={5}
+                          max={95}
+                          value={state.style?.textPanelGlassOpacity ?? 35}
+                          onChange={(e) =>
+                            onChange({
+                              ...state,
+                              style: { ...state.style, textPanelGlassOpacity: Number(e.target.value) },
+                            })
+                          }
+                          className="w-full accent-cyan-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">{t('textPanelGlassTint')}</label>
+                        <input
+                          type="color"
+                          className="w-full h-8 rounded-xl border border-slate-200 p-0 bg-white"
+                          value={textPanelGlassColor}
+                          onChange={(e) =>
+                            onChange({
+                              ...state,
+                              style: { ...state.style, textPanelGlassColor: e.target.value },
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="button"
                   onClick={() => toggle('effects')}
                   className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-gradient-to-r hover:from-cyan-50/50 hover:to-indigo-50/50 transition-all"
                 >
@@ -858,8 +1239,8 @@ const PageEditorCard: React.FC<{
                               className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
                               value={state.style?.logoPosition ?? 'top-left'}
                               onChange={(e) => {
-                                const pos = e.target.value as 'top-left' | 'top-right' | 'bottom-center';
-                                const preset = pos === 'top-right' ? { x: 88, y: 12 } : pos === 'bottom-center' ? { x: 50, y: 88 } : { x: 12, y: 12 };
+                                const pos = e.target.value as 'top-left' | 'top-right' | 'top-center' | 'bottom-center';
+                                const preset = getLogoPreset(pos);
                                 onChange({
                                   ...state,
                                   style: {
@@ -872,6 +1253,7 @@ const PageEditorCard: React.FC<{
                               }}
                             >
                               <option value="top-left">{t('logoTopLeft')}</option>
+                              <option value="top-center">{t('logoTopCenter')}</option>
                               <option value="top-right">{t('logoTopRight')}</option>
                               <option value="bottom-center">{t('logoBottomCenter')}</option>
                             </select>
@@ -998,6 +1380,51 @@ const PageEditorCard: React.FC<{
                   },
                 });
                 setShowLogoPicker(false);
+              }}
+            />
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {showTextLeafBgPicker && createPortal(
+      <div
+        className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+        onClick={() => setShowTextLeafBgPicker(false)}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div
+          className="bg-white rounded-2xl shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_25px_60px_-12px_rgba(15,23,42,0.25)] max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col border border-slate-200/80"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-50/80">
+            <h3 className="text-sm font-bold text-slate-800">{t('textLeafPickBgTitle', { title })}</h3>
+            <button
+              type="button"
+              onClick={() => setShowTextLeafBgPicker(false)}
+              className="rounded-xl p-2 text-slate-500 hover:bg-cyan-50 hover:text-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
+              aria-label={t('close')}
+            >
+              <span className="text-xl leading-none">×</span>
+            </button>
+          </div>
+          <div className="p-4 overflow-y-auto flex-1 space-y-4">
+            <FileVaultImagePicker
+              filterImageIds={filterImageIds}
+              onPick={async (picked) => {
+                const imgUrl = picked.imageId ? buildPreviewUrl(picked.imageId) : picked.dataUrl;
+                onChange({
+                  ...state,
+                  style: {
+                    ...state.style,
+                    textLeafBgMode: 'image',
+                    textLeafBgImageUrl: imgUrl,
+                    textLeafBgImageId: picked.imageId,
+                  },
+                });
+                setShowTextLeafBgPicker(false);
               }}
             />
           </div>
@@ -1232,7 +1659,12 @@ const PhotoThemeCategoryPage: React.FC = () => {
           vignette: side.backgroundVignette,
           darkModeCover: side.backgroundDarkMode,
           subtleAnimation: side.backgroundAnimation,
-          logoPosition: (side.logoPosition as 'top-left' | 'top-right' | 'bottom-center') || undefined,
+          logoPosition: normalizeLogoPosition(side.logoPosition) ?? (side.logoPosition as
+            | 'top-left'
+            | 'top-right'
+            | 'top-center'
+            | 'bottom-center'
+            | undefined),
           logoSize: side.logoSize,
         },
       };
@@ -1252,6 +1684,11 @@ const PhotoThemeCategoryPage: React.FC = () => {
         mapped.style = { ...mapped.style, logoImageId: logoId, logoDataUrl: buildPreviewUrl(logoId) };
       } else if (side.logoImageUrl) {
         mapped.style = { ...mapped.style, logoDataUrl: resolveBackendImageUrl(side.logoImageUrl) };
+      }
+      const lp = normalizeLogoPosition(side.logoPosition) ?? mapped.style?.logoPosition;
+      if (lp && mapped.style && mapped.style.logoPositionX == null && mapped.style.logoPositionY == null) {
+        const pr = getLogoPresetCoords(lp);
+        mapped.style = { ...mapped.style, logoPosition: lp, logoPositionX: pr.x, logoPositionY: pr.y };
       }
       return mapped;
     },
@@ -1303,22 +1740,60 @@ const PhotoThemeCategoryPage: React.FC = () => {
       try {
         const token = getStoredToken();
         const headers = { ...(token ? { 'X-API-KEY': token } : {}) };
-        let payload: any = null;
+        let payload: { frontCover?: ApiCoverSide; backCover?: ApiCoverSide } | null = null;
 
         const res = await api.get(`/api/photobooks/${loadId}/covers`, { headers }).catch(() => null);
-        if (res?.data?.frontCover || res?.data?.backCover) payload = res.data;
+        if (res?.data && (res.data.frontCover || res.data.backCover)) {
+          payload = { frontCover: res.data.frontCover, backCover: res.data.backCover };
+        }
+        if (
+          payload &&
+          isApiCoverSideEmpty(payload.frontCover) &&
+          isApiCoverSideEmpty(payload.backCover)
+        ) {
+          payload = null;
+        }
+        if (!payload && user?.id && activeTemplateId) {
+          try {
+            const r2 = await api.get<ApiCoverRecord[]>('/api/covers', {
+              params: { userId: user.id, templateId: String(activeTemplateId) },
+              headers,
+            });
+            const rec = r2.data?.[0];
+            if (
+              rec &&
+              (!isApiCoverSideEmpty(rec.frontCover) || !isApiCoverSideEmpty(rec.backCover))
+            ) {
+              payload = { frontCover: rec.frontCover, backCover: rec.backCover };
+            }
+          } catch {
+            /* ignore */
+          }
+        }
 
         if (cancelled || photobookIdRef.current !== loadId) return;
 
+        const extras = loadCoverLeafExtras(loadId);
+
         if (payload) {
           const { frontCover, backCover } = payload;
-          if (frontCover) setCoverPage(await mapApiSideToEditableState(frontCover, 'cover'));
-          if (backCover) setLastPage(await mapApiSideToEditableState(backCover, 'last'));
+          if (frontCover) {
+            let mapped = await mapApiSideToEditableState(frontCover, 'cover');
+            mapped = mergeLeafExtrasIntoPage(mapped, extras.front);
+            setCoverPage(mapped);
+          }
+          if (backCover) {
+            let mapped = await mapApiSideToEditableState(backCover, 'last');
+            mapped = mergeLeafExtrasIntoPage(mapped, extras.back);
+            setLastPage(mapped);
+          }
+        } else if (extras.front || extras.back) {
+          if (extras.front) setCoverPage((prev) => mergeLeafExtrasIntoPage(prev, extras.front));
+          if (extras.back) setLastPage((prev) => mergeLeafExtrasIntoPage(prev, extras.back));
         }
       } catch (error: any) {
         console.error('Failed to load saved covers:', error);
       } finally {
-        // Avoid clearing spinner for a newer in-flight load, or leaving it stuck when superseded
         if (photobookIdRef.current === loadId) setIsLoadingCovers(false);
       }
     };
@@ -1328,7 +1803,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, photobookId, mapApiSideToEditableState]);
+  }, [user?.id, photobookId, activeTemplateId, mapApiSideToEditableState]);
 
   const handleEditTheme = async (templateId: number) => {
     if (!user?.id) return;
@@ -1462,6 +1937,11 @@ const PhotoThemeCategoryPage: React.FC = () => {
         setLastPage({ ...defaultPageState, headline: t('thankYou'), subheadline: t('gratefulSub') });
         localStorage.removeItem(PHOTOBOOK_KEY);
       }
+      try {
+        localStorage.removeItem(COVER_LEAF_EXTRAS_KEY(albumId));
+      } catch {
+        /* ignore */
+      }
     } catch { alert(t('deleteAlbumFailed')); }
     finally { setIsDeletingAlbum(null); }
   };
@@ -1516,12 +1996,46 @@ const PhotoThemeCategoryPage: React.FC = () => {
       const backCoverImageId = await resolveImageId(lastPage.imageDataUrl, lastPage.imageId);
       const frontLogoImageId = await resolveImageId(coverPage.style?.logoDataUrl, coverPage.style?.logoImageId);
       const backLogoImageId = await resolveImageId(lastPage.style?.logoDataUrl, lastPage.style?.logoImageId);
+      const frontTextLeafBgId = await resolveImageId(
+        coverPage.style?.textLeafBgImageUrl,
+        coverPage.style?.textLeafBgImageId
+      );
+      const backTextLeafBgId = await resolveImageId(
+        lastPage.style?.textLeafBgImageUrl,
+        lastPage.style?.textLeafBgImageId
+      );
 
-      const frontCover = mapPageStateToApiFormat(coverPage, {
+      const coverPageForExtras =
+        frontTextLeafBgId > 0
+          ? {
+              ...coverPage,
+              style: {
+                ...coverPage.style,
+                textLeafBgImageId: frontTextLeafBgId,
+                textLeafBgImageUrl: buildPreviewUrl(frontTextLeafBgId),
+              },
+            }
+          : coverPage;
+      const lastPageForExtras =
+        backTextLeafBgId > 0
+          ? {
+              ...lastPage,
+              style: {
+                ...lastPage.style,
+                textLeafBgImageId: backTextLeafBgId,
+                textLeafBgImageUrl: buildPreviewUrl(backTextLeafBgId),
+              },
+            }
+          : lastPage;
+      saveCoverLeafExtras(savedPhotobookId, coverPageForExtras.style, lastPageForExtras.style);
+      setCoverPage(coverPageForExtras);
+      setLastPage(lastPageForExtras);
+
+      const frontCover = mapPageStateToApiFormat(coverPageForExtras, {
         imageId: frontCoverImageId,
         logoImageId: frontLogoImageId,
       });
-      const backCover = mapPageStateToApiFormat(lastPage, {
+      const backCover = mapPageStateToApiFormat(lastPageForExtras, {
         imageId: backCoverImageId,
         logoImageId: backLogoImageId,
       });
@@ -1551,7 +2065,12 @@ const PhotoThemeCategoryPage: React.FC = () => {
 
       setTimeout(() => {
         navigate(`/photo-themes/${meta.id}/album`, {
-          state: { coverPage, lastPage, dbTemplateId: activeTemplateId, photobookId: savedPhotobookId },
+          state: {
+            coverPage: coverPageForExtras,
+            lastPage: lastPageForExtras,
+            dbTemplateId: activeTemplateId,
+            photobookId: savedPhotobookId,
+          },
         });
       }, 2000);
     } catch (error: any) {

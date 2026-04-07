@@ -167,6 +167,8 @@ type AlbumPage = {
   index: number;
   type: 'cover' | 'inner' | 'last';
   layoutName: string;
+  /** Flip-book preview only: split front cover into a text leaf then a photo leaf */
+  coverSplit?: 'text' | 'image';
 };
 
 type CropPos = { x: number; y: number };
@@ -1009,6 +1011,18 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     }));
   }, [basePages, pageCount]);
 
+  /** Flip modal: front cover becomes two pages (typography + full-bleed photo). Editor/PDF still use `albumPages`. */
+  const flipBookAlbumPages: AlbumPage[] = React.useMemo(() => {
+    if (!albumPages.length) return albumPages;
+    const [first, ...rest] = albumPages;
+    if (first.type !== 'cover') return albumPages;
+    return [
+      { ...first, coverSplit: 'text' },
+      { ...first, coverSplit: 'image' },
+      ...rest,
+    ];
+  }, [albumPages]);
+
   const [pageImages, setPageImages] = React.useState<Record<number, PageImageState>>({});
   const [pageLayouts, setPageLayouts] = React.useState<Record<number, string>>({});
   const [currentStep, setCurrentStep] = React.useState(0);
@@ -1035,6 +1049,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   const [isZoomed, setIsZoomed] = React.useState(false);
   const [flipBookPage, setFlipBookPage] = React.useState(0);
   const flipBookRef = React.useRef<any>(null);
+  /** After opening the modal, optionally jump to this page index (single-view → flip, or 0 on fresh open). */
+  const flipOpenTargetRef = React.useRef<number | null>(null);
   const stepperRef = React.useRef<HTMLDivElement>(null);
   const slotDndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   type BookOrientation = 'landscape' | 'portrait';
@@ -1525,6 +1541,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   };
 
   const handleOpenFlipBook = React.useCallback(() => {
+    flipOpenTargetRef.current = 0;
     setFlipBookPage(0);
     setShowFlipBook(true);
   }, []);
@@ -1548,6 +1565,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     const arrangement = getArrangementForLayoutId(layoutLabel);
     const isCover = page.type === 'cover';
     const isLast = page.type === 'last';
+    /** Flip book only: first leaf = title copy in a glass panel; second leaf = front photo only */
+    const coverTextOnly = isCover && page.coverSplit === 'text';
+    const coverImageOnly = isCover && page.coverSplit === 'image';
     const textState: EditablePageState | undefined = isCover
       ? (coverFromState ?? { headline: t('cover'), subheadline: '', description: '' } as EditablePageState)
       : isLast
@@ -1558,6 +1578,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     const coverOrLastUrl = (isCover && coverFromState?.imageDataUrl) || (isLast && lastFromState?.imageDataUrl) || '';
     const getSrc = (i: number) => urls[i] ?? urls[0] ?? st.imageDataUrl ?? (i === 0 ? coverOrLastUrl : '') ?? '';
     const hasImg = !!getSrc(0);
+    const showImageLayer = hasImg && !coverTextOnly;
     const hasOverlayCopy = !!(
       textState?.headline?.trim() ||
       textState?.subheadline?.trim() ||
@@ -1575,10 +1596,15 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         ? `linear-gradient(135deg, ${selectedTheme.colors[0]}, ${selectedTheme.colors[2]}, ${selectedTheme.colors[4]})`
         : 'linear-gradient(135deg, #fafafa, #f1f5f9)';
     const needsDarkCoverBg =
-      (isCover || isLast) && !hasImg && (hasOverlayCopy || showLogo);
-    const pageBg = needsDarkCoverBg
-      ? 'linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)'
-      : pageBgThemed;
+      !coverTextOnly &&
+      (isCover || isLast) &&
+      !hasImg &&
+      (hasOverlayCopy || showLogo);
+    const pageBg = coverTextOnly
+      ? 'linear-gradient(160deg, #0a0f1a 0%, #1e293b 42%, #312e81 88%, #0f172a 100%)'
+      : needsDarkCoverBg
+        ? 'linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)'
+        : pageBgThemed;
 
     const crops = st.cropPositions ?? {};
 
@@ -1612,7 +1638,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     };
 
     let imageContent: React.ReactNode = null;
-    if (hasImg) {
+    if (showImageLayer) {
       const geometry = LAYOUT_GEOMETRY[layoutLabel];
 
       // JSON-based layout engine when geometry is defined
@@ -1799,7 +1825,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     return (
       <div className="relative w-full h-full overflow-hidden" style={{ background: pageBg }}>
         {imageContent ?? (
-          (isCover || isLast) && needsDarkCoverBg ? null : (
+          coverTextOnly ? null : (isCover || isLast) && needsDarkCoverBg ? null : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
               <svg className="w-10 h-10 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
               <span className="text-xs text-white/25 font-medium tracking-wide">{t('addAPhoto')}</span>
@@ -1807,7 +1833,65 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           )
         )}
 
-        {textState && (isCover || isLast) && (hasImg || hasOverlayCopy || showLogo) && (
+        {coverTextOnly && textState && (
+          <div
+            className={`absolute inset-0 z-20 flex px-4 py-6 sm:px-8 ${
+              textState.style?.verticalAlign === 'top' ? 'items-start pt-8' :
+              textState.style?.verticalAlign === 'center' ? 'items-center' : 'items-end pb-10'
+            } justify-center`}
+          >
+            <div
+              className="w-full max-w-[min(92%,26rem)] rounded-2xl border border-white/25 bg-white/[0.07] backdrop-blur-2xl shadow-[0_28px_90px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] px-6 py-8 sm:px-8 sm:py-10"
+            >
+              {textState.style?.logoDataUrl && (textState.style.logoSize ?? 60) > 0 && (
+                <div className="flex justify-center mb-4">
+                  <img
+                    src={textState.style.logoDataUrl}
+                    alt=""
+                    className="rounded-xl shadow-lg object-contain"
+                    style={{
+                      width: `${Math.min(72, textState.style.logoSize ?? 56)}px`,
+                      height: `${Math.min(72, textState.style.logoSize ?? 56)}px`,
+                    }}
+                  />
+                </div>
+              )}
+              <div
+                className={
+                  textState.style?.align === 'center' ? 'text-center' :
+                  textState.style?.align === 'right' ? 'text-right' : 'text-left'
+                }
+              >
+                {textState.headline && (
+                  <div className="leading-tight" style={{
+                    fontSize: size === 'pdf' ? Math.min(40, (textState.style?.fontSize ?? 22) * 1.35) : Math.min(34, (textState.style?.fontSize ?? 22) * 1.15),
+                    fontWeight: textState.style?.fontWeight ?? 700,
+                    color: textState.style?.headlineColor ?? '#ffffff',
+                    fontFamily: textState.style?.fontFamily,
+                    textShadow: '0 2px 12px rgba(0,0,0,0.35)',
+                    letterSpacing: textState.style?.letterSpacing ? `${textState.style.letterSpacing}px` : undefined,
+                  }}>{textState.headline}</div>
+                )}
+                {textState.subheadline && (
+                  <div className="mt-2 leading-tight" style={{
+                    fontSize: size === 'pdf' ? Math.min(24, ((textState.style?.fontSize ?? 22) - 2) * 1.2) : Math.min(20, ((textState.style?.fontSize ?? 22) - 2) * 1.05),
+                    fontWeight: Math.max(400, (textState.style?.fontWeight ?? 700) - 150),
+                    color: textState.style?.subheadlineColor ?? '#e5e7eb',
+                    fontFamily: textState.style?.fontFamily,
+                    textShadow: '0 1px 8px rgba(0,0,0,0.35)',
+                  }}>{textState.subheadline}</div>
+                )}
+                {textState.description && (
+                  <p className="mt-4 text-[13px] sm:text-sm leading-relaxed text-white/85 max-w-none" style={{
+                    textAlign: (textState.style?.align as 'left' | 'center' | 'right') || 'left',
+                  }}>{textState.description}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!coverTextOnly && !coverImageOnly && textState && (isCover || isLast) && (hasImg || hasOverlayCopy || showLogo) && (
           <div
             className={`absolute inset-0 z-20 flex px-6 py-8 ${
               textState.style?.overlayOpacity != null ? '' : 'bg-gradient-to-t from-black/60 via-transparent to-transparent'
@@ -1878,7 +1962,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           );
         })()}
 
-        {textState?.style?.logoDataUrl && (textState.style.logoSize ?? 60) > 0 && (isCover || isLast) && (
+        {!coverTextOnly && textState?.style?.logoDataUrl && (textState.style.logoSize ?? 60) > 0 && (isCover || isLast) && !coverImageOnly && (
           <div className="absolute z-30" style={{
             top: textState.style.logoPosition?.includes('top') ? '12px' : undefined,
             bottom: textState.style.logoPosition?.includes('bottom') ? '12px' : undefined,
@@ -2443,6 +2527,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     const mode = location.state?.openPreview;
     if (!mode || !albumPages.length || isLoading) return;
     if (mode === 'flip') {
+      flipOpenTargetRef.current = 0;
+      setFlipBookPage(0);
       setShowFlipBook(true);
     } else if (mode === 'page') {
       setShowSinglePageView(true);
@@ -2452,6 +2538,25 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     navigate(pathname, { replace: true, state: { ...location.state, openPreview: undefined } });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [albumPages.length, isLoading, location.state?.openPreview]);
+
+  // After flip modal opens, apply start page (library uses PageFlip.flip(index) once PageFlip is ready).
+  React.useEffect(() => {
+    if (!showFlipBook) return;
+    const target = flipOpenTargetRef.current;
+    if (target == null) return;
+    flipOpenTargetRef.current = null;
+    const id = window.setTimeout(() => {
+      try {
+        const pf = flipBookRef.current?.pageFlip?.();
+        if (pf && typeof pf.flip === 'function' && target >= 0) {
+          pf.flip(target);
+        }
+      } catch {
+        /* ignore */
+      }
+    }, 120);
+    return () => clearTimeout(id);
+  }, [showFlipBook]);
 
   // Scroll active page thumb into view in the stepper
   React.useEffect(() => {
@@ -2492,8 +2597,13 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         }
       } else if (showFlipBook) {
         if (e.key === 'Escape') { setShowFlipBook(false); }
-        else if (e.key === 'ArrowLeft') { flipBookRef.current?.pageFlip()?.flipPrev(); }
-        else if (e.key === 'ArrowRight') { flipBookRef.current?.pageFlip()?.flipNext(); }
+        else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          flipBookRef.current?.pageFlip()?.flipPrev();
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          flipBookRef.current?.pageFlip()?.flipNext();
+        }
       } else if (!isInput && !showFlipBook && !showSinglePageView) {
         if (e.key === 'ArrowLeft') {
           e.preventDefault();
@@ -3471,8 +3581,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 className="shadow-[0_30px_100px_rgba(0,0,0,0.6)] rounded-xl relative z-20"
                 style={{ maxHeight: 'calc(100vh - 120px)' }}
               >
-                {albumPages.map((page) => (
-                  <FlipBookPage key={page.index}>
+                {flipBookAlbumPages.map((page) => (
+                  <FlipBookPage key={`${page.index}-${page.coverSplit ?? 'full'}`}>
                     {renderPageInner(page, 'preview')}
                   </FlipBookPage>
                 ))}
@@ -3494,12 +3604,12 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 {/* Page counter */}
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-white/70">
-                    {t('pageNOfTotal', { n: flipBookPage + 1, total: albumPages.length })}
+                    {t('pageNOfTotal', { n: flipBookPage + 1, total: flipBookAlbumPages.length })}
                   </span>
                 </div>
                 {/* Progress dots */}
                 <div className="hidden sm:flex items-center gap-1">
-                  {albumPages.map((_, idx) => (
+                  {flipBookAlbumPages.map((_, idx) => (
                     <div
                       key={idx}
                       className={`w-1.5 h-1.5 rounded-full transition-all ${
@@ -3626,7 +3736,13 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 {/* Switch to Flip Book */}
                 <button
                   type="button"
-                  onClick={() => { setShowSinglePageView(false); setSlideshowActive(false); setShowFlipBook(true); }}
+                  onClick={() => {
+                    setShowSinglePageView(false);
+                    setSlideshowActive(false);
+                    flipOpenTargetRef.current = singlePageIndex;
+                    setFlipBookPage(singlePageIndex);
+                    setShowFlipBook(true);
+                  }}
                   className="rounded-lg bg-white/[0.06] px-3 py-1.5 text-[10px] font-bold text-white/70 hover:text-white hover:bg-white/10 transition-colors border border-white/[0.06]"
                 >
                   {t('flipBook')}
