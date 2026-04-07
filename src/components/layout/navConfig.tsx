@@ -18,6 +18,7 @@ import {
   FaRupeeSign,
   FaPalette,
   FaBook,
+  FaHeart,
 } from 'react-icons/fa';
 
 /** Single source for sidebar + mobile nav (labelKey → en.json / hi.json `nav.*`) */
@@ -56,6 +57,8 @@ export const studioNavigation: NavGroup = {
     { labelKey: 'nav.studio.myImages', href: '/client-images', icon: FaImages, enabled: true },
     { labelKey: 'nav.studio.photoThemes', href: '/photo-themes', icon: FaPalette, enabled: true },
     { labelKey: 'nav.studio.photoBooks', href: '/photo-book', icon: FaBook, enabled: true },
+    { labelKey: 'nav.studio.ourMemories', href: '/memories/events', icon: FaHeart, enabled: true },
+    { labelKey: 'nav.studio.ourMemoriesShared', href: '/memories/shared', icon: FaShare, enabled: true },
     { labelKey: 'nav.studio.album', href: '/studio/albums', icon: FaFolder, enabled: true },
     { labelKey: 'nav.studio.sharedAlbums', href: '/studio/shared-albums', icon: FaShare, enabled: true },
     { labelKey: 'nav.studio.selectPay', href: '/studio/payments', icon: FaQrcode, enabled: true },

@@ -249,4 +249,19 @@ Then update the React app to read/write these in `mapPageStateToApiFormat` / `ma
 
 ---
 
+## Our Memories — share with invited users (event gallery)
+
+The React app mirrors the **album share** pattern (`POST /api/simple-invitations/share-album` with `clientIds`).
+
+| Method | Path | Purpose |
+|--------|------|--------|
+| `GET` | `/api/simple-invitations/family-relationships` | List users the host can share with (already used elsewhere). |
+| `POST` | `/api/simple-invitations/share-memories-event` | Body: `{ eventId, slug, accessToken, clientIds: number[] }` — grant invited users access to this memories event. |
+| `GET` | `/api/simple-invitations/shared-memories-events` | Return events shared **with the current user** (invitee). Response may use `sharedMemoriesEvents`, `sharedEvents`, or a bare array; see `memoriesShareService.ts`. |
+| `GET` | `/api/simple-invitations/memories-event-guest` | Query: `slug`, optional `t` (access token). Returns event + images for **guest / invitee** when the event is not in the photographer’s browser storage. |
+
+Invitees open **`/memories/e/{slug}?t={token}`** from the shared list; the guest endpoint supplies data when local demo storage is empty.
+
+---
+
 *Generated for alignment with the filevault frontend (Photo theme category page, PhotoBook hub, album builder). Update this file when API contracts change.*

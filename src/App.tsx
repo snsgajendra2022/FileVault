@@ -64,6 +64,13 @@ import UploadFamilyImagesPage from './pages/UploadFamilyImages/UploadPage';
 import InvitationCodePage from './pages/InvitationCodePage';
 import InviteUserPage from './pages/InviteUserPage';
 import ConnectionsPage from './pages/ConnectionsPage';
+import MemoriesLandingPage from './pages/memories/MemoriesLandingPage';
+import MemoriesPublicGalleryPage from './pages/memories/MemoriesPublicGalleryPage';
+import MemoriesDashboardPage from './pages/memories/MemoriesDashboardPage';
+import MemoriesEventsListPage from './pages/memories/MemoriesEventsListPage';
+import MemoriesCreateEventPage from './pages/memories/MemoriesCreateEventPage';
+import MemoriesEventManagePage from './pages/memories/MemoriesEventManagePage';
+import MemoriesSharedWithMePage from './pages/memories/MemoriesSharedWithMePage';
 
 
 const queryClient = new QueryClient({
@@ -128,6 +135,9 @@ const AppRoutes = () => {
       <Route path="/view" element={<ViewImagePage />} />
       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
       <Route path="/our-memories-privacy-policy" element={<OMPrivacyPolicyPage />} />
+      {/* Our Memories — public landing & guest gallery (no app shell) */}
+      <Route path="/memories" element={<MemoriesLandingPage />} />
+      <Route path="/memories/e/:eventSlug" element={<MemoriesPublicGalleryPage />} />
       <Route path="/login" element={
         !isLoading && isAuthenticated ? 
           (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />) : 
@@ -200,6 +210,11 @@ const AppRoutes = () => {
         {/* Photo Themes */}
         <Route path="photo-themes" element={<PhotoThemesPage />} />
         <Route path="photo-book" element={<PhotoBook />} />
+        <Route path="memories/dashboard" element={<MemoriesDashboardPage />} />
+        <Route path="memories/events" element={<MemoriesEventsListPage />} />
+        <Route path="memories/events/new" element={<MemoriesCreateEventPage />} />
+        <Route path="memories/events/:eventId" element={<MemoriesEventManagePage />} />
+        <Route path="memories/shared" element={<MemoriesSharedWithMePage />} />
         <Route path="photo-themes/:categorySlug" element={<PhotoThemeCategoryPage />} />
         <Route path="photo-themes/:categorySlug/album" element={<PhotoThemeAlbumBuilderPage />} />
         {/* Admin route with proper protection */}
