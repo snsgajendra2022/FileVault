@@ -12,6 +12,7 @@ import {
   FaImages,
   FaFolderOpen,
   FaPalette,
+  FaGripVertical,
 } from 'react-icons/fa';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -57,6 +58,18 @@ function resolveBackendImageUrl(url: string | undefined | null): string | undefi
 
 type PageKind = 'cover' | 'last';
 
+/** Draggable extra text on the text-side preview (stored in localStorage with leaf extras). */
+export type TextSideOverlay = {
+  id: string;
+  text: string;
+  /** 0–100 from left of preview box */
+  x: number;
+  /** 0–100 from top of preview box */
+  y: number;
+  fontSize?: number;
+  color?: string;
+};
+
 export type EditablePageState = {
   headline: string;
   subheadline: string;
@@ -101,6 +114,8 @@ export type EditablePageState = {
     /** 0–100 glass fill opacity (over blur) */
     textPanelGlassOpacity?: number;
     textPanelGlassColor?: string;
+    /** Free-position labels on the text-side preview (not sent to cover API). */
+    textSideOverlays?: TextSideOverlay[];
   };
 };
 
@@ -193,6 +208,7 @@ function pickLeafStyleForStorage(style: EditablePageState['style'] | undefined):
     textPanelBlurPx,
     textPanelGlassOpacity,
     textPanelGlassColor,
+    textSideOverlays,
   } = style;
   return {
     ...(textLeafBgMode != null ? { textLeafBgMode } : {}),
@@ -202,6 +218,7 @@ function pickLeafStyleForStorage(style: EditablePageState['style'] | undefined):
     ...(textPanelBlurPx != null ? { textPanelBlurPx } : {}),
     ...(textPanelGlassOpacity != null ? { textPanelGlassOpacity } : {}),
     ...(textPanelGlassColor != null ? { textPanelGlassColor } : {}),
+    ...(textSideOverlays != null && textSideOverlays.length > 0 ? { textSideOverlays } : {}),
   };
 }
 
@@ -308,6 +325,52 @@ function fontPresetToStored(preset: FontFamilyPreset): string | undefined {
   return FONT_FAMILY_PRESETS[preset];
 }
 
+function appendEmojiToField(prev: string | undefined, emoji: string): string {
+  const p = prev ?? '';
+  if (!p.trim()) return emoji;
+  return /\s$/.test(p) ? p + emoji : `${p} ${emoji}`;
+}
+
+/** Quick-insert emoji sets — front cover: celebration / event; back cover: thanks / closing */
+const TEXT_EMOJI_COVER = {
+  headline: ['✨', '🎉', '💐', '🥳', '💒', '❤️', '📸', '🌟', '🎂', '🎁'],
+  sub: ['📅', '📍', '☀️', '🌸', '💫', '🎀', '✨', '⭐', '🌍', '💍'],
+  description: ['💫', '🌿', '📝', '★', '☀️', '🌙', '💝', '✨', '🎵', '👨‍👩‍👧'],
+} as const;
+
+const TEXT_EMOJI_BACK = {
+  headline: ['🙏', '💌', '✨', '⭐', '💫', '🌙', '🕊️', '💝', '🤍', '🌟'],
+  sub: ['📖', '🌿', '📝', '💌', '🌸', '🎀', '✨', '🌅', '💐', '🤗'],
+  description: ['💫', '🌿', '📝', '🙏', '🌙', '⭐', '💌', '🌸', '✨', '💭'],
+} as const;
+
+const EmojiInsertRow: React.FC<{
+  emojis: readonly string[];
+  ariaLabel: string;
+  accent: 'cyan' | 'rose';
+  onPick: (emoji: string) => void;
+}> = ({ emojis, ariaLabel, accent, onPick }) => {
+  const hover =
+    accent === 'cyan'
+      ? 'hover:border-cyan-300 hover:bg-cyan-50/90 hover:shadow-md'
+      : 'hover:border-rose-300 hover:bg-rose-50/90 hover:shadow-md';
+  const focus = accent === 'cyan' ? 'focus:ring-cyan-400/40' : 'focus:ring-rose-400/40';
+  return (
+    <div className="flex flex-wrap gap-1 mt-1.5" role="group" aria-label={ariaLabel}>
+      {emojis.map((em, i) => (
+        <button
+          key={`${ariaLabel}-${i}-${em}`}
+          type="button"
+          onClick={() => onPick(em)}
+          className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-xl border border-slate-200/70 bg-white/95 text-base leading-none shadow-sm transition ${hover} focus:outline-none focus:ring-2 ${focus} active:scale-95`}
+        >
+          <span aria-hidden>{em}</span>
+        </button>
+      ))}
+    </div>
+  );
+};
+
 const defaultPageState: EditablePageState = {
   headline: '',
   subheadline: '',
@@ -348,6 +411,13 @@ const PageEditorCard: React.FC<{
   onChangeRef.current = onChange;
 
   const [logoDrag, setLogoDrag] = React.useState<{ startX: number; startY: number; startPX: number; startPY: number } | null>(null);
+  const [overlayDrag, setOverlayDrag] = React.useState<{
+    id: string;
+    startX: number;
+    startY: number;
+    startPX: number;
+    startPY: number;
+  } | null>(null);
 
   const getLogoPreset = (pos?: 'top-left' | 'top-right' | 'top-center' | 'bottom-center') => {
     if (pos === 'top-right') return { x: 88, y: 12 };
@@ -380,6 +450,49 @@ const PageEditorCard: React.FC<{
       window.removeEventListener('mouseup', onUp);
     };
   }, [logoDrag]);
+
+  React.useEffect(() => {
+    if (!overlayDrag) return;
+    const onMove = (e: MouseEvent) => {
+      const el = previewRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const deltaPx = ((e.clientX - overlayDrag.startX) / rect.width) * 100;
+      const deltaPy = ((e.clientY - overlayDrag.startY) / rect.height) * 100;
+      const newX = Math.max(4, Math.min(96, overlayDrag.startPX + deltaPx));
+      const newY = Math.max(4, Math.min(96, overlayDrag.startPY + deltaPy));
+      const s = stateRef.current;
+      const list = s.style?.textSideOverlays ?? [];
+      onChangeRef.current({
+        ...s,
+        style: {
+          ...s.style,
+          textSideOverlays: list.map((o) => (o.id === overlayDrag.id ? { ...o, x: newX, y: newY } : o)),
+        },
+      });
+    };
+    const onUp = () => setOverlayDrag(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [overlayDrag]);
+
+  const addTextSideOverlay = () => {
+    const id = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const list = [...(state.style?.textSideOverlays ?? [])];
+    list.push({
+      id,
+      text: '',
+      x: 50,
+      y: 72,
+      fontSize: 13,
+      color: '#f8fafc',
+    });
+    onChange({ ...state, style: { ...state.style, textSideOverlays: list } });
+  };
 
   const defaultTextLeafGradient = isCover
     ? 'linear-gradient(145deg, #0f172a 0%, #312e81 45%, #5b21b6 100%)'
@@ -425,7 +538,7 @@ const PageEditorCard: React.FC<{
         </div>
       </div>
 
-      {/* Preview: tab between text leaf (glass) and photo-only leaf (flip book) */}
+      {/* Preview + forms: keep stacked to avoid narrow text columns (prevents 1-char-per-line wrapping). */}
       <div className="mt-5 flex flex-col gap-6">
         <div className="flex flex-col items-center gap-3 w-full">
           <div className="inline-flex rounded-full border border-slate-200/90 bg-white/95 p-0.5 shadow-sm">
@@ -576,6 +689,64 @@ const PageEditorCard: React.FC<{
                     />
                   </div>
                 )}
+                {(state.style?.textSideOverlays ?? []).map((o) => (
+                  <div
+                    key={o.id}
+                    className="absolute z-20 flex max-w-[min(85%,220px)] flex-col items-stretch gap-0.5"
+                    style={{
+                      left: `${o.x}%`,
+                      top: `${o.y}%`,
+                      transform: 'translate(-50%, -50%)',
+                    }}
+                  >
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        className={`flex h-6 shrink-0 items-center justify-center rounded-md border border-white/40 bg-black/30 text-white/90 shadow backdrop-blur-sm ${
+                          overlayDrag?.id === o.id ? 'cursor-grabbing' : 'cursor-grab'
+                        }`}
+                        aria-label={t('dragFloatingHint')}
+                        onMouseDown={(e) => {
+                          if (e.button !== 0) return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setOverlayDrag({
+                            id: o.id,
+                            startX: e.clientX,
+                            startY: e.clientY,
+                            startPX: o.x,
+                            startPY: o.y,
+                          });
+                        }}
+                      >
+                        <FaGripVertical className="h-3 w-3" aria-hidden />
+                      </button>
+                      <input
+                        type="text"
+                        value={o.text}
+                        onChange={(e) => {
+                          const list = state.style?.textSideOverlays ?? [];
+                          onChange({
+                            ...state,
+                            style: {
+                              ...state.style,
+                              textSideOverlays: list.map((x) =>
+                                x.id === o.id ? { ...x, text: e.target.value } : x
+                              ),
+                            },
+                          });
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="min-w-0 flex-1 rounded-lg border border-white/35 bg-black/30 px-2 py-1 text-left text-[11px] text-white shadow-md backdrop-blur-sm placeholder:text-white/45 focus:border-white/60 focus:outline-none focus:ring-1 focus:ring-white/40"
+                        style={{
+                          fontSize: o.fontSize ?? 13,
+                          color: o.color ?? '#f8fafc',
+                        }}
+                        placeholder={t('floatingTextPlaceholder')}
+                      />
+                    </div>
+                  </div>
+                ))}
               </>
             ) : (
               <>
@@ -638,17 +809,23 @@ const PageEditorCard: React.FC<{
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-4 w-full min-w-0">
           <div className="grid grid-cols-1 gap-3">
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                 {t('headline')}
               </label>
+              <EmojiInsertRow
+                emojis={isCover ? TEXT_EMOJI_COVER.headline : TEXT_EMOJI_BACK.headline}
+                ariaLabel={t('emojiQuickInsertHeadline')}
+                accent={isCover ? 'cyan' : 'rose'}
+                onPick={(emoji) => onChange({ ...state, headline: appendEmojiToField(state.headline, emoji) })}
+              />
               <input
-                className="w-full rounded-xl border border-slate-200/80 px-3.5 py-2.5 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 bg-white/80 shadow-sm transition-all"
-                placeholder={
-                  isCover ? t('placeholderHeadlineCover') : t('placeholderHeadlineBack')
-                }
+                className={`mt-2 w-full rounded-xl border border-slate-200/80 px-3.5 py-2.5 text-sm outline-none focus:ring-2 bg-white/80 shadow-sm transition-all ${
+                  isCover ? 'focus:border-cyan-500 focus:ring-cyan-500/20' : 'focus:border-rose-500 focus:ring-rose-500/20'
+                }`}
+                placeholder={isCover ? t('placeholderHeadlineCover') : t('placeholderHeadlineBack')}
                 value={state.headline}
                 onChange={(e) => onChange({ ...state, headline: e.target.value })}
               />
@@ -658,13 +835,17 @@ const PageEditorCard: React.FC<{
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                 {t('subheadline')}
               </label>
+              <EmojiInsertRow
+                emojis={isCover ? TEXT_EMOJI_COVER.sub : TEXT_EMOJI_BACK.sub}
+                ariaLabel={t('emojiQuickInsertSub')}
+                accent={isCover ? 'cyan' : 'rose'}
+                onPick={(emoji) => onChange({ ...state, subheadline: appendEmojiToField(state.subheadline, emoji) })}
+              />
               <input
-                className="w-full rounded-xl border border-slate-200/80 px-3.5 py-2.5 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 bg-white/80 shadow-sm transition-all"
-                placeholder={
-                  isCover
-                    ? t('placeholderSubCover')
-                    : t('placeholderSubBack')
-                }
+                className={`mt-2 w-full rounded-xl border border-slate-200/80 px-3.5 py-2.5 text-sm outline-none focus:ring-2 bg-white/80 shadow-sm transition-all ${
+                  isCover ? 'focus:border-cyan-500 focus:ring-cyan-500/20' : 'focus:border-rose-500 focus:ring-rose-500/20'
+                }`}
+                placeholder={isCover ? t('placeholderSubCover') : t('placeholderSubBack')}
                 value={state.subheadline}
                 onChange={(e) => onChange({ ...state, subheadline: e.target.value })}
               />
@@ -674,9 +855,17 @@ const PageEditorCard: React.FC<{
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                 {t('descriptionOptional')}
               </label>
+              <EmojiInsertRow
+                emojis={isCover ? TEXT_EMOJI_COVER.description : TEXT_EMOJI_BACK.description}
+                ariaLabel={t('emojiQuickInsertDesc')}
+                accent={isCover ? 'cyan' : 'rose'}
+                onPick={(emoji) => onChange({ ...state, description: appendEmojiToField(state.description, emoji) })}
+              />
               <textarea
                 rows={3}
-                className="w-full rounded-xl border border-slate-200/80 px-3.5 py-2 text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 resize-none bg-white/80 shadow-sm transition-all"
+                className={`mt-2 w-full rounded-xl border border-slate-200/80 px-3.5 py-2 text-sm outline-none focus:ring-2 resize-none bg-white/80 shadow-sm transition-all ${
+                  isCover ? 'focus:border-cyan-500 focus:ring-cyan-500/20' : 'focus:border-rose-500 focus:ring-rose-500/20'
+                }`}
                 placeholder={t('placeholderDescription')}
                 value={state.description}
                 onChange={(e) => onChange({ ...state, description: e.target.value })}
@@ -969,6 +1158,102 @@ const PageEditorCard: React.FC<{
                   </div>
                 </>
               )}
+
+              <div className="col-span-2 md:col-span-4 mt-1 rounded-2xl border border-slate-200/80 bg-white/80 p-3 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-700">{t('floatingTextTitle')}</div>
+                    <div className="text-[11px] text-slate-500 leading-snug">{t('floatingTextHint')}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addTextSideOverlay}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-200 bg-gradient-to-r from-cyan-50 to-indigo-50 px-3 py-2 text-[11px] font-bold text-cyan-800 hover:from-cyan-100 hover:to-indigo-100 hover:border-cyan-300 transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
+                  >
+                    + {t('floatingTextAdd')}
+                  </button>
+                </div>
+
+                {(state.style?.textSideOverlays ?? []).length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    {(state.style?.textSideOverlays ?? []).map((o) => (
+                      <div key={o.id} className="rounded-xl border border-slate-200/70 bg-white/90 p-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-[1fr_110px_110px_auto] gap-2 items-center">
+                          <input
+                            value={o.text}
+                            onChange={(e) => {
+                              const list = state.style?.textSideOverlays ?? [];
+                              onChange({
+                                ...state,
+                                style: {
+                                  ...state.style,
+                                  textSideOverlays: list.map((x) => (x.id === o.id ? { ...x, text: e.target.value } : x)),
+                                },
+                              });
+                            }}
+                            className="w-full rounded-xl border border-slate-200/80 px-3 py-2 text-[12px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                            placeholder={t('floatingTextPlaceholder')}
+                          />
+                          <div className="flex items-center gap-2">
+                            <label className="text-[10px] font-semibold text-slate-500 whitespace-nowrap">{t('floatingTextSize')}</label>
+                            <input
+                              type="number"
+                              min={8}
+                              max={40}
+                              value={o.fontSize ?? 13}
+                              onChange={(e) => {
+                                const list = state.style?.textSideOverlays ?? [];
+                                const val = Number(e.target.value);
+                                onChange({
+                                  ...state,
+                                  style: {
+                                    ...state.style,
+                                    textSideOverlays: list.map((x) => (x.id === o.id ? { ...x, fontSize: val } : x)),
+                                  },
+                                });
+                              }}
+                              className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-[10px] font-semibold text-slate-500 whitespace-nowrap">{t('floatingTextColor')}</label>
+                            <input
+                              type="color"
+                              value={o.color ?? '#f8fafc'}
+                              onChange={(e) => {
+                                const list = state.style?.textSideOverlays ?? [];
+                                onChange({
+                                  ...state,
+                                  style: {
+                                    ...state.style,
+                                    textSideOverlays: list.map((x) => (x.id === o.id ? { ...x, color: e.target.value } : x)),
+                                  },
+                                });
+                              }}
+                              className="h-8 w-full rounded-xl border border-slate-200 p-0 bg-white"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const list = state.style?.textSideOverlays ?? [];
+                              onChange({
+                                ...state,
+                                style: { ...state.style, textSideOverlays: list.filter((x) => x.id !== o.id) },
+                              });
+                            }}
+                            className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700 hover:bg-rose-100 hover:border-rose-300 transition-all"
+                          >
+                            {t('remove')}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-2 text-[11px] text-slate-500">{t('floatingTextEmpty')}</div>
+                )}
+              </div>
                     </div>
                   </div>
                 )}
