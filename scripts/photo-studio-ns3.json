@@ -11,7 +11,7 @@
       "failedFetchAlbums": "Failed to fetch albums. Please try again.",
       "retry": "Retry",
       "transferToPhotoBook": "Transfer to PhotoBook",
-      "shareLink": "Share link",
+      "shareLink": "Share",
       "createAlbum": "Create Album",
       "transferTitle": "Transfer selected albums to PhotoBook",
       "shareLinkTitle": "Share public link (selection/checkout) for selected albums",

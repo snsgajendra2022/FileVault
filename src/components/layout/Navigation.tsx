@@ -55,16 +55,18 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
         />
       )}
 
-      {/* Navigation Panel */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:hidden ${
-        isOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
-        <div className="bg-gradient-to-r from-indigo-600  to-pink-600 via-purple-600 flex items-center justify-between h-16 px-4 border-b border-gray-200">
+      {/* Navigation Panel — flex column so the nav list scrolls independently of the header */}
+      <div
+        className={`fixed inset-y-0 left-0 z-50 flex h-full max-h-screen w-64 flex-col overflow-hidden bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:hidden ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 px-4">
        
           <div className=" flex items-center">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-white to-gray-100 flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform duration-300">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-inner">
-                    <span className="text-sm font-bold text-white">PS</span>
+                    <span className="text-sm font-bold text-white">{t('brand.om')}</span>
                   </div>
                 </div>
             <div className="ml-4">
@@ -72,7 +74,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">{t('brand.imageSecurity')}</h1>
                 )}
                 {user?.accountType == 'FREE' && menuFlags.studio === true && studioNavigationItems.active === true && (
-                <h1 className="text-xl font-bold text-white drop-shadow-lg">{t('brand.photoBook')}</h1>
+                <h1 className="text-xl font-bold text-white drop-shadow-lg">{t('brand.om')}</h1>
                 )}
                 {user.accountType == 'ADMIN' && menuFlags.admin === true && adminNavigationItems.active === true && (
                 <h1 className="text-xl font-bold text-white drop-shadow-lg">{t('brand.adminPanel')}</h1>
@@ -90,8 +92,8 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
+        {/* Navigation — scrolls when menu items exceed viewport (min-h-0 required for flex scroll) */}
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-3 py-6 [-webkit-overflow-scrolling:touch]">
           {/* Regular Navigation - Show for non-admin users (controlled by flags) */}
           {!isAdmin && menuFlags.regular  && (
             <>

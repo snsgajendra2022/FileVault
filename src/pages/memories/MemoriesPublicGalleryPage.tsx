@@ -17,6 +17,7 @@ const MemoriesPublicGalleryPage: React.FC = () => {
 
   const getBySlug = useMemoriesStore((s) => s.getBySlug);
   const toggleLike = useMemoriesStore((s) => s.toggleLike);
+  const addComment = useMemoriesStore((s) => s.addComment);
   const incrementViews = useMemoriesStore((s) => s.incrementViews);
 
   const slug = eventSlug || '';
@@ -77,9 +78,9 @@ const MemoriesPublicGalleryPage: React.FC = () => {
         <FaImages className="h-12 w-12 text-slate-600 mb-4" />
         <h1 className="text-xl font-bold text-center">{t('galleryNotFoundTitle')}</h1>
         <p className="text-slate-400 text-sm text-center mt-2 max-w-md">{t('galleryNotFoundBody')}</p>
-        <Link to="/memories" className="mt-8 text-violet-400 font-semibold hover:underline">
+        {/* <Link to="/memories" className="mt-8 text-violet-400 font-semibold hover:underline">
           {t('backToMemoriesHome')}
-        </Link>
+        </Link> */}
       </div>
     );
   }
@@ -98,9 +99,9 @@ const MemoriesPublicGalleryPage: React.FC = () => {
       <div className="min-h-screen bg-[#0c0c0f] text-slate-100 pb-24">
         <header className="sticky top-0 z-40 border-b border-white/10 bg-black/60 backdrop-blur-xl">
           <div className="mx-auto max-w-3xl px-4 py-4 flex items-center gap-3">
-            <Link to="/memories" className="p-2 rounded-full hover:bg-white/10 transition-colors">
+            {/* <Link to="/memories" className="p-2 rounded-full hover:bg-white/10 transition-colors">
               <FaArrowLeft className="h-5 w-5 text-slate-300" />
-            </Link>
+            </Link> */}
             <div className="h-6 w-40 rounded bg-white/10 animate-pulse" />
           </div>
         </header>
@@ -115,13 +116,13 @@ const MemoriesPublicGalleryPage: React.FC = () => {
     <div className="min-h-screen bg-[#0c0c0f] text-slate-100 pb-24">
       <header className="sticky top-0 z-40 border-b border-white/10 bg-black/60 backdrop-blur-xl">
         <div className="mx-auto max-w-3xl px-4 py-4 flex items-center gap-3">
-          <Link
+          {/* <Link
             to="/memories"
             className="p-2 rounded-full hover:bg-white/10 transition-colors"
             aria-label="Back"
           >
             <FaArrowLeft className="h-5 w-5 text-slate-300" />
-          </Link>
+          </Link> */}
           <div className="flex-1 min-w-0">
             <h1 className="font-bold text-lg truncate">{ev.name}</h1>
             <p className="text-xs text-slate-500 truncate">
@@ -176,6 +177,9 @@ const MemoriesPublicGalleryPage: React.FC = () => {
         onClose={() => setLightbox((s) => ({ ...s, open: false }))}
         onLike={(imageId) => {
           if (!isRemoteOnly) toggleLike(ev.id, imageId);
+        }}
+        onComment={(imageId, text) => {
+          if (!isRemoteOnly) addComment(ev.id, imageId, text);
         }}
       />
     </div>

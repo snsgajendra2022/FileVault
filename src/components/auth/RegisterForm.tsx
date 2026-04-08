@@ -1,332 +1,392 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { RegistrationData } from '../../types/auth';
 import toast from 'react-hot-toast';
-import { FaUser, FaEnvelope, FaPhone, FaBuilding, FaSave, FaEdit, FaShieldAlt, FaArrowRight, FaArrowLeft, FaUsers } from 'react-icons/fa';
+import {
+  FaUser,
+  FaEnvelope,
+  FaPhone,
+  FaBuilding,
+  FaSave,
+  FaLock,
+  FaArrowRight,
+  FaArrowLeft,
+  FaStar,
+} from 'react-icons/fa';
 import api from '../../services/api';
 
 const RegisterForm = () => {
+  const { t } = useTranslation();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const { register: registerUser } = useAuth();
   const navigate = useNavigate();
-  
-  const { register, handleSubmit, formState: { errors } } = useForm<RegistrationData>({
+
+  const tv = (key: string) => t(`registerPage.validation.${key}`);
+
+  const {
+    register,
+    handleSubmit,
+    trigger,
+    formState: { errors },
+  } = useForm<RegistrationData>({
     defaultValues: {
       accountType: 'FREE',
-    }
+    },
   });
 
   const onSubmit = async (data: RegistrationData) => {
     setLoading(true);
     try {
       const myHeaders = new Headers();
-      myHeaders.append("accept", "*/*");
-      myHeaders.append("Content-Type", "application/json");
+      myHeaders.append('accept', '*/*');
+      myHeaders.append('Content-Type', 'application/json');
 
       const raw = JSON.stringify({
-        "username": data.username,
-        "password": data.password,
-        "email": data.email,
-        "firstName": data.firstName,
-        "lastName": data.lastName,
-        "phone": data.phone,
-        "company": data.company || "",
-        "role": data.role || "",
-        "department": data.department || "subscribed",
-        "accountType": data.accountType || "FREE",
+        username: data.username,
+        password: data.password,
+        email: data.email,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        company: data.company || '',
+        role: data.role || '',
+        department: data.department || 'subscribed',
+        accountType: data.accountType || 'FREE',
       });
 
       const requestOptions = {
-        method: "POST",
+        method: 'POST',
         headers: myHeaders,
-        body: raw
+        body: raw,
       };
 
-      const response = await fetch(process.env.REACT_APP_API_URL+"/api/auth/register", requestOptions);
+      const response = await fetch(process.env.REACT_APP_API_URL + '/api/auth/register', requestOptions);
       const result = await response.text();
-      
+
       if (response.ok) {
         const newUser = JSON.parse(result);
-      try {
-        await api.post(`/api/mobile-apps${newUser.id}`,{"appNameId": newUser.username, "userId": newUser.id});
-        await api.put(`/api/auth/admin/users/${newUser.id}/verify`);
-        console.log('User auto-verified after registration');
-      } catch (verifyError: any) {
-        console.warn('Auto-verification failed:', verifyError);
-        // Don't fail registration if verification fails
-      }
-        toast.success('Registration successful! Welcome to FileVault.');
+        try {
+          await api.post(`/api/mobile-apps${newUser.id}`, { appNameId: newUser.username, userId: newUser.id });
+          await api.put(`/api/auth/admin/users/${newUser.id}/verify`);
+        } catch {
+          // Optional post-registration steps; user is still registered
+        }
+        toast.success(t('registerPage.toastRegistrationSuccessOm'));
         navigate('/studio/dashboard');
       } else {
-        toast.error('Registration failed: ' + result);
+        toast.error(`${t('registerPage.toastRegistrationFailed')}: ${result}`);
       }
-    } catch (error: any) {
-      toast.error(error.message || 'Registration failed');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t('registerPage.toastRegistrationFailed');
+      toast.error(message || t('registerPage.toastRegistrationFailed'));
     } finally {
       setLoading(false);
     }
   };
 
-  const nextStep = () => setStep(step + 1);
-  const prevStep = () => setStep(step - 1);
+  const handleNext = async () => {
+    const ok = await trigger(['username', 'email', 'firstName', 'lastName', 'phone', 'password']);
+    if (ok) setStep(2);
+  };
+
+  const inputClass =
+    'w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-sm text-white placeholder:text-slate-500 focus:border-violet-500/40 focus:outline-none focus:ring-2 focus:ring-violet-500/25 transition-all';
+  const inputPlainClass =
+    'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm text-white placeholder:text-slate-500 focus:border-violet-500/40 focus:outline-none focus:ring-2 focus:ring-violet-500/25 transition-all';
+
+  const primaryBtn =
+    'group relative flex flex-1 min-w-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-3.5 text-sm font-bold text-white shadow-lg shadow-violet-500/25 transition-all hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:ring-offset-2 focus:ring-offset-[#0a0a0c] disabled:cursor-not-allowed disabled:opacity-50';
+
+  const secondaryBtn =
+    'group flex flex-1 min-w-0 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-3.5 text-sm font-semibold text-white transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:ring-offset-2 focus:ring-offset-[#0a0a0c]';
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-500/20 to-blue-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-pink-500/10 to-purple-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+    <div className="min-h-screen bg-[#0a0a0c] text-slate-100 selection:bg-violet-500/40">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-violet-600/20 blur-[100px]" />
+        <div className="absolute top-1/2 -left-32 h-80 w-80 rounded-full bg-fuchsia-600/15 blur-[90px]" />
+        <div className="absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-violet-500/10 blur-[80px]" />
       </div>
 
-      <div className="max-w-md w-full space-y-8 relative z-10">
-        {/* Header */}
-        <div className="text-center">
-          <div className="mx-auto h-20 w-20 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-2xl mb-6">
-            <FaUsers className="h-10 w-10 text-white" />
+      <header className="relative z-10 border-b border-white/5 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+          <Link to="/memories" className="flex min-w-0 items-center gap-3 group">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-sm font-black text-white shadow-lg shadow-violet-500/30 transition-transform group-hover:scale-[1.02]">
+              OM
+            </div>
+            <div className="min-w-0">
+              <span className="block truncate text-sm font-semibold tracking-[0.2em] uppercase text-violet-300/90">
+                {t('brand.ourMemories')}
+              </span>
+              <span className="block truncate text-[10px] text-slate-500">{t('login.omFooterProduct')}</span>
+            </div>
+          </Link>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <Link
+              to="/memories"
+              className="hidden text-sm font-medium text-slate-300 hover:text-white transition-colors sm:inline"
+            >
+              {t('login.omExplore')}
+            </Link>
+            <Link
+              to="/login"
+              className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-100 transition-colors sm:px-4 sm:text-sm"
+            >
+              {t('memoriesPlatform.signIn')}
+            </Link>
           </div>
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent mb-4">
-            Join FileVault
-          </h1>
-          <p className="text-xl text-white/80 font-medium">
-            Create your secure account
-          </p>
-          <p className="text-sm text-white/60 mt-2">
-            Step {step} of 2
-          </p>
         </div>
+      </header>
 
-        {/* Registration Form */}
-        <div className="backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl border border-white/20 p-8">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            {step === 1 && (
-              <div className="space-y-6">
-                <h3 className="text-2xl font-bold text-white/90 mb-6">Personal Information</h3>
-                
-                {/* Username Field */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-white/90">Username</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FaUser className="h-5 w-5 text-white/60 group-focus-within:text-purple-400 transition-colors" />
-                    </div>
-                    <input
-                      type="text"
-                      {...register('username', { 
-                        required: 'Username is required',
-                        minLength: { value: 3, message: 'Username must be at least 3 characters' }
-                      })}
-                      className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
-                      placeholder="Enter your username"
-                    />
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10"></div>
-                  </div>
-                  {errors.username && <p className="text-sm text-red-300">{errors.username.message}</p>}
-                </div>
+      <main className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 sm:pt-14 lg:pb-24">
+        <div className="grid gap-12 lg:grid-cols-[1fr_min(28rem,100%)] lg:items-start lg:gap-16">
+          <div className="hidden lg:block">
+            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-violet-200/90">
+              <FaStar className="h-3 w-3 text-amber-300" />
+              {t('memoriesPlatform.badge')}
+            </p>
+            <h1 className="text-4xl font-bold tracking-tight md:text-5xl bg-gradient-to-br from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+              {t('registerPage.joinTitle')}
+            </h1>
+            <p className="mt-5 max-w-md text-lg text-slate-400 leading-relaxed">{t('registerPage.omJoinLead')}</p>
+            <p className="mt-6 text-sm text-slate-500">{t('registerPage.joinSubtitle')}</p>
+          </div>
 
-                {/* Email Field */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-white/90">Email</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FaEnvelope className="h-5 w-5 text-white/60 group-focus-within:text-purple-400 transition-colors" />
-                    </div>
-                    <input
-                      type="email"
-                      {...register('email', { 
-                        required: 'Email is required',
-                        pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Please enter a valid email' }
-                      })}
-                      className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
-                      placeholder="Enter your email"
-                    />
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10"></div>
-                  </div>
-                  {errors.email && <p className="text-sm text-red-300">{errors.email.message}</p>}
-                </div>
+          <div className="w-full max-w-md mx-auto lg:mx-0 lg:max-w-none">
+            <div className="mb-6 text-center lg:hidden">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-base font-black text-white shadow-lg shadow-violet-500/30">
+                OM
+              </div>
+              <h1 className="text-2xl font-bold text-white">{t('registerPage.joinTitle')}</h1>
+              <p className="mt-2 text-sm text-slate-400">{t('registerPage.joinSubtitle')}</p>
+            </div>
 
-                {/* Name Fields */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-white/90">First Name</label>
-                    <input
-                      type="text"
-                      {...register('firstName', { required: 'First name is required' })}
-                      className="w-full px-4 py-4 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
-                      placeholder="First name"
-                    />
-                    {errors.firstName && <p className="text-sm text-red-300">{errors.firstName.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-white/90">Last Name</label>
-                    <input
-                      type="text"
-                      {...register('lastName', { required: 'Last name is required' })}
-                      className="w-full px-4 py-4 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
-                      placeholder="Last name"
-                    />
-                    {errors.lastName && <p className="text-sm text-red-300">{errors.lastName.message}</p>}
-                  </div>
-                </div>
-
-                {/* Phone Field */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-white/90">Phone</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FaPhone className="h-5 w-5 text-white/60 group-focus-within:text-purple-400 transition-colors" />
-                    </div>
-                    <input
-                      type="tel"
-                      {...register('phone', { required: 'Phone is required' })}
-                      className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
-                      placeholder="Enter your phone number"
-                    />
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10"></div>
-                  </div>
-                  {errors.phone && <p className="text-sm text-red-300">{errors.phone.message}</p>}
-                </div>
-
-                {/* Password Field */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-white/90">Password</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FaShieldAlt className="h-5 w-5 text-white/60 group-focus-within:text-purple-400 transition-colors" />
-                    </div>
-                    <input
-                      type="password"
-                      {...register('password', { 
-                        required: 'Password is required',
-                        minLength: { value: 8, message: 'Password must be at least 8 characters' }
-                      })}
-                      className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
-                      placeholder="Enter your password"
-                    />
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10"></div>
-                  </div>
-                  {errors.password && <p className="text-sm text-red-300">{errors.password.message}</p>}
-                </div>
-
-                {/* Next Button */}
-                <div className="pt-4">
-                  <button
-                    type="button"
-                    onClick={nextStep}
-                    className="group relative w-full flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
-                  >
-                    <div className="flex items-center">
-                      <FaArrowRight className="mr-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                      Next
-                    </div>
-                  </button>
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl shadow-black/40 backdrop-blur-sm sm:p-8">
+              <div className="mb-6 flex items-center justify-between gap-4">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  {t('registerPage.stepOf', { current: step, total: 2 })}
+                </p>
+                <div className="flex flex-1 max-w-[120px] gap-1.5">
+                  <div className={`h-1 flex-1 rounded-full ${step >= 1 ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500' : 'bg-white/10'}`} />
+                  <div className={`h-1 flex-1 rounded-full ${step >= 2 ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500' : 'bg-white/10'}`} />
                 </div>
               </div>
-            )}
 
-            {step === 2 && (
-              <div className="space-y-6">
-                <h3 className="text-2xl font-bold text-white/90 mb-6">Business Information</h3>
-                
-                {/* Company Field */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-white/90">Company (Optional)</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FaBuilding className="h-5 w-5 text-white/60 group-focus-within:text-purple-400 transition-colors" />
-                    </div>
-                    <input
-                      type="text"
-                      {...register('company')}
-                      className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
-                      placeholder="Enter your company name"
-                    />
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10"></div>
-                  </div>
-                </div>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                {step === 1 && (
+                  <div className="space-y-5">
+                    <h3 className="text-lg font-bold text-white">{t('registerPage.personalInformation')}</h3>
 
-                {/* Role Field */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-white/90">Role (Optional)</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FaUser className="h-5 w-5 text-white/60 group-focus-within:text-purple-400 transition-colors" />
-                    </div>
-                    <input
-                      type="text"
-                      {...register('role')}
-                      className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
-                      placeholder="Enter your role"
-                    />
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10"></div>
-                  </div>
-                </div>
-
-                {/* Department Field */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-white/90">Department (Optional)</label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FaBuilding className="h-5 w-5 text-white/60 group-focus-within:text-purple-400 transition-colors" />
-                    </div>
-                    <input
-                      type="text"
-                      {...register('department')}
-                      className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
-                      placeholder="Enter your department"
-                    />
-                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10"></div>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex space-x-4 pt-4">
-                  <button
-                    type="button"
-                    onClick={prevStep}
-                    className="flex-1 group flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-white bg-white/10 border border-white/20 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all duration-300 backdrop-blur-sm"
-                  >
-                    <div className="flex items-center">
-                      <FaArrowLeft className="mr-2 h-5 w-5 group-hover:-translate-x-1 transition-transform" />
-                      Previous
-                    </div>
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 group flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
-                  >
-                    {loading ? (
-                      <div className="flex items-center">
-                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
-                        Creating Account...
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        {t('registerPage.labelUsername')}
+                      </label>
+                      <div className="relative">
+                        <FaUser className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                        <input
+                          type="text"
+                          autoComplete="username"
+                          {...register('username', {
+                            required: tv('usernameRequired'),
+                            minLength: { value: 3, message: tv('usernameMin') },
+                          })}
+                          className={inputClass}
+                          placeholder={t('registerPage.placeholderUsername')}
+                        />
                       </div>
-                    ) : (
-                      <div className="flex items-center">
-                        <FaSave className="mr-2 h-5 w-5 group-hover:animate-pulse" />
-                        Create Account
-                      </div>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-          </form>
-        </div>
+                      {errors.username && <p className="mt-1 text-sm text-rose-400">{errors.username.message}</p>}
+                    </div>
 
-        {/* Sign In Link */}
-        <div className="text-center">
-          <p className="text-sm text-white/70">
-            Already have an account?{' '}
-            <a href="/login" className="font-semibold text-purple-300 hover:text-purple-200 transition-colors">
-              Sign in
-            </a>
-          </p>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        {t('registerPage.labelEmail')}
+                      </label>
+                      <div className="relative">
+                        <FaEnvelope className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                        <input
+                          type="email"
+                          autoComplete="email"
+                          {...register('email', {
+                            required: tv('emailRequired'),
+                            pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: tv('emailInvalid') },
+                          })}
+                          className={inputClass}
+                          placeholder={t('registerPage.placeholderEmail')}
+                        />
+                      </div>
+                      {errors.email && <p className="mt-1 text-sm text-rose-400">{errors.email.message}</p>}
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          {t('registerPage.labelFirstName')}
+                        </label>
+                        <input
+                          type="text"
+                          autoComplete="given-name"
+                          {...register('firstName', { required: tv('firstNameRequired') })}
+                          className={inputPlainClass}
+                          placeholder={t('registerPage.placeholderFirstName')}
+                        />
+                        {errors.firstName && <p className="mt-1 text-sm text-rose-400">{errors.firstName.message}</p>}
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                          {t('registerPage.labelLastName')}
+                        </label>
+                        <input
+                          type="text"
+                          autoComplete="family-name"
+                          {...register('lastName', { required: tv('lastNameRequired') })}
+                          className={inputPlainClass}
+                          placeholder={t('registerPage.placeholderLastName')}
+                        />
+                        {errors.lastName && <p className="mt-1 text-sm text-rose-400">{errors.lastName.message}</p>}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        {t('registerPage.labelPhone')}
+                      </label>
+                      <div className="relative">
+                        <FaPhone className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                        <input
+                          type="tel"
+                          autoComplete="tel"
+                          {...register('phone', { required: tv('phoneRequired') })}
+                          className={inputClass}
+                          placeholder={t('registerPage.placeholderPhone')}
+                        />
+                      </div>
+                      {errors.phone && <p className="mt-1 text-sm text-rose-400">{errors.phone.message}</p>}
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        {t('registerPage.labelPassword')}
+                      </label>
+                      <div className="relative">
+                        <FaLock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          {...register('password', {
+                            required: tv('passwordRequired'),
+                            minLength: { value: 8, message: tv('passwordMin') },
+                          })}
+                          className={inputClass}
+                          placeholder={t('registerPage.placeholderPassword')}
+                        />
+                      </div>
+                      {errors.password && <p className="mt-1 text-sm text-rose-400">{errors.password.message}</p>}
+                      <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">{t('registerPage.passwordRulesHint')}</p>
+                    </div>
+
+                    <button type="button" onClick={handleNext} className={`${primaryBtn} w-full`}>
+                      {t('registerPage.next')}
+                      <FaArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  </div>
+                )}
+
+                {step === 2 && (
+                  <div className="space-y-5">
+                    <h3 className="text-lg font-bold text-white">{t('registerPage.businessInformation')}</h3>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        {t('registerPage.labelCompany')}
+                      </label>
+                      <div className="relative">
+                        <FaBuilding className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                        <input
+                          type="text"
+                          {...register('company')}
+                          className={inputClass}
+                          placeholder={t('registerPage.placeholderCompany')}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        {t('registerPage.labelRole')}
+                      </label>
+                      <div className="relative">
+                        <FaUser className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                        <input
+                          type="text"
+                          {...register('role')}
+                          className={inputClass}
+                          placeholder={t('registerPage.placeholderRole')}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        {t('registerPage.labelDepartment')}
+                      </label>
+                      <div className="relative">
+                        <FaBuilding className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                        <input
+                          type="text"
+                          {...register('department')}
+                          className={inputClass}
+                          placeholder={t('registerPage.placeholderDepartment')}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3 pt-0 sm:flex-row sm:gap-4">
+                      <button type="button" onClick={() => setStep(1)} className={secondaryBtn}>
+                        <FaArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+                        {t('registerPage.previous')}
+                      </button>
+                      <button type="submit" disabled={loading} className={primaryBtn}>
+                        {loading ? (
+                          <>
+                            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                            {t('registerPage.creatingAccount')}
+                          </>
+                        ) : (
+                          <>
+                            <FaSave className="h-4 w-4" />
+                            {t('registerPage.createAccount')}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </form>
+            </div>
+
+            <p className="mt-8 text-center text-sm text-slate-500">
+              {t('registerPage.alreadyHaveAccount')}{' '}
+              <Link to="/login" className="font-semibold text-violet-300 hover:text-violet-200">
+                {t('registerPage.signInHere')}
+              </Link>
+            </p>
+
+            <p className="mt-6 text-center text-xs text-slate-500 leading-relaxed">
+              {t('login.termsPrefix')}{' '}
+              <Link to="/privacy-policy" className="text-violet-400/90 hover:text-violet-300 underline-offset-2 hover:underline">
+                {t('login.termsOfService')}
+              </Link>
+              {' '}
+              {t('login.and')}{' '}
+              <Link to="/privacy-policy" className="text-violet-400/90 hover:text-violet-300 underline-offset-2 hover:underline">
+                {t('login.privacyPolicy')}
+              </Link>
+            </p>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

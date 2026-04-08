@@ -18,6 +18,7 @@ type MemoriesState = {
   getById: (id: string) => MemoriesEvent | undefined;
   addSamplePhotos: (eventId: string, count?: number) => void;
   toggleLike: (eventId: string, imageId: string) => void;
+  addComment: (eventId: string, imageId: string, text: string) => void;
   incrementViews: (eventId: string) => void;
   setSharedWithUsers: (eventId: string, userIds: number[]) => void;
 };
@@ -106,6 +107,28 @@ export const useMemoriesStore = create<MemoriesState>()(
               images: e.images.map((img) =>
                 img.id === imageId ? { ...img, likes: img.likes + 1 } : img
               ),
+              updatedAt: nowIso(),
+            };
+          }),
+        });
+      },
+
+      addComment: (eventId, imageId, text) => {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        set({
+          events: get().events.map((e) => {
+            if (e.id !== eventId) return e;
+            return {
+              ...e,
+              images: e.images.map((img) => {
+                if (img.id !== imageId) return img;
+                const nextComments = [
+                  ...(Array.isArray(img.comments) ? img.comments : []),
+                  { id: newId('cmt'), text: trimmed, createdAt: nowIso() },
+                ];
+                return { ...img, comments: nextComments };
+              }),
               updatedAt: nowIso(),
             };
           }),

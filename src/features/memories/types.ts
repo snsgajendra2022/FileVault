@@ -9,6 +9,13 @@ export type MemoriesImage = {
   /** Full-screen quality */
   hdUrl: string;
   likes: number;
+  comments?: MemoriesComment[];
+};
+
+export type MemoriesComment = {
+  id: string;
+  text: string;
+  createdAt: string;
 };
 
 export type MemoriesEvent = {

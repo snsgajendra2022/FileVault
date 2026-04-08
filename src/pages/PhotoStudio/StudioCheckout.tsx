@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
+import PublicShareModal from '../../components/modals/PublicShareModal';
 import { compressFileList, shouldUseCompressedFileList } from '../../utils/checkoutUrlEncoding';
 import { encryptCheckoutPayload } from '../../utils/encryption';
 
@@ -1115,169 +1116,32 @@ const StudioCheckout: React.FC = () => {
       </div>
 
       {/* Share modal – send public URL to contacts / email / SMS */}
-      {showShareModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">{t('studioCheckoutPage.shareModalTitle')}</h3>
-              <button
-                onClick={() => {
-                  setShowShareModal(false);
-                  setShareContactSearch('');
-                  setShareAlreadySent(null);
-                }}
-                className="p-1 rounded hover:bg-gray-100 text-gray-600"
-              >
-                <FaTimes className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-4 space-y-4">
-              {/* <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Which link to share</label>
-                <select
-                  value={shareUrlType}
-                  onChange={(e) => setShareUrlType(e.target.value as 'checkout' | 'selection' | 'images_display')}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="checkout">Checkout URL</option>
-                  <option value="selection">Selection URL</option>
-                  <option value="images_display" disabled={!publicImagesDisplayUrl}>Images display (selected only)</option>
-                </select>
-              </div> */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('studioCheckoutPage.existingContacts')}</label>
-                <input
-                  type="text"
-                  value={shareContactSearch}
-                  onChange={(e) => setShareContactSearch(e.target.value)}
-                  placeholder={t('studioCheckoutPage.searchContactsPlaceholder')}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2"
-                />
-                <div className="border border-gray-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
-                  {shareContacts.length === 0 ? (
-                    <p className="text-sm text-gray-500">{t('studioCheckoutPage.noContactsYet')}</p>
-                  ) : (
-                    shareContacts.map((c) => (
-                      <label key={c.id} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={shareContactIds.has(c.id)}
-                          onChange={(e) => {
-                            const next = new Set(shareContactIds);
-                            if (e.target.checked) next.add(c.id); else next.delete(c.id);
-                            setShareContactIds(next);
-                          }}
-                          className="rounded border-gray-300"
-                        />
-                        <span className="text-sm">{c.displayName || c.email || c.mobile || c.id}</span>
-                        {(c.email || c.mobile) && <span className="text-xs text-gray-500">({[c.email, c.mobile].filter(Boolean).join(', ')})</span>}
-                      </label>
-                    ))
-                  )}
-                </div>
-              </div>
-              {showEmail && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('studioCheckoutPage.newRecipientsEmail')}</label>
-                  <input
-                    type="text"
-                    value={shareNewEmails}
-                    onChange={(e) => { setShareNewEmails(e.target.value); setShareAlreadySent(null); }}
-                    onBlur={() => checkRecipient(shareNewEmails, shareNewMobiles)}
-                    placeholder={t('studioCheckoutPage.emailPlaceholderShare')}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  />
-                </div>
-              )}
-              {showPhone && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('studioCheckoutPage.newRecipientsMobile')}</label>
-                  <div className="flex gap-2">
-                    <select
-                      value={shareNewMobileCountryCode}
-                      onChange={(e) => setShareNewMobileCountryCode(e.target.value)}
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 shrink-0"
-                    >
-                      <option value="+91">+91</option>
-                      <option value="+1">+1</option>
-                      <option value="+44">+44</option>
-                      <option value="+971">+971</option>
-                      <option value="+61">+61</option>
-                      <option value="+81">+81</option>
-                      <option value="+86">+86</option>
-                      <option value="+33">+33</option>
-                      <option value="+49">+49</option>
-                      <option value="+55">+55</option>
-                    </select>
-                    <input
-                      type="text"
-                      value={shareNewMobiles}
-                      onChange={(e) => { setShareNewMobiles(e.target.value); setShareAlreadySent(null); }}
-                      onBlur={() => checkRecipient(shareNewEmails, shareNewMobiles)}
-                      placeholder={t('studioCheckoutPage.mobilePlaceholderShare')}
-                      className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                    />
-                  </div>
-                </div>
-              )}
-              {shareAlreadySent?.alreadySent && (
-                <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  {t('studioCheckoutPage.alreadySentWarning', { type: shareAlreadySent.email ? t('studioCheckoutPage.emailType') : t('studioCheckoutPage.mobileType') })}
-                </p>
-              )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('studioCheckoutPage.optionalMessage')}</label>
-                <textarea
-                  value={shareMessage}
-                  onChange={(e) => setShareMessage(e.target.value)}
-                  placeholder={t('studioCheckoutPage.messagePlaceholderShare')}
-                  rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
-              <div className="flex gap-4">
-                {showEmail && (
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={shareChannels.email}
-                      onChange={(e) => setShareChannels((c) => ({ ...c, email: e.target.checked }))}
-                      className="rounded border-gray-300"
-                    />
-                    <span className="text-sm">{t('studioCheckoutPage.sendViaEmail')}</span>
-                  </label>
-                )}
-                {showPhone && (
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={shareChannels.sms}
-                      onChange={(e) => setShareChannels((c) => ({ ...c, sms: e.target.checked }))}
-                      className="rounded border-gray-300"
-                    />
-                    <span className="text-sm">{t('studioCheckoutPage.sendViaSms')}</span>
-                  </label>
-                )}
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 p-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setShowShareModal(false);
-                  setShareContactSearch('');
-                  setShareAlreadySent(null);
-                }}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
-              >
-                {t('studioCheckoutPage.cancel')}
-              </button>
-              <button onClick={handleShareSend} disabled={shareSending} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-sm font-semibold">
-                {shareSending ? t('studioCheckoutPage.sending') : t('studioCheckoutPage.send')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PublicShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        contacts={shareContacts}
+        contactSearch={shareContactSearch}
+        onContactSearchChange={setShareContactSearch}
+        selectedContactIds={shareContactIds}
+        onSelectedContactIdsChange={setShareContactIds}
+        showEmail={showEmail}
+        showPhone={showPhone}
+        newEmails={shareNewEmails}
+        onNewEmailsChange={setShareNewEmails}
+        mobileCountryCode={shareNewMobileCountryCode}
+        onMobileCountryCodeChange={setShareNewMobileCountryCode}
+        newMobiles={shareNewMobiles}
+        onNewMobilesChange={setShareNewMobiles}
+        alreadySent={shareAlreadySent}
+        onAlreadySentChange={setShareAlreadySent}
+        message={shareMessage}
+        onMessageChange={setShareMessage}
+        channels={shareChannels}
+        onChannelsChange={setShareChannels}
+        onCheckRecipient={checkRecipient}
+        onSend={handleShareSend}
+        sending={shareSending}
+      />
 
       {/* Albums Grid – same layout as PhotoStudioAlbum */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">

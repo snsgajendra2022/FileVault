@@ -116,7 +116,7 @@ const ProtectedRoute = ({ children, adminOnly = false }: { children: React.React
   }
   
   if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/memories" />;
   }
   
   if (adminOnly && !isAdmin) {

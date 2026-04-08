@@ -3,7 +3,19 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { FaEye, FaEyeSlash, FaLock, FaUser, FaShieldAlt, FaArrowRight, FaEnvelope, FaPhone } from 'react-icons/fa';
+import {
+  FaEye,
+  FaEyeSlash,
+  FaLock,
+  FaUser,
+  FaArrowRight,
+  FaEnvelope,
+  FaPhone,
+  FaStar,
+  FaImages,
+  FaQrcode,
+  FaShieldAlt,
+} from 'react-icons/fa';
 import api from '../services/api';
 
 const LoginPage = () => {
@@ -12,7 +24,7 @@ const LoginPage = () => {
     username: '',
     password: ''
   });
-  const [loginMode, setLoginMode] = useState<'password' | 'emailOtp' | 'phoneOtp'>('password');
+  const [loginMode, setLoginMode] = useState<'password' | 'emailOtp' | 'phoneOtp'>('emailOtp');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
@@ -24,18 +36,11 @@ const LoginPage = () => {
   const { login, requestLoginOtp, verifyLoginOtp, user, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  // Handle redirect based on user type after successful login or if already authenticated
   useEffect(() => {
     if (user && !isLoading) {
-      // console.log('LoginPage - User authenticated, user data:', user);
-      // console.log('LoginPage - User account type:', user.accountType);
-      // console.log('LoginPage - Redirecting to:', user.accountType === 'ADMIN' ? '/admin' : '/dashboard');
-      
       if (user.accountType === 'ADMIN') {
-        console.log('LoginPage - Redirecting admin user to /admin');
         navigate('/admin');
       } else {
-        console.log('LoginPage - Redirecting regular user to /studio/dashboard');
         navigate('/studio/dashboard');
       }
     }
@@ -55,9 +60,9 @@ const LoginPage = () => {
         if (loginMode === 'emailOtp' && !canEmail) setLoginMode(canPhone ? 'phoneOtp' : 'password');
         if (loginMode === 'phoneOtp' && !canPhone) setLoginMode(canEmail ? 'emailOtp' : 'password');
       } catch {
-        // Keep OTP methods hidden by default on initial paint to avoid flicker.
         setShowEmailOtp(false);
         setShowPhoneOtp(false);
+        setLoginMode('password');
       }
     };
     fetchFlags();
@@ -70,11 +75,9 @@ const LoginPage = () => {
     try {
       await login(formData.username, formData.password);
       toast.success(t('login.welcomeBackToast'));
-      
-      // The login function will update the user state
-      // We'll handle the redirect in a useEffect when user changes
-    } catch (error: any) {
-      toast.error(error.message || t('login.loginFailed'));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t('login.loginFailed');
+      toast.error(message || t('login.loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -95,12 +98,13 @@ const LoginPage = () => {
           toast.error(t('login.enterPhone'));
           return;
         }
-        await requestLoginOtp({ phone: phone.trim(), });
+        await requestLoginOtp({ phone: phone.trim() });
       }
       setOtpRequested(true);
       toast.success(t('login.otpSent'));
-    } catch (error: any) {
-      toast.error(error.message || t('login.otpSendFailed'));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t('login.otpSendFailed');
+      toast.error(message || t('login.otpSendFailed'));
     } finally {
       setLoading(false);
     }
@@ -120,292 +124,444 @@ const LoginPage = () => {
         await verifyLoginOtp({ phone: phone.trim(), otp: otp.trim() });
       }
       toast.success(t('login.loginSuccess'));
-    } catch (error: any) {
-      toast.error(error.message || t('login.otpVerifyFailed'));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t('login.otpVerifyFailed');
+      toast.error(message || t('login.otpVerifyFailed'));
     } finally {
       setLoading(false);
     }
   };
 
-  // Debug: Log loading state
-  // console.log('LoginPage - isLoading:', isLoading, 'user:', user);
-
-  // Show loading spinner while checking authentication
   if (isLoading) {
-    console.log('LoginPage - Showing loading spinner');
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
-        <div className="relative">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-white/20 border-t-white"></div>
-          <div className="absolute inset-0 animate-ping rounded-full h-16 w-16 border-4 border-white/10"></div>
+      <div className="min-h-screen bg-[#0a0a0c] flex flex-col items-center justify-center gap-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-lg font-black text-white shadow-lg shadow-violet-500/30 animate-pulse">
+          <img src="/favicon.svg" alt={t('brand.ourMemories')} className="h-10 w-10" />
         </div>
+        <div className="h-1.5 w-24 rounded-full bg-white/10 overflow-hidden">
+          <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 animate-pulse" />
+        </div>
+        <p className="text-xs text-slate-500">{t('login.signingIn')}</p>
       </div>
     );
   }
 
+  const inputClass =
+    'w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-sm text-white placeholder:text-slate-500 focus:border-violet-500/40 focus:outline-none focus:ring-2 focus:ring-violet-500/25 transition-all';
+  const otpInputClass =
+    'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm text-white placeholder:text-slate-500 focus:border-violet-500/40 focus:outline-none focus:ring-2 focus:ring-violet-500/25 transition-all';
+
+  const primaryBtn =
+    'group relative w-full flex justify-center items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-violet-500/25 transition-all hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:ring-offset-2 focus:ring-offset-[#0a0a0c] disabled:cursor-not-allowed disabled:opacity-50';
+
+  const altOptionBtn =
+    'flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-[11px] font-medium leading-snug text-slate-200 transition-colors hover:border-violet-500/30 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-violet-500/30';
+
+  const switchMode = (mode: 'password' | 'emailOtp' | 'phoneOtp') => {
+    setLoginMode(mode);
+    setOtpRequested(false);
+    setOtp('');
+  };
+
+  const showAltPassword = loginMode !== 'password';
+  const showAltEmail = showEmailOtp && loginMode !== 'emailOtp';
+  const showAltPhone = showPhoneOtp && loginMode !== 'phoneOtp';
+  const hasAlternateOptions = showAltPassword || showAltEmail || showAltPhone;
+  const alternateOptionCount =
+    Number(showAltPassword) + Number(showAltEmail) + Number(showAltPhone);
+  const alternateOptionsGridClass =
+    alternateOptionCount <= 1
+      ? 'grid grid-cols-1 gap-2'
+      : 'grid grid-cols-1 gap-2 sm:grid-cols-2';
+
+  const cardTitle =
+    loginMode === 'password'
+      ? t('login.usernameTab')
+      : loginMode === 'emailOtp'
+        ? t('login.emailOtpTab')
+        : t('login.phoneOtpTab');
+
+  const cardSubtitle =
+    loginMode === 'password'
+      ? t('login.passwordCardSubtitle')
+      : loginMode === 'emailOtp'
+        ? t('login.emailOtpCardSubtitle')
+        : t('login.phoneOtpCardSubtitle');
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-500/20 to-blue-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-r from-pink-500/10 to-purple-500/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+    <div className="min-h-screen bg-[#0a0a0c] text-slate-100 selection:bg-violet-500/40">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-violet-600/20 blur-[100px]" />
+        <div className="absolute top-1/2 -left-32 h-80 w-80 rounded-full bg-fuchsia-600/15 blur-[90px]" />
+        <div className="absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-violet-500/10 blur-[80px]" />
       </div>
 
-      <div className="max-w-md w-full space-y-8 relative z-10">
-        {/* Header */}
-        <div className="text-center">
-          <div className="mx-auto h-20 w-20 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-2xl mb-6">
-            <FaShieldAlt className="h-10 w-10 text-white drop-shadow-lg" />
-          </div>
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent mb-4">
-            {t('login.welcomeBack')}
-          </h1>
-          <p className="text-xl text-white/80 font-medium">
-            {t('login.signInSubtitle')}
-          </p>
-          <p className="text-sm text-white/60 mt-2">
-            {t('login.accessFiles')}
-          </p>
-        </div>
-
-        {/* Login Form */}
-        <div className="backdrop-blur-xl bg-white/10 rounded-3xl shadow-2xl border border-white/20 p-8 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-white/10 rounded-3xl"></div>
-          <div className="relative z-10">
-          <div className="flex gap-2 mb-5">
-            <button
-              type="button"
-              onClick={() => { setLoginMode('password'); setOtpRequested(false); setOtp(''); }}
-              className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${loginMode === 'password' ? 'bg-white/25 text-white' : 'bg-white/10 text-white/70 hover:text-white'}`}
+      <header className="relative z-10 border-b border-white/5 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+          <Link to="/memories" className="flex min-w-0 items-center gap-3 group">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-sm font-black text-white shadow-lg shadow-violet-500/30 transition-transform group-hover:scale-[1.02]">
+              <img src="/favicon.svg" alt={t('brand.ourMemories')} className="h-7 w-7" />
+            </div>
+            <div className="min-w-0">
+              <span className="block truncate text-sm font-semibold tracking-[0.2em] uppercase text-violet-300/90">
+                {t('brand.ourMemories')}
+              </span>
+              <span className="block truncate text-[10px] text-slate-500">{t('login.omFooterProduct')}</span>
+            </div>
+          </Link>
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <Link
+              to="/memories"
+              className="hidden text-sm font-medium text-slate-300 hover:text-white transition-colors sm:inline"
             >
-              {t('login.usernameTab')}
-            </button>
-            {showEmailOtp && (
-              <button
-                type="button"
-                onClick={() => { setLoginMode('emailOtp'); setOtpRequested(false); setOtp(''); }}
-                className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${loginMode === 'emailOtp' ? 'bg-white/25 text-white' : 'bg-white/10 text-white/70 hover:text-white'}`}
-              >
-                {t('login.emailOtpTab')}
-              </button>
-            )}
-            {showPhoneOtp && (
-              <button
-                type="button"
-                onClick={() => { setLoginMode('phoneOtp'); setOtpRequested(false); setOtp(''); }}
-                className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${loginMode === 'phoneOtp' ? 'bg-white/25 text-white' : 'bg-white/10 text-white/70 hover:text-white'}`}
-              >
-                {t('login.phoneOtpTab')}
-              </button>
-            )}
+              {t('login.omExplore')}
+            </Link>
+            <Link
+              to="/register"
+              className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-100 transition-colors sm:px-4 sm:text-sm"
+            >
+              {t('memoriesPlatform.getStarted')}
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <main className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 sm:pt-14 lg:pb-24">
+        <div className="grid gap-12 lg:grid-cols-[1fr_min(28rem,100%)] lg:items-center lg:gap-16">
+        
+          
+          <div className="hidden lg:block max-w-lg xl:max-w-xl">
+            <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-violet-200/90">
+              <FaStar className="h-3 w-3 text-amber-300" />
+              {t('memoriesPlatform.badge')}
+            </p>
+            <h1 className="text-4xl font-semibold tracking-tight text-white xl:text-[2.75rem] xl:leading-[1.1]">
+              {t('login.omSignInTitle')}
+            </h1>
+            <p className="mt-6 text-base leading-relaxed text-slate-400 xl:text-lg">{t('login.omSignInLead')}</p>
+            <p className="mt-4 text-sm text-slate-500">{t('login.signInSubtitle')}</p>
+
+            <div className="mt-11">
+              <div className="rounded-[1.75rem] bg-gradient-to-br from-violet-500/35 via-fuchsia-500/20 to-violet-600/10 p-px shadow-[0_0_0_1px_rgba(255,255,255,0.06)]">
+                <div className="overflow-hidden rounded-[1.7rem] bg-[#070708]">
+                  <div className="relative aspect-[16/10] w-full overflow-hidden" aria-hidden>
+                    <div className="absolute inset-0 bg-[conic-gradient(from_200deg_at_65%_15%,#5b21b6,#be185d,#0f172a,#6d28d9)] opacity-[0.92]" />
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_90%_70%_at_50%_120%,rgba(0,0,0,0.88),transparent_65%)]" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_35%,rgba(255,255,255,0.14),transparent_45%)]" />
+                    <div
+                      className="absolute inset-0 opacity-[0.12]"
+                      style={{
+                        backgroundImage: `linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                          linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)`,
+                        backgroundSize: '28px 28px',
+                      }}
+                    />
+                    <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
+                    <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2.5 rounded-2xl border border-white/10 bg-black/40 px-3 py-2 backdrop-blur-md">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg shadow-violet-900/40">
+                          <img src="/favicon.svg" alt="" className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-semibold text-white">{t('brand.ourMemories')}</p>
+                          <p className="truncate text-[10px] text-slate-400">{t('memoriesPlatform.heroTitle')}</p>
+                        </div>
+                      </div>
+                      <div className="hidden shrink-0 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-slate-300 sm:block">
+                        {t('memoriesPlatform.ctaLearn')}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="mt-5 max-w-md text-xs leading-relaxed text-slate-500">{t('memoriesPlatform.heroSubtitle')}</p>
+            </div>
           </div>
 
-          {loginMode === 'password' ? (
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {/* Username Field */}
-            <div className="space-y-2">
-              <label htmlFor="username" className="block text-sm font-semibold text-white/90">
-                {t('login.username')}
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FaUser className="h-5 w-5 text-white group-focus-within:text-purple-200 transition-colors drop-shadow-lg" />
-                </div>
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  required
-                  className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none"
-                  placeholder={t('login.usernamePlaceholder')}
-                  value={formData.username}
-                  onChange={(e) => setFormData({...formData, username: e.target.value})}
-                  style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
-                />
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10"></div>
+          <div className="w-full max-w-md mx-auto lg:mx-0 lg:max-w-none">
+            <div className="mb-6 text-center lg:hidden">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-base font-black text-white shadow-lg shadow-violet-500/30">
+                <img src="/favicon.svg" alt={t('brand.ourMemories')} className="h-10 w-10" />
               </div>
+              <h1 className="text-2xl font-bold text-white">{t('login.omSignInTitle')}</h1>
+              <p className="mt-2 text-sm text-slate-400">{t('login.omSignInLead')}</p>
             </div>
 
-            {/* Password Field */}
-            <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm font-semibold text-white/90">
-                {t('login.password')}
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FaLock className="h-5 w-5 text-white group-focus-within:text-purple-200 transition-colors drop-shadow-lg" />
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  className="w-full pl-12 pr-12 py-4 bg-white/10 border border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none"
-                  placeholder={t('login.passwordPlaceholder')}
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
-                />
-                <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-                  <button
-                    type="button"
-                    className="text-white hover:text-purple-200 transition-colors duration-200 drop-shadow-lg"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <FaEyeSlash className="h-5 w-5" />
+            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl shadow-black/40 backdrop-blur-sm sm:p-8">
+              <div className="mb-6 text-center sm:text-left">
+                <h2 className="text-xl font-bold tracking-tight text-white">{cardTitle}</h2>
+                <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">{cardSubtitle}</p>
+              </div>
+
+              {loginMode === 'password' && (
+                <form className="space-y-5" onSubmit={handleSubmit}>
+                  <div>
+                    <label htmlFor="username" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      {t('login.username')}
+                    </label>
+                    <div className="relative">
+                      <FaUser className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                      <input
+                        id="username"
+                        name="username"
+                        type="text"
+                        required
+                        className={inputClass}
+                        placeholder={t('login.usernamePlaceholder')}
+                        value={formData.username}
+                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                        autoComplete="username"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="password" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      {t('login.password')}
+                    </label>
+                    <div className="relative">
+                      <FaLock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                      <input
+                        id="password"
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        className={`${inputClass} pr-12`}
+                        placeholder={t('login.passwordPlaceholder')}
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        autoComplete="current-password"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+                        onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                    <label className="flex cursor-pointer items-center gap-2 text-slate-400">
+                      <input
+                        id="remember-me"
+                        name="remember-me"
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-white/20 bg-white/5 text-violet-600 focus:ring-violet-500/40"
+                      />
+                      <span>{t('login.rememberMe')}</span>
+                    </label>
+                    <Link to="/forgot-password" className="font-medium text-violet-300 hover:text-violet-200 transition-colors">
+                      {t('login.forgotPassword')}
+                    </Link>
+                  </div>
+
+                  <button type="submit" disabled={loading} className={primaryBtn}>
+                    {loading ? (
+                      <>
+                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        {t('login.signingIn')}
+                      </>
                     ) : (
-                      <FaEye className="h-5 w-5" />
+                      <>
+                        {t('login.signIn')}
+                        <FaArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                      </>
                     )}
                   </button>
+                </form>
+              )}
+
+              {loginMode === 'emailOtp' && (
+                <form className="space-y-5" onSubmit={otpRequested ? handleVerifyOtp : handleRequestOtp}>
+                  <div>
+                    <label htmlFor="email-login" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      {t('login.email')}
+                    </label>
+                    <div className="relative">
+                      <FaEnvelope className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                      <input
+                        id="email-login"
+                        name="email"
+                        type="email"
+                        required
+                        className={inputClass}
+                        placeholder={t('login.emailPlaceholder')}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={otpRequested}
+                        autoComplete="email"
+                      />
+                    </div>
+                  </div>
+
+                  {otpRequested && (
+                    <div>
+                      <label htmlFor="otp-email" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        {t('login.verificationOtp')}
+                      </label>
+                      <input
+                        id="otp-email"
+                        name="otp"
+                        type="text"
+                        required
+                        className={otpInputClass}
+                        placeholder={t('login.otpPlaceholder')}
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                      />
+                    </div>
+                  )}
+
+                  <button type="submit" disabled={loading} className={primaryBtn}>
+                    {loading ? (
+                      <>
+                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        {otpRequested ? t('login.verifying') : t('login.sendingOtp')}
+                      </>
+                    ) : (
+                      <>
+                        {otpRequested ? t('login.verifyAndSignIn') : t('login.sendOtp')}
+                        <FaArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                      </>
+                    )}
+                  </button>
+
+                  {otpRequested && (
+                    <button
+                      type="button"
+                      onClick={() => setOtpRequested(false)}
+                      className="w-full py-2 text-sm text-slate-400 hover:text-white transition-colors"
+                    >
+                      {t('login.changeEmail')}
+                    </button>
+                  )}
+                </form>
+              )}
+
+              {loginMode === 'phoneOtp' && (
+                <form className="space-y-5" onSubmit={otpRequested ? handleVerifyOtp : handleRequestOtp}>
+                  <div>
+                    <label htmlFor="phone-login" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      {t('login.mobileNumber')}
+                    </label>
+                    <div className="relative">
+                      <FaPhone className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                      <input
+                        id="phone-login"
+                        name="phone"
+                        type="tel"
+                        required
+                        className={inputClass}
+                        placeholder={t('login.mobilePlaceholder')}
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        disabled={otpRequested}
+                        autoComplete="tel"
+                      />
+                    </div>
+                  </div>
+
+                  {otpRequested && (
+                    <div>
+                      <label htmlFor="otp-phone" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        {t('login.verificationOtp')}
+                      </label>
+                      <input
+                        id="otp-phone"
+                        name="otp"
+                        type="text"
+                        required
+                        className={otpInputClass}
+                        placeholder={t('login.otpPlaceholder')}
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                      />
+                    </div>
+                  )}
+
+                  <button type="submit" disabled={loading} className={primaryBtn}>
+                    {loading ? (
+                      <>
+                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        {otpRequested ? t('login.verifying') : t('login.sendingOtp')}
+                      </>
+                    ) : (
+                      <>
+                        {otpRequested ? t('login.verifyAndSignIn') : t('login.sendOtp')}
+                        <FaArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                      </>
+                    )}
+                  </button>
+
+                  {otpRequested && (
+                    <button
+                      type="button"
+                      onClick={() => setOtpRequested(false)}
+                      className="w-full py-2 text-sm text-slate-400 hover:text-white transition-colors"
+                    >
+                      {t('login.changeMobile')}
+                    </button>
+                  )}
+                </form>
+              )}
+
+              {hasAlternateOptions && (
+                <div className="mt-8 border-t border-white/10 pt-6">
+                  <p className="mb-4 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {t('login.otherSignInOptions')}
+                  </p>
+                  <div className={alternateOptionsGridClass}>
+                    {showAltPassword && (
+                      <button type="button" className={altOptionBtn} onClick={() => switchMode('password')}>
+                        <FaUser className="h-4 w-4 shrink-0 text-violet-300" />
+                        {t('login.usePasswordInstead')}
+                      </button>
+                    )}
+                    {showAltEmail && (
+                      <button type="button" className={altOptionBtn} onClick={() => switchMode('emailOtp')}>
+                        <FaEnvelope className="h-4 w-4 shrink-0 text-violet-300" />
+                        {t('login.useEmailCodeInstead')}
+                      </button>
+                    )}
+                    {showAltPhone && (
+                      <button type="button" className={altOptionBtn} onClick={() => switchMode('phoneOtp')}>
+                        <FaPhone className="h-4 w-4 shrink-0 text-violet-300" />
+                        {t('login.useMobileCodeInstead')}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10"></div>
-              </div>
-            </div>
+              )}
 
-            {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-purple-500 focus:ring-purple-400 border-white/30 rounded bg-white/10"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-white/80">
-                  {t('login.rememberMe')}
-                </label>
-              </div>
-
-              <div className="text-sm">
-                <Link to="/forgot-password" className="font-medium text-purple-300 hover:text-purple-200 transition-colors">
-                  {t('login.forgotPassword')}
-                </Link>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <div className="pt-4">
-              <button
-                type="submit"
-                disabled={loading}
-                className="group relative w-full flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
-                    {t('login.signingIn')}
-                  </div>
-                ) : (
-                  <div className="flex items-center">
-                    <FaArrowRight className="mr-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                    {t('login.signIn')}
-                  </div>
-                )}
-              </button>
-            </div>
-
-            {/* Sign Up Link */}
-            <div className="text-center pt-4">
-              <p className="text-sm text-white/70">
+              <p className="mt-8 text-center text-sm text-slate-500">
                 {t('login.noAccount')}{' '}
-                <Link to="/register" className="font-semibold text-purple-300 hover:text-purple-200 transition-colors">
+                <Link to="/register" className="font-semibold text-violet-300 hover:text-violet-200">
                   {t('login.signUpHere')}
                 </Link>
               </p>
             </div>
-          </form>
-          ) : (
-            <form className="space-y-6" onSubmit={otpRequested ? handleVerifyOtp : handleRequestOtp}>
-              <div className="space-y-2">
-                <label htmlFor={loginMode === 'emailOtp' ? 'email-login' : 'phone-login'} className="block text-sm font-semibold text-white/90">
-                  {loginMode === 'emailOtp' ? t('login.email') : t('login.mobileNumber')}
-                </label>
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    {loginMode === 'emailOtp' ? (
-                      <FaEnvelope className="h-5 w-5 text-white group-focus-within:text-purple-200 transition-colors drop-shadow-lg" />
-                    ) : (
-                      <FaPhone className="h-5 w-5 text-white group-focus-within:text-purple-200 transition-colors drop-shadow-lg" />
-                    )}
-                  </div>
-                  <input
-                    id={loginMode === 'emailOtp' ? 'email-login' : 'phone-login'}
-                    name={loginMode === 'emailOtp' ? 'email' : 'phone'}
-                    type={loginMode === 'emailOtp' ? 'email' : 'tel'}
-                    required
-                    className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
-                    placeholder={loginMode === 'emailOtp' ? t('login.emailPlaceholder') : t('login.mobilePlaceholder')}
-                    value={loginMode === 'emailOtp' ? email : phone}
-                    onChange={(e) => loginMode === 'emailOtp' ? setEmail(e.target.value) : setPhone(e.target.value)}
-                    disabled={otpRequested}
-                  />
-                </div>
-              </div>
 
-              {otpRequested && (
-                <div className="space-y-2">
-                  <label htmlFor="otp" className="block text-sm font-semibold text-white/90">
-                    {t('login.verificationOtp')}
-                  </label>
-                  <input
-                    id="otp"
-                    name="otp"
-                    type="text"
-                    required
-                    className="w-full px-4 py-4 bg-white/10 border border-white/30 rounded-2xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300"
-                    placeholder={t('login.otpPlaceholder')}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                  />
-                </div>
-              )}
-
-              <div className="pt-2 space-y-3">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="group relative w-full flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
-                >
-                  {loading ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-3"></div>
-                      {otpRequested ? t('login.verifying') : t('login.sendingOtp')}
-                    </div>
-                  ) : (
-                    <div className="flex items-center">
-                      <FaArrowRight className="mr-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                      {otpRequested ? t('login.verifyAndSignIn') : t('login.sendOtp')}
-                    </div>
-                  )}
-                </button>
-
-                {otpRequested && (
-                  <button
-                    type="button"
-                    onClick={() => setOtpRequested(false)}
-                    className="w-full py-2 text-sm text-white/80 hover:text-white transition-colors"
-                  >
-                    {loginMode === 'emailOtp' ? t('login.changeEmail') : t('login.changeMobile')}
-                  </button>
-                )}
-              </div>
-            </form>
-          )}
+            <p className="mt-8 text-center text-xs text-slate-500 leading-relaxed">
+              {t('login.termsPrefix')}{' '}
+              <Link to="/privacy-policy" className="text-violet-400/90 hover:text-violet-300 underline-offset-2 hover:underline">
+                {t('login.termsOfService')}
+              </Link>
+              {' '}
+              {t('login.and')}{' '}
+              <Link to="/privacy-policy" className="text-violet-400/90 hover:text-violet-300 underline-offset-2 hover:underline">
+                {t('login.privacyPolicy')}
+              </Link>
+            </p>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="text-center">
-          <p className="text-xs text-white/50">
-            {t('login.termsPrefix')}{' '}
-            <button type="button" className="text-purple-300 hover:text-purple-200 transition-colors">{t('login.termsOfService')}</button>
-            {' '}{t('login.and')}{' '}
-            <button type="button" className="text-purple-300 hover:text-purple-200 transition-colors">{t('login.privacyPolicy')}</button>
-          </p>
-        </div>
-      </div>
+      </main>
     </div>
   );
 };

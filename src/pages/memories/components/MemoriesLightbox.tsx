@@ -2,7 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Keyboard, Navigation } from 'swiper/modules';
-import { FaDownload, FaHeart, FaShare, FaTimes } from 'react-icons/fa';
+import { FaArrowUp, FaDownload, FaHeart, FaShare, FaTimes } from 'react-icons/fa';
 import type { MemoriesImage } from '../../../features/memories/types';
 import 'swiper/css';
 import 'swiper/css/navigation';
@@ -13,6 +13,7 @@ type Props = {
   initialIndex: number;
   onClose: () => void;
   onLike: (imageId: string) => void;
+  onComment: (imageId: string, text: string) => void;
   title: string;
   /** Server-backed gallery — likes not persisted locally */
   readOnly?: boolean;
@@ -24,14 +25,19 @@ export const MemoriesLightbox: React.FC<Props> = ({
   initialIndex,
   onClose,
   onLike,
+  onComment,
   title,
   readOnly = false,
 }) => {
   const [hdLoaded, setHdLoaded] = React.useState<Record<string, boolean>>({});
   const [active, setActive] = React.useState(initialIndex);
+  const [commentsOpen, setCommentsOpen] = React.useState(false);
+  const [commentDraft, setCommentDraft] = React.useState('');
 
   React.useEffect(() => {
     setActive(initialIndex);
+    setCommentsOpen(false);
+    setCommentDraft('');
   }, [initialIndex, open]);
 
   React.useEffect(() => {
@@ -50,6 +56,7 @@ export const MemoriesLightbox: React.FC<Props> = ({
   if (!open) return null;
 
   const img = images[active];
+  const comments = Array.isArray(img?.comments) ? img.comments : [];
 
   const share = async () => {
     const url = typeof window !== 'undefined' ? window.location.href : '';
@@ -113,7 +120,64 @@ export const MemoriesLightbox: React.FC<Props> = ({
       </div>
 
       {img && (
-        <footer className="shrink-0 flex items-center justify-center gap-4 px-4 py-4 safe-area-pb border-t border-white/10 bg-black/80 backdrop-blur-md">
+        <footer className="shrink-0 border-t border-white/10 bg-black/80 backdrop-blur-md safe-area-pb">
+          {commentsOpen && (
+            <div className="px-4 pt-4">
+              <div className="max-h-40 overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-3">
+                {comments.length === 0 ? (
+                  <p className="text-xs text-white/50">No comments yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {comments.map((c) => (
+                      <div key={c.id} className="rounded-xl bg-black/40 px-3 py-2">
+                        <p className="text-xs text-white/90 leading-relaxed">{c.text}</p>
+                        <p className="mt-1 text-[10px] text-white/40">
+                          {new Date(c.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  value={commentDraft}
+                  onChange={(e) => setCommentDraft(e.target.value)}
+                  placeholder={readOnly ? 'Comments disabled' : 'Write a comment…'}
+                  disabled={readOnly}
+                  className="flex-1 min-w-0 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (readOnly) return;
+                      const txt = commentDraft.trim();
+                      if (!txt) return;
+                      onComment(img.id, txt);
+                      setCommentDraft('');
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={readOnly || !commentDraft.trim()}
+                  onClick={() => {
+                    if (readOnly) return;
+                    const txt = commentDraft.trim();
+                    if (!txt) return;
+                    onComment(img.id, txt);
+                    setCommentDraft('');
+                  }}
+                  className="shrink-0 rounded-xl bg-violet-600 px-3 py-2 text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-violet-700 transition-colors"
+                  aria-label="Send comment"
+                >
+                  <FaArrowUp className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-center gap-4 px-4 py-4">
           <a
             href={img.hdUrl}
             download
@@ -145,6 +209,16 @@ export const MemoriesLightbox: React.FC<Props> = ({
           </button>
           <button
             type="button"
+            onClick={() => setCommentsOpen((v) => !v)}
+            className="flex flex-col items-center gap-1 text-[10px] text-white/80 hover:text-white"
+          >
+            <span className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+              <span className="text-xs font-semibold">C</span>
+            </span>
+            {comments.length}
+          </button>
+          <button
+            type="button"
             onClick={() => share()}
             className="flex flex-col items-center gap-1 text-[10px] text-white/80 hover:text-white"
           >
@@ -153,6 +227,7 @@ export const MemoriesLightbox: React.FC<Props> = ({
             </span>
             Share
           </button>
+          </div>
         </footer>
       )}
     </div>,

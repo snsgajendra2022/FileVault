@@ -24,6 +24,8 @@ import api from '../../services/api';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import DashboardLoading from '../../components/common/DashboardLoading';
 import toast from 'react-hot-toast';
+import ShareAlbumModal from './ShareAlbumModal';
+import PublicShareModal from '../../components/modals/PublicShareModal';
 
 interface Album {
   id: number;
@@ -1210,204 +1212,62 @@ const PhotoStudioAlbum: React.FC = () => {
       </div>
 
       {/* Share link modal – send public URL to contacts / email / SMS (same as StudioCheckout) */}
-      {showShareLinkModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">{t('photoStudioAlbumPage.shareLinkHeading')}</h3>
-              <button
-                onClick={() => {
-                  setShowShareLinkModal(false);
-                  setShareLinkContactSearch('');
-                  setShareLinkAlreadySent(null);
-                }}
-                className="p-1 rounded hover:bg-gray-100 text-gray-600"
-              >
-                <FaTimes className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-4 space-y-4">
-              {shareLinkSelectedImages.length === 0 ? (
-                <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  {t('photoStudioAlbumPage.selectAlbumForShareLink')}
-                </p>
-              ) : (
-                <>
-                  {/* <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Which link to share</label>
-                    <select
-                      value={shareLinkUrlType}
-                      onChange={(e) => setShareLinkUrlType(e.target.value as 'checkout' | 'selection' | 'images_display')}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                    >
-                      <option value="selection">Selection URL</option>
-                      <option value="checkout" disabled>Checkout URL</option>
-                      <option value="images_display" disabled>Images display (selected only)</option>
-                    </select>
-                  </div> */}
-                  {/* <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Copy link</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={shareLinkUrlType === 'checkout' ? publicCheckoutUrl : shareLinkUrlType === 'images_display' ? publicImagesDisplayUrl : publicSelectionUrl}
-                        className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono truncate"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const url = shareLinkUrlType === 'checkout' ? publicCheckoutUrl : shareLinkUrlType === 'images_display' ? publicImagesDisplayUrl : publicSelectionUrl;
-                          if (url) {
-                            copyToClipboard(url);
-                            toast.success(t('studioCheckoutPage.linkCopied'));
-                          }
-                        }}
-                        className="shrink-0 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
-                      >
-                        <FaCopy className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div> */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('photoStudioAlbumPage.shareLinkExistingContacts')}</label>
-                    <input
-                      type="text"
-                      value={shareLinkContactSearch}
-                      onChange={(e) => setShareLinkContactSearch(e.target.value)}
-                      placeholder={t('photoStudioAlbumPage.shareLinkContactSearchPlaceholder')}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2"
-                    />
-                    <div className="border border-gray-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
-                      {shareLinkContacts.length === 0 ? (
-                        <p className="text-sm text-gray-500">{t('photoStudioAlbumPage.shareLinkNoContacts')}</p>
-                      ) : (
-                        shareLinkContacts.map((c) => (
-                          <label key={c.id} className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={shareLinkContactIds.has(c.id)}
-                              onChange={(e) => {
-                                const next = new Set(shareLinkContactIds);
-                                if (e.target.checked) next.add(c.id);
-                                else next.delete(c.id);
-                                setShareLinkContactIds(next);
-                              }}
-                              className="rounded border-gray-300"
-                            />
-                            <span className="text-sm">{c.displayName || c.email || c.mobile || c.id}</span>
-                            {(c.email || c.mobile) && (
-                              <span className="text-xs text-gray-500">
-                                ({[c.email, c.mobile].filter(Boolean).join(', ')})
-                              </span>
-                            )}
-                          </label>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('photoStudioAlbumPage.shareLinkNewEmailsLabel')}</label>
-                    <input
-                      type="text"
-                      value={shareLinkNewEmails}
-                      onChange={(e) => { setShareLinkNewEmails(e.target.value); setShareLinkAlreadySent(null); }}
-                      onBlur={() => checkShareLinkRecipient(shareLinkNewEmails, shareLinkNewMobiles)}
-                      placeholder={t('photoStudioAlbumPage.emailPlaceholderList')}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('photoStudioAlbumPage.shareLinkNewMobilesLabel')}</label>
-                    <div className="flex gap-2">
-                      <select
-                        value={shareLinkNewMobileCountryCode}
-                        onChange={(e) => setShareLinkNewMobileCountryCode(e.target.value)}
-                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 shrink-0"
-                      >
-                        <option value="+91">+91</option>
-                        <option value="+1">+1</option>
-                        <option value="+44">+44</option>
-                        <option value="+971">+971</option>
-                        <option value="+61">+61</option>
-                        <option value="+81">+81</option>
-                        <option value="+86">+86</option>
-                        <option value="+33">+33</option>
-                        <option value="+49">+49</option>
-                        <option value="+55">+55</option>
-                      </select>
-                      <input
-                        type="text"
-                        value={shareLinkNewMobiles}
-                        onChange={(e) => { setShareLinkNewMobiles(e.target.value); setShareLinkAlreadySent(null); }}
-                        onBlur={() => checkShareLinkRecipient(shareLinkNewEmails, shareLinkNewMobiles)}
-                        placeholder={t('photoStudioAlbumPage.mobilePlaceholderList')}
-                        className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                      />
-                    </div>
-                  </div>
-                  {shareLinkAlreadySent?.alreadySent && (
-                    <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                      {shareLinkAlreadySent.email ? t('photoStudioAlbumPage.shareLinkAlreadySentEmail') : t('photoStudioAlbumPage.shareLinkAlreadySentMobile')}
-                    </p>
-                  )}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('photoStudioAlbumPage.shareLinkOptionalMessage')}</label>
-                    <textarea
-                      value={shareLinkMessage}
-                      onChange={(e) => setShareLinkMessage(e.target.value)}
-                      placeholder={t('photoStudioAlbumPage.shareLinkMessagePlaceholder')}
-                      rows={2}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                    />
-                  </div>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={shareLinkChannels.email}
-                        onChange={(e) => setShareLinkChannels((c) => ({ ...c, email: e.target.checked }))}
-                        className="rounded border-gray-300"
-                      />
-                      <span className="text-sm">{t('photoStudioAlbumPage.sendViaEmail')}</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={shareLinkChannels.sms}
-                        onChange={(e) => setShareLinkChannels((c) => ({ ...c, sms: e.target.checked }))}
-                        className="rounded border-gray-300"
-                      />
-                      <span className="text-sm">{t('photoStudioAlbumPage.sendViaSms')}</span>
-                    </label>
-                  </div>
-                </>
-              )}
-            </div>
-            {shareLinkSelectedImages.length > 0 && (
-              <div className="flex justify-end gap-2 p-4 border-t border-gray-200">
-                <button
-                  onClick={() => {
-                    setShowShareLinkModal(false);
-                    setShareLinkContactSearch('');
-                    setShareLinkAlreadySent(null);
-                  }}
-                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
-                >
-                  {t('photoStudioAlbumPage.cancel')}
-                </button>
-                <button
-                  onClick={handleShareLinkSend}
-                  disabled={shareLinkSending}
-                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-sm font-semibold"
-                >
-                  {shareLinkSending ? t('photoStudioAlbumPage.shareLinkSendingBtn') : t('photoStudioAlbumPage.shareLinkSend')}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <PublicShareModal
+        isOpen={showShareLinkModal}
+        onClose={() => setShowShareLinkModal(false)}
+        contacts={shareLinkContacts}
+        contactSearch={shareLinkContactSearch}
+        onContactSearchChange={setShareLinkContactSearch}
+        selectedContactIds={shareLinkContactIds}
+        onSelectedContactIdsChange={setShareLinkContactIds}
+        showEmail={true}
+        showPhone={true}
+        newEmails={shareLinkNewEmails}
+        onNewEmailsChange={setShareLinkNewEmails}
+        mobileCountryCode={shareLinkNewMobileCountryCode}
+        onMobileCountryCodeChange={setShareLinkNewMobileCountryCode}
+        newMobiles={shareLinkNewMobiles}
+        onNewMobilesChange={setShareLinkNewMobiles}
+        alreadySent={shareLinkAlreadySent}
+        onAlreadySentChange={setShareLinkAlreadySent}
+        message={shareLinkMessage}
+        onMessageChange={setShareLinkMessage}
+        channels={shareLinkChannels}
+        onChannelsChange={setShareLinkChannels}
+        onCheckRecipient={checkShareLinkRecipient}
+        onSend={handleShareLinkSend}
+        sending={shareLinkSending}
+        labels={{
+          title: t('photoStudioAlbumPage.shareLinkHeading'),
+          existingContactsLabel: t('photoStudioAlbumPage.shareLinkExistingContacts'),
+          searchContactsPlaceholder: t('photoStudioAlbumPage.shareLinkContactSearchPlaceholder'),
+          noContactsYet: t('photoStudioAlbumPage.shareLinkNoContacts'),
+          newRecipientsEmailLabel: t('photoStudioAlbumPage.shareLinkNewEmailsLabel'),
+          emailPlaceholder: t('photoStudioAlbumPage.emailPlaceholderList'),
+          newRecipientsMobileLabel: t('photoStudioAlbumPage.shareLinkNewMobilesLabel'),
+          mobilePlaceholder: t('photoStudioAlbumPage.mobilePlaceholderList'),
+          optionalMessageLabel: t('photoStudioAlbumPage.shareLinkOptionalMessage'),
+          messagePlaceholder: t('photoStudioAlbumPage.shareLinkMessagePlaceholder'),
+          sendViaEmailLabel: t('photoStudioAlbumPage.sendViaEmail'),
+          sendViaSmsLabel: t('photoStudioAlbumPage.sendViaSms'),
+          cancelLabel: t('photoStudioAlbumPage.cancel'),
+          sendingLabel: t('photoStudioAlbumPage.shareLinkSendingBtn'),
+          sendLabel: t('photoStudioAlbumPage.shareLinkSend'),
+          alreadySentWarning: () =>
+            shareLinkAlreadySent?.email
+              ? t('photoStudioAlbumPage.shareLinkAlreadySentEmail')
+              : t('photoStudioAlbumPage.shareLinkAlreadySentMobile'),
+          emailTypeLabel: '',
+          mobileTypeLabel: '',
+        }}
+        disabledContent={
+          shareLinkSelectedImages.length === 0 ? (
+            <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              {t('photoStudioAlbumPage.selectAlbumForShareLink')}
+            </p>
+          ) : null
+        }
+      />
 
       {/* Album Grid (main) or Album Detail (single album) */}
       {viewingAlbumId !== null ? (
@@ -2031,157 +1891,20 @@ const PhotoStudioAlbum: React.FC = () => {
       )}
 
       {/* Share Album Modal */}
-      {showShareModal !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
-                  <FaShare className="text-white text-xl" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {t('photoStudioAlbumPage.shareAlbum')}
-                  </h2>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {albums.find(a => a.id === showShareModal)?.name}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowShareModal(null);
-                  setSelectedClients(new Set());
-                }}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg"
-                disabled={shareAlbumMutation.isPending}
-              >
-                <FaTimes className="text-xl" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6">
-              {isLoadingClients ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <LoadingSpinner size="lg" text={t('photoStudioAlbumPage.loadingClients')} />
-                </div>
-              ) : clients?.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  <FaUserFriends className="mx-auto mb-3 text-4xl text-gray-300" />
-                  <p className="text-lg font-medium mb-2">{t('photoStudioAlbumPage.noMembersAvailable')}</p>
-                  <p className="text-sm">{t('photoStudioAlbumPage.noMembersHint')}</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="mb-4">
-                    <p className="text-sm font-medium text-gray-700 mb-2">
-                      {t('photoStudioAlbumPage.selectMembersPrompt')}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {t('photoStudioAlbumPage.selectedCount', { count: selectedClients.size })}
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {clients.map((client) => {
-                      const isSelected = selectedClients.has(client.id);
-                      return (
-                        <div
-                          key={client.id}
-                          onClick={() => toggleClientSelection(client.id)}
-                          className={`flex items-center space-x-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                            isSelected
-                              ? 'border-purple-500 bg-purple-50 shadow-md'
-                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center font-semibold text-white ${
-                            isSelected
-                              ? 'bg-gradient-to-r from-purple-600 to-blue-600'
-                              : 'bg-gradient-to-r from-gray-400 to-gray-500'
-                          }`}>
-                            {client.firstName?.charAt(0)?.toUpperCase() || client.fullName?.charAt(0)?.toUpperCase() || 'C'}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-semibold text-gray-900 truncate">
-                                {client.fullName || `${client.firstName} ${client.lastName}`.trim() || 'Unknown'}
-                              </p>
-                              {client.relation && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 shrink-0">
-                                  {client.relation}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center space-x-3 mt-1">
-                              {client.email && (
-                                <p className="text-xs text-gray-500 truncate">{client.email}</p>
-                              )}
-                              {client.username && (
-                                <span className="text-xs text-gray-400">@{client.username}</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
-                            isSelected
-                              ? 'bg-purple-600 border-purple-600'
-                              : 'border-gray-300 bg-white'
-                          }`}>
-                            {isSelected && <FaCheck className="text-white text-xs" />}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="p-6 border-t border-gray-200 bg-gray-50">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600">
-                  {selectedClients.size > 0 ? (
-                    <span className="font-medium text-purple-600">
-                      {t('photoStudioAlbumPage.membersSelected', { count: selectedClients.size })}
-                    </span>
-                  ) : (
-                    <span>{t('photoStudioAlbumPage.noMembersSelected')}</span>
-                  )}
-                </div>
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => {
-                      setShowShareModal(null);
-                      setSelectedClients(new Set());
-                    }}
-                    disabled={shareAlbumMutation.isPending}
-                    className="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {t('photoStudioAlbumPage.cancel')}
-                  </button>
-                  <button
-                    onClick={handleConfirmShare}
-                    disabled={selectedClients.size === 0 || shareAlbumMutation.isPending || isLoadingClients}
-                    className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 transition-all font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                  >
-                    {shareAlbumMutation.isPending ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>{t('photoStudioAlbumPage.sharing')}</span>
-                      </>
-                    ) : (
-                      <>
-                        <FaShare />
-                        <span>{t('photoStudioAlbumPage.shareAlbumBtn')}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ShareAlbumModal
+        isOpen={showShareModal !== null}
+        albumName={albums.find((a) => a.id === showShareModal)?.name}
+        clients={clients}
+        isLoadingClients={isLoadingClients}
+        selectedClientIds={selectedClients}
+        isSubmitting={shareAlbumMutation.isPending}
+        onToggleClient={toggleClientSelection}
+        onClose={() => {
+          setShowShareModal(null);
+          setSelectedClients(new Set());
+        }}
+        onConfirm={handleConfirmShare}
+      />
 
       {/* Album theme chooser modal */}
       {showTemplateModal && (
