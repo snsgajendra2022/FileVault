@@ -49,7 +49,7 @@ const MemoriesEventsListPage: React.FC = () => {
         </div>
       ) : (
         <ul className="space-y-3">
-          {events.map((ev) => {
+          {events.map((ev:any) => {
             const Icon = privacyIcon(ev.privacy);
             return (
               <li key={ev.id}>
@@ -72,7 +72,7 @@ const MemoriesEventsListPage: React.FC = () => {
                     </div>
                     <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
                       <Icon className="h-3 w-3" />
-                      {t(`privacy.${ev.privacy}`)}
+                      {/* {t(`privacy.${ev.privacy}`)} */}
                       <span className="text-slate-300">·</span>
                       {ev.images.length} {t('photos')}
                     </div>

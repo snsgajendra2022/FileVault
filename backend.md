@@ -1,12 +1,36 @@
 # Backend API notes (Photo Book / Theme Covers)
 
-This document describes what the **filevault** React app expects from the API for photobooks, covers, and images. Use it when aligning or extending your backend to match the current frontend behavior.
+This document describes what the **filevault** React app expects from the API for photobooks, covers, images, **Photo Phone Book contacts**, **Our Memories** sharing, and **Studio** album/checkout flows. Use it when aligning or extending your backend to match the current frontend behavior.
 
 ---
 
 ## Changes summary (old vs new)
 
 This section is a **quick diff** for backend developers. “Old/existing” means the API behavior that already existed in the app; “New” means what was added/relied on by the latest frontend updates.
+
+### New backend work to implement (Photo Phone Book — contacts)
+
+The **Phone Book** UI (`/phonebook`, create/edit/detail) calls a **REST API under `/api/public-share/contacts`**. If your backend does not expose these routes yet, implement them so the app can persist contacts server-side.
+
+| Area | What to build |
+|------|----------------|
+| **List** | `GET /api/public-share/contacts?search=&limit=&offset=` — returns `{ contacts: [...], total?: number }` or a bare array (see `phoneBookService.ts`). |
+| **Get by id** | `GET /api/public-share/contacts/{id}` — returns `{ contact: {...} }` or the contact object; used by detail/edit. If missing, the client falls back to listing (limit 200). |
+| **Create** | `POST /api/public-share/contacts` — body with `displayName`, optional `email`, `mobile`, `countryCode`, `avatarUrl`, `notes` (see [Notes + embedded `meta`](#notes--embedded-meta-fv_phonebook_meta)). Response: `{ contact: {...} }` or contact object. |
+| **Update** | `PUT /api/public-share/contacts/{id}` — same fields as create (partial updates allowed). |
+| **Delete** | `DELETE /api/public-share/contacts/{id}` |
+
+**Auth**: same as the rest of the app (`X-API-KEY` / token via `api` client). Scope contacts to the **authenticated photographer/user**.
+
+**Favorites / recent** in the current app are **client-only** (`phoneBookPrefsStore`); no backend required unless you want sync across devices.
+
+### Studio albums + checkout (usually already implemented)
+
+- **Photo Albums** (`PhotoStudioAlbum.tsx`) and **Studio Checkout** (`StudioCheckout.tsx`) both load albums via **`GET /api/albums`**. Checkout uses a **non-paginated** call; the album page uses **`page`** and **`size`** query params with responses that may be a bare array or `{ albums, page, totalPages }` (and optionally `total`). Backend should accept both styles or document one canonical shape.
+- **Per-album images**: `GET /api/albums/{id}/images`, with fallbacks described in the frontend (`405` → alternate routes). See existing app behavior; no new contract beyond what those pages already call.
+- **UPI / flags**: `GET/POST/DELETE /api/upi`, `GET /api/flags` — already referenced elsewhere; checkout depends on them for pricing and share channels.
+
+UI-only changes (loading skeletons, spinners) **do not** require new APIs.
 
 ### Old / existing behavior (already used)
 
@@ -246,6 +270,65 @@ Then update the React app to read/write these in `mapPageStateToApiFormat` / `ma
 6. Prefer **`imageId`** over opaque **`imageUrl`** for web previews.
 7. **`fontFamily`:** store and return the **full CSS stack string**; do not require enum values — see [Font family (cover text)](#font-family-cover-text).
 8. **Floating overlays** are **not** in the current cover JSON contract; they live in **`localStorage`** until you add optional `textSideOverlays` (see [Optional backend enhancements](#optional-backend-enhancements-not-required-for-current-app)).
+9. **Photo Phone Book:** implement **`/api/public-share/contacts`** CRUD as in [Photo Phone Book (contacts API)](#photo-phone-book-contacts-api) (list supports `search`, `limit`, `offset`).
+10. **Albums for Studio:** support **`GET /api/albums`** with or without pagination (`page`, `size`) and a response that is either an **array of albums** or **`{ albums, page?, totalPages?, total? }`**.
+
+---
+
+## Photo Phone Book (contacts API)
+
+Source of truth in the repo: `src/services/phoneBookService.ts`. Implement these routes for the Phone Book pages (`/phonebook`, `/phonebook/new`, `/phonebook/:id`, edit).
+
+### Endpoints
+
+| Method | Path | Query / body | Response (typical) |
+|--------|------|----------------|-------------------|
+| `GET` | `/api/public-share/contacts` | `search` (optional), `limit` (default 50), `offset` (default 0) | `{ contacts: Contact[], total?: number }` **or** a JSON array of contacts |
+| `GET` | `/api/public-share/contacts/{id}` | — | `{ contact: Contact }` **or** `Contact` |
+| `POST` | `/api/public-share/contacts` | JSON body (see below) | `{ contact: Contact }` **or** `Contact` |
+| `PUT` | `/api/public-share/contacts/{id}` | Partial body (same fields as create) | `{ contact: Contact }` **or** `Contact` |
+| `DELETE` | `/api/public-share/contacts/{id}` | — | `204` or success body |
+
+All routes should be **authenticated** and return only contacts belonging to the current user/tenant.
+
+### `Contact` fields (normalized on the client)
+
+| Field | Type | Notes |
+|-------|------|--------|
+| `id` | string | Stable id (stringified if numeric from DB). |
+| `displayName` | string | Required. |
+| `email`, `mobile`, `countryCode` | string | Optional. |
+| `avatarUrl` | string | Optional URL. |
+| `notes` | string | **User-visible notes only** when `meta` is stored separately; see [Notes + embedded `meta`](#notes--embedded-meta-fv_phonebook_meta). |
+| `meta` | object | Optional; see below. Returned by unpacking `notes` if embedded. |
+| `createdAt`, `updatedAt` | string | ISO strings optional. |
+
+### `meta` object (optional)
+
+The TypeScript type `PhoneBookContactMeta` includes:
+
+| Field | Purpose |
+|-------|--------|
+| `whatsapp` | Optional WhatsApp number override. |
+| `address`, `city`, `state` | Address fields. |
+| `contactType` | One of: `Client`, `Family`, `Bride/Groom`, `Event Organizer`, `Photographer`, `Staff`, `VIP Customer`, `Other`. |
+| `tags` | `string[]` (comma-separated in UI). |
+| `inviteStatus` | `not_invited` \| `invited` \| `accepted` \| `rejected` (UI labels). |
+| `favorite`, `linkedEventIds` | Reserved for future use; may be client-only today. |
+
+### Notes + embedded `meta` (`FV_PHONEBOOK_META:`)
+
+If you prefer **one column** in the database, the frontend can pack `meta` into `notes`:
+
+- Human-readable notes first, then a blank line, then the literal prefix **`FV_PHONEBOOK_META:`** and a **JSON** blob for `meta`.
+- On read, `unpackPhoneBookNotes` splits user notes vs meta. On write, `packPhoneBookNotes` merges them.
+- Alternatively, store **`meta` as a proper JSON column** on the server and return it in API responses; then you can ignore the embedded format or map it when migrating.
+
+Either way, preserve **UTF-8** for names and notes.
+
+### Public share / invite pickers
+
+Phone book contacts are intended to line up with **recipient pickers** (e.g. Studio Checkout share, memories share) when those flows use **`clientIds`** or contact ids from this service. Keep **id** types consistent (`string` in JSON) so selection sets match.
 
 ---
 
@@ -261,11 +344,6 @@ Invitees open **`/memories/e/{slug}?t={token}`** from the shared list; the guest
 
 ---
 
-
----
-
----
-
 ## Likes & comments in Our Memories (current status)
 
 - **Likes**: currently stored client-side in Zustand/localStorage for demo events (`toggleLike` in `memoriesStore.ts`). Not persisted for remote guest-loaded events.
@@ -276,4 +354,4 @@ If you want backend persistence later, add endpoints like:
 - `GET /api/memories/events/{eventId}/images/{imageId}/comments`
 - `POST /api/memories/events/{eventId}/images/{imageId}/comments`
 
-*Generated for alignment with the filevault frontend (Photo theme category page, PhotoBook hub, album builder). Update this file when API contracts change.*
+*Generated for alignment with the filevault frontend (Photo theme category page, PhotoBook hub, album builder, Photo Phone Book, Studio checkout, Our Memories). Update this file when API contracts change.*

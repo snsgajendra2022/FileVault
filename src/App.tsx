@@ -71,6 +71,10 @@ import MemoriesEventsListPage from './pages/memories/MemoriesEventsListPage';
 import MemoriesCreateEventPage from './pages/memories/MemoriesCreateEventPage';
 import MemoriesEventManagePage from './pages/memories/MemoriesEventManagePage';
 import MemoriesSharedWithMePage from './pages/memories/MemoriesSharedWithMePage';
+import PhoneBookListPage from './pages/PhoneBook/PhoneBookListPage';
+import PhoneBookCreatePage from './pages/PhoneBook/PhoneBookCreatePage';
+import PhoneBookDetailPage from './pages/PhoneBook/PhoneBookDetailPage';
+import PhoneBookEditPage from './pages/PhoneBook/PhoneBookEditPage';
 
 
 const queryClient = new QueryClient({
@@ -215,6 +219,11 @@ const AppRoutes = () => {
         <Route path="memories/events/new" element={<MemoriesCreateEventPage />} />
         <Route path="memories/events/:eventId" element={<MemoriesEventManagePage />} />
         <Route path="memories/shared" element={<MemoriesSharedWithMePage />} />
+        {/* Phone Book / Contacts */}
+        <Route path="phonebook" element={<PhoneBookListPage />} />
+        <Route path="phonebook/new" element={<PhoneBookCreatePage />} />
+        <Route path="phonebook/:contactId" element={<PhoneBookDetailPage />} />
+        <Route path="phonebook/:contactId/edit" element={<PhoneBookEditPage />} />
         <Route path="photo-themes/:categorySlug" element={<PhotoThemeCategoryPage />} />
         <Route path="photo-themes/:categorySlug/album" element={<PhotoThemeAlbumBuilderPage />} />
         {/* Admin route with proper protection */}

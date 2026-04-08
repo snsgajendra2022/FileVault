@@ -26,7 +26,6 @@ export type MemoriesEvent = {
   dateTime: string;
   location: string;
   coverImageUrl?: string;
-  privacy: MemoriesPrivacy;
   /** Opaque token for QR / private links */
   accessToken: string;
   createdAt: string;

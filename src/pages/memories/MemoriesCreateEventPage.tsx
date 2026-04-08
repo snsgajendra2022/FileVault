@@ -17,7 +17,6 @@ const MemoriesCreateEventPage: React.FC = () => {
     return d.toISOString().slice(0, 16);
   });
   const [location, setLocation] = React.useState('');
-  const [privacy, setPrivacy] = React.useState<MemoriesPrivacy>('private');
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +25,6 @@ const MemoriesCreateEventPage: React.FC = () => {
       name: name.trim(),
       dateTime: new Date(dateTime).toISOString(),
       location: location.trim() || t('defaultLocation'),
-      privacy,
     });
     navigate(`/memories/events/${ev.id}`, { replace: true });
   };
@@ -71,18 +69,6 @@ const MemoriesCreateEventPage: React.FC = () => {
             onChange={(e) => setLocation(e.target.value)}
             placeholder={t('fieldLocationPh')}
           />
-        </div>
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">{t('fieldPrivacy')}</label>
-          <select
-            className="input-modern w-full"
-            value={privacy}
-            onChange={(e) => setPrivacy(e.target.value as MemoriesPrivacy)}
-          >
-            <option value="public">{t('privacy.public')}</option>
-            <option value="private">{t('privacy.private')}</option>
-            <option value="invite">{t('privacy.invite')}</option>
-          </select>
         </div>
         <button
           type="submit"

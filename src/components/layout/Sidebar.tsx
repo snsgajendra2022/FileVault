@@ -43,38 +43,57 @@ const Sidebar = () => {
   return (
     <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:z-50">
       <div className="flex-1 flex flex-col min-h-0 bg-gradient-to-b from-white via-gray-50 to-gray-100 border-r border-gray-200 shadow-2xl">
-        {/* Stunning Header */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 h-20 px-4 border-b border-purple-300">
-          {/* Animated background elements */}
-          <div className="absolute inset-0 bg-black opacity-10"></div>
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -translate-y-16 translate-x-16"></div>
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-5 rounded-full translate-y-12 -translate-x-12"></div>
-          
-          <div className=" relative z-10 flex items-center h-full">
-            <div className="flex items-center">
-              <div className="relative">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-white to-gray-100 flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform duration-300">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-inner">
-                    <span className="text-sm font-bold text-white">OM</span>
-                  </div>
-                </div>
-                {/* Glow effect */}
-                <div className="absolute inset-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 to-purple-500 opacity-20 blur-sm"></div>
-              </div>
-              <div className="ml-4">
-                {menuFlags.regular === true && navigationItems.active === true && (
-                <h1 className="text-xl font-bold text-white drop-shadow-lg">{t('brand.imageSecurity')}</h1>
-                )}
-                {user?.accountType == 'FREE' && menuFlags.studio === true && studioNavigationItems.active === true && (
-                <h1 className="text-xl font-bold text-white drop-shadow-lg">{t('brand.ourMemories')}</h1>
-                )}
-                {user.accountType == 'ADMIN' && menuFlags.admin === true && adminNavigationItems.active === true && (
-                <h1 className="text-xl font-bold text-white drop-shadow-lg">{t('brand.adminPanel')}</h1>
-                )}
-                <div className="flex items-center space-x-1">
-                  <p className="text-xs text-blue-100 font-medium">{user?.firstName} {user?.lastName}</p>
+        {/* Brand header — dark glass + violet accent (matches app shell) */}
+        <div className="relative h-[4.05rem] shrink-0 overflow-hidden border-b border-white/[0.08] bg-[#0c0c0f]">
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500/45 to-transparent"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_0%_0%,rgba(124,58,237,0.22),transparent_55%),radial-gradient(ellipse_100%_70%_at_100%_100%,rgba(217,70,239,0.12),transparent_50%)]"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full bg-violet-500/10 blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -bottom-8 -left-6 h-28 w-28 rounded-full bg-fuchsia-500/10 blur-2xl"
+            aria-hidden
+          />
+
+          <div className="relative z-10 flex h-full items-center gap-3 px-4">
+            <div className="relative shrink-0">
+              <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-br from-violet-500/50 to-fuchsia-600/40 opacity-60 blur-[2px]" />
+              <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] shadow-lg shadow-violet-950/40 backdrop-blur-sm">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 shadow-inner shadow-black/20">
+                  <span className="text-[11px] font-bold tracking-wide text-white">OM</span>
                 </div>
               </div>
+            </div>
+
+            <div className="min-w-0 flex-1">
+              {menuFlags.regular === true && navigationItems.active === true && (
+                <h1 className="truncate text-[1.05rem] font-bold leading-tight tracking-tight text-white">
+                  {t('brand.imageSecurity')}
+                </h1>
+              )}
+              {user?.accountType == 'FREE' && menuFlags.studio === true && studioNavigationItems.active === true && (
+                <h1 className="truncate text-[1.05rem] font-bold leading-tight tracking-tight text-white">
+                  {t('brand.ourMemories')}
+                </h1>
+              )}
+              {user?.accountType == 'ADMIN' && menuFlags.admin === true && adminNavigationItems.active === true && (
+                <h1 className="truncate text-[1.05rem] font-bold leading-tight tracking-tight text-white">
+                  {t('brand.adminPanel')}
+                </h1>
+              )}
+              {/* <p className="mt-1 truncate text-[11px] font-medium uppercase tracking-[0.18em] text-violet-200/80">
+                {t('header.workspaceHint', { defaultValue: 'Workspace' })}
+              </p> */}
+              <p className="mt-0.5 truncate text-xs text-slate-400">
+                {[user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || '—'}
+              </p>
             </div>
           </div>
         </div>

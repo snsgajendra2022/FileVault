@@ -182,7 +182,6 @@ const MemoriesEventManagePage: React.FC = () => {
   const shareUrl = React.useMemo(() => {
     if (!ev || typeof window === 'undefined') return '';
     const u = new URL(`${window.location.origin}/memories/e/${ev.slug}`);
-    if (ev.privacy !== 'public') u.searchParams.set('t', ev.accessToken);
     return u.toString();
   }, [ev]);
 
@@ -447,20 +446,6 @@ const MemoriesEventManagePage: React.FC = () => {
             <QRCode value={shareUrl || ' '} size={200} level="M" />
           </div>
           <p className="text-xs text-slate-500 mt-4 text-center leading-relaxed">{t('qrHint')}</p>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">{t('fieldPrivacy')}</label>
-            <select
-              className="input-modern w-full"
-              value={ev.privacy}
-              onChange={(e) =>
-                updateEvent(ev.id, { privacy: e.target.value as typeof ev.privacy })
-              }
-            >
-              <option value="public">{t('privacy.public')}</option>
-              {/* <option value="private">{t('privacy.private')}</option>
-              <option value="invite">{t('privacy.invite')}</option> */}
-            </select>
-          </div>
         </div>
 
         {/* <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">

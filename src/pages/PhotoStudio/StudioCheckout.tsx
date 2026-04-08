@@ -62,6 +62,92 @@ interface FlagsResponse {
 
 const PRICE_PER_IMAGE = 0; // Fallback price
 
+/** Full-page skeleton while checkout albums load (header + summary row + album grid). */
+function StudioCheckoutSkeleton({ loadingLabel }: { loadingLabel: string }) {
+  return (
+    <div className="min-h-[calc(100dvh-4rem)] p-6 space-y-8" role="status" aria-busy="true" aria-live="polite">
+      <span className="sr-only">{loadingLabel}</span>
+      {/* Header */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 shrink-0 rounded-xl bg-indigo-100 animate-pulse" />
+            <div className="h-9 w-56 max-w-full rounded-lg bg-gray-200 animate-pulse" />
+          </div>
+          <div className="h-4 w-[min(100%,24rem)] rounded bg-gray-100 animate-pulse" />
+        </div>
+        <div className="flex flex-wrap items-end justify-end gap-4">
+          <div className="space-y-2 text-right">
+            <div className="ml-auto h-3 w-24 rounded bg-gray-100 animate-pulse" />
+            <div className="ml-auto h-8 w-20 rounded-lg bg-indigo-100 animate-pulse" />
+          </div>
+          <div className="h-10 w-36 rounded-lg bg-gray-200 animate-pulse" />
+        </div>
+      </div>
+      {/* Summary + QR row */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-md lg:col-span-2">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-2">
+              <div className="h-3 w-28 rounded bg-gray-100 animate-pulse" />
+              <div className="h-8 w-16 rounded-lg bg-gray-200 animate-pulse" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 w-24 rounded bg-gray-100 animate-pulse" />
+              <div className="h-8 w-20 rounded-lg bg-gray-100 animate-pulse" />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <div className="h-10 w-32 rounded-lg bg-indigo-100 animate-pulse" />
+            <div className="h-10 w-36 rounded-lg bg-indigo-200/80 animate-pulse" />
+            <div className="h-10 w-28 rounded-lg bg-gray-100 animate-pulse" />
+          </div>
+        </div>
+        <div className="flex min-h-[200px] flex-col items-center justify-center rounded-2xl border border-gray-100 bg-white p-5 shadow-md">
+          <div className="mb-3 h-12 w-12 rounded-lg bg-gray-100 animate-pulse" />
+          <div className="h-3 w-40 rounded bg-gray-100 animate-pulse" />
+        </div>
+      </div>
+      {/* Albums section */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="h-7 w-48 rounded-lg bg-gray-200 animate-pulse" />
+          <div className="h-4 w-full max-w-xs rounded bg-gray-100 animate-pulse sm:ml-auto" />
+        </div>
+        <div className="mb-6 flex justify-center border-b border-gray-100 pb-6">
+          <LoadingSpinner size="md" text="" />
+        </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 md:gap-6 lg:grid-cols-5">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+              <div className="aspect-[4/3] animate-pulse bg-gradient-to-br from-gray-100 via-gray-50 to-gray-200" />
+              <div className="space-y-2 p-4">
+                <div className="h-4 w-[85%] max-w-full animate-pulse rounded-md bg-gray-200" />
+                <div className="h-3 w-1/2 animate-pulse rounded bg-gray-100" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Skeleton grid while per-album images are being fetched */
+function CheckoutAlbumImagesSkeleton() {
+  return (
+    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 sm:gap-4" aria-hidden>
+      {Array.from({ length: 12 }).map((_, i) => (
+        <div key={i} className="rounded-xl border border-gray-100 bg-white p-2 shadow-sm">
+          <div className="mb-2 aspect-square animate-pulse rounded-lg bg-gradient-to-br from-gray-100 to-gray-200" />
+          <div className="h-3 w-full animate-pulse rounded bg-gray-100" />
+          <div className="mt-1 h-3 w-2/3 animate-pulse rounded bg-gray-50" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const StudioCheckout: React.FC = () => {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
@@ -136,7 +222,7 @@ const StudioCheckout: React.FC = () => {
   }, [upiSettings]);
 
   // Fetch albums
-  const { data: albumsData, isLoading, isError, refetch } = useQuery({
+  const { data: albumsData, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ['albums'],
     queryFn: async () => {
       const response = await api.get('/api/albums');
@@ -151,6 +237,11 @@ const StudioCheckout: React.FC = () => {
     if (albumsData.albums) return albumsData.albums;
     return [];
   }, [albumsData]);
+
+  const showCheckoutSkeleton = useMemo(() => {
+    if (isError) return false;
+    return isLoading || (isFetching && albums.length === 0);
+  }, [isError, isLoading, isFetching, albums.length]);
 
   // Populate album images from album data when albums are loaded
   useEffect(() => {
@@ -847,12 +938,8 @@ const StudioCheckout: React.FC = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" text={t('studioCheckoutPage.loadingAlbums')} />
-      </div>
-    );
+  if (showCheckoutSkeleton) {
+    return <StudioCheckoutSkeleton loadingLabel={t('studioCheckoutPage.loadingAlbums')} />;
   }
 
   if (isError) {
@@ -1239,9 +1326,11 @@ const StudioCheckout: React.FC = () => {
             const album = albums.find((a) => a.id === albumId);
             if (!album) return null;
             const albumImageIds = selectedImages.get(album.id) || new Set<number>();
-            const albumImages = albumImagesMap.get(album.id) || album.images || [];
+            const albumImagesResolved = albumImagesMap.has(album.id);
+            const albumImages = albumImagesMap.get(album.id) ?? album.images ?? [];
             const allSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
             const isSelected = selectedAlbums.has(album.id);
+            const albumImagesPending = !albumImagesResolved && (!album.images || album.images.length === 0);
             return (
               <div className="border-t border-gray-200 bg-gray-50 flex flex-col flex-shrink-0 w-full mt-4 h-full rounded-b-2xl overflow-hidden max-h-[min(55vh,420px)]">
                 <div className="flex-shrink-0 flex items-center justify-between gap-2 px-4 py-3 bg-white border-b border-gray-100">
@@ -1315,8 +1404,15 @@ const StudioCheckout: React.FC = () => {
                         );
                       })}
                     </div>
+                  ) : albumImagesPending ? (
+                    <div className="space-y-4" role="status" aria-live="polite">
+                      <div className="flex justify-center py-2">
+                        <LoadingSpinner size="sm" text={t('studioCheckoutPage.loadingImages')} />
+                      </div>
+                      <CheckoutAlbumImagesSkeleton />
+                    </div>
                   ) : (
-                    <div className="text-center py-8 text-gray-500 text-sm">{t('studioCheckoutPage.loadingImages')}</div>
+                    <div className="py-8 text-center text-sm text-gray-500">{t('photoStudioAlbumPage.noImagesInAlbum')}</div>
                   )}
                 </div>
               </div>

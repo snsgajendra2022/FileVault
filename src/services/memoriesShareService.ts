@@ -148,7 +148,6 @@ export async function fetchGuestMemoriesEventBySlug(
       dateTime: String(ev.dateTime ?? ev.startsAt ?? new Date().toISOString()),
       location: String(ev.location ?? ''),
       coverImageUrl: ev.coverImageUrl != null ? String(ev.coverImageUrl) : undefined,
-      privacy: (ev.privacy as MemoriesEvent['privacy']) ?? 'private',
       accessToken: String(ev.accessToken ?? token ?? ''),
       createdAt: String(ev.createdAt ?? new Date().toISOString()),
       updatedAt: String(ev.updatedAt ?? new Date().toISOString()),

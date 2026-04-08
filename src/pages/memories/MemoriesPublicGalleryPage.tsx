@@ -70,7 +70,7 @@ const MemoriesPublicGalleryPage: React.FC = () => {
 
   const accessOk =
     ev &&
-    (ev.privacy === 'public' || (token && token === ev.accessToken));
+    ((token && token === ev.accessToken));
 
   if (!loading && !ev) {
     return (

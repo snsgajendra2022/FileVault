@@ -35,7 +35,7 @@ const DashboardLoading: React.FC<DashboardLoadingProps> = ({
   const displayFeatures = features || defaultFeatures;
 
   return (
-    <div className="dashboard-loading-modern">
+    <div className="dashboard-loading-modern" role="status" aria-live="polite" aria-busy="true">
       <div className="loading-background">
         <div className="gradient-orb orb-1"></div>
         <div className="gradient-orb orb-2"></div>

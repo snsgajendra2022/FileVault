@@ -88,6 +88,59 @@ function normalizeInfiniteCache(old: unknown): { pages: unknown[]; pageParams: n
   return { ...o, pages, pageParams };
 }
 
+/** Full-page skeleton while albums are loading (matches header + toolbar + grid layout). */
+function AlbumsPageSkeleton({ loadingLabel }: { loadingLabel: string }) {
+  return (
+    <div className="p-6 space-y-6" role="status" aria-busy="true" aria-live="polite">
+      <span className="sr-only">{loadingLabel}</span>
+      {/* Header — mirrors real toolbar */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 shrink-0 rounded-xl bg-indigo-100 animate-pulse" />
+            <div className="h-8 w-52 max-w-full rounded-lg bg-gray-200 animate-pulse" />
+          </div>
+          <div className="h-4 w-[min(100%,20rem)] rounded bg-gray-100 animate-pulse" />
+        </div>
+        <div className="flex flex-wrap gap-2 lg:justify-end">
+          <div className="h-10 w-40 rounded-lg bg-gray-200 animate-pulse" />
+          <div className="h-10 w-32 rounded-lg bg-gray-200 animate-pulse" />
+          <div className="h-10 w-36 rounded-lg bg-indigo-200/90 animate-pulse" />
+        </div>
+      </div>
+      {/* Toolbar row */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="h-4 w-28 rounded bg-gray-200 animate-pulse" />
+          <div className="h-9 w-14 rounded-lg bg-gray-200 animate-pulse" />
+          <div className="h-10 w-40 rounded-xl bg-gray-100 animate-pulse" />
+        </div>
+        <div className="h-10 w-full max-w-sm rounded-xl bg-gray-100 animate-pulse sm:ml-auto" />
+      </div>
+      {/* Card shell + grid */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="mb-6 flex justify-center border-b border-gray-100 pb-6">
+          <LoadingSpinner size="md" text="" />
+        </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 md:gap-6 lg:grid-cols-5">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div
+              key={i}
+              className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
+            >
+              <div className="aspect-[4/3] animate-pulse bg-gradient-to-br from-gray-100 via-gray-50 to-gray-200" />
+              <div className="space-y-2 p-4">
+                <div className="h-4 w-4/5 max-w-[90%] animate-pulse rounded-md bg-gray-200" />
+                <div className="h-3 w-1/2 animate-pulse rounded bg-gray-100" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const PhotoStudioAlbum: React.FC = () => {
   const { t } = useTranslation();
   const { user, isLoading: authLoading } = useAuth();
@@ -152,6 +205,7 @@ const PhotoStudioAlbum: React.FC = () => {
   const {
     data: albumsData,
     isLoading,
+    isFetching,
     isError,
     refetch,
     isFetchingNextPage: isFetchingMoreAlbums,
@@ -270,6 +324,12 @@ const PhotoStudioAlbum: React.FC = () => {
     if (!pages || !Array.isArray(pages) || pages?.length === 0) return [];
     return pages.flatMap((p) => (p && (p as { albums?: Album[] }).albums) ?? []);
   }, [albumsData]);
+
+  /** initialData makes isLoading often false; show skeleton until first page has loaded when list is still empty */
+  const showAlbumsSkeleton = useMemo(() => {
+    if (isError) return false;
+    return isLoading || (isFetching && albums.length === 0 && !isFetchingMoreAlbums);
+  }, [isError, isLoading, isFetching, albums.length, isFetchingMoreAlbums]);
 
   const albumsTotal = useMemo(() => {
     const pages = albumsData?.pages;
@@ -1116,31 +1176,8 @@ const PhotoStudioAlbum: React.FC = () => {
       />
     );
   }
-  if (isLoading) {
-    return (
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-              <FaFolder className="mr-3 text-[#2731db]" />
-              {t('photoStudioAlbumPage.photoAlbums')}
-            </h1>
-            <p className="text-gray-600 mt-2">{t('photoStudioAlbumPage.subtitle')}</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="rounded-2xl overflow-hidden bg-white border border-gray-100 shadow-sm animate-pulse">
-              <div className="aspect-[4/3] bg-gray-200" />
-              <div className="p-4 space-y-2">
-                <div className="h-4 bg-gray-200 rounded w-3/4" />
-                <div className="h-3 bg-gray-100 rounded w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+  if (showAlbumsSkeleton) {
+    return <AlbumsPageSkeleton loadingLabel={t('photoStudioAlbumPage.loading')} />;
   }
 
   if (isError) {

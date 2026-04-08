@@ -317,7 +317,7 @@ export default function FamilyTree() {
   const links = layout.links();
 
   return (
-    <div ref={containerRef} className="relative w-screen h-screen bg-[#f8fafc]">
+    <div ref={containerRef} className="relative w-full h-screen bg-[#f8fafc]">
       {loading && (
         <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
           <div className="flex flex-col items-center gap-4">

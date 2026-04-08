@@ -9,10 +9,9 @@ type MemoriesState = {
     name: string;
     dateTime: string;
     location: string;
-    privacy: MemoriesPrivacy;
     coverImageUrl?: string;
   }) => MemoriesEvent;
-  updateEvent: (id: string, patch: Partial<Pick<MemoriesEvent, 'name' | 'dateTime' | 'location' | 'privacy' | 'coverImageUrl'>>) => void;
+  updateEvent: (id: string, patch: Partial<Pick<MemoriesEvent, 'name' | 'dateTime' | 'location' | 'coverImageUrl'>>) => void;
   deleteEvent: (id: string) => void;
   getBySlug: (slug: string) => MemoriesEvent | undefined;
   getById: (id: string) => MemoriesEvent | undefined;
@@ -48,7 +47,6 @@ export const useMemoriesStore = create<MemoriesState>()(
           dateTime: input.dateTime,
           location: input.location.trim(),
           coverImageUrl: input.coverImageUrl,
-          privacy: input.privacy,
           accessToken: randomToken(16),
           createdAt: nowIso(),
           updatedAt: nowIso(),
