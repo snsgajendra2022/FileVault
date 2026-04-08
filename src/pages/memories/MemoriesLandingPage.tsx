@@ -35,7 +35,7 @@ const MemoriesLandingPage: React.FC = () => {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-6xl px-4 pb-24 pt-16 sm:px-6 sm:pt-24">
+      <main className="relative z-10 mx-auto max-w-6xl px-4 pb-0 pt-16 sm:px-6 sm:pt-24">
         <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-violet-200/90">
           <FaStar className="h-3 w-3 text-amber-300" />
           {t('badge')}
