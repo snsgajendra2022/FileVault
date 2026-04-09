@@ -3155,6 +3155,7 @@
     "sharedWithMeSubtitle": "Events other hosts shared with you",
     "sharedEmpty": "Nothing shared yet.",
     "sharedLoadError": "Could not load shared events. Ensure GET /api/simple-invitations/shared-memories-events is implemented.",
+    "eventsLoadError": "Could not load your events. Ensure GET /api/memories/events is implemented.",
     "sharedByUnknown": "Host",
     "refresh": "Refresh"
   }
