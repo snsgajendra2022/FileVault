@@ -62,9 +62,21 @@ class ImageService {
    * Upload an image with permission validation.
    * Uses long timeout and retries to avoid load/errors when uploading many images.
    */
-  async uploadImage(file: File, targetUserId?: number): Promise<UploadResponse> {
+  async uploadImage(
+    file: File,
+    targetUserIdOrOptions?: number | { targetUserId?: number; bearerToken?: string }
+  ): Promise<UploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
+
+    let targetUserId: number | undefined;
+    let bearerToken: string | undefined;
+    if (typeof targetUserIdOrOptions === 'number') {
+      targetUserId = targetUserIdOrOptions;
+    } else if (targetUserIdOrOptions && typeof targetUserIdOrOptions === 'object') {
+      targetUserId = targetUserIdOrOptions.targetUserId;
+      bearerToken = targetUserIdOrOptions.bearerToken?.trim() || undefined;
+    }
 
     if (targetUserId) {
       formData.append('targetUserId', targetUserId.toString());
@@ -76,6 +88,7 @@ class ImageService {
         const response = await api.post('/api/images/upload', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
+            ...(bearerToken ? { Authorization: `Bearer ${bearerToken}` } : {}),
           },
           timeout: this.UPLOAD_TIMEOUT_MS,
         });

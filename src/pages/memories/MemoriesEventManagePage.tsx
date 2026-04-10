@@ -3,14 +3,29 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import QRCode from 'react-qr-code';
-import { FaArrowLeft, FaCopy, FaShare, FaUserFriends } from 'react-icons/fa';
+import {
+  FaArrowLeft,
+  FaArrowRight,
+  FaCalendarAlt,
+  FaImages,
+  FaMapMarkerAlt,
+  FaQrcode,
+  FaUserFriends,
+} from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
-import PublicShareModal from '../../components/modals/PublicShareModal';
 import api from '../../services/api';
 import { fetchInvitableUsers, type InvitableUser } from '../../services/memoriesShareService';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { ensureMemoriesEventAccessTokenForShare, getMemoriesEventById } from '../../services/memoriesService';
+import {
+  ensureMemoriesEventAccessTokenForShare,
+  getMemoriesEventById,
+} from '../../services/memoriesService';
+import EventPublicShareModal from 'src/components/EventShareModals/PublicShareModal';
+import { applyMemoriesGuestShareQueryParams } from '../../utils/memoriesGuestShareQuery';
+import { MemoriesLightbox } from './components/MemoriesLightbox';
+
+const GALLERY_PAGE_SIZE = 5;
 
 const MemoriesEventManagePage: React.FC = () => {
   const { t } = useTranslation(undefined, { keyPrefix: 'memoriesPlatform' });
@@ -53,12 +68,25 @@ const MemoriesEventManagePage: React.FC = () => {
     email: true,
     sms: true,
   });
+  const [shareGuestPermissions, setShareGuestPermissions] = React.useState({
+    allowImageUpload: true,
+    allowViewEventImages: true,
+  });
   const [shareAlreadySent, setShareAlreadySent] = React.useState<{
     email?: string;
     mobile?: string;
     alreadySent: boolean;
   } | null>(null);
   const [shareSending, setShareSending] = React.useState(false);
+
+  const [galleryVisibleCount, setGalleryVisibleCount] = React.useState(GALLERY_PAGE_SIZE);
+  const [lightbox, setLightbox] = React.useState<{ open: boolean; index: number }>({
+    open: false,
+    index: 0,
+  });
+  const galleryScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const loadMoreSentinelRef = React.useRef<HTMLDivElement | null>(null);
+  const galleryLoadCooldownRef = React.useRef<number>(0);
 
   React.useEffect(() => {
     const fetchFlags = async () => {
@@ -145,8 +173,9 @@ const MemoriesEventManagePage: React.FC = () => {
     if (!ev || typeof window === 'undefined') return '';
     const u = new URL(`${window.location.origin}/memories/e/${ev.slug}`);
     if (ev.accessToken) u.searchParams.set('t', ev.accessToken);
+    applyMemoriesGuestShareQueryParams(u, shareGuestPermissions);
     return u.toString();
-  }, [ev]);
+  }, [ev, shareGuestPermissions]);
 
   const checkRecipient = React.useCallback(
     async (emailInput: string, mobileInput: string) => {
@@ -217,6 +246,7 @@ const MemoriesEventManagePage: React.FC = () => {
       const publicUrl = (() => {
         const u = new URL(`${window.location.origin}/memories/e/${ready.slug}`);
         if (ready.accessToken) u.searchParams.set('t', ready.accessToken);
+        applyMemoriesGuestShareQueryParams(u, shareGuestPermissions);
         return u.toString();
       })();
 
@@ -238,6 +268,8 @@ const MemoriesEventManagePage: React.FC = () => {
         slug: ready.slug,
         accessToken: ready.accessToken,
         eventName: ready.name,
+        allowImageUpload: shareGuestPermissions.allowImageUpload,
+        allowViewEventImages: shareGuestPermissions.allowViewEventImages,
       });
       if (res.data?.success === false) throw new Error(res.data?.message ?? 'send failed');
       toast.success(t('copied'));
@@ -246,6 +278,7 @@ const MemoriesEventManagePage: React.FC = () => {
       setShareNewEmails('');
       setShareNewMobiles('');
       setShareMessage('');
+      setShareGuestPermissions({ allowImageUpload: true, allowViewEventImages: true });
       setShareContactIds(new Set());
       setSelectedIds(new Set());
       await qc.invalidateQueries({ queryKey: ['memoriesEvent', eventId] });
@@ -264,6 +297,7 @@ const MemoriesEventManagePage: React.FC = () => {
     shareContactIds,
     selectedIds,
     shareChannels,
+    shareGuestPermissions,
     shareMessage,
     showEmailShare,
     showPhoneShare,
@@ -271,15 +305,6 @@ const MemoriesEventManagePage: React.FC = () => {
     qc,
     eventId,
   ]);
-
-  const copy = async (text: string, msg: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(msg);
-    } catch {
-      toast.error(t('copyFail'));
-    }
-  };
 
   const downloadQr = React.useCallback(async () => {
     try {
@@ -324,26 +349,80 @@ const MemoriesEventManagePage: React.FC = () => {
     }
   }, [ev?.id, t]);
 
+  const privacy = (ev as { privacy?: string } | null | undefined)?.privacy ?? 'invite';
+  const photoCount = ev?.images?.length ?? 0;
+  const prettyWhen = React.useMemo(() => {
+    if (!ev?.dateTime) return '';
+    try {
+      return new Date(ev.dateTime).toLocaleString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    } catch {
+      return String(ev.dateTime);
+    }
+  }, [ev?.dateTime]);
+
+  const galleryDisplayed = React.useMemo(() => {
+    if (!ev?.images?.length) return [];
+    return ev.images.slice(0, galleryVisibleCount);
+  }, [ev, galleryVisibleCount]);
+
+  React.useEffect(() => {
+    setGalleryVisibleCount(GALLERY_PAGE_SIZE);
+  }, [ev?.id, ev?.images?.length]);
+
+  React.useEffect(() => {
+    const root = galleryScrollRef.current;
+    const sentinel = loadMoreSentinelRef.current;
+    const total = ev?.images?.length ?? 0;
+    if (!root || !sentinel || !ev || total === 0) return;
+    if (galleryVisibleCount >= total) return;
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        const now = Date.now();
+        if (now - galleryLoadCooldownRef.current < 280) return;
+        galleryLoadCooldownRef.current = now;
+        setGalleryVisibleCount((c) => Math.min(c + GALLERY_PAGE_SIZE, total));
+      },
+      { root, rootMargin: '0px 0px 160px 0px', threshold: 0 }
+    );
+    obs.observe(sentinel);
+    return () => obs.disconnect();
+  }, [ev, galleryVisibleCount, ev?.images?.length]);
+
   if (!ev) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-16 text-center">
+      <div className="min-h-[70vh] font-memories-body flex flex-col items-center justify-center px-4 bg-gradient-to-b from-[#f8f7fc] to-white">
         {loadingEvent ? (
-          <LoadingSpinner size="lg" text={t('refresh')} />
+          <div className="rounded-3xl border border-violet-200/60 bg-white/90 px-10 py-14 shadow-[0_20px_60px_rgba(91,33,182,0.08)]">
+            <LoadingSpinner size="lg" text={t('refresh')} />
+          </div>
         ) : eventError ? (
-          <>
+          <div className="max-w-md rounded-3xl border border-slate-200/80 bg-white p-8 text-center shadow-xl">
             <p className="text-slate-600">{t('eventNotFound')}</p>
             <button
               type="button"
               onClick={() => refetchEvent()}
-              className="mt-4 inline-flex items-center justify-center rounded-xl bg-slate-900 text-white px-4 py-2.5 text-sm font-bold hover:bg-slate-800"
+              className="mt-5 inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-5 py-2.5 text-sm font-bold shadow-lg shadow-violet-500/25 hover:opacity-95"
             >
               {t('refresh')}
             </button>
-          </>
+          </div>
         ) : (
-        <p className="text-slate-600">{t('eventNotFound')}</p>
+          <p className="text-slate-600">{t('eventNotFound')}</p>
         )}
-        <Link to="/memories/events" className="mt-4 inline-block text-violet-600 font-semibold">
+        <Link
+          to="/memories/events"
+          className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-violet-600 hover:text-violet-700"
+        >
+          <FaArrowLeft className="h-3 w-3" />
           {t('backToEvents')}
         </Link>
       </div>
@@ -351,55 +430,104 @@ const MemoriesEventManagePage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 sm:px-6">
-      <Link
-        to="/memories/events"
-        className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-violet-600 mb-6"
-      >
-        <FaArrowLeft className="h-3 w-3" />
-        {t('backToEvents')}
-      </Link>
+    <div className="min-h-screen bg-[#f6f4fb] font-memories-body text-slate-800">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -top-32 right-[10%] h-[min(480px,50vw)] w-[min(480px,50vw)] rounded-full bg-violet-500/[0.12] blur-[100px]" />
+        <div className="absolute bottom-[-80px] left-[-40px] h-[360px] w-[360px] rounded-full bg-fuchsia-500/[0.10] blur-[90px]" />
+        <div className="absolute top-1/2 left-1/2 h-[200px] w-[200px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-400/[0.06] blur-[60px]" />
+      </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{ev.name}</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            {new Date(ev.dateTime).toLocaleString()} · {ev.location}
-          </p>
+      <div className="relative max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8 pb-20">
+        <Link
+          to="/memories/events"
+          className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-violet-600 transition-colors mb-8 group"
+        >
+          <FaArrowLeft className="h-3 w-3 transition-transform group-hover:-translate-x-0.5" />
+          {t('backToEvents')}
+        </Link>
+
+        <header className="relative overflow-hidden rounded-[1.75rem] border border-white/80 bg-white/75 backdrop-blur-xl shadow-[0_24px_80px_rgba(15,23,42,0.08)] mb-8">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-400/50 to-transparent" />
+          <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 blur-2xl" />
+          <div className="relative p-6 sm:p-8 lg:p-10">
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+              <div className="min-w-0 space-y-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-violet-600/90">
+                  {t('dashboardTitle')}
+                </p>
+                <h1 className="font-memories-display text-3xl sm:text-4xl lg:text-[2.75rem] font-semibold text-slate-900 tracking-tight leading-[1.15]">
+                  {ev.name}
+                </h1>
+                {ev.summary ? (
+                  <p className="text-base text-slate-600 max-w-2xl leading-relaxed">{ev.summary}</p>
+                ) : null}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm">
+                    <FaCalendarAlt className="h-3 w-3 text-violet-500 shrink-0" />
+                    {prettyWhen}
+                  </span>
+                  {ev.location ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm max-w-full">
+                      <FaMapMarkerAlt className="h-3 w-3 text-fuchsia-500 shrink-0" />
+                      <span className="truncate">{ev.location}</span>
+                    </span>
+                  ) : null}
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-200/80 bg-violet-50/90 px-3 py-1.5 text-xs font-semibold text-violet-800 capitalize">
+                    {privacy === 'public'
+                      ? t('privacy.public')
+                      : privacy === 'private'
+                        ? t('privacy.private')
+                        : t('privacy.invite')}
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-slate-50/90 px-3 py-1.5 text-xs font-medium text-slate-600">
+                    <FaImages className="h-3 w-3 text-slate-400" />
+                    {photoCount} {t('photos')}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0">
+                <a
+                  href={shareUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-violet-600/25 hover:opacity-95 transition-opacity whitespace-nowrap"
+                >
+                  {t('openGallery')}
+                  <FaArrowRight className="h-3.5 w-3.5 opacity-90 shrink-0" aria-hidden />
+                </a>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="rounded-3xl border border-slate-200/80 bg-white/90 backdrop-blur-sm p-6 sm:p-8 shadow-[0_16px_48px_rgba(15,23,42,0.06)] mb-8">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg shadow-violet-500/25">
+              <FaUserFriends className="h-5 w-5 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-memories-display text-lg sm:text-xl font-semibold text-slate-900 tracking-tight">
+                {t('shareWithInvitedTitle')}
+              </h2>
+              <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">{t('shareWithInvitedHint')}</p>
+              <button
+                type="button"
+                onClick={() => setShareInvitedModalOpen(true)}
+                className="mt-5 w-full sm:w-auto rounded-2xl bg-slate-900 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-slate-900/15 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                disabled={loadingInvitable || invitable.length === 0}
+              >
+                {invitable.length === 0 ? t('shareNoInvitedUsers') : t('shareWithSelected')}
+              </button>
+              {ev.sharedWithUserIds && ev.sharedWithUserIds.length > 0 ? (
+                <p className="text-xs text-slate-500 mt-3">
+                  {t('shareLastCount', { count: ev.sharedWithUserIds.length })}
+                </p>
+              ) : null}
+            </div>
+          </div>
         </div>
-        <a
-          href={shareUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50"
-        >
-          {t('openGallery')} <FaShare className="h-3 w-3" />
-        </a>
-      </div>
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm mb-6">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-2">
-          <FaUserFriends className="h-4 w-4 text-violet-500" />
-          {t('shareWithInvitedTitle')}
-        </h2>
-        <p className="text-xs text-slate-500 mb-4 leading-relaxed">{t('shareWithInvitedHint')}</p>
-        <button
-          type="button"
-          onClick={() => setShareInvitedModalOpen(true)}
-          className="w-full rounded-2xl bg-slate-900 text-white py-3 text-sm font-bold hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          disabled={loadingInvitable || invitable.length === 0}
-        >
-          {invitable.length === 0 ? t('shareNoInvitedUsers') : t('shareWithSelected')}
-        </button>
-        {ev.sharedWithUserIds && ev.sharedWithUserIds.length > 0 && (
-          <p className="text-[11px] text-slate-500 mt-2">
-            {t('shareLastCount', { count: ev.sharedWithUserIds.length })}
-          </p>
-        )}
-      </div>
-
-
-      <PublicShareModal
+      <EventPublicShareModal
         isOpen={shareInvitedModalOpen}
         onClose={() => setShareInvitedModalOpen(false)}
         contacts={invitable.map((u) => ({ id: String(u.id), displayName: u.fullName, email: u.email }))}
@@ -429,112 +557,148 @@ const MemoriesEventManagePage: React.FC = () => {
         onMessageChange={setShareMessage}
         channels={shareChannels}
         onChannelsChange={setShareChannels}
+        guestPermissions={shareGuestPermissions}
+        onGuestPermissionsChange={setShareGuestPermissions}
         onCheckRecipient={checkRecipient}
         onSend={handleShareSend}
         sending={shareSending}
       />
 
-      <div className="grid gap-6 lg:grid-cols-1">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">{t('photos')}</h2>
-            <span className="text-xs text-slate-500">
-              {(ev.images?.length ?? 0).toString()}
-            </span>
-          </div>
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          <div className="rounded-3xl border border-slate-200/80 bg-white/90 backdrop-blur-sm p-6 sm:p-8 shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
+            <div className="flex items-center justify-between gap-3 mb-6">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 border border-violet-200/60">
+                  <FaImages className="h-4 w-4 text-violet-600" />
+                </div>
+                <div>
+                  <h2 className="font-memories-display text-lg font-semibold text-slate-900 tracking-tight">
+                    {t('managePhotosTitle')}
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {photoCount} {t('photos')}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-          {loadingEvent ? (
-            <div className="py-10 flex justify-center">
-              <LoadingSpinner size="md" text={t('refresh')} />
-            </div>
-          ) : (ev.images?.length ?? 0) === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center text-slate-500 text-sm">
-              {t('galleryEmpty')}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {ev.images.map((img: any) => (
-                <a
-                  key={img.id}
-                  href={img.hdUrl || img.thumbUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group relative aspect-[3/4] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
-                  title={t('openGallery')}
+            {loadingEvent ? (
+              <div className="py-14 flex justify-center rounded-2xl border border-dashed border-violet-200/60 bg-violet-50/30">
+                <LoadingSpinner size="md" text={t('refresh')} />
+              </div>
+            ) : photoCount === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-gradient-to-b from-slate-50/80 to-white px-6 py-14 text-center">
+                <FaImages className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-600 text-sm font-medium">{t('galleryEmpty')}</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-[11px] font-medium text-slate-500 mb-3">
+                  {t('manageGalleryShowing', {
+                    visible: Math.min(galleryVisibleCount, photoCount),
+                    total: photoCount,
+                  })}
+                </p>
+                <div
+                  ref={galleryScrollRef}
+                  className="max-h-[min(360px,45vh)] overflow-y-auto overflow-x-hidden rounded-2xl border border-slate-100 bg-slate-50/60 p-2 scroll-smooth"
                 >
-                  <img
-                    src={img.thumbUrl || img.hdUrl}
-                    alt=""
-                    loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-                  />
-                </a>
-              ))}
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {galleryDisplayed.map((img) => {
+                      const fullIndex = ev.images.findIndex((i) => i.id === img.id);
+                      return (
+                        <button
+                          key={img.id}
+                          type="button"
+                          onClick={() =>
+                            setLightbox({
+                              open: true,
+                              index: fullIndex >= 0 ? fullIndex : 0,
+                            })
+                          }
+                          className="group relative aspect-square max-h-[5.25rem] sm:max-h-24 w-full overflow-hidden rounded-xl border border-slate-200/90 bg-slate-100 shadow-sm transition-all duration-200 hover:ring-2 hover:ring-violet-400/45 hover:shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+                          title={t('openGallery')}
+                        >
+                          <img
+                            src={img.thumbUrl || img.hdUrl}
+                            alt=""
+                            loading="lazy"
+                            draggable={false}
+                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {galleryVisibleCount < photoCount ? (
+                    <div
+                      ref={loadMoreSentinelRef}
+                      className="flex h-9 items-center justify-center gap-2 py-1 text-[10px] text-slate-400"
+                    >
+                      <span className="inline-flex gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-violet-400/70 animate-pulse" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-violet-400/50 animate-pulse [animation-delay:150ms]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-violet-400/30 animate-pulse [animation-delay:300ms]" />
+                      </span>
+                      {t('manageGalleryLoadingMore')}
+                    </div>
+                  ) : null}
+                </div>
+                {galleryVisibleCount < photoCount ? (
+                  <p className="text-[10px] text-slate-400 text-center mt-2">{t('manageGalleryScrollHint')}</p>
+                ) : null}
+              </>
+            )}
+          </div>
+
+          <div className="rounded-3xl border border-slate-200/80 bg-white/90 backdrop-blur-sm p-6 sm:p-8 shadow-[0_16px_48px_rgba(15,23,42,0.06)]">
+            <div className="flex items-center justify-between gap-3 mb-6">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/50 shadow-inner">
+                  <FaQrcode className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <h2 className="font-memories-display text-lg font-semibold text-slate-900 tracking-tight">
+                    {t('qrTitle')}
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">{t('featQrTitle')}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={downloadQr}
+                className="shrink-0 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 shadow-sm hover:bg-slate-50 hover:border-violet-200 transition-colors"
+                disabled={!shareUrl}
+              >
+                {t('manageDownloadQr')}
+              </button>
             </div>
-          )}
+            <div
+              ref={qrWrapRef}
+              className="flex justify-center rounded-2xl border border-slate-100 bg-gradient-to-b from-white to-slate-50/80 p-6 sm:p-8 shadow-inner"
+            >
+              <div className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.06)] ring-1 ring-slate-100">
+                <QRCode value={shareUrl || ' '} size={200} level="M" />
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-5 text-center leading-relaxed max-w-sm mx-auto">
+              {t('qrHint')}
+            </p>
+          </div>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">{t('qrTitle')}</h2>
-            <button
-              type="button"
-              onClick={downloadQr}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50"
-              disabled={!shareUrl}
-            >
-              Download QR
-            </button>
-          </div>
-          <div ref={qrWrapRef} className="flex justify-center p-4 bg-white rounded-2xl">
-            <QRCode value={shareUrl || ' '} size={200} level="M" />
-          </div>
-          <p className="text-xs text-slate-500 mt-4 text-center leading-relaxed">{t('qrHint')}</p>
-        </div>
-
-        {/* <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">{t('shareLink')}</h2>
-          <div className="flex gap-2">
-            <input
-              readOnly
-              value={shareUrl}
-              className="flex-1 min-w-0 rounded-xl border border-slate-200 px-3 py-2 text-xs bg-slate-50 font-mono"
-            />
-            <button
-              type="button"
-              onClick={() => copy(shareUrl, t('copied'))}
-              className="shrink-0 rounded-xl bg-slate-900 text-white px-4 py-2 text-sm font-semibold hover:bg-slate-800"
-            >
-              <FaCopy className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowShareModal(true)}
-              className="shrink-0 rounded-xl bg-violet-600 text-white px-4 py-2 text-sm font-semibold hover:bg-violet-700"
-              disabled={!shareUrl}
-            >
-              <FaShare className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">{t('fieldPrivacy')}</label>
-            <select
-              className="input-modern w-full"
-              value={ev.privacy}
-              onChange={(e) =>
-                updateEvent(ev.id, { privacy: e.target.value as typeof ev.privacy })
-              }
-            >
-              <option value="public">{t('privacy.public')}</option>
-             <option value="private">{t('privacy.private')}</option>
-              <option value="invite">{t('privacy.invite')}</option> 
-            </select>
-          </div>
-        </div> */}
+        <MemoriesLightbox
+          open={lightbox.open}
+          initialIndex={lightbox.index}
+          images={ev.images}
+          title={ev.name}
+          readOnly
+          eventId={String(ev.id)}
+          onClose={() => setLightbox((s) => ({ ...s, open: false }))}
+          onLike={() => {}}
+          onComment={() => {}}
+        />
       </div>
-
-      {/* Demo-only sample photos section removed (event images now expected from backend uploads). */}
     </div>
   );
 };

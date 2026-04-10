@@ -1,5 +1,10 @@
 import api from './api';
 import type { MemoriesEvent, MemoriesImage } from '../features/memories/types';
+import {
+  flattenImagesFromGroups,
+  mapMemoriesApiImage,
+  mapMemoriesImageGroupFromApi,
+} from './memoriesService';
 
 /** Flattened user from GET /api/simple-invitations/family-relationships (same tree as Photo Studio album share). */
 export type InvitableUser = {
@@ -124,15 +129,6 @@ export async function fetchSharedMemoriesEventsForMe(): Promise<SharedMemoriesEv
   return normalizeSharedList(response.data);
 }
 
-function mapGuestImage(x: any): MemoriesImage {
-  return {
-    id: String(x.id ?? `img_${Math.random().toString(36).slice(2)}`),
-    thumbUrl: String(x.thumbUrl ?? x.thumbnailUrl ?? x.previewUrl ?? x.hdUrl ?? ''),
-    hdUrl: String(x.hdUrl ?? x.fullUrl ?? x.downloadUrl ?? x.thumbUrl ?? ''),
-    likes: Number(x.likes ?? x.likeCount ?? 0) || 0,
-  };
-}
-
 /** Guest/public load when event is not in local zustand (invited user on another device). */
 export async function fetchGuestMemoriesEventBySlug(
   slug: string,
@@ -147,21 +143,49 @@ export async function fetchGuestMemoriesEventBySlug(
     if (!ev || typeof ev !== 'object') return null;
     const slugOut = String(ev.slug ?? slug);
     const imagesRaw = (Array.isArray(ev.images) ? ev.images : data.images) as any[];
-    const images: MemoriesImage[] = Array.isArray(imagesRaw)
-      ? imagesRaw.map(mapGuestImage).filter((i) => i.thumbUrl || i.hdUrl)
+    const imagesFlat: MemoriesImage[] = Array.isArray(imagesRaw)
+      ? imagesRaw.map(mapMemoriesApiImage).filter((i) => i.thumbUrl || i.hdUrl)
       : [];
+    const groupsRaw = Array.isArray(ev.imageGroups) ? ev.imageGroups : [];
+    const imageGroups = groupsRaw.map(mapMemoriesImageGroupFromApi).filter((g) => g.images.length > 0);
+    const images: MemoriesImage[] =
+      imageGroups.length > 0 ? flattenImagesFromGroups(imageGroups) : imagesFlat;
+    const desc =
+      ev.description != null && String(ev.description).trim()
+        ? String(ev.description).trim()
+        : ev.details != null && String(ev.details).trim()
+          ? String(ev.details).trim()
+          : undefined;
+    const summ =
+      ev.summary != null && String(ev.summary).trim()
+        ? String(ev.summary).trim()
+        : ev.subtitle != null && String(ev.subtitle).trim()
+          ? String(ev.subtitle).trim()
+          : undefined;
+    const eventTypeRaw =
+      ev.eventType != null && String(ev.eventType).trim()
+        ? String(ev.eventType).trim()
+        : ev.type != null && String(ev.type).trim()
+          ? String(ev.type).trim()
+          : ev.eventCategory != null && String(ev.eventCategory).trim()
+            ? String(ev.eventCategory).trim()
+            : undefined;
     return {
       id: String(ev.id ?? ev.eventId ?? `remote_${slugOut}`),
       slug: slugOut,
       name: String(ev.name ?? 'Event'),
       dateTime: String(ev.dateTime ?? ev.startsAt ?? new Date().toISOString()),
       location: String(ev.location ?? ''),
+      ...(desc ? { description: desc } : {}),
+      ...(summ ? { summary: summ } : {}),
+      ...(eventTypeRaw ? { eventType: eventTypeRaw } : {}),
       coverImageUrl: ev.coverImageUrl != null ? String(ev.coverImageUrl) : undefined,
       accessToken: String(ev.accessToken ?? token ?? ''),
       createdAt: String(ev.createdAt ?? new Date().toISOString()),
       updatedAt: String(ev.updatedAt ?? new Date().toISOString()),
       views: Number(ev.views ?? 0) || 0,
       images,
+      ...(imageGroups.length > 0 ? { imageGroups } : {}),
     };
   } catch {
     return null;

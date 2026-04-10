@@ -1,14 +1,58 @@
 import React from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FaArrowLeft, FaHeart, FaImages } from 'react-icons/fa';
+import toast from 'react-hot-toast';
+import { FaArrowLeft, FaCloudUploadAlt, FaHeart, FaImages } from 'react-icons/fa';
 import { useMemoriesStore } from '../../features/memories/memoriesStore';
 import { fetchGuestMemoriesEventBySlug } from '../../services/memoriesShareService';
-import { addMemoriesEventImageComment, getMemoriesEventById, likeMemoriesEventImage } from '../../services/memoriesService';
+import {
+  addMemoriesEventImageComment,
+  flattenImagesFromGroups,
+  getMemoriesEventById,
+  guestUploadToMemoriesEvent,
+  likeMemoriesEventImage,
+} from '../../services/memoriesService';
 import { MemoriesSkeletonGrid } from './components/MemoriesSkeletonGrid';
 import { MemoriesLightbox } from './components/MemoriesLightbox';
-import type { MemoriesEvent } from '../../features/memories/types';
-import api from 'src/services/api';
+import type { MemoriesEvent, MemoriesImage } from '../../features/memories/types';
+import { parseMemoriesGuestShareSearchParams } from '../../utils/memoriesGuestShareQuery';
+import {
+  getMemoriesEventTypePreviewUrls,
+  normalizeMemoriesEventType,
+  type MemoriesEventTypeId,
+} from '../../config/memoriesEventTypes';
+
+const GUEST_EVENT_TYPE_I18N: Record<MemoriesEventTypeId, string> = {
+  wedding: 'eventTypeWedding',
+  birthday: 'eventTypeBirthday',
+  corporate: 'eventTypeCorporate',
+  family: 'eventTypeFamily',
+  other: 'eventTypeOther',
+};
+
+function patchEventImage(
+  prev: MemoriesEvent,
+  eventId: string,
+  imageId: string,
+  mapImg: (img: MemoriesImage) => MemoriesImage
+): MemoriesEvent {
+  if (String(prev.id) !== String(eventId)) return prev;
+  if (prev.imageGroups?.length) {
+    const imageGroups = prev.imageGroups.map((g) => ({
+      ...g,
+      images: g.images.map((img) => (img.id === imageId ? mapImg(img) : img)),
+    }));
+    return {
+      ...prev,
+      imageGroups,
+      images: flattenImagesFromGroups(imageGroups),
+    };
+  }
+  return {
+    ...prev,
+    images: prev.images.map((img) => (img.id === imageId ? mapImg(img) : img)),
+  };
+}
 
 /** Public guest gallery — QR / share link. Token required when event is not public. */
 const MemoriesPublicGalleryPage: React.FC = () => {
@@ -18,12 +62,28 @@ const MemoriesPublicGalleryPage: React.FC = () => {
   const token = searchParams.get('t')?.trim() || '';
   const shareId = searchParams.get('shareId')?.trim() || searchParams.get('sid')?.trim() || '';
 
+  const guestQuery = React.useMemo(
+    () => parseMemoriesGuestShareSearchParams(searchParams),
+    [searchParams]
+  );
+
+  const [guestStep, setGuestStep] = React.useState<'intro' | 'hub' | 'gallery'>('gallery');
+  const [guestUploadFiles, setGuestUploadFiles] = React.useState<File[]>([]);
+  const [guestUploadNote, setGuestUploadNote] = React.useState('');
+  const [guestUploading, setGuestUploading] = React.useState(false);
+  const guestFileInputRef = React.useRef<HTMLInputElement>(null);
+
   const getBySlug = useMemoriesStore((s) => s.getBySlug);
   const toggleLike = useMemoriesStore((s) => s.toggleLike);
   const addComment = useMemoriesStore((s) => s.addComment);
   const incrementViews = useMemoriesStore((s) => s.incrementViews);
 
   const slug = eventSlug || '';
+  React.useEffect(() => {
+    if (!guestQuery.useGuestFlow) setGuestStep('gallery');
+    else setGuestStep('intro');
+  }, [slug, guestQuery.useGuestFlow, searchParams]);
+
   const local = slug ? getBySlug(slug) : undefined;
   const [remote, setRemote] = React.useState<MemoriesEvent | null>(null);
   const [fetchingRemote, setFetchingRemote] = React.useState(false);
@@ -65,12 +125,7 @@ const MemoriesPublicGalleryPage: React.FC = () => {
       cancelled = true;
     };
   }, [slug, token, local]);
-  // const getLike= async ()=>{
-  //   const response = await api.get('/api/memories/events/1/images/214/likes', {
-  //     params: { ...(token ? { t: token } : {}) },
-  //   });
-  //   console.log(response);
-  // }
+
   const ev = local || remote;
   const isRemoteOnly = !!remote && !local;
   const [likedImageIds, setLikedImageIds] = React.useState<Set<string>>(new Set());
@@ -108,13 +163,11 @@ const MemoriesPublicGalleryPage: React.FC = () => {
 
       // Remote/guest events: optimistic update + backend persistence.
       setRemote((prev) => {
-        if (!prev || String(prev.id) !== String(ev.id)) return prev;
-        return {
-          ...prev,
-          images: prev.images.map((img) =>
-            img.id === imageId ? { ...img, likes: Math.max(0, (img.likes ?? 0) + delta) } : img
-          ),
-        };
+        if (!prev) return prev;
+        return patchEventImage(prev, String(ev.id), imageId, (img) => ({
+          ...img,
+          likes: Math.max(0, (img.likes ?? 0) + delta),
+        }));
       });
 
       likeMemoriesEventImage(String(ev.id), imageId, delta, shareId || undefined).catch(() => {
@@ -126,13 +179,11 @@ const MemoriesPublicGalleryPage: React.FC = () => {
           return next;
         });
         setRemote((prev) => {
-          if (!prev || String(prev.id) !== String(ev.id)) return prev;
-          return {
-            ...prev,
-            images: prev.images.map((img) =>
-              img.id === imageId ? { ...img, likes: Math.max(0, (img.likes ?? 0) - delta) } : img
-            ),
-          };
+          if (!prev) return prev;
+          return patchEventImage(prev, String(ev.id), imageId, (img) => ({
+            ...img,
+            likes: Math.max(0, (img.likes ?? 0) - delta),
+          }));
         });
       });
     },
@@ -172,6 +223,115 @@ const MemoriesPublicGalleryPage: React.FC = () => {
     const parts = [prettyDate, ev?.location].filter((x) => typeof x === 'string' && x.trim());
     return parts.join(' · ');
   }, [prettyDate, ev?.location]);
+
+  const [albumView, setAlbumView] = React.useState<'albums' | 'photos'>('albums');
+  const [selectedAlbumIndex, setSelectedAlbumIndex] = React.useState(0);
+
+  const filteredAlbumGroups = React.useMemo(() => {
+    if (!ev?.imageGroups?.length) return null;
+    let groups = ev.imageGroups;
+    if (shareId.trim()) {
+      const n = Number(shareId);
+      if (Number.isFinite(n)) {
+        const matched = groups.filter((g) => g.shareId === n);
+        if (matched.length > 0) groups = matched;
+      }
+    }
+    return groups;
+  }, [ev?.imageGroups, shareId]);
+
+  React.useEffect(() => {
+    if (!filteredAlbumGroups?.length) return;
+    const sid = shareId.trim();
+    if (!sid) return;
+    const n = Number(sid);
+    if (!Number.isFinite(n)) return;
+    const idx = filteredAlbumGroups.findIndex((g) => g.shareId === n);
+    if (idx >= 0) {
+      setSelectedAlbumIndex(idx);
+      setAlbumView('photos');
+    }
+  }, [filteredAlbumGroups, shareId]);
+
+  const galleryImages = React.useMemo(() => {
+    if (!ev) return [];
+    if (filteredAlbumGroups?.length) {
+      if (albumView === 'photos' && filteredAlbumGroups[selectedAlbumIndex]) {
+        return filteredAlbumGroups[selectedAlbumIndex].images;
+      }
+      return [];
+    }
+    return ev.images;
+  }, [ev, filteredAlbumGroups, albumView, selectedAlbumIndex]);
+
+  const refetchRemoteEvent = React.useCallback(async () => {
+    if (!slug || local) return;
+    setFetchingRemote(true);
+    try {
+      const isNumericSlug = /^\d+$/.test(slug);
+      if (isNumericSlug) {
+        const host = await getMemoriesEventById(slug);
+        if (host) {
+          setRemote(host);
+          return;
+        }
+      }
+      const guest = await fetchGuestMemoriesEventBySlug(slug, token || undefined);
+      setRemote(guest);
+    } finally {
+      setFetchingRemote(false);
+    }
+  }, [slug, token, local]);
+
+  const handleGuestIntroNext = React.useCallback(() => {
+    const { allowImageUpload, allowViewEventImages } = guestQuery;
+    if (!allowImageUpload && !allowViewEventImages) return;
+    if (!allowImageUpload && allowViewEventImages) {
+      setGuestStep('gallery');
+      return;
+    }
+    if (allowImageUpload && !allowViewEventImages) {
+      setGuestStep('hub');
+      return;
+    }
+    setGuestStep('hub');
+  }, [guestQuery.allowImageUpload, guestQuery.allowViewEventImages]);
+
+  const handleGuestUploadSubmit = React.useCallback(async () => {
+    if (!ev || guestUploadFiles.length === 0) {
+      toast.error(t('guestUploadPickFiles'));
+      return;
+    }
+    setGuestUploading(true);
+    try {
+      await guestUploadToMemoriesEvent({
+        eventId: String(ev.id),
+        files: guestUploadFiles,
+        note: guestUploadNote,
+        token: token || undefined,
+        shareId: shareId || undefined,
+      });
+      toast.success(t('guestUploadSuccess'));
+      setGuestUploadFiles([]);
+      setGuestUploadNote('');
+      if (guestFileInputRef.current) guestFileInputRef.current.value = '';
+      await refetchRemoteEvent();
+      if (guestQuery.allowViewEventImages) setGuestStep('gallery');
+    } catch {
+      toast.error(t('guestUploadError'));
+    } finally {
+      setGuestUploading(false);
+    }
+  }, [
+    ev,
+    guestUploadFiles,
+    guestUploadNote,
+    token,
+    shareId,
+    guestQuery.allowViewEventImages,
+    refetchRemoteEvent,
+    t,
+  ]);
 
   if (!loading && !ev) {
     return (
@@ -251,6 +411,222 @@ const MemoriesPublicGalleryPage: React.FC = () => {
     );
   }
 
+  if (
+    !loading &&
+    ev &&
+    accessOk &&
+    guestQuery.useGuestFlow &&
+    guestStep === 'intro'
+  ) {
+    const cover = ev.coverImageUrl?.trim();
+    const typeId = normalizeMemoriesEventType(ev.eventType);
+    const typeImages = getMemoriesEventTypePreviewUrls(typeId);
+    const summaryText = ev.summary?.trim() || t('guestIntroSummaryFallback');
+    const descriptionText = ev.description?.trim() || t('guestIntroDescriptionFallback');
+
+    return (
+      <div className="min-h-screen relative overflow-hidden flex flex-col bg-[#050508] font-memories-body text-slate-100">
+        <div className="absolute inset-0">
+          {cover ? (
+            <>
+              <img src={cover} alt="" className="absolute inset-0 h-full w-full object-cover scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/85 via-[#050508]/94 to-[#050508]" />
+            </>
+          ) : (
+            <>
+              <div className="absolute inset-0 bg-[#050508]" />
+              {typeImages.map((url, i) => (
+                <img
+                  key={url}
+                  src={url}
+                  alt=""
+                  className="absolute h-[55%] w-[38%] max-w-[220px] rounded-3xl object-cover opacity-[0.12] blur-[0.5px] ring-1 ring-white/10 shadow-2xl"
+                  style={{
+                    top: i === 0 ? '8%' : i === 1 ? '22%' : '12%',
+                    left: i === 0 ? '-4%' : i === 1 ? '58%' : '32%',
+                    transform: `rotate(${i === 0 ? -8 : i === 1 ? 6 : -3}deg)`,
+                  }}
+                />
+              ))}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-[#050508]/92 to-[#050508]" />
+              <div className="absolute -top-24 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-violet-600/20 blur-[120px]" />
+              <div className="absolute -bottom-28 right-[-120px] h-[520px] w-[520px] rounded-full bg-fuchsia-500/15 blur-[140px]" />
+            </>
+          )}
+        </div>
+
+        <div className="relative z-10 flex flex-col flex-1 min-h-0 overflow-y-auto">
+          <div className="flex justify-end p-4 shrink-0">
+            <Link
+              to="/memories"
+              className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-black/35 backdrop-blur-md px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/10 transition-colors"
+            >
+              {t('backToMemoriesHome')}
+            </Link>
+          </div>
+
+          <div className="flex-1 px-6 pb-14 sm:px-10 sm:pb-20 max-w-xl mx-auto w-full">
+            <div className="flex gap-2 sm:gap-3 mb-8">
+              {typeImages.map((url) => (
+                <div
+                  key={url}
+                  className="flex-1 min-w-0 aspect-[3/4] max-h-44 rounded-2xl overflow-hidden ring-1 ring-white/15 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+                >
+                  <img src={url} alt="" className="h-full w-full object-cover" />
+                </div>
+              ))}
+            </div>
+
+            <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-violet-300/90 font-memories-body">
+              {t('dashboardTitle')}
+            </p>
+            <h1 className="mt-3 font-memories-display text-[2rem] sm:text-5xl font-semibold tracking-tight text-white leading-[1.1]">
+              {ev.name}
+            </h1>
+            {heroSubtitle ? (
+              <p className="mt-4 text-sm text-slate-400 leading-relaxed">{heroSubtitle}</p>
+            ) : null}
+
+            <span className="mt-4 inline-flex items-center rounded-full border border-white/15 bg-white/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-violet-200/95">
+              {t(GUEST_EVENT_TYPE_I18N[typeId])}
+            </span>
+
+            <div className="mt-10 space-y-5">
+              <section className="rounded-2xl border border-white/10 bg-white/[0.05] backdrop-blur-xl px-5 py-5 shadow-[0_16px_48px_rgba(0,0,0,0.35)]">
+                <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-violet-300/85 mb-3">
+                  {t('guestIntroSummaryLabel')}
+                </h2>
+                <p className="font-memories-display text-xl sm:text-2xl text-slate-50 leading-snug font-medium">
+                  {summaryText}
+                </p>
+              </section>
+              <section className="rounded-2xl border border-white/10 bg-black/25 backdrop-blur-xl px-5 py-5">
+                <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-3">
+                  {t('guestIntroDescriptionLabel')}
+                </h2>
+                <p className="text-sm sm:text-[15px] text-slate-300/95 leading-relaxed whitespace-pre-wrap">
+                  {descriptionText}
+                </p>
+              </section>
+            </div>
+
+            {!guestQuery.allowImageUpload && !guestQuery.allowViewEventImages ? (
+              <p className="mt-10 text-amber-200/90 text-sm rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+                {t('guestNoAccessBothDisabled')}
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={handleGuestIntroNext}
+                className="mt-10 w-full sm:w-auto min-w-[200px] rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-10 py-4 text-sm font-bold text-white shadow-lg shadow-violet-900/40 hover:opacity-95 transition-opacity"
+              >
+                {t('guestIntroNext')}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (
+    !loading &&
+    ev &&
+    accessOk &&
+    guestQuery.useGuestFlow &&
+    guestStep === 'hub' &&
+    guestQuery.allowImageUpload
+  ) {
+    return (
+      <div className="min-h-screen bg-[#07070a] text-slate-100 relative overflow-hidden pb-24">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-24 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-violet-600/20 blur-[120px]" />
+          <div className="absolute -bottom-28 right-[-120px] h-[520px] w-[520px] rounded-full bg-fuchsia-500/15 blur-[140px]" />
+        </div>
+
+        <header className="relative z-10 border-b border-white/10 bg-black/50 backdrop-blur-2xl">
+          <div className="mx-auto max-w-lg px-4 py-4 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setGuestStep('intro')}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/[0.1]"
+            >
+              <FaArrowLeft className="h-3 w-3" />
+              {t('guestBackIntro')}
+            </button>
+            <Link
+              to="/memories"
+              className="text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+            >
+              {t('backToMemoriesHome')}
+            </Link>
+          </div>
+        </header>
+
+        <main className="relative z-10 max-w-lg mx-auto px-4 py-8 space-y-6">
+          <div>
+            <h2 className="text-xl font-extrabold tracking-tight">{t('guestHubTitle')}</h2>
+            <p className="mt-1 text-xs text-slate-400">{t('guestHubSubtitle')}</p>
+          </div>
+
+          <input
+            ref={guestFileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => setGuestUploadFiles(Array.from(e.target.files || []))}
+          />
+          <button
+            type="button"
+            onClick={() => guestFileInputRef.current?.click()}
+            className="w-full flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-white/20 bg-white/[0.04] px-6 py-12 hover:border-violet-500/50 hover:bg-white/[0.06] transition-colors"
+          >
+            <FaCloudUploadAlt className="h-10 w-10 text-violet-400/90" />
+            <span className="text-sm font-semibold text-slate-200">{t('guestUploadPickButton')}</span>
+            {guestUploadFiles.length > 0 ? (
+              <span className="text-xs text-slate-400">
+                {t('guestUploadFileCount', { count: guestUploadFiles.length })}
+              </span>
+            ) : null}
+          </button>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 mb-2">
+              {t('guestUploadNoteLabel')}
+            </label>
+            <textarea
+              value={guestUploadNote}
+              onChange={(e) => setGuestUploadNote(e.target.value)}
+              rows={4}
+              placeholder={t('guestUploadNotePlaceholder')}
+              className="w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGuestUploadSubmit}
+            disabled={guestUploading || guestUploadFiles.length === 0}
+            className="w-full rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-3 text-sm font-bold text-white disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-95 transition-opacity"
+          >
+            {guestUploading ? t('guestUploading') : t('guestUploadSubmit')}
+          </button>
+
+          {guestQuery.allowViewEventImages ? (
+            <button
+              type="button"
+              onClick={() => setGuestStep('gallery')}
+              className="w-full rounded-2xl border border-white/15 bg-white/[0.06] py-3 text-sm font-semibold text-slate-100 hover:bg-white/[0.1] transition-colors"
+            >
+              {t('guestViewEventImagesCta')}
+            </button>
+          ) : null}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#07070a] text-slate-100 pb-24 relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0">
@@ -283,7 +659,119 @@ const MemoriesPublicGalleryPage: React.FC = () => {
       </header>
 
       <main className="relative mx-auto max-w-4xl px-3 sm:px-4 pt-5">
-        {ev.images.length === 0 ? (
+        {guestQuery.useGuestFlow && guestStep === 'gallery' ? (
+          <div className="flex flex-wrap gap-2 mb-5">
+            <button
+              type="button"
+              onClick={() => setGuestStep('intro')}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/[0.1]"
+            >
+              <FaArrowLeft className="h-3 w-3" />
+              {t('guestBackIntro')}
+            </button>
+            {guestQuery.allowImageUpload ? (
+              <button
+                type="button"
+                onClick={() => setGuestStep('hub')}
+                className="inline-flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-600/20 px-3 py-2 text-xs font-semibold text-violet-100 hover:bg-violet-600/30"
+              >
+                <FaCloudUploadAlt className="h-3 w-3" />
+                {t('guestAddPhotos')}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {filteredAlbumGroups?.length && albumView === 'albums' ? (
+          <div className="space-y-4 mb-6">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-400">{t('memoriesAlbumsTitle')}</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {filteredAlbumGroups.map((group, gi) => {
+                const cover = group.images[0];
+                if (!cover) return null;
+                return (
+                  <button
+                    key={`${group.shareId ?? 'gen'}-${gi}`}
+                    type="button"
+                    onClick={() => {
+                      setSelectedAlbumIndex(gi);
+                      setAlbumView('photos');
+                      setLightbox({ open: false, index: 0 });
+                    }}
+                    className="group text-left rounded-3xl border border-white/10 bg-white/[0.04] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.4)] hover:border-violet-500/40 transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-[#07070a]"
+                  >
+                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-black/40">
+                      <img
+                        src={cover.thumbUrl}
+                        alt=""
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/25 to-transparent" />
+                      <div className="absolute bottom-3 left-3 right-3">
+                        <p className="text-lg font-bold text-white drop-shadow-md">
+                          {group.recipientName?.trim() || t('memoriesAlbumGeneral')}
+                        </p>
+                        <p className="text-xs text-white/85 mt-0.5">
+                          {t('memoriesAlbumPhotos', { count: group.images.length })}
+                        </p>
+                      </div>
+                    </div>
+                    {group.comment ? (
+                      <div className="px-4 py-3 border-t border-white/10 bg-black/35">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-violet-300/90 mb-1.5">
+                          {t('memoriesAlbumNote')}
+                        </p>
+                        <p className="text-sm text-slate-100 leading-snug line-clamp-4">{group.comment.text}</p>
+                        <p className="text-xs text-slate-500 mt-2">
+                          {Array.from(
+                            new Set(
+                              [group.comment.displayName, group.comment.userName].filter(
+                                (x): x is string => Boolean(x && String(x).trim())
+                              )
+                            )
+                          ).join(' · ')}
+                          {group.comment.createdAt
+                            ? ` · ${new Date(group.comment.createdAt).toLocaleString(undefined, {
+                                dateStyle: 'medium',
+                                timeStyle: 'short',
+                              })}`
+                            : ''}
+                        </p>
+                      </div>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        {filteredAlbumGroups?.length && albumView === 'photos' ? (
+          <div className="mb-5">
+            <button
+              type="button"
+              onClick={() => {
+                setAlbumView('albums');
+                setLightbox({ open: false, index: 0 });
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-semibold text-slate-100 hover:bg-white/[0.1]"
+            >
+              <FaArrowLeft className="h-3 w-3" />
+              {t('memoriesAlbumBack')}
+            </button>
+            <p className="mt-3 text-base font-semibold text-slate-100">
+              {filteredAlbumGroups[selectedAlbumIndex]?.recipientName?.trim() || t('memoriesAlbumGeneral')}
+            </p>
+            <p className="text-xs text-slate-500">
+              {t('memoriesAlbumPhotos', {
+                count: filteredAlbumGroups[selectedAlbumIndex]?.images.length ?? 0,
+              })}
+            </p>
+          </div>
+        ) : null}
+
+        {(!filteredAlbumGroups?.length || albumView === 'photos') &&
+        (galleryImages.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-white/[0.06] backdrop-blur-xl px-6 py-16 text-center">
             <div className="mx-auto h-12 w-12 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center mb-4">
               <FaImages className="h-6 w-6 text-slate-200/70" />
@@ -293,7 +781,7 @@ const MemoriesPublicGalleryPage: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {ev.images.map((img, idx) => (
+            {galleryImages.map((img, idx) => (
               <button
                 key={img.id}
                 type="button"
@@ -330,13 +818,13 @@ const MemoriesPublicGalleryPage: React.FC = () => {
               </button>
             ))}
           </div>
-        )}
+        ))}
       </main>
 
       <MemoriesLightbox
         open={lightbox.open}
         initialIndex={lightbox.index}
-        images={ev.images}
+        images={galleryImages}
         title={ev.name}
         readOnly={false}
         isLiked={isLiked}
@@ -355,44 +843,29 @@ const MemoriesPublicGalleryPage: React.FC = () => {
           const tmpId = `tmp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
           const optimistic = { id: tmpId, text, createdAt: new Date().toISOString() };
           setRemote((prev) => {
-            if (!prev || String(prev.id) !== String(ev.id)) return prev;
-            return {
-              ...prev,
-              images: prev.images.map((img) =>
-                img.id === imageId
-                  ? { ...img, comments: [...(img.comments ?? []), optimistic] }
-                  : img
-              ),
-            };
+            if (!prev) return prev;
+            return patchEventImage(prev, String(ev.id), imageId, (img) => ({
+              ...img,
+              comments: [...(img.comments ?? []), optimistic],
+            }));
           });
           addMemoriesEventImageComment(String(ev.id), imageId, text)
             .then((saved) => {
               setRemote((prev) => {
-                if (!prev || String(prev.id) !== String(ev.id)) return prev;
-                return {
-                  ...prev,
-                  images: prev.images.map((img) =>
-                    img.id === imageId
-                      ? {
-                          ...img,
-                          comments: (img.comments ?? []).map((c) => (c.id === tmpId ? saved : c)),
-                        }
-                      : img
-                  ),
-                };
+                if (!prev) return prev;
+                return patchEventImage(prev, String(ev.id), imageId, (img) => ({
+                  ...img,
+                  comments: (img.comments ?? []).map((c) => (c.id === tmpId ? saved : c)),
+                }));
               });
             })
             .catch(() => {
               setRemote((prev) => {
-                if (!prev || String(prev.id) !== String(ev.id)) return prev;
-                return {
-                  ...prev,
-                  images: prev.images.map((img) =>
-                    img.id === imageId
-                      ? { ...img, comments: (img.comments ?? []).filter((c) => c.id !== tmpId) }
-                      : img
-                  ),
-                };
+                if (!prev) return prev;
+                return patchEventImage(prev, String(ev.id), imageId, (img) => ({
+                  ...img,
+                  comments: (img.comments ?? []).filter((c) => c.id !== tmpId),
+                }));
               });
             });
         }}

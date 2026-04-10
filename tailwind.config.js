@@ -13,6 +13,8 @@ module.exports = {
           'Roboto',
           'sans-serif',
         ],
+        'memories-display': ['"Cormorant Garamond"', 'Georgia', 'Cambria', 'Times New Roman', 'serif'],
+        'memories-body': ['Outfit', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       colors: {
         primary: {

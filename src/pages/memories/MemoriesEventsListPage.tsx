@@ -1,17 +1,44 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FaPlus, FaChevronRight, FaLock, FaGlobe, FaUserFriends } from 'react-icons/fa';
+import {
+  FaPlus,
+  FaChevronRight,
+  FaLock,
+  FaGlobe,
+  FaUserFriends,
+  FaMapMarkerAlt,
+  FaImages,
+} from 'react-icons/fa';
 import { useQuery } from '@tanstack/react-query';
-import type { MemoriesPrivacy } from '../../features/memories/types';
+import type { MemoriesEvent, MemoriesPrivacy } from '../../features/memories/types';
 import { listMemoriesEvents } from '../../services/memoriesService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
-const privacyIcon = (p: MemoriesPrivacy) => {
+const privacyIcon = (p: MemoriesPrivacy | undefined) => {
   if (p === 'public') return FaGlobe;
   if (p === 'invite') return FaUserFriends;
   return FaLock;
 };
+
+const privacyLabelKey = (p: MemoriesPrivacy | undefined): `privacy.${MemoriesPrivacy}` => {
+  if (p === 'public') return 'privacy.public';
+  if (p === 'private') return 'privacy.private';
+  return 'privacy.invite';
+};
+
+function formatListDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return '';
+  }
+}
 
 const MemoriesEventsListPage: React.FC = () => {
   const { t } = useTranslation(undefined, { keyPrefix: 'memoriesPlatform' });
@@ -71,36 +98,80 @@ const MemoriesEventsListPage: React.FC = () => {
           </Link>
         </div>
       ) : (
-        <ul className="space-y-3">
-          {events.map((ev:any) => {
-            const Icon = privacyIcon((ev as any).privacy);
+        <ul className="space-y-4 sm:space-y-5">
+          {(events as MemoriesEvent[]).map((ev) => {
+            const privacy = (ev as MemoriesEvent & { privacy?: MemoriesPrivacy }).privacy ?? 'invite';
+            const Icon = privacyIcon(privacy);
+            const photoCount = Array.isArray(ev.images) ? ev.images.length : 0;
+            const listDate = formatListDate(ev.dateTime);
             return (
               <li key={ev.id}>
                 <Link
                   to={`/memories/events/${ev.id}`}
-                  className="flex items-center gap-4 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-sm hover:border-violet-200 hover:shadow-md transition-all group"
+                  className="group relative flex flex-col sm:flex-row sm:items-stretch gap-0 overflow-hidden rounded-[1.35rem] border border-slate-200/70 bg-gradient-to-br from-white via-white to-violet-50/40 shadow-[0_4px_24px_-6px_rgba(15,23,42,0.08)] ring-slate-900/[0.04] transition-all duration-300 hover:border-violet-300/50 hover:shadow-[0_16px_48px_-12px_rgba(124,58,237,0.18)] hover:ring-violet-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
                 >
-                  <div className="h-16 w-16 shrink-0 rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 overflow-hidden">
+                  <div className="relative h-40 sm:h-auto sm:w-[min(38%,280px)] shrink-0 overflow-hidden sm:rounded-l-[1.35rem]">
                     {ev.coverImageUrl ? (
-                      <img src={ev.coverImageUrl} alt="" className="h-full w-full object-cover" />
+                      <img
+                        src={ev.coverImageUrl}
+                        alt=""
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                      />
                     ) : (
-                      <div className="h-full w-full flex items-center justify-center text-violet-400 text-xs font-bold">
-                        OM
+                      <div className="flex h-full min-h-[160px] w-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-violet-600 via-fuchsia-600 to-violet-800 p-4 sm:min-h-[140px]">
+                        <span className="text-[11px] font-black tracking-[0.35em] text-white/90">OM</span>
+                        <span className="text-[10px] font-medium text-white/70">Our Memories</span>
                       </div>
                     )}
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-900/50 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:via-transparent sm:to-white/10" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-slate-900 truncate group-hover:text-violet-700 transition-colors">
-                      {ev.name}
+
+                  <div className="flex flex-1 flex-col justify-center gap-3 p-5 sm:py-6 sm:pl-6 sm:pr-5">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h2 className="line-clamp-2 text-lg font-bold tracking-tight text-slate-900 transition-colors group-hover:text-violet-800 sm:text-xl">
+                          {ev.name}
+                        </h2>
+                        {ev.summary ? (
+                          <p className="mt-1.5 line-clamp-2 text-sm leading-snug text-slate-600">{ev.summary}</p>
+                        ) : null}
+                      </div>
+                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-violet-200/80 bg-violet-50/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-800">
+                        <Icon className="h-3 w-3 text-violet-600" aria-hidden />
+                        {t(privacyLabelKey(privacy))}
+                      </span>
                     </div>
-                    <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
-                      <Icon className="h-3 w-3" />
-                      {/* {t(`privacy.${ev.privacy}`)} */}
-                      <span className="text-slate-300">·</span>
-                      {ev.images.length} {t('photos')}
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+                      {listDate ? (
+                        <span className="inline-flex items-center gap-1.5 font-medium text-slate-600">
+                          <span className="h-1 w-1 rounded-full bg-violet-400" aria-hidden />
+                          {listDate}
+                        </span>
+                      ) : null}
+                      {ev.location ? (
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                          <FaMapMarkerAlt className="h-3 w-3 shrink-0 text-violet-400" aria-hidden />
+                          <span className="truncate">{ev.location}</span>
+                        </span>
+                      ) : null}
+                      <span className="inline-flex items-center gap-1.5 text-slate-500">
+                        <FaImages className="h-3 w-3 shrink-0 text-violet-400" aria-hidden />
+                        <span className="tabular-nums">
+                          {photoCount} {t('photos')}
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-slate-100/80 pt-3 sm:border-0 sm:pt-0">
+                      <span className="text-xs font-semibold text-violet-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                        {t('openGallery')} →
+                      </span>
+                      <span className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-400 shadow-sm transition-all duration-300 group-hover:border-violet-300 group-hover:bg-violet-50 group-hover:text-violet-600 group-hover:shadow-md">
+                        <FaChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                      </span>
                     </div>
                   </div>
-                  <FaChevronRight className="h-4 w-4 text-slate-300 group-hover:text-violet-500 shrink-0" />
                 </Link>
               </li>
             );

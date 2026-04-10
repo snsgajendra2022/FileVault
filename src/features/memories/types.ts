@@ -18,6 +18,25 @@ export type MemoriesComment = {
   createdAt: string;
 };
 
+/** Album / share batch from API (`imageGroups`): images + host note on the group. */
+export type MemoriesAlbumComment = {
+  id: string;
+  text: string;
+  createdAt: string;
+  userId?: number;
+  userName?: string;
+  displayName?: string;
+};
+
+export type MemoriesImageGroup = {
+  shareId: number | null;
+  recipientEmail: string | null;
+  recipientName: string | null;
+  recipientMobile: string | null;
+  images: MemoriesImage[];
+  comment?: MemoriesAlbumComment;
+};
+
 export type MemoriesEvent = {
   id: string;
   slug: string;
@@ -25,6 +44,12 @@ export type MemoriesEvent = {
   /** ISO datetime string */
   dateTime: string;
   location: string;
+  /** Longer text for guest intro / detail */
+  description?: string;
+  /** Short blurb for guest landing */
+  summary?: string;
+  /** e.g. wedding | birthday | corporate | family | other — drives welcome imagery */
+  eventType?: string;
   coverImageUrl?: string;
   /** Opaque token for QR / private links */
   accessToken: string;
@@ -32,6 +57,8 @@ export type MemoriesEvent = {
   updatedAt: string;
   views: number;
   images: MemoriesImage[];
+  /** When present, photos are grouped per share/recipient; UI can show album cards then drill in. */
+  imageGroups?: MemoriesImageGroup[];
   /** User IDs this event was shared with (via share-memories-event API). */
   sharedWithUserIds?: number[];
 };
