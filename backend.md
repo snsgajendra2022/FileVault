@@ -413,4 +413,68 @@ If you want backend persistence later, add endpoints like:
 }
 ```
 
+---
+
+## OpenClaw assistant (optional)
+
+The React app can show **`/studio/openclaw`** when `REACT_APP_OPENCLAW_ENABLED=true`. The SPA **never** talks to the OpenClaw Gateway directly; it uses the same **`api` axios client** (`REACT_APP_API_URL`) and expects your backend to proxy to the Gateway (WebSocket or HTTP, per your deployment).
+
+Configurable path prefixes (defaults below) come from `.env` — see `.env.example`.
+
+| Method | Path (default) | Purpose |
+|--------|----------------|---------|
+| `POST` | `/api/openclaw/chat` | Body: `{ message: string, sessionId?: string, context?: object }`. Response: include assistant text as **`reply`** or **`message`** or **`text`**, and optionally **`sessionId`**. |
+| `POST` | `/api/openclaw/voice` | Same as chat; body uses **`transcript`** instead of `message` (frontend sends STT text). |
+| `POST` | `/api/openclaw/image` | `multipart/form-data` with field **`file`**; optional **`sessionId`**, **`prompt`**, **`context`** (JSON string of the same object as chat). Response: same text fields as chat. |
+| `POST` | `/api/openclaw/session` | Create or reset server-side session; response: **`sessionId`** (optional). |
+
+**`context` (live UI data from the SPA)**  
+The client may send **`context`**: `{ path: string, memoriesEvent?: { id, name, dateTime, location, imageCount } }` when the user is on a Memories event detail page (`/memories/events/:id`). Your bridge or server can pass this into the model so answers match the open event. The dev server (`openclaw-dev-server.js`) appends it to OpenAI user messages when **`OPENAI_API_KEY`** is set.
+
+**Optional navigation (assistant → in-app routes)**  
+If the JSON body includes **`navigateTo`** (string path starting with `/`, on the allowlist enforced in the SPA — see `src/utils/openclawNavigation.ts`; includes e.g. `/memories/events`, `/studio/albums`), the React app navigates there after showing the reply. Same for nested **`navigation.path`**. The dev mock server sets `navigateTo` from common phrases (e.g. “events”, “event get”). Your real OpenClaw/backend proxy can return `navigateTo` when the agent decides to open a screen.
+
+**Auth**: use the same Bearer token as other authenticated routes. If a route is missing, the UI shows an error string from **`error`** or **`message`** in the JSON body when possible.
+
+### Local development (this repo)
+
+`npm start` runs **Create React App** and **`server/openclaw-dev-server.js`** together (via `concurrently`). Set **`REACT_APP_OPENCLAW_DEV_URL=http://localhost:9093`** (and **`OPENCLAW_DEV_PORT=9093`** if you change the port) so the SPA sends OpenClaw requests to this Node helper while **`REACT_APP_API_URL`** stays your main backend for the rest of the app. Remove **`REACT_APP_OPENCLAW_DEV_URL`** for production builds so OpenClaw calls go to **`REACT_APP_API_URL`** only.
+
+The **OpenClaw CLI** is listed in **`package.json`** as dependency **`openclaw`** (use a real release such as **`2026.4.9`**; **`0.0.1`** on npm is an unrelated empty placeholder with no binary). Run it from the repo with **`npm run openclaw:onboard`** or **`npm run openclaw -- <args>`**; the CLI currently requires **Node.js ≥ 22.12** (upgrade if `openclaw` exits asking for a newer Node).
+
+### Real assistant (not “demo” text)
+
+The browser **cannot** run the OpenClaw Gateway; something **server-side** must talk to your model or to [OpenClaw](https://docs.openclaw.ai/). Use one of these:
+
+**A — `OPENCLAW_BRIDGE_URL` (recommended for OpenClaw / your Java API)**  
+Set in **`.env`** next to the dev server (or your production Node layer):
+
+- **`OPENCLAW_BRIDGE_URL`** — full URL to **your** HTTP endpoint, e.g. `http://127.0.0.1:8080/internal/openclaw-bridge`. **Do not** set this to `http://localhost:9093` (that is the CRA companion dev server itself, not the bridge).
+- Optional **`OPENCLAW_BRIDGE_TOKEN`** — the dev server sends it as `Authorization: Bearer …` on every bridge POST (the SPA’s `Authorization` header overrides when present). After **`openclaw onboard`**, read the gateway token with **`openclaw config get gateway.auth.token`** ([OpenClaw config](https://docs.openclaw.ai/gateway/configuration)); use that string here **only if** your bridge validates the same secret. Otherwise leave empty.
+
+**POST body** (JSON) from `server/openclaw-dev-server.js`:
+
+```json
+{
+  "kind": "chat" | "voice" | "image",
+  "message": "…",
+  "transcript": "…",
+  "prompt": "…",
+  "sessionId": "…",
+  "context": { }
+}
+```
+
+**Response** (JSON): at least one of **`reply`**, **`message`**, or **`text`**, plus optional **`sessionId`**, **`navigateTo`**, or **`navigation.path`** (same allowlist as the SPA).
+
+Your bridge implementation should call the OpenClaw Gateway (WebSocket / CLI / whatever you run), execute tools (e.g. upload images, call your REST APIs), and return natural language + optional `navigateTo`.
+
+**B — `OPENAI_API_KEY` (quick real LLM without OpenClaw)**  
+If set, the dev server calls **OpenAI Chat Completions** (`OPENAI_MODEL`, default `gpt-4o-mini`; optional **`OPENAI_API_BASE`** for Azure or proxies). It uses a short system prompt about OM routes. The model may end its reply with a line `NAVIGATE:/memories/events` (only allowed paths); the server strips that line and sets **`navigateTo`**. Image uploads use **vision** on the same model when the file is present.
+
+**C — Production**  
+Implement **`POST /api/openclaw/*`** on **`REACT_APP_API_URL`** the same way as the bridge contract above, and **do not** set `REACT_APP_OPENCLAW_DEV_URL` in the build env.
+
+**Security**: never expose `OPENAI_API_KEY` or OpenClaw tokens to the React bundle — only in server env.
+
 *Generated for alignment with the filevault frontend (Photo theme category page, PhotoBook hub, album builder, Photo Phone Book, Studio checkout, Our Memories). Update this file when API contracts change.*

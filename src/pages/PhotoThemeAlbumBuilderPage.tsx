@@ -167,8 +167,10 @@ type AlbumPage = {
   index: number;
   type: 'cover' | 'inner' | 'last';
   layoutName: string;
-  /** Flip-book preview only: split front cover into a text leaf then a photo leaf */
+  /** Flip-book preview only: split front cover into a text leaf then a full-bleed photo leaf */
   coverSplit?: 'text' | 'image';
+  /** Flip-book preview only: same split for back cover — matches front layout and text positions */
+  lastSplit?: 'text' | 'image';
 };
 
 type CropPos = { x: number; y: number };
@@ -1011,16 +1013,26 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     }));
   }, [basePages, pageCount]);
 
-  /** Flip modal: front cover becomes two pages (typography + full-bleed photo). Editor/PDF still use `albumPages`. */
+  /** Flip modal: front + back each become two leaves (typography + full-bleed photo), same structure. Editor/PDF still use `albumPages`. */
   const flipBookAlbumPages: AlbumPage[] = React.useMemo(() => {
     if (!albumPages.length) return albumPages;
-    const [first, ...rest] = albumPages;
+    const [first, ...middleAndEnd] = albumPages;
     if (first.type !== 'cover') return albumPages;
-    return [
+    const expandedFront: AlbumPage[] = [
       { ...first, coverSplit: 'text' },
       { ...first, coverSplit: 'image' },
-      ...rest,
     ];
+    if (middleAndEnd.length === 0) return expandedFront;
+    const last = middleAndEnd[middleAndEnd.length - 1];
+    const middle = middleAndEnd.slice(0, -1);
+    if (last.type !== 'last') {
+      return [...expandedFront, ...middleAndEnd];
+    }
+    const expandedBack: AlbumPage[] = [
+      { ...last, lastSplit: 'text' },
+      { ...last, lastSplit: 'image' },
+    ];
+    return [...expandedFront, ...middle, ...expandedBack];
   }, [albumPages]);
 
   const [pageImages, setPageImages] = React.useState<Record<number, PageImageState>>({});
@@ -1565,9 +1577,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     const arrangement = getArrangementForLayoutId(layoutLabel);
     const isCover = page.type === 'cover';
     const isLast = page.type === 'last';
-    /** Flip book only: first leaf = title copy in a glass panel; second leaf = front photo only */
-    const coverTextOnly = isCover && page.coverSplit === 'text';
-    const coverImageOnly = isCover && page.coverSplit === 'image';
+    /** Flip book: text leaf = glass card (same layout front & back); image leaf = full-bleed photo only */
+    const textLeaf = (isCover && page.coverSplit === 'text') || (isLast && page.lastSplit === 'text');
+    const imageLeaf = (isCover && page.coverSplit === 'image') || (isLast && page.lastSplit === 'image');
     const textState: EditablePageState | undefined = isCover
       ? (coverFromState ?? { headline: t('cover'), subheadline: '', description: '' } as EditablePageState)
       : isLast
@@ -1578,7 +1590,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     const coverOrLastUrl = (isCover && coverFromState?.imageDataUrl) || (isLast && lastFromState?.imageDataUrl) || '';
     const getSrc = (i: number) => urls[i] ?? urls[0] ?? st.imageDataUrl ?? (i === 0 ? coverOrLastUrl : '') ?? '';
     const hasImg = !!getSrc(0);
-    const showImageLayer = hasImg && !coverTextOnly;
+    const showImageLayer = hasImg && !textLeaf;
     const hasOverlayCopy = !!(
       textState?.headline?.trim() ||
       textState?.subheadline?.trim() ||
@@ -1596,11 +1608,11 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         ? `linear-gradient(135deg, ${selectedTheme.colors[0]}, ${selectedTheme.colors[2]}, ${selectedTheme.colors[4]})`
         : 'linear-gradient(135deg, #fafafa, #f1f5f9)';
     const needsDarkCoverBg =
-      !coverTextOnly &&
+      !textLeaf &&
       (isCover || isLast) &&
       !hasImg &&
       (hasOverlayCopy || showLogo);
-    const pageBg = coverTextOnly
+    const pageBg = textLeaf
       ? 'linear-gradient(160deg, #0a0f1a 0%, #1e293b 42%, #312e81 88%, #0f172a 100%)'
       : needsDarkCoverBg
         ? 'linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)'
@@ -1825,7 +1837,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     return (
       <div className="relative w-full h-full overflow-hidden" style={{ background: pageBg }}>
         {imageContent ?? (
-          coverTextOnly ? null : (isCover || isLast) && needsDarkCoverBg ? null : (
+          textLeaf ? null : (isCover || isLast) && needsDarkCoverBg ? null : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
               <svg className="w-10 h-10 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
               <span className="text-xs text-white/25 font-medium tracking-wide">{t('addAPhoto')}</span>
@@ -1833,7 +1845,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           )
         )}
 
-        {coverTextOnly && textState && (
+        {textLeaf && textState && (
           <div
             className={`absolute inset-0 z-20 flex px-4 py-6 sm:px-8 ${
               textState.style?.verticalAlign === 'top' ? 'items-start pt-8' :
@@ -1891,7 +1903,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           </div>
         )}
 
-        {!coverTextOnly && !coverImageOnly && textState && (isCover || isLast) && (hasImg || hasOverlayCopy || showLogo) && (
+        {!textLeaf && !imageLeaf && textState && (isCover || isLast) && (hasImg || hasOverlayCopy || showLogo) && (
           <div
             className={`absolute inset-0 z-20 flex px-6 py-8 ${
               textState.style?.overlayOpacity != null ? '' : 'bg-gradient-to-t from-black/60 via-transparent to-transparent'
@@ -1962,7 +1974,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           );
         })()}
 
-        {!coverTextOnly && textState?.style?.logoDataUrl && (textState.style.logoSize ?? 60) > 0 && (isCover || isLast) && !coverImageOnly && (
+        {!textLeaf && textState?.style?.logoDataUrl && (textState.style.logoSize ?? 60) > 0 && (isCover || isLast) && !imageLeaf && (
           <div className="absolute z-30" style={{
             top: textState.style.logoPosition?.includes('top') ? '12px' : undefined,
             bottom: textState.style.logoPosition?.includes('bottom') ? '12px' : undefined,
@@ -3582,7 +3594,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 style={{ maxHeight: 'calc(100vh - 120px)' }}
               >
                 {flipBookAlbumPages.map((page) => (
-                  <FlipBookPage key={`${page.index}-${page.coverSplit ?? 'full'}`}>
+                  <FlipBookPage key={`${page.index}-${page.type}-${page.coverSplit ?? page.lastSplit ?? 'full'}`}>
                     {renderPageInner(page, 'preview')}
                   </FlipBookPage>
                 ))}

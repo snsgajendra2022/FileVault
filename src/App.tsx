@@ -75,6 +75,8 @@ import PhoneBookListPage from './pages/PhoneBook/PhoneBookListPage';
 import PhoneBookCreatePage from './pages/PhoneBook/PhoneBookCreatePage';
 import PhoneBookDetailPage from './pages/PhoneBook/PhoneBookDetailPage';
 import PhoneBookEditPage from './pages/PhoneBook/PhoneBookEditPage';
+import OpenClawAssistantPage from './pages/OpenClawAssistantPage';
+import OpenClawAgentDock from './components/openclaw/OpenClawAgentDock';
 
 
 const queryClient = new QueryClient({
@@ -198,6 +200,7 @@ const AppRoutes = () => {
         <Route path="services/config/:serviceId" element={<ServiceConfigPage />} />
         {/* PhotoStudio Pro Routes */}
         <Route path="studio/dashboard" element={<StudioDashboard />} />
+        <Route path="studio/openclaw" element={<OpenClawAssistantPage />} />
         <Route path="studio/clients" element={<ClientManagement />} />
         <Route path="studio/gallery" element={<PhotoGallery />} />
         <Route path="studio/barcodes" element={<BarcodeSystem />} />
@@ -261,6 +264,7 @@ function App() {
         <AuthProvider>
           <Router>
             <AppRoutes />
+            <OpenClawAgentDock />
             <Toaster 
               position="top-right"
               toastOptions={{
