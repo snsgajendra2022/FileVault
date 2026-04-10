@@ -344,6 +344,35 @@ Invitees open **`/memories/e/{slug}?t={token}`** from the shared list; the guest
 
 ---
 
+## Our Memories — event CRUD (host dashboard)
+
+The Memories photographer dashboard pages (`src/pages/memories/*`) now expect **API-backed events** (not browser-only demo data).
+
+### Endpoints (host)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/memories/events` | List events for the current authenticated host. Response may be `{ events: [...] }` or a bare array. |
+| `POST` | `/api/memories/events` | Create event. Body: `{ name, dateTime, location, privacy }`. Response: `{ event: ... }` or event object. |
+| `GET` | `/api/memories/events/{id}` | Fetch one event with images. Response: `{ event: ... }` or event object. |
+| `PUT` | `/api/memories/events/{id}` | Update event fields (`name`, `dateTime`, `location`, `privacy`, optional `coverImageUrl`). |
+| `DELETE` | `/api/memories/events/{id}` | Delete event. |
+| `POST` | `/api/memories/events/{id}/images` | Attach uploaded images to event. Body: `{ imageIds: (number|string)[] }`. |
+
+### Images in event payload
+
+The UI expects each image to provide (names are flexible; the client maps several aliases):
+
+- `id`
+- `thumbUrl` (or `thumbnailUrl` / `previewUrl`)
+- `hdUrl` (or `fullUrl` / `downloadUrl`)
+- `likes` (or `likeCount`) optional
+
+### Notes
+
+- **Privacy** is shown in the events list via icon (`public` / `invite` / `private`). Backend can store `privacy` as a string field.
+- **Likes & comments** are still client-only for now; if you want persistence, add endpoints under `/api/memories/...` and return `likes` / `comments` on each image.
+
 ## Likes & comments in Our Memories (current status)
 
 - **Likes**: currently stored client-side in Zustand/localStorage for demo events (`toggleLike` in `memoriesStore.ts`). Not persisted for remote guest-loaded events.
@@ -353,5 +382,35 @@ If you want backend persistence later, add endpoints like:
 - `POST /api/memories/events/{eventId}/images/{imageId}/likes`
 - `GET /api/memories/events/{eventId}/images/{imageId}/comments`
 - `POST /api/memories/events/{eventId}/images/{imageId}/comments`
+
+### Payloads (frontend expectation)
+
+#### `POST /api/memories/events/{eventId}/images/{imageId}/likes`
+
+- **Body**: `{ "delta": 1 }` to like, `{ "delta": -1 }` to unlike (dislike)
+- **Response (200)**: `{ "success": true, "likes": 12 }` (or any shape; client only needs success)
+
+#### `GET /api/memories/events/{eventId}/images/{imageId}/comments`
+
+- **Response (200)**:
+
+```json
+{
+  "comments": [
+    { "id": "c_1", "text": "Nice!", "createdAt": "2026-04-08T14:28:00.000Z" }
+  ]
+}
+```
+
+#### `POST /api/memories/events/{eventId}/images/{imageId}/comments`
+
+- **Body**: `{ "text": "Nice!" }`
+- **Response (200)**:
+
+```json
+{
+  "comment": { "id": "c_1", "text": "Nice!", "createdAt": "2026-04-08T14:28:00.000Z" }
+}
+```
 
 *Generated for alignment with the filevault frontend (Photo theme category page, PhotoBook hub, album builder, Photo Phone Book, Studio checkout, Our Memories). Update this file when API contracts change.*

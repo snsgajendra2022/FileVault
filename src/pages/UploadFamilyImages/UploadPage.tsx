@@ -24,6 +24,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useQuery } from '@tanstack/react-query';
 import { getVideoDuration, trimVideoTo30Seconds, isVideoFile, VIDEO_TRIM_THRESHOLD_SECONDS } from '../../utils/videoTrim';
 import JSZip from 'jszip';
+import { addImagesToMemoriesEvent, listMemoriesEvents } from '../../services/memoriesService';
 
 // ---------------------------------------------------------------------------
 // Persistent queue types and IndexedDB (survives refresh/navigation)
@@ -65,6 +66,8 @@ export interface QueueItemMeta {
   imageId?: number | string;
   /** When set, this upload will be added to this album once it completes */
   targetAlbumId?: number;
+  /** When set, this upload will be added to this Our Memories event once it completes */
+  targetMemoriesEventId?: string;
   createdAt: number;
 }
 
@@ -270,6 +273,7 @@ class UploadManager {
         targetFamilyMember: item.targetFamilyMember,
         imageId: item.imageId,
         targetAlbumId: item.targetAlbumId,
+        targetMemoriesEventId: item.targetMemoriesEventId,
         createdAt: item.createdAt,
         blob,
       });
@@ -291,6 +295,7 @@ class UploadManager {
       targetFamilyMember?: QueueItem['targetFamilyMember'];
       targetFamilyMembers?: QueueItemMeta['targetFamilyMembers'];
       targetAlbumId?: number;
+      targetMemoriesEventId?: string;
     }
   ): Promise<{ added: number; skipped: number; skippedDueToLimit: number }> {
     const existingKeys = new Set(this.items.map((i) => i.fileKey));
@@ -322,6 +327,7 @@ class UploadManager {
         targetFamilyMember: options?.targetFamilyMember,
         targetFamilyMembers: options?.targetFamilyMembers,
         targetAlbumId: options?.targetAlbumId,
+        targetMemoriesEventId: options?.targetMemoriesEventId,
         createdAt: Date.now(),
         file,
       };
@@ -661,6 +667,7 @@ const UploadFamilyImagesPage = () => {
   const [defaultSelectedAccountIds, setDefaultSelectedAccountIds] = useState<number[]>([]);
   const [defaultAccountSearch, setDefaultAccountSearch] = useState('');
   const [selectedAlbumId, setSelectedAlbumId] = useState<number | null>(null);
+  const [selectedMemoriesEventId, setSelectedMemoriesEventId] = useState<string>('');
   const [uploadedImageIds, setUploadedImageIds] = useState<(number | string)[]>([]);
   const [showCreateAlbumModal, setShowCreateAlbumModal] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState('');
@@ -674,6 +681,7 @@ const UploadFamilyImagesPage = () => {
   const queueListRef = useRef<HTMLDivElement>(null);
   /** Track imageIds we've already added to each album (so we don't double-call the API) */
   const addedToAlbumRef = useRef<Map<number, Set<number>>>(new Map());
+  const addedToMemoriesEventRef = useRef<Map<string, Set<string>>>(new Map());
 
   const { data: userProfile, isLoading: userLoading, error: userError } = useQuery({
     queryKey: ['userProfile'],
@@ -708,6 +716,17 @@ const UploadFamilyImagesPage = () => {
     if (albumsData && typeof albumsData === 'object' && 'albums' in albumsData) return (albumsData as { albums: Album[] }).albums;
     return [];
   }, [albumsData]);
+
+  const { data: memoriesEventsData } = useQuery({
+    queryKey: ['memoriesEvents'],
+    queryFn: listMemoriesEvents,
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+  const memoriesEvents = useMemo(
+    () => (Array.isArray(memoriesEventsData) ? memoriesEventsData : []),
+    [memoriesEventsData]
+  );
 
   /** Unified list of accounts to upload to (from user, profile, API). Each has inviterApiToken. */
   const uploadTargetAccounts = useMemo(() => {
@@ -993,6 +1012,7 @@ const UploadFamilyImagesPage = () => {
             uploadDestination: isFamily ? 'family-account' : 'my-account',
             targetFamilyMembers: members?.length ? members : undefined,
             targetAlbumId: selectedAlbumId ?? undefined,
+            targetMemoriesEventId: selectedMemoriesEventId?.trim() ? selectedMemoriesEventId.trim() : undefined,
           });
           setQueueState(uploadManager.getState());
           if (added) toast.success(i18n.t('uploadFamilyPage.filesAddedQueue', { n: added }));
@@ -1006,7 +1026,7 @@ const UploadFamilyImagesPage = () => {
         }
       }
     },
-    [canUpload, isFileTypeAllowed, selectedAlbumId, defaultUploadDestination, defaultSelectedAccountIds, uploadTargetAccounts]
+    [canUpload, isFileTypeAllowed, selectedAlbumId, selectedMemoriesEventId, defaultUploadDestination, defaultSelectedAccountIds, uploadTargetAccounts]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -1084,6 +1104,7 @@ const UploadFamilyImagesPage = () => {
               uploadDestination: isFamily ? 'family-account' : 'my-account',
               targetFamilyMembers: members?.length ? members : undefined,
               targetAlbumId: selectedAlbumId ?? undefined,
+              targetMemoriesEventId: selectedMemoriesEventId?.trim() ? selectedMemoriesEventId.trim() : undefined,
             });
             setQueueState(uploadManager.getState());
             if (added) toast.success(i18n.t('uploadFamilyPage.filesFromZipAdded', { n: added }));
@@ -1096,7 +1117,7 @@ const UploadFamilyImagesPage = () => {
         e.target.value = '';
       }
     },
-    [canUpload, isFileTypeAllowed, selectedAlbumId, defaultUploadDestination, defaultSelectedAccountIds, uploadTargetAccounts]
+    [canUpload, isFileTypeAllowed, selectedAlbumId, selectedMemoriesEventId, defaultUploadDestination, defaultSelectedAccountIds, uploadTargetAccounts]
   );
 
   const removeFromQueue = useCallback(async (id: string) => {
@@ -1410,6 +1431,46 @@ const UploadFamilyImagesPage = () => {
     });
   }, [completedImageIdsKey, completedWithTargetAlbum, albums, t]);
 
+  // When runOneUpload completes an item that has targetMemoriesEventId, attach that image to the selected Our Memories event
+  const completedWithTargetEvent = queueState.items.filter(
+    (i) => i.status === 'completed' && i.imageId != null && i.targetMemoriesEventId
+  );
+  const completedEventImageIdsKey = completedWithTargetEvent
+    .map((i) => `${i.targetMemoriesEventId}:${i.imageId}`)
+    .join(',');
+
+  useEffect(() => {
+    if (completedWithTargetEvent.length === 0) return;
+    const byEvent = new Map<string, Array<number | string>>();
+    for (const item of completedWithTargetEvent) {
+      const eventId = String(item.targetMemoriesEventId || '').trim();
+      if (!eventId) continue;
+      const id = item.imageId!;
+      if (!byEvent.has(eventId)) byEvent.set(eventId, []);
+      byEvent.get(eventId)!.push(id);
+    }
+    byEvent.forEach((imageIds, eventId) => {
+      if (!addedToMemoriesEventRef.current.has(eventId)) addedToMemoriesEventRef.current.set(eventId, new Set());
+      const alreadyAdded = addedToMemoriesEventRef.current.get(eventId)!;
+      const toAdd = imageIds
+        .map((x) => (typeof x === 'string' ? x.trim() : x))
+        .filter((x) => x != null && x !== '' && !alreadyAdded.has(String(x)));
+      if (toAdd.length === 0) return;
+      addImagesToMemoriesEvent(eventId, toAdd)
+        .then(() => {
+          toAdd.forEach((id) => alreadyAdded.add(String(id)));
+          const name = memoriesEvents.find((e) => e.id === eventId)?.name ?? 'Our Memories event';
+          toast.success(`✓ Added ${toAdd.length} image(s) to ${name}`);
+        })
+        .catch((err: unknown) => {
+          const msg =
+            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+            'Failed to add images to event';
+          toast.error(msg);
+        });
+    });
+  }, [completedEventImageIdsKey, completedWithTargetEvent, memoriesEvents]);
+
   if (userLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -1545,6 +1606,41 @@ const UploadFamilyImagesPage = () => {
             )}
           </div>
         )}
+      </div>
+
+      {/* Our Memories event selection (attach uploaded images to event) */}
+      <div className={`max-w-full mx-auto rounded-2xl p-6 border border-violet-100 transition-opacity ${canUpload() ? 'bg-gradient-to-r from-violet-50 to-fuchsia-50' : 'bg-gray-100 opacity-75 pointer-events-none'}`}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <FaClock className="mr-3 font-medium text-violet-700" />
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Our Memories event</h3>
+              <p className="text-sm text-gray-600">If selected, every uploaded image will be added to this event gallery.</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <select
+              value={selectedMemoriesEventId}
+              onChange={(e) => setSelectedMemoriesEventId(e.target.value)}
+              disabled={!canUpload()}
+              className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500 min-w-[240px] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">No event</option>
+              {memoriesEvents.map((ev) => (
+                <option key={ev.id} value={ev.id}>
+                  {ev.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {selectedMemoriesEventId ? (
+          <div className="mt-3 p-3 bg-violet-100 rounded-lg border border-violet-200">
+            <p className="text-sm text-violet-900">
+              ✓ Images will be added to <strong>{memoriesEvents.find((e) => e.id === selectedMemoriesEventId)?.name}</strong>
+            </p>
+          </div>
+        ) : null}
       </div>
 
       {/* Dropzone */}

@@ -3155,6 +3155,7 @@
     "sharedWithMeSubtitle": "दूसरे होस्ट ने आपके साथ जो इवेंट साझा किए",
     "sharedEmpty": "अभी कुछ साझा नहीं हुआ।",
     "sharedLoadError": "साझा इवेंट लोड नहीं हो सके। API कॉन्फ़िगर करें।",
+    "eventsLoadError": "आपके इवेंट लोड नहीं हो सके। सुनिश्चित करें कि GET /api/memories/events उपलब्ध है।",
     "sharedByUnknown": "होस्ट",
     "refresh": "रीफ़्रेश"
   }

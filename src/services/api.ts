@@ -24,7 +24,12 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       const path = window.location.pathname || '';
-      const isPublicRoute = path.startsWith('/public/checkout') || path.startsWith('/public/selection') || path.startsWith('/public/images-display');
+      const isPublicRoute =
+        path === '/memories' ||
+        path.startsWith('/memories/e/') ||
+        path.startsWith('/public/checkout') ||
+        path.startsWith('/public/selection') ||
+        path.startsWith('/public/images-display');
       if (!isPublicRoute) {
         localStorage.removeItem('token');
         window.location.href = '/login';

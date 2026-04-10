@@ -68,7 +68,7 @@ export async function fetchInvitableUsers(): Promise<InvitableUser[]> {
 
 /**
  * Share Our Memories event with invited users (same pattern as share-album).
- * Backend should accept: { eventId, slug?, accessToken?, clientIds: number[] }
+ * Body: { eventId, slug, accessToken, clientIds } — all three identifiers must be non-empty for the server.
  */
 export async function shareMemoriesEventWithClients(body: {
   eventId: string;
@@ -76,7 +76,16 @@ export async function shareMemoriesEventWithClients(body: {
   accessToken: string;
   clientIds: number[];
 }): Promise<void> {
-  await api.post('/api/simple-invitations/share-memories-event', body);
+  const slug = body.slug.trim();
+  const accessToken = body.accessToken.trim();
+  const idNum = Number(body.eventId);
+  const eventId = Number.isFinite(idNum) ? idNum : body.eventId;
+  await api.post('/api/simple-invitations/share-memories-event', {
+    eventId,
+    slug,
+    accessToken,
+    clientIds: body.clientIds,
+  });
 }
 
 export type SharedMemoriesEventRow = {

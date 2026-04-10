@@ -595,7 +595,7 @@ const PageEditorCard: React.FC<{
 
           <div
             ref={previewRef}
-            className={`relative w-full max-w-sm aspect-[3/4] rounded-2xl overflow-hidden flex items-center justify-center transition-all duration-500 ring-2 ring-slate-200/80 ring-offset-2 ring-offset-slate-50 shadow-[0_8px_30px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 ${state.style?.subtleAnimation ? 'cover-fade-in' : ''} ${state.style?.darkModeCover ? 'brightness-90' : ''}`}
+            className={`relative w-full max-w-sm aspect-[3/4] rounded-2xl overflow-hidden flex items-center justify-center transition-all duration-500  ring-slate-200/80 ring-offset-2 ring-offset-slate-50 shadow-[0_8px_30px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 ${state.style?.subtleAnimation ? 'cover-fade-in' : ''} ${state.style?.darkModeCover ? 'brightness-90' : ''}`}
             style={state.style?.vignette && previewTab === 'photo' ? { boxShadow: 'inset 0 0 80px rgba(0,0,0,0.35), 0 8px 30px rgba(15,23,42,0.12)' } : undefined}
           >
             {previewTab === 'text' ? (

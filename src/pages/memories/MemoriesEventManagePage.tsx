@@ -3,30 +3,36 @@ import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import QRCode from 'react-qr-code';
-import { FaArrowLeft, FaCopy, FaImages, FaShare, FaUserFriends } from 'react-icons/fa';
-import { useMemoriesStore } from '../../features/memories/memoriesStore';
+import { FaArrowLeft, FaCopy, FaShare, FaUserFriends } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import PublicShareModal from '../../components/modals/PublicShareModal';
 import api from '../../services/api';
-import {
-  fetchInvitableUsers,
-  shareMemoriesEventWithClients,
-  type InvitableUser,
-} from '../../services/memoriesShareService';
+import { fetchInvitableUsers, type InvitableUser } from '../../services/memoriesShareService';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { ensureMemoriesEventAccessTokenForShare, getMemoriesEventById } from '../../services/memoriesService';
 
 const MemoriesEventManagePage: React.FC = () => {
   const { t } = useTranslation(undefined, { keyPrefix: 'memoriesPlatform' });
   const { user } = useAuth();
   const { eventId } = useParams<{ eventId: string }>();
-  const ev = useMemoriesStore((s) => (eventId ? s.getById(eventId) : undefined));
-  const updateEvent = useMemoriesStore((s) => s.updateEvent);
-  const addSamplePhotos = useMemoriesStore((s) => s.addSamplePhotos);
-  const setSharedWithUsers = useMemoriesStore((s) => s.setSharedWithUsers);
+  const qc = useQueryClient();
+  const qrWrapRef = React.useRef<HTMLDivElement | null>(null);
+  const {
+    data: ev,
+    isLoading: loadingEvent,
+    isError: eventError,
+    refetch: refetchEvent,
+  } = useQuery({
+    queryKey: ['memoriesEvent', eventId],
+    queryFn: async () => (eventId ? getMemoriesEventById(eventId) : null),
+    enabled: !!eventId,
+    staleTime: 10_000,
+  });
 
   const [invitable, setInvitable] = React.useState<InvitableUser[]>([]);
   const [loadingInvitable, setLoadingInvitable] = React.useState(true);
   const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set());
-  const [sharing, setSharing] = React.useState(false);
   const [shareInvitedModalOpen, setShareInvitedModalOpen] = React.useState(false);
   const [shareInvitedContactSearch, setShareInvitedContactSearch] = React.useState('');
   const [showEmailShare, setShowEmailShare] = React.useState(false);
@@ -135,53 +141,10 @@ const MemoriesEventManagePage: React.FC = () => {
     setSelectedIds(new Set(ev.sharedWithUserIds));
   }, [ev?.id, ev?.sharedWithUserIds]);
 
-  const toggleUser = (id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const handleShareWithInvited = async (): Promise<boolean> => {
-    if (!ev) return;
-    if (selectedIds.size === 0) {
-      toast.error(t('sharePickUsers'));
-      return false;
-    }
-    setSharing(true);
-    try {
-      await shareMemoriesEventWithClients({
-        eventId: ev.id,
-        slug: ev.slug,
-        accessToken: ev.accessToken,
-        clientIds: Array.from(selectedIds),
-      });
-      setSharedWithUsers(ev.id, Array.from(selectedIds));
-      toast.success(t('shareSuccess', { count: selectedIds.size }));
-      return true;
-    } catch (err: unknown) {
-      const ax = err as { response?: { data?: { message?: string; invalidClientIds?: number[] } } };
-      const msg = ax?.response?.data?.message;
-      const invalid = ax?.response?.data?.invalidClientIds;
-      if (Array.isArray(invalid) && invalid.length > 0) {
-        setSelectedIds((prev) => {
-          const next = new Set(prev);
-          invalid.forEach((id: number) => next.delete(id));
-          return next;
-        });
-      }
-      toast.error(typeof msg === 'string' && msg.trim() ? msg : t('shareFail'));
-      return false;
-    } finally {
-      setSharing(false);
-    }
-  };
-
   const shareUrl = React.useMemo(() => {
     if (!ev || typeof window === 'undefined') return '';
     const u = new URL(`${window.location.origin}/memories/e/${ev.slug}`);
+    if (ev.accessToken) u.searchParams.set('t', ev.accessToken);
     return u.toString();
   }, [ev]);
 
@@ -221,7 +184,7 @@ const MemoriesEventManagePage: React.FC = () => {
   );
 
   const handleShareSend = React.useCallback(async () => {
-    if (!shareUrl) return;
+    if (!ev) return;
 
     const emails = shareNewEmails.split(/[\s,]+/).map((e) => e.trim()).filter(Boolean);
     const mobileParts = shareNewMobiles.split(/[\s,]+/).map((m) => m.trim()).filter(Boolean);
@@ -229,7 +192,13 @@ const MemoriesEventManagePage: React.FC = () => {
       part.startsWith('+') ? part : `${shareNewMobileCountryCode.replace(/\s/g, '')}${part}`
     );
 
-    if (shareContactIds.size === 0 && emails.length === 0 && mobiles.length === 0) {
+    const mergedContactIds = [
+      ...Array.from(selectedIds).map(String),
+      ...Array.from(shareContactIds),
+    ];
+    const contactIds = Array.from(new Set(mergedContactIds));
+
+    if (contactIds.length === 0 && emails.length === 0 && mobiles.length === 0) {
       toast.error(t('sharePickUsers'));
       return;
     }
@@ -244,36 +213,63 @@ const MemoriesEventManagePage: React.FC = () => {
 
     setShareSending(true);
     try {
-      const res = await api.post<{ success?: boolean; sent?: { email?: number; sms?: number } }>('/api/public-share/send', {
-        publicUrl: shareUrl,
+      const ready = await ensureMemoriesEventAccessTokenForShare(ev);
+      const publicUrl = (() => {
+        const u = new URL(`${window.location.origin}/memories/e/${ready.slug}`);
+        if (ready.accessToken) u.searchParams.set('t', ready.accessToken);
+        return u.toString();
+      })();
+
+      const idNum = Number(ready.id);
+      const res = await api.post<{
+        success?: boolean;
+        sent?: { email?: number; sms?: number };
+        message?: string;
+      }>('/api/public-share/send', {
+        publicUrl,
         message: shareMessage.trim() || undefined,
-        recipients: {
-          contactIds: Array.from(shareContactIds),
+        sendTo: {
+          contactIds,
           emails,
           mobiles,
         },
         channels,
+        eventId: Number.isFinite(idNum) ? idNum : ready.id,
+        slug: ready.slug,
+        accessToken: ready.accessToken,
+        eventName: ready.name,
       });
-      if (res.data?.success === false) throw new Error('send failed');
+      if (res.data?.success === false) throw new Error(res.data?.message ?? 'send failed');
       toast.success(t('copied'));
-      setShowShareModal(false);
+      setShareInvitedModalOpen(false);
       setShareAlreadySent(null);
-    } catch {
-      toast.error(t('shareFail'));
+      setShareNewEmails('');
+      setShareNewMobiles('');
+      setShareMessage('');
+      setShareContactIds(new Set());
+      setSelectedIds(new Set());
+      await qc.invalidateQueries({ queryKey: ['memoriesEvent', eventId] });
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { message?: string } } };
+      const msg = ax?.response?.data?.message;
+      toast.error(typeof msg === 'string' && msg.trim() ? msg : t('shareFail'));
     } finally {
       setShareSending(false);
     }
   }, [
-    shareUrl,
+    ev,
     shareNewEmails,
     shareNewMobiles,
     shareNewMobileCountryCode,
     shareContactIds,
+    selectedIds,
     shareChannels,
     shareMessage,
     showEmailShare,
     showPhoneShare,
     t,
+    qc,
+    eventId,
   ]);
 
   const copy = async (text: string, msg: string) => {
@@ -285,10 +281,68 @@ const MemoriesEventManagePage: React.FC = () => {
     }
   };
 
+  const downloadQr = React.useCallback(async () => {
+    try {
+      const wrap = qrWrapRef.current;
+      const svg = wrap?.querySelector('svg');
+      if (!svg) throw new Error('qr-not-found');
+
+      // Serialize the SVG and render to canvas for PNG download.
+      const serializer = new XMLSerializer();
+      const svgText = serializer.serializeToString(svg);
+      const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = url;
+      await img.decode();
+
+      const size = 1024;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('canvas');
+
+      // White background so scanners work in dark UIs.
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(img, 0, 0, size, size);
+
+      URL.revokeObjectURL(url);
+
+      const pngUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = `our-memories-qr-${ev?.id ?? 'event'}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      toast.error(t('shareFail'));
+    }
+  }, [ev?.id, t]);
+
   if (!ev) {
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center">
+        {loadingEvent ? (
+          <LoadingSpinner size="lg" text={t('refresh')} />
+        ) : eventError ? (
+          <>
+            <p className="text-slate-600">{t('eventNotFound')}</p>
+            <button
+              type="button"
+              onClick={() => refetchEvent()}
+              className="mt-4 inline-flex items-center justify-center rounded-xl bg-slate-900 text-white px-4 py-2.5 text-sm font-bold hover:bg-slate-800"
+            >
+              {t('refresh')}
+            </button>
+          </>
+        ) : (
         <p className="text-slate-600">{t('eventNotFound')}</p>
+        )}
         <Link to="/memories/events" className="mt-4 inline-block text-violet-600 font-semibold">
           {t('backToEvents')}
         </Link>
@@ -344,65 +398,6 @@ const MemoriesEventManagePage: React.FC = () => {
         )}
       </div>
 
-      <PublicShareModal
-        isOpen={shareInvitedModalOpen}
-        onClose={() => setShareInvitedModalOpen(false)}
-        contacts={invitable.map((u) => ({ id: String(u.id), displayName: u.fullName, email: u.email }))}
-        contactSearch={shareInvitedContactSearch}
-        onContactSearchChange={setShareInvitedContactSearch}
-        selectedContactIds={new Set(Array.from(selectedIds).map(String))}
-        onSelectedContactIdsChange={(next) => {
-          setSelectedIds(
-            new Set(
-              Array.from(next)
-                .map((id) => Number(id))
-                .filter((n) => Number.isFinite(n))
-            )
-          );
-        }}
-        showEmail={false}
-        showPhone={false}
-        newEmails=""
-        onNewEmailsChange={() => {}}
-        mobileCountryCode="+91"
-        onMobileCountryCodeChange={() => {}}
-        newMobiles=""
-        onNewMobilesChange={() => {}}
-        alreadySent={null}
-        onAlreadySentChange={() => {}}
-        message=""
-        onMessageChange={() => {}}
-        channels={{ email: false, sms: false }}
-        onChannelsChange={() => {}}
-        onCheckRecipient={() => {}}
-        onSend={async () => {
-          const ok = await handleShareWithInvited();
-          if (ok) setShareInvitedModalOpen(false);
-        }}
-        sending={sharing}
-        showMessage={false}
-        showChannels={false}
-        labels={{
-          title: t('shareWithInvitedTitle'),
-          existingContactsLabel: t('shareWithInvitedHint'),
-          searchContactsPlaceholder: 'Search',
-          noContactsYet: t('shareNoInvitedUsers'),
-          newRecipientsEmailLabel: '',
-          emailPlaceholder: '',
-          newRecipientsMobileLabel: '',
-          mobilePlaceholder: '',
-          optionalMessageLabel: '',
-          messagePlaceholder: '',
-          sendViaEmailLabel: '',
-          sendViaSmsLabel: '',
-          cancelLabel: 'Close',
-          sendingLabel: t('shareSending'),
-          sendLabel: t('shareWithSelected'),
-          alreadySentWarning: () => '',
-          emailTypeLabel: '',
-          mobileTypeLabel: '',
-        }}
-      />
 
       <PublicShareModal
         isOpen={shareInvitedModalOpen}
@@ -441,8 +436,57 @@ const MemoriesEventManagePage: React.FC = () => {
 
       <div className="grid gap-6 lg:grid-cols-1">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">{t('qrTitle')}</h2>
-          <div className="flex justify-center p-4 bg-white rounded-2xl">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">{t('photos')}</h2>
+            <span className="text-xs text-slate-500">
+              {(ev.images?.length ?? 0).toString()}
+            </span>
+          </div>
+
+          {loadingEvent ? (
+            <div className="py-10 flex justify-center">
+              <LoadingSpinner size="md" text={t('refresh')} />
+            </div>
+          ) : (ev.images?.length ?? 0) === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center text-slate-500 text-sm">
+              {t('galleryEmpty')}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {ev.images.map((img: any) => (
+                <a
+                  key={img.id}
+                  href={img.hdUrl || img.thumbUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group relative aspect-[3/4] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100"
+                  title={t('openGallery')}
+                >
+                  <img
+                    src={img.thumbUrl || img.hdUrl}
+                    alt=""
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">{t('qrTitle')}</h2>
+            <button
+              type="button"
+              onClick={downloadQr}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+              disabled={!shareUrl}
+            >
+              Download QR
+            </button>
+          </div>
+          <div ref={qrWrapRef} className="flex justify-center p-4 bg-white rounded-2xl">
             <QRCode value={shareUrl || ' '} size={200} level="M" />
           </div>
           <p className="text-xs text-slate-500 mt-4 text-center leading-relaxed">{t('qrHint')}</p>
@@ -490,28 +534,7 @@ const MemoriesEventManagePage: React.FC = () => {
         </div> */}
       </div>
 
-      <div className="mt-8 rounded-3xl border border-violet-100 bg-gradient-to-br from-violet-50 to-fuchsia-50 p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <FaImages className="h-5 w-5 text-violet-600" />
-              {t('demoPhotosTitle')}
-            </h2>
-            <p className="text-sm text-slate-600 mt-1">{t('demoPhotosBody')}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              addSamplePhotos(ev.id, 12);
-              toast.success(t('demoPhotosAdded'));
-            }}
-            className="rounded-2xl bg-violet-600 text-white px-5 py-3 text-sm font-bold hover:bg-violet-700 transition-colors shrink-0"
-          >
-            {t('addDemoPhotos')}
-          </button>
-        </div>
-        <p className="text-xs text-slate-500 mt-4">{t('demoPhotosNote')}</p>
-      </div>
+      {/* Demo-only sample photos section removed (event images now expected from backend uploads). */}
     </div>
   );
 };

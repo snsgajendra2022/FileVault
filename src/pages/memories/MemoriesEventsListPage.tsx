@@ -2,8 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FaPlus, FaChevronRight, FaLock, FaGlobe, FaUserFriends } from 'react-icons/fa';
-import { useMemoriesStore } from '../../features/memories/memoriesStore';
+import { useQuery } from '@tanstack/react-query';
 import type { MemoriesPrivacy } from '../../features/memories/types';
+import { listMemoriesEvents } from '../../services/memoriesService';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const privacyIcon = (p: MemoriesPrivacy) => {
   if (p === 'public') return FaGlobe;
@@ -13,7 +15,12 @@ const privacyIcon = (p: MemoriesPrivacy) => {
 
 const MemoriesEventsListPage: React.FC = () => {
   const { t } = useTranslation(undefined, { keyPrefix: 'memoriesPlatform' });
-  const events = useMemoriesStore((s) => s.events);
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+    queryKey: ['memoriesEvents'],
+    queryFn: listMemoriesEvents,
+    staleTime: 15_000,
+  });
+  const events = Array.isArray(data) ? data : [];
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6">
@@ -37,7 +44,23 @@ const MemoriesEventsListPage: React.FC = () => {
         </Link>
       </div>
 
-      {events.length === 0 ? (
+      {isLoading ? (
+        <div className="rounded-3xl border border-slate-200/80 bg-white px-6 py-12 text-center">
+          <LoadingSpinner size="lg" text={t('refresh')} />
+        </div>
+      ) : isError ? (
+        <div className="rounded-3xl border border-rose-200 bg-rose-50 px-6 py-10 text-center">
+          <p className="text-rose-800 font-semibold">{t('eventsLoadError')}</p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="mt-4 inline-flex items-center justify-center rounded-xl bg-slate-900 text-white px-4 py-2.5 text-sm font-bold hover:bg-slate-800"
+            disabled={isFetching}
+          >
+            {t('refresh')}
+          </button>
+        </div>
+      ) : events.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-16 text-center">
           <p className="text-slate-600 font-medium">{t('emptyEvents')}</p>
           <Link
@@ -50,7 +73,7 @@ const MemoriesEventsListPage: React.FC = () => {
       ) : (
         <ul className="space-y-3">
           {events.map((ev:any) => {
-            const Icon = privacyIcon(ev.privacy);
+            const Icon = privacyIcon((ev as any).privacy);
             return (
               <li key={ev.id}>
                 <Link
