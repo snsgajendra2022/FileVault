@@ -25,6 +25,7 @@ import {
 import { getPhotoBookTemplate } from '../templates/photobookTemplates';
 import { FileVaultImagePicker } from '../components/PhotoBook/FileVaultImagePicker';
 import type { EditablePageState } from './PhotoThemeCategoryPage';
+import { getDescriptionTypographyStyle } from './PhotoThemeCategoryPage';
 import api from '../services/api';
 import imageService from '../services/imageService';
 import { useAuth } from '../context/AuthContext';
@@ -214,12 +215,18 @@ function DraggableCropImage({
   cropPos,
   onCropChange,
   className = '',
+  coverBlur,
+  coverScale,
 }: {
   src: string;
   alt?: string;
   cropPos?: CropPos;
   onCropChange?: (pos: CropPos) => void;
   className?: string;
+  /** Album cover/last: match category editor photo-side blur */
+  coverBlur?: boolean;
+  /** Album cover/last: `imageScale` / API `imageZoom` */
+  coverScale?: number;
 }) {
   const { t } = useTranslation(undefined, { keyPrefix: 'photoThemeAlbumBuilderPage' });
   const pos = cropPos ?? { x: 50, y: 50 };
@@ -261,10 +268,13 @@ function DraggableCropImage({
         src={src}
         alt={alt ?? ''}
         draggable={false}
-        className="absolute inset-0 w-full h-full object-cover select-none"
+        className={`absolute inset-0 w-full h-full object-cover select-none${coverBlur ? ' blur-sm' : ''}`}
         style={{
           objectPosition: `${livePos.x}% ${livePos.y}%`,
           cursor: onCropChange ? (dragging ? 'grabbing' : 'grab') : undefined,
+          ...(coverScale != null && coverScale !== 1
+            ? { transform: `scale(${coverScale})`, transformOrigin: 'center center' }
+            : {}),
         }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -789,6 +799,69 @@ type ApiAlbumPageResponse = {
   cropPositions?: string | null;
   slotCaptions?: string | null;
 };
+
+/** GET /api/photobooks/:id/pages may embed covers alongside `pages`. */
+type PhotobookPagesApiResponse = {
+  pages?: ApiAlbumPageResponse[];
+  total?: number;
+  photobookId?: number;
+  templateId?: number;
+  userId?: number;
+  frontCover?: Record<string, unknown>;
+  backCover?: Record<string, unknown>;
+};
+
+function hexToRgbaAlbum(hex: string, alpha: number): string {
+  const h = hex.replace('#', '').slice(0, 6);
+  if (h.length !== 6) return `rgba(255,255,255,${alpha})`;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+/** Text-side flip, glass, overlays — same contract as PhotoThemeCategoryPage /api/photobooks/:id/covers */
+function mergeCoverLeafStyleFromApi(side: Record<string, unknown>): Partial<NonNullable<EditablePageState['style']>> {
+  const o: Partial<NonNullable<EditablePageState['style']>> = {};
+  const set = (k: keyof NonNullable<EditablePageState['style']>, v: unknown) => {
+    if (v !== undefined && v !== null) (o as Record<string, unknown>)[k as string] = v;
+  };
+  set('textLeafBgMode', side.textLeafBgMode);
+  set('textLeafBgGradient', side.textLeafBgGradient);
+  set('textLeafBgImageUrl', side.textLeafBgImageUrl);
+  set('textLeafBgImageId', side.textLeafBgImageId);
+  set('textPanelBlurPx', side.textPanelBlurPx);
+  set('textPanelGlassOpacity', side.textPanelGlassOpacity);
+  set('textPanelGlassColor', side.textPanelGlassColor);
+  set('letterSpacing', side.letterSpacing);
+  set('lineHeight', side.lineHeight);
+  set('textShadow', side.textShadow);
+  set('dividerEnabled', side.dividerEnabled);
+  set('dividerWidth', side.dividerWidth);
+  set('dividerColor', side.dividerColor);
+  set('logoPositionX', side.logoPositionX);
+  set('logoPositionY', side.logoPositionY);
+  set('descriptionFontSize', side.descriptionFontSize);
+  set('descriptionColor', side.descriptionColor);
+  set('descriptionFontWeight', side.descriptionFontWeight);
+  set('descriptionLineHeight', side.descriptionLineHeight);
+  set('descriptionLetterSpacing', side.descriptionLetterSpacing);
+  set('descriptionFontFamily', side.descriptionFontFamily);
+  set('descriptionAlign', side.descriptionAlign);
+  if (side.textSideOverlays != null) set('textSideOverlays', side.textSideOverlays);
+  const raw = side.coverStyleExtrasJson;
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      if (parsed && typeof parsed === 'object') {
+        Object.assign(o, mergeCoverLeafStyleFromApi(parsed));
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return o;
+}
 
 function dataUrlToFile(dataUrl: string, filename: string): File {
   const arr = dataUrl.split(',');
@@ -1404,38 +1477,47 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     if (saved.length >= 1) setPageCount((prev) => Math.min(18, Math.max(1, saved.length)));
   }, []);
 
-  // Helper: apply loaded covers into state — maps ALL style fields from API
+  // Helper: apply loaded covers into state — maps ALL style fields from API (incl. text leaf + coverStyleExtrasJson)
   const applyLoadedCovers = React.useCallback((coverData: any) => {
     const resolveImg = (side: any) =>
       side?.imageId ? buildPreviewUrl(side.imageId) : resolveImageUrl(side?.imageUrl);
 
-    const mapSide = (side: any): EditablePageState => ({
-      headline: side.headline || '',
-      subheadline: side.subheadline || '',
-      description: side.description || '',
-      imageDataUrl: resolveImg(side),
-      imageId: side.imageId ?? undefined,
-      style: {
-        fontSize: side.fontSize ?? 20,
-        fontWeight: side.fontWeight ? Number(side.fontWeight) : 700,
-        align: side.align || undefined,
-        verticalAlign: side.position || undefined,
-        fontFamily: side.fontFamily || undefined,
-        headlineColor: side.headlineColor || '#ffffff',
-        subheadlineColor: side.subheadlineColor || '#e5e7eb',
-        imageScale: side.imageZoom ? Number(side.imageZoom) : undefined,
-        overlayOpacity: side.overlayOpacity != null ? Number(side.overlayOpacity) : undefined,
-        overlayColor: side.overlayColor || undefined,
-        blurBackground: side.backgroundBlur ?? undefined,
-        vignette: side.backgroundVignette ?? undefined,
-        darkModeCover: side.backgroundDarkMode ?? undefined,
-        subtleAnimation: side.backgroundAnimation ?? undefined,
-        logoImageId: side.logoImageId ?? undefined,
-        logoDataUrl: side.logoImageId ? buildPreviewUrl(side.logoImageId) : resolveImageUrl(side.logoImageUrl),
-        logoPosition: side.logoPosition || undefined,
-        logoSize: side.logoSize ? Number(side.logoSize) : undefined,
-      },
-    });
+    const mapSide = (side: any): EditablePageState => {
+      const raw = side as Record<string, unknown>;
+      const leaf = mergeCoverLeafStyleFromApi(raw);
+      if (leaf.textLeafBgImageUrl && typeof leaf.textLeafBgImageUrl === 'string') {
+        leaf.textLeafBgImageUrl = resolveImageUrl(leaf.textLeafBgImageUrl) || leaf.textLeafBgImageUrl;
+      }
+      return {
+        headline: side.headline || '',
+        subheadline: side.subheadline || '',
+        description: side.description || '',
+        imageDataUrl: resolveImg(side),
+        imageId: side.imageId ?? undefined,
+        style: {
+          fontSize: side.fontSize ?? 20,
+          fontWeight: side.fontWeight ? Number(side.fontWeight) : 700,
+          align: side.align || undefined,
+          verticalAlign: side.position || undefined,
+          fontFamily: side.fontFamily || undefined,
+          headlineColor: side.headlineColor || '#ffffff',
+          subheadlineColor: side.subheadlineColor || '#e5e7eb',
+          imageScale: side.imageZoom ? Number(side.imageZoom) : undefined,
+          overlayOpacity: side.overlayOpacity != null ? Number(side.overlayOpacity) : undefined,
+          overlayColor: side.overlayColor || undefined,
+          blurBackground: side.backgroundBlur ?? undefined,
+          vignette: side.backgroundVignette ?? undefined,
+          darkModeCover: side.backgroundDarkMode ?? undefined,
+          subtleAnimation: side.backgroundAnimation ?? undefined,
+          logoImageId: side.logoImageId ?? undefined,
+          logoDataUrl: side.logoImageId ? buildPreviewUrl(side.logoImageId) : resolveImageUrl(side.logoImageUrl),
+          logoPosition: side.logoPosition || undefined,
+          logoSize: side.logoSize ? Number(side.logoSize) : undefined,
+          gradient: typeof side.gradient === 'string' ? side.gradient : undefined,
+          ...leaf,
+        },
+      };
+    };
 
     if (coverData?.frontCover) setEffectiveCover(mapSide(coverData.frontCover));
     if (coverData?.backCover) setEffectiveLast(mapSide(coverData.backCover));
@@ -1451,14 +1533,17 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
 
       try {
         let pages: ApiAlbumPageResponse[] = [];
+        let pagesBundle: PhotobookPagesApiResponse | null = null;
         const coversFromRoute = !!location.state?.coverPage;
 
         // Try photobook-scoped endpoint first, fall back to old (userId, templateId) endpoint
         if (photobookId) {
           try {
-            const res = await api.get<{ pages: ApiAlbumPageResponse[]; total: number }>(
+            const res = await api.get<PhotobookPagesApiResponse>(
               `/api/photobooks/${photobookId}/pages`, { headers });
+            pagesBundle = res.data ?? null;
             pages = res.data?.pages ?? [];
+            if (res.data?.templateId != null) setDbTemplateId(Number(res.data.templateId));
           } catch { /* new endpoint might not be deployed yet */ }
         }
         if (pages.length === 0 && dbTemplateId) {
@@ -1475,7 +1560,10 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         // Load covers from API only when NOT coming from the cover editing page
         if (!coversFromRoute) {
           let coverData: any = null;
-          if (photobookId) {
+          if (pagesBundle && (pagesBundle.frontCover || pagesBundle.backCover)) {
+            coverData = { frontCover: pagesBundle.frontCover, backCover: pagesBundle.backCover };
+          }
+          if (!coverData?.frontCover && !coverData?.backCover && photobookId) {
             try {
               const r = await api.get(`/api/photobooks/${photobookId}/covers`, { headers });
               coverData = r.data;
@@ -1584,6 +1672,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       textState?.subheadline?.trim() ||
       textState?.description?.trim()
     );
+    const hasFloatingTextOverlays = (textState?.style?.textSideOverlays?.length ?? 0) > 0;
     const showLogo = !!(textState?.style?.logoDataUrl && (textState.style.logoSize ?? 56) > 0);
 
     // Editor preview: clean white canvas for inner pages (photo album style)
@@ -1606,12 +1695,93 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         ? 'linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)'
         : pageBgThemed;
 
+    const tlsForLeaf = textState?.style;
+    /** Image mode, or legacy API with URL but no mode */
+    const textLeafIsImageMode =
+      tlsForLeaf?.textLeafBgMode === 'image' ||
+      (tlsForLeaf?.textLeafBgMode == null && !!tlsForLeaf?.textLeafBgImageUrl);
+    const textLeafBgUrlResolved =
+      tlsForLeaf?.textLeafBgImageUrl && textLeafIsImageMode && tlsForLeaf.textLeafBgMode !== 'gradient'
+        ? resolveImageUrl(String(tlsForLeaf.textLeafBgImageUrl)) || String(tlsForLeaf.textLeafBgImageUrl)
+        : undefined;
+
+    /** Front/back photo side: blur, zoom, vignette, scrim gradient — same as category editor */
+    const coverPhotoFx =
+      (isCover || isLast) && !coverTextOnly && textState?.style
+        ? {
+            blur: !!textState.style.blurBackground,
+            scale: textState.style.imageScale ?? 1,
+            vignette: !!textState.style.vignette,
+            dark: !!textState.style.darkModeCover,
+            animate: !!textState.style.subtleAnimation,
+            gradient: textState.style.gradient?.trim(),
+          }
+        : null;
+    const coverImgBlur = !!coverPhotoFx?.blur;
+    const coverImgScale = coverPhotoFx?.scale ?? 1;
+
+    const coverTextLeafBgStyle: React.CSSProperties = {};
+    if (coverTextOnly && textLeafBgUrlResolved) {
+      coverTextLeafBgStyle.backgroundImage = `url("${String(textLeafBgUrlResolved).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}")`;
+      coverTextLeafBgStyle.backgroundSize = 'cover';
+      coverTextLeafBgStyle.backgroundPosition = 'center';
+    } else if (coverTextOnly && tlsForLeaf?.textLeafBgMode === 'gradient' && tlsForLeaf.textLeafBgGradient) {
+      coverTextLeafBgStyle.background = tlsForLeaf.textLeafBgGradient;
+    }
+    const pageRootStyle: React.CSSProperties =
+      coverTextOnly && Object.keys(coverTextLeafBgStyle).length > 0
+        ? coverTextLeafBgStyle
+        : { background: pageBg };
+
+    /** Main editor (no flip split): full-bleed text-side bg under photos / placeholder */
+    const showTextLeafBgImgLayer =
+      (isCover || isLast) &&
+      !coverTextOnly &&
+      !!textLeafBgUrlResolved;
+    const showTextLeafBgGradientLayer =
+      (isCover || isLast) &&
+      !coverTextOnly &&
+      tlsForLeaf?.textLeafBgMode === 'gradient' &&
+      !!tlsForLeaf?.textLeafBgGradient;
+
+    const textSideOverlayNodes =
+      textState?.style?.textSideOverlays?.length && (isCover || isLast)
+        ? textState.style.textSideOverlays.map((o) => (
+            <div
+              key={o.id}
+              className="absolute z-[35] pointer-events-none max-w-[min(92%,20rem)] break-words"
+              style={{
+                left: `${o.x}%`,
+                top: `${o.y}%`,
+                transform: 'translate(-50%, -50%)',
+                textAlign: o.textAlign || 'center',
+                fontSize: o.fontSize ?? 13,
+                color: o.color ?? '#f8fafc',
+                fontWeight: o.fontWeight ?? 600,
+                fontStyle: o.fontStyle,
+                fontFamily: o.fontFamily,
+                letterSpacing: o.letterSpacing != null ? `${o.letterSpacing}px` : undefined,
+                lineHeight: o.lineHeight,
+                textShadow: o.textShadow ? '0 2px 10px rgba(0,0,0,0.75)' : undefined,
+              }}
+            >
+              {o.text}
+            </div>
+          ))
+        : null;
+
     const crops = st.cropPositions ?? {};
 
     // Unified image builder — uses DraggableCropImage when editable, plain <img> otherwise
     const mkImg = (i: number, extraClass = '') => {
       const cp = crops[i] ?? { x: 50, y: 50 };
       const imgAlt = t('pageImgAlt', { page: page.index + 1, slot: i + 1 });
+      const cBlur = !!coverPhotoFx?.blur;
+      const cScale = coverPhotoFx?.scale ?? 1;
+      const imgStyle: React.CSSProperties = {
+        objectPosition: `${cp.x}% ${cp.y}%`,
+        ...(cScale !== 1 ? { transform: `scale(${cScale})`, transformOrigin: 'center center' } : {}),
+      };
       if (editOpts?.editable) {
         return (
           <DraggableCropImage
@@ -1621,6 +1791,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             cropPos={cp}
             onCropChange={(p) => editOpts.onCropChange?.(i, p)}
             className={extraClass}
+            coverBlur={cBlur}
+            coverScale={cScale}
           />
         );
       }
@@ -1630,8 +1802,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             src={getSrc(i)}
             alt={imgAlt}
             draggable={false}
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{ objectPosition: `${cp.x}% ${cp.y}%` }}
+            className={`absolute inset-0 w-full h-full object-cover${cBlur ? ' blur-sm' : ''}`}
+            style={imgStyle}
           />
         </div>
       );
@@ -1685,9 +1857,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             <div className="absolute inset-0 grid gap-2 p-2" style={{ gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }}>
               <div className="relative overflow-hidden rounded-md" style={{ gridRow: '1 / 3', minWidth: 0, minHeight: 0 }}>
                 {editOpts?.editable ? (
-                  <DraggableCropImage src={getSrc(0)} alt={t('pageImgAlt', { page: page.index + 1, slot: 1 })} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" />
+                  <DraggableCropImage src={getSrc(0)} alt={t('pageImgAlt', { page: page.index + 1, slot: 1 })} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" coverBlur={coverImgBlur} coverScale={coverImgScale} />
                 ) : (
-                  <img src={getSrc(0)} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%` }} />
+                  <img src={getSrc(0)} alt="" draggable={false} className={`absolute inset-0 w-full h-full object-cover${coverImgBlur ? ' blur-sm' : ''}`} style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%`, ...(coverImgScale !== 1 ? { transform: `scale(${coverImgScale})`, transformOrigin: 'center center' } : {}) }} />
                 )}
               </div>
               {mkImg(1, 'rounded-md')}{mkImg(2, 'rounded-md')}
@@ -1719,9 +1891,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               ].map(({ idx, cls }) => (
                 <div key={idx} className={cls}>
                   {editOpts?.editable ? (
-                    <DraggableCropImage src={getSrc(idx)} alt="" cropPos={crops[idx] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(idx, p)} className="w-full h-full" />
+                    <DraggableCropImage src={getSrc(idx)} alt="" cropPos={crops[idx] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(idx, p)} className="w-full h-full" coverBlur={coverImgBlur} coverScale={coverImgScale} />
                   ) : (
-                    <img src={getSrc(idx)} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `${(crops[idx]?.x ?? 50)}% ${(crops[idx]?.y ?? 50)}%` }} />
+                    <img src={getSrc(idx)} alt="" draggable={false} className={`absolute inset-0 w-full h-full object-cover${coverImgBlur ? ' blur-sm' : ''}`} style={{ objectPosition: `${(crops[idx]?.x ?? 50)}% ${(crops[idx]?.y ?? 50)}%`, ...(coverImgScale !== 1 ? { transform: `scale(${coverImgScale})`, transformOrigin: 'center center' } : {}) }} />
                   )}
                 </div>
               ))}
@@ -1733,9 +1905,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             <div className="absolute inset-0 bg-black flex items-center justify-center p-3">
               <div className="relative w-full rounded-md overflow-hidden" style={{ aspectRatio: '2.35/1', maxHeight: '70%' }}>
                 {editOpts?.editable ? (
-                  <DraggableCropImage src={getSrc(0)} alt={t('pageImgAlt', { page: page.index + 1, slot: 1 })} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" />
+                  <DraggableCropImage src={getSrc(0)} alt={t('pageImgAlt', { page: page.index + 1, slot: 1 })} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" coverBlur={coverImgBlur} coverScale={coverImgScale} />
                 ) : (
-                  <img src={getSrc(0)} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%` }} />
+                  <img src={getSrc(0)} alt="" draggable={false} className={`absolute inset-0 w-full h-full object-cover${coverImgBlur ? ' blur-sm' : ''}`} style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%`, ...(coverImgScale !== 1 ? { transform: `scale(${coverImgScale})`, transformOrigin: 'center center' } : {}) }} />
                 )}
               </div>
             </div>
@@ -1806,14 +1978,16 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   cropPos={crops[0] ?? { x: 50, y: 50 }}
                   onCropChange={(p) => editOpts.onCropChange?.(0, p)}
                   className="w-full h-full"
+                  coverBlur={coverImgBlur}
+                  coverScale={coverImgScale}
                 />
               ) : (
                 <img
                   src={getSrc(0)}
                   alt={t('pageLabel', { n: page.index + 1 })}
                   draggable={false}
-                  className="w-full h-full object-cover"
-                  style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%` }}
+                  className={`w-full h-full object-cover${coverImgBlur ? ' blur-sm' : ''}`}
+                  style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%`, ...(coverImgScale !== 1 ? { transform: `scale(${coverImgScale})`, transformOrigin: 'center center' } : {}) }}
                 />
               )}
             </div>
@@ -1823,7 +1997,32 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     }
 
     return (
-      <div className="relative w-full h-full overflow-hidden" style={{ background: pageBg }}>
+      <div className="relative w-full h-full overflow-hidden" style={pageRootStyle}>
+        {showTextLeafBgImgLayer && (
+          <img
+            src={textLeafBgUrlResolved}
+            alt=""
+            className="absolute inset-0 z-[5] h-full w-full object-cover pointer-events-none select-none"
+            draggable={false}
+          />
+        )}
+        {showTextLeafBgGradientLayer && (
+          <div
+            className="absolute inset-0 z-[5] pointer-events-none"
+            style={{ background: tlsForLeaf!.textLeafBgGradient }}
+            aria-hidden
+          />
+        )}
+        <div
+          className={`absolute inset-0 z-[10] overflow-hidden${
+            coverPhotoFx?.animate ? ' cover-fade-in' : ''
+          }${coverPhotoFx?.dark ? ' brightness-90' : ''}`}
+          style={
+            coverPhotoFx?.vignette
+              ? { boxShadow: 'inset 0 0 80px rgba(0,0,0,0.35)' }
+              : undefined
+          }
+        >
         {imageContent ?? (
           coverTextOnly ? null : (isCover || isLast) && needsDarkCoverBg ? null : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
@@ -1832,6 +2031,14 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             </div>
           )
         )}
+        {coverPhotoFx?.gradient ? (
+          <div
+            className="absolute inset-0 z-[11] pointer-events-none"
+            style={{ background: coverPhotoFx.gradient }}
+            aria-hidden
+          />
+        ) : null}
+        </div>
 
         {coverTextOnly && textState && (
           <div
@@ -1841,7 +2048,15 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             } justify-center`}
           >
             <div
-              className="w-full max-w-[min(92%,26rem)] rounded-2xl border border-white/25 bg-white/[0.07] backdrop-blur-2xl shadow-[0_28px_90px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] px-6 py-8 sm:px-8 sm:py-10"
+              className="w-full max-w-[min(92%,26rem)] rounded-2xl border border-white/25 shadow-[0_28px_90px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] px-6 py-8 sm:px-8 sm:py-10"
+              style={{
+                background: hexToRgbaAlbum(
+                  textState.style?.textPanelGlassColor || '#ffffff',
+                  (textState.style?.textPanelGlassOpacity ?? 40) / 100,
+                ),
+                backdropFilter: `blur(${textState.style?.textPanelBlurPx ?? 24}px)`,
+                WebkitBackdropFilter: `blur(${textState.style?.textPanelBlurPx ?? 24}px)`,
+              }}
             >
               {textState.style?.logoDataUrl && (textState.style.logoSize ?? 60) > 0 && (
                 <div className="flex justify-center mb-4">
@@ -1882,16 +2097,17 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   }}>{textState.subheadline}</div>
                 )}
                 {textState.description && (
-                  <p className="mt-4 text-[13px] sm:text-sm leading-relaxed text-white/85 max-w-none" style={{
-                    textAlign: (textState.style?.align as 'left' | 'center' | 'right') || 'left',
-                  }}>{textState.description}</p>
+                  <p className="mt-4 max-w-none whitespace-pre-wrap" style={getDescriptionTypographyStyle(textState.style)}>
+                    {textState.description}
+                  </p>
                 )}
               </div>
             </div>
+            {textSideOverlayNodes}
           </div>
         )}
 
-        {!coverTextOnly && !coverImageOnly && textState && (isCover || isLast) && (hasImg || hasOverlayCopy || showLogo) && (
+        {!coverTextOnly && !coverImageOnly && textState && (isCover || isLast) && (hasImg || hasOverlayCopy || showLogo || hasFloatingTextOverlays) && (
           <div
             className={`absolute inset-0 z-20 flex px-6 py-8 ${
               textState.style?.overlayOpacity != null ? '' : 'bg-gradient-to-t from-black/60 via-transparent to-transparent'
@@ -1929,13 +2145,23 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 }}>{textState.subheadline}</div>
               )}
               {textState.description && (
-                <div className="mt-3 text-xs text-white/70 leading-relaxed max-w-[80%]" style={{
-                  textAlign: textState.style?.align || 'left',
-                  marginLeft: textState.style?.align === 'center' ? 'auto' : undefined,
-                  marginRight: textState.style?.align === 'center' ? 'auto' : undefined,
-                }}>{textState.description}</div>
+                <div
+                  className="mt-3 max-w-[80%] whitespace-pre-wrap"
+                  style={{
+                    ...getDescriptionTypographyStyle(textState.style),
+                    marginLeft:
+                      (textState.style?.descriptionAlign ?? textState.style?.align) === 'center'
+                        ? 'auto'
+                        : undefined,
+                    marginRight:
+                      (textState.style?.descriptionAlign ?? textState.style?.align) === 'center'
+                        ? 'auto'
+                        : undefined,
+                  }}
+                >{textState.description}</div>
               )}
             </div>
+            {textSideOverlayNodes}
           </div>
         )}
 

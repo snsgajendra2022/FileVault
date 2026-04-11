@@ -108,13 +108,15 @@ export type EditablePageState = {
     vignette?: boolean;
     darkModeCover?: boolean;
     subtleAnimation?: boolean;
+    /** Photo-side scrim (`gradient` from API / cover save) */
+    gradient?: string;
     logoDataUrl?: string;
     logoImageId?: number;
     logoPosition?: 'top-left' | 'top-right' | 'top-center' | 'bottom-center';
     logoPositionX?: number;
     logoPositionY?: number;
     logoSize?: number;
-    /** First flip side: text on glass / gradient (not stored on server — see localStorage). */
+    /** First flip side: text on glass / gradient (also sent on /api/photobooks/:id/covers + localStorage backup). */
     textLeafBgMode?: 'gradient' | 'image';
     textLeafBgGradient?: string;
     textLeafBgImageUrl?: string;
@@ -123,10 +125,47 @@ export type EditablePageState = {
     /** 0–100 glass fill opacity (over blur) */
     textPanelGlassOpacity?: number;
     textPanelGlassColor?: string;
-    /** Free-position labels on the text-side preview (not sent to cover API). */
+    /** Free-position labels on the text-side preview (sent as JSON on cover save). */
     textSideOverlays?: TextSideOverlay[];
+    /** Optional overrides for the description block (textarea + text-side preview). When unset, defaults follow title/subtitle typography. */
+    descriptionFontSize?: number;
+    descriptionColor?: string;
+    descriptionFontWeight?: number;
+    descriptionLineHeight?: number;
+    descriptionLetterSpacing?: number;
+    /** Full CSS font stack; when empty, uses main `fontFamily`. */
+    descriptionFontFamily?: string;
+    descriptionAlign?: 'left' | 'center' | 'right';
   };
 };
+
+/** Resolved CSS for description — uses explicit `description*` fields when set, else sensible defaults from main typography. */
+export function getDescriptionTypographyStyle(
+  style: EditablePageState['style'] | undefined,
+): React.CSSProperties {
+  const s = style;
+  const baseFs = s?.fontSize ?? 20;
+  const defaultFs = Math.max(11, baseFs - 8);
+  const famRaw = s?.descriptionFontFamily;
+  const fontFamily =
+    famRaw != null && String(famRaw).trim() !== '' ? String(famRaw).trim() : s?.fontFamily || undefined;
+  return {
+    fontSize: s?.descriptionFontSize ?? defaultFs,
+    color: s?.descriptionColor ?? s?.subheadlineColor ?? '#475569',
+    fontFamily: fontFamily || undefined,
+    lineHeight: s?.descriptionLineHeight ?? s?.lineHeight ?? 1.55,
+    letterSpacing:
+      s?.descriptionLetterSpacing != null
+        ? `${s.descriptionLetterSpacing}px`
+        : s?.letterSpacing != null
+          ? `${s.letterSpacing}px`
+          : undefined,
+    fontWeight:
+      s?.descriptionFontWeight ??
+      Math.max(400, (s?.fontWeight ?? 700) - 250),
+    textAlign: (s?.descriptionAlign ?? s?.align ?? 'center') as React.CSSProperties['textAlign'],
+  };
+}
 
 type ThemeMeta = {
   id: string;
@@ -165,6 +204,35 @@ type ApiCoverSide = {
   logoImageUrl?: string | null;
   logoPosition?: string;
   logoSize?: number;
+  /** Text-side flip (same fields as `EditablePageState.style`) — backend may persist as JSON */
+  textLeafBgMode?: 'gradient' | 'image';
+  textLeafBgGradient?: string;
+  textLeafBgImageUrl?: string;
+  textLeafBgImageId?: number;
+  textPanelBlurPx?: number;
+  textPanelGlassOpacity?: number;
+  textPanelGlassColor?: string;
+  textSideOverlays?: TextSideOverlay[];
+  letterSpacing?: number;
+  lineHeight?: number;
+  textShadow?: boolean;
+  dividerEnabled?: boolean;
+  dividerWidth?: number;
+  dividerColor?: string;
+  logoPositionX?: number;
+  logoPositionY?: number;
+  descriptionFontSize?: number;
+  descriptionColor?: string;
+  descriptionFontWeight?: number;
+  descriptionLineHeight?: number;
+  descriptionLetterSpacing?: number;
+  descriptionFontFamily?: string;
+  descriptionAlign?: 'left' | 'center' | 'right';
+  /**
+   * Single JSON string of text-side / overlay extras (same object as flat fields above).
+   * Backends that cannot add many columns can persist this one field and return it on GET.
+   */
+  coverStyleExtrasJson?: string | null;
 };
 
 type ApiCoverRecord = {
@@ -237,6 +305,64 @@ function mergeLeafExtrasIntoPage(
 ): EditablePageState {
   if (!extras || Object.keys(extras).length === 0) return page;
   return { ...page, style: { ...page.style, ...extras } };
+}
+
+/** Text-side flip + overlays + typography extras for POST /api/photobooks/:id/covers */
+function coverLeafFieldsToApi(style: EditablePageState['style'] | undefined): Partial<ApiCoverSide> {
+  if (!style) return {};
+  const o: Partial<ApiCoverSide> = {};
+  if (style.textLeafBgMode != null) o.textLeafBgMode = style.textLeafBgMode;
+  if (style.textLeafBgGradient != null) o.textLeafBgGradient = style.textLeafBgGradient;
+  if (style.textLeafBgImageUrl != null) o.textLeafBgImageUrl = style.textLeafBgImageUrl;
+  if (style.textLeafBgImageId != null) o.textLeafBgImageId = style.textLeafBgImageId;
+  if (style.textPanelBlurPx != null) o.textPanelBlurPx = style.textPanelBlurPx;
+  if (style.textPanelGlassOpacity != null) o.textPanelGlassOpacity = style.textPanelGlassOpacity;
+  if (style.textPanelGlassColor != null) o.textPanelGlassColor = style.textPanelGlassColor;
+  if (style.textSideOverlays != null) o.textSideOverlays = style.textSideOverlays;
+  if (style.letterSpacing != null) o.letterSpacing = style.letterSpacing;
+  if (style.lineHeight != null) o.lineHeight = style.lineHeight;
+  if (style.textShadow != null) o.textShadow = style.textShadow;
+  if (style.dividerEnabled != null) o.dividerEnabled = style.dividerEnabled;
+  if (style.dividerWidth != null) o.dividerWidth = style.dividerWidth;
+  if (style.dividerColor != null) o.dividerColor = style.dividerColor;
+  if (style.logoPositionX != null) o.logoPositionX = style.logoPositionX;
+  if (style.logoPositionY != null) o.logoPositionY = style.logoPositionY;
+  if (style.descriptionFontSize != null) o.descriptionFontSize = style.descriptionFontSize;
+  if (style.descriptionColor != null) o.descriptionColor = style.descriptionColor;
+  if (style.descriptionFontWeight != null) o.descriptionFontWeight = style.descriptionFontWeight;
+  if (style.descriptionLineHeight != null) o.descriptionLineHeight = style.descriptionLineHeight;
+  if (style.descriptionLetterSpacing != null) o.descriptionLetterSpacing = style.descriptionLetterSpacing;
+  if (style.descriptionFontFamily != null) o.descriptionFontFamily = style.descriptionFontFamily;
+  if (style.descriptionAlign != null) o.descriptionAlign = style.descriptionAlign;
+  return o;
+}
+
+function coverLeafFieldsFromApi(side: ApiCoverSide): Partial<NonNullable<EditablePageState['style']>> {
+  const o: Partial<NonNullable<EditablePageState['style']>> = {};
+  if (side.textLeafBgMode != null) o.textLeafBgMode = side.textLeafBgMode;
+  if (side.textLeafBgGradient != null) o.textLeafBgGradient = side.textLeafBgGradient;
+  if (side.textLeafBgImageUrl != null) o.textLeafBgImageUrl = side.textLeafBgImageUrl;
+  if (side.textLeafBgImageId != null) o.textLeafBgImageId = side.textLeafBgImageId;
+  if (side.textPanelBlurPx != null) o.textPanelBlurPx = side.textPanelBlurPx;
+  if (side.textPanelGlassOpacity != null) o.textPanelGlassOpacity = side.textPanelGlassOpacity;
+  if (side.textPanelGlassColor != null) o.textPanelGlassColor = side.textPanelGlassColor;
+  if (side.textSideOverlays != null) o.textSideOverlays = side.textSideOverlays;
+  if (side.letterSpacing != null) o.letterSpacing = side.letterSpacing;
+  if (side.lineHeight != null) o.lineHeight = side.lineHeight;
+  if (side.textShadow != null) o.textShadow = side.textShadow;
+  if (side.dividerEnabled != null) o.dividerEnabled = side.dividerEnabled;
+  if (side.dividerWidth != null) o.dividerWidth = side.dividerWidth;
+  if (side.dividerColor != null) o.dividerColor = side.dividerColor;
+  if (side.logoPositionX != null) o.logoPositionX = side.logoPositionX;
+  if (side.logoPositionY != null) o.logoPositionY = side.logoPositionY;
+  if (side.descriptionFontSize != null) o.descriptionFontSize = side.descriptionFontSize;
+  if (side.descriptionColor != null) o.descriptionColor = side.descriptionColor;
+  if (side.descriptionFontWeight != null) o.descriptionFontWeight = side.descriptionFontWeight;
+  if (side.descriptionLineHeight != null) o.descriptionLineHeight = side.descriptionLineHeight;
+  if (side.descriptionLetterSpacing != null) o.descriptionLetterSpacing = side.descriptionLetterSpacing;
+  if (side.descriptionFontFamily != null) o.descriptionFontFamily = side.descriptionFontFamily;
+  if (side.descriptionAlign != null) o.descriptionAlign = side.descriptionAlign;
+  return o;
 }
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -530,6 +656,8 @@ const PageEditorCard: React.FC<{
   const textPanelGlassColor = state.style?.textPanelGlassColor ?? '#ffffff';
   const textLeafGlassBg = hexToRgba(textPanelGlassColor, textPanelGlassOpacity);
 
+  const descriptionFieldStyle = getDescriptionTypographyStyle(state.style);
+
   return (
     <>
     <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-gradient-to-b from-white to-slate-50/50 p-6 shadow-[0_0_0_1px_rgba(148,163,184,0.06),0_20px_50px_-12px_rgba(15,23,42,0.12),0_0_80px_-20px_rgba(99,102,241,0.15)] backdrop-blur-sm">
@@ -677,8 +805,8 @@ const PageEditorCard: React.FC<{
                     </div>
                     {state.description ? (
                       <p
-                        className="mt-2 text-[11px] leading-relaxed text-slate-700/90 line-clamp-4 whitespace-pre-wrap"
-                        style={{ fontFamily: state.style?.fontFamily }}
+                        className="mt-2 line-clamp-4 whitespace-pre-wrap opacity-95"
+                        style={descriptionFieldStyle}
                       >
                         {state.description}
                       </p>
@@ -747,8 +875,8 @@ const PageEditorCard: React.FC<{
                       >
                         <FaGripVertical className="h-3 w-3" aria-hidden />
                       </button>
-                      <input
-                        type="text"
+                      {/* type="textarea" */}
+                      <textarea
                         value={o.text}
                         onChange={(e) => {
                           const list = state.style?.textSideOverlays ?? [];
@@ -915,6 +1043,7 @@ const PageEditorCard: React.FC<{
                 className={`mt-2 w-full rounded-xl border border-slate-200/80 px-3.5 py-2 text-sm outline-none focus:ring-2 resize-none bg-white/80 shadow-sm transition-all ${
                   isCover ? 'focus:border-cyan-500 focus:ring-cyan-500/20' : 'focus:border-rose-500 focus:ring-rose-500/20'
                 }`}
+                style={descriptionFieldStyle}
                 placeholder={t('placeholderDescription')}
                 value={state.description}
                 onChange={(e) => onChange({ ...state, description: e.target.value })}
@@ -1106,6 +1235,208 @@ const PageEditorCard: React.FC<{
                     })
                   }
                 />
+              </div>
+              <div className="col-span-2 md:col-span-4 mt-3 pt-3 border-t border-slate-200/80">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3">
+                  {t('descriptionSectionTitle')}
+                </p>
+                <p className="text-[10px] text-slate-500 mb-3 leading-relaxed">
+                  {t('descriptionSectionHint')}
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      {t('descriptionFontSize')}
+                    </label>
+                    <input
+                      type="range"
+                      min={10}
+                      max={24}
+                      value={state.style?.descriptionFontSize ?? Math.max(11, (state.style?.fontSize ?? 20) - 8)}
+                      onChange={(e) =>
+                        onChange({
+                          ...state,
+                          style: { ...state.style, descriptionFontSize: Number(e.target.value) },
+                        })
+                      }
+                      className="w-full accent-cyan-500"
+                    />
+                    <div className="text-[10px] text-slate-500 tabular-nums mt-0.5">
+                      {state.style?.descriptionFontSize ?? Math.max(11, (state.style?.fontSize ?? 20) - 8)}px
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      {t('weight')}
+                    </label>
+                    <select
+                      className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                      value={
+                        state.style?.descriptionFontWeight ??
+                        Math.max(400, (state.style?.fontWeight ?? 700) - 250)
+                      }
+                      onChange={(e) =>
+                        onChange({
+                          ...state,
+                          style: { ...state.style, descriptionFontWeight: Number(e.target.value) },
+                        })
+                      }
+                    >
+                      <option value={400}>{t('weightRegular')}</option>
+                      <option value={600}>{t('weightSemiBold')}</option>
+                      <option value={700}>{t('weightBold')}</option>
+                      <option value={800}>{t('weightExtraBold')}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      {t('align')}
+                    </label>
+                    <select
+                      className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                      value={state.style?.descriptionAlign ?? state.style?.align ?? 'center'}
+                      onChange={(e) =>
+                        onChange({
+                          ...state,
+                          style: {
+                            ...state.style,
+                            descriptionAlign: e.target.value as 'left' | 'center' | 'right',
+                          },
+                        })
+                      }
+                    >
+                      <option value="left">{t('alignLeft')}</option>
+                      <option value="center">{t('alignCenter')}</option>
+                      <option value="right">{t('alignRight')}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      {t('fontFamily')}
+                    </label>
+                    <select
+                      className="w-full rounded-xl border border-slate-200/80 px-2.5 py-1.5 text-[11px] bg-white shadow-sm focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
+                      value={fontFamilyStoredToPreset(
+                        state.style?.descriptionFontFamily != null &&
+                          String(state.style.descriptionFontFamily).trim() !== ''
+                          ? state.style.descriptionFontFamily
+                          : state.style?.fontFamily,
+                      )}
+                      onChange={(e) =>
+                        onChange({
+                          ...state,
+                          style: {
+                            ...state.style,
+                            descriptionFontFamily: fontPresetToStored(e.target.value as FontFamilyPreset),
+                          },
+                        })
+                      }
+                    >
+                      <option value="system">{t('fontSystem')}</option>
+                      <option value="sans">{t('fontSans')}</option>
+                      <option value="serif">{t('fontSerif')}</option>
+                      <option value="mono">{t('fontMono')}</option>
+                      <option value="rounded">{t('fontRounded')}</option>
+                      <option value="display">{t('fontDisplay')}</option>
+                      <option value="elegant">{t('fontElegant')}</option>
+                      <option value="script">{t('fontScript')}</option>
+                      <option value="slab">{t('fontSlab')}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      {t('descriptionColor')}
+                    </label>
+                    <input
+                      type="color"
+                      className="w-full h-8 rounded-xl border border-slate-200 p-0 bg-white"
+                      value={
+                        state.style?.descriptionColor ??
+                        state.style?.subheadlineColor ??
+                        '#475569'
+                      }
+                      onChange={(e) =>
+                        onChange({
+                          ...state,
+                          style: { ...state.style, descriptionColor: e.target.value },
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      {t('lineHeight')}
+                    </label>
+                    <input
+                      type="range"
+                      min={120}
+                      max={200}
+                      step={5}
+                      value={Math.round((state.style?.descriptionLineHeight ?? state.style?.lineHeight ?? 1.55) * 100)}
+                      onChange={(e) =>
+                        onChange({
+                          ...state,
+                          style: {
+                            ...state.style,
+                            descriptionLineHeight: Number(e.target.value) / 100,
+                          },
+                        })
+                      }
+                      className="w-full accent-cyan-500"
+                    />
+                    <div className="text-[10px] text-slate-500 tabular-nums mt-0.5">
+                      {(state.style?.descriptionLineHeight ?? state.style?.lineHeight ?? 1.55).toFixed(2)}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      {t('letterSpacing')}
+                    </label>
+                    <input
+                      type="range"
+                      min={-2}
+                      max={6}
+                      step={0.5}
+                      value={state.style?.descriptionLetterSpacing ?? state.style?.letterSpacing ?? 0}
+                      onChange={(e) =>
+                        onChange({
+                          ...state,
+                          style: {
+                            ...state.style,
+                            descriptionLetterSpacing: Number(e.target.value),
+                          },
+                        })
+                      }
+                      className="w-full accent-cyan-500"
+                    />
+                    <div className="text-[10px] text-slate-500 tabular-nums mt-0.5">
+                      {state.style?.descriptionLetterSpacing ?? state.style?.letterSpacing ?? 0}px
+                    </div>
+                  </div>
+                  <div className="flex flex-col justify-end pb-0.5">
+                    <button
+                      type="button"
+                      className="rounded-xl border border-slate-200/90 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+                      onClick={() =>
+                        onChange({
+                          ...state,
+                          style: {
+                            ...state.style,
+                            descriptionFontSize: undefined,
+                            descriptionColor: undefined,
+                            descriptionFontWeight: undefined,
+                            descriptionLineHeight: undefined,
+                            descriptionLetterSpacing: undefined,
+                            descriptionFontFamily: undefined,
+                            descriptionAlign: undefined,
+                          },
+                        })
+                      }
+                    >
+                      {t('descriptionTypographyReset')}
+                    </button>
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-slate-600 mb-1">
@@ -2073,6 +2404,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
           vignette: side.backgroundVignette,
           darkModeCover: side.backgroundDarkMode,
           subtleAnimation: side.backgroundAnimation,
+          gradient: typeof side.gradient === 'string' ? side.gradient : undefined,
           logoPosition: normalizeLogoPosition(side.logoPosition) ?? (side.logoPosition as
             | 'top-left'
             | 'top-right'
@@ -2104,6 +2436,17 @@ const PhotoThemeCategoryPage: React.FC = () => {
         const pr = getLogoPresetCoords(lp);
         mapped.style = { ...mapped.style, logoPosition: lp, logoPositionX: pr.x, logoPositionY: pr.y };
       }
+      let jsonExtras: Partial<NonNullable<EditablePageState['style']>> = {};
+      const extrasRaw = side.coverStyleExtrasJson;
+      if (typeof extrasRaw === 'string' && extrasRaw.trim()) {
+        try {
+          const parsed = JSON.parse(extrasRaw) as Partial<NonNullable<EditablePageState['style']>>;
+          if (parsed && typeof parsed === 'object') jsonExtras = parsed;
+        } catch {
+          /* ignore */
+        }
+      }
+      mapped.style = { ...mapped.style, ...coverLeafFieldsFromApi(side), ...jsonExtras };
       return mapped;
     },
     [meta.title, meta.subtitle, t]
@@ -2276,13 +2619,26 @@ const PhotoThemeCategoryPage: React.FC = () => {
   ) => {
     const style = pageState.style;
     const overlayOpacity = style?.overlayOpacity ?? 50;
-    const overlayColor = style?.overlayColor ?? '#000000';
+    // Empty overlayColor produced invalid CSS (`linear-gradient(..., 00, ...)`). Always anchor to a hex color for the gradient stop.
+    const rawOc = (style?.overlayColor || '').trim();
+    const overlayColorForGradient =
+      rawOc.length >= 4 && (rawOc.startsWith('#') || /^[0-9a-fA-F]{6}$/.test(rawOc) || /^[0-9a-fA-F]{3}$/.test(rawOc))
+        ? rawOc.startsWith('#')
+          ? rawOc
+          : `#${rawOc}`
+        : '#000000';
+    const alphaHex = Math.round((overlayOpacity / 100) * 255)
+      .toString(16)
+      .padStart(2, '0');
     const gradient =
       style?.overlayGradientDirection === 'radial'
-        ? `radial-gradient(circle, ${overlayColor}${Math.round((overlayOpacity / 100) * 255).toString(16).padStart(2, '0')} 0%, transparent 70%)`
+        ? `radial-gradient(circle, ${overlayColorForGradient}${alphaHex} 0%, transparent 70%)`
         : style?.overlayGradientDirection === 'bottom-top'
-          ? `linear-gradient(to top, ${overlayColor}${Math.round((overlayOpacity / 100) * 255).toString(16).padStart(2, '0')}, transparent 40%)`
-          : `linear-gradient(to bottom, ${overlayColor}${Math.round((overlayOpacity / 100) * 255).toString(16).padStart(2, '0')}, transparent 40%)`;
+          ? `linear-gradient(to top, ${overlayColorForGradient}${alphaHex}, transparent 40%)`
+          : `linear-gradient(to bottom, ${overlayColorForGradient}${alphaHex}, transparent 40%)`;
+    const leaf = coverLeafFieldsToApi(style);
+    const coverStyleExtrasJson =
+      Object.keys(leaf).length > 0 ? JSON.stringify(leaf) : undefined;
     return {
       headline: pageState.headline || '',
       subheadline: pageState.subheadline || '',
@@ -2306,6 +2662,8 @@ const PhotoThemeCategoryPage: React.FC = () => {
       logoImageId: opts.logoImageId ?? 0,
       logoPosition: style?.logoPosition || '',
       logoSize: style?.logoSize || 60,
+      ...leaf,
+      ...(coverStyleExtrasJson ? { coverStyleExtrasJson } : {}),
     };
   };
 
@@ -2584,7 +2942,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
                     key={album.id}
                     className={`group relative rounded-xl border p-4 transition-all ${
                       isActive
-                        ? 'border-indigo-400 bg-gradient-to-br from-indigo-50/80 to-white ring-2 ring-indigo-200 shadow-md'
+                        ? 'border-indigo-400 bg-gradient-to-br from-indigo-50/80 to-white  ring-indigo-200 shadow-md'
                         : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
                     }`}
                   >

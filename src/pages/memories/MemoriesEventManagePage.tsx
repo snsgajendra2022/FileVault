@@ -677,7 +677,7 @@ const MemoriesEventManagePage: React.FC = () => {
               ref={qrWrapRef}
               className="flex justify-center rounded-2xl border border-slate-100 bg-gradient-to-b from-white to-slate-50/80 p-6 sm:p-8 shadow-inner"
             >
-              <div className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.06)] ring-1 ring-slate-100">
+              <div className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.06)]  ring-slate-100">
                 <QRCode value={shareUrl || ' '} size={200} level="M" />
               </div>
             </div>
