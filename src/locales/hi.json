@@ -109,7 +109,7 @@
     "drawerClose": "बंद करें",
     "drawerSubtitle": "चैट और आवाज़",
     "drawerHint": "नीचे त्वरित विकल्प — या टाइप करें और आवाज़ चुनें।",
-    "assistantBackendHint": "लोकल सर्वर (पोर्ट 9093)? असली जवाब के लिए .env में OPENAI_API_KEY या OPENCLAW_BRIDGE_URL जोड़ें — backend.md देखें। प्रोडक्शन: अपने API पर /api/openclaw/* बनाएँ।",
+    "assistantBackendHint": "यह पैनल पोर्ट 9093 पर Filevault डेव हेल्पर (npm run openclaw-server) इस्तेमाल करता है, सिर्फ OpenClaw Gateway नहीं। रिपो में .env में OPENAI_API_KEY (+ OpenRouter के लिए OPENAI_API_BASE) या HTTP OPENCLAW_BRIDGE_URL — backend.md देखें। प्रोडक्शन: API पर /api/openclaw/*।",
     "action": {
       "memories": "मेमोरीज़ संदर्भ",
       "memoriesPrompt": "इस ऐप में आवर मेमोरीज़ में मैं क्या कर सकता हूँ (इवेंट, गेस्ट गैलरी, शेयरिंग) संक्षेप में बताएँ।",

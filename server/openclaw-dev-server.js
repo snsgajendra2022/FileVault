@@ -205,9 +205,14 @@ function pushTurn(sid, role, content) {
 async function tryBridge(req, payload) {
   if (!BRIDGE_URL) return null;
   const headers = { 'Content-Type': 'application/json' };
-  if (BRIDGE_TOKEN) headers.Authorization = `Bearer ${BRIDGE_TOKEN}`;
-  const auth = req.headers.authorization;
-  if (auth) headers.Authorization = auth;
+  // When OPENCLAW_BRIDGE_TOKEN is set (e.g. OpenClaw Gateway), always use it. Do not let the
+  // SPA’s `Authorization` (user JWT for REACT_APP_API_URL) replace the gateway secret.
+  if (BRIDGE_TOKEN) {
+    headers.Authorization = `Bearer ${BRIDGE_TOKEN}`;
+  } else {
+    const auth = req.headers.authorization;
+    if (auth) headers.Authorization = auth;
+  }
   const res = await fetch(BRIDGE_URL, {
     method: 'POST',
     headers,
@@ -249,12 +254,20 @@ async function tryOpenAI({ sid, userText, imageBuffer, imageMime, prompt, contex
 
   messages.push({ role: 'user', content: userContent });
 
+  const completionHeaders = {
+    Authorization: `Bearer ${OPENAI_KEY}`,
+    'Content-Type': 'application/json',
+  };
+  // OpenRouter recommends optional attribution headers; some accounts return 401 without a valid key regardless.
+  if (OPENAI_API_BASE.includes('openrouter.ai')) {
+    const referer = (process.env.OPENROUTER_HTTP_REFERER || 'http://localhost:3000').trim();
+    if (referer) completionHeaders.Referer = referer;
+    completionHeaders['X-Title'] = (process.env.OPENROUTER_APP_TITLE || 'Filevault dev').trim();
+  }
+
   const res = await fetch(`${OPENAI_API_BASE}/chat/completions`, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${OPENAI_KEY}`,
-      'Content-Type': 'application/json',
-    },
+    headers: completionHeaders,
     body: JSON.stringify({
       model: OPENAI_MODEL,
       messages,
@@ -328,8 +341,16 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
     }
   } catch (e) {
     console.warn('[openclaw-dev] OPENCLAW_BRIDGE_URL failed:', e.message);
+    if (String(e.message).includes('404') || String(e.message).includes('Cannot POST')) {
+      console.warn(
+        '[openclaw-dev] Hint: Bridge must be an HTTP URL that accepts POST JSON at that path (see backend.md). ' +
+          'The OpenClaw Gateway port (e.g. :18789) uses WebSocket, not this POST bridge. ' +
+          'To use OpenRouter/OpenAI from this server only, leave OPENCLAW_BRIDGE_URL empty.',
+      );
+    }
   }
 
+  let llmError = null;
   try {
     if (OPENAI_KEY) {
       const out = await tryOpenAI({
@@ -350,7 +371,19 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
       }
     }
   } catch (e) {
+    llmError = e;
     console.warn('[openclaw-dev] OpenAI failed:', e.message);
+  }
+
+  if (OPENAI_KEY && llmError) {
+    const detail = String(llmError.message || llmError).slice(0, 400);
+    return res.json({
+      sessionId: sid,
+      reply:
+        `Could not reach the language model (${detail}). ` +
+        `Check OPENAI_API_KEY and OPENAI_API_BASE in the project root .env. ` +
+        `OpenRouter: use https://openrouter.ai/api/v1 and a valid key from openrouter.ai/keys (401 “User not found” usually means a bad or revoked key).`,
+    });
   }
 
   if (localNav) {
