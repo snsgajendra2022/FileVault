@@ -48,3 +48,39 @@ export function applyMemoriesGuestShareQueryParams(
   url.searchParams.set('allowImageUpload', permissions.allowImageUpload ? '1' : '0');
   url.searchParams.set('allowViewEventImages', permissions.allowViewEventImages ? '1' : '0');
 }
+
+/**
+ * Value used for `token` / `t` on `/memories/e/:slug` links.
+ * When the host is logged in, uses `localStorage` `token` (app JWT) if set; otherwise the event
+ * guest access token (for QR / share when no session).
+ */
+export function pickTokenForMemoriesGuestLinkUrl(eventAccessToken: string): string {
+  if (typeof localStorage === 'undefined') return String(eventAccessToken ?? '').trim();
+  const session = localStorage.getItem('token')?.trim() || '';
+  return session || String(eventAccessToken ?? '').trim();
+}
+
+/**
+ * Full guest gallery URL for QR, copy, and public-share send. Always includes `token` + legacy `t`
+ * (some APIs only read one). Optional `shareId` when the host already knows it (otherwise the
+ * server may append it for email/SMS — it must not strip `token` when doing so).
+ */
+export function buildMemoriesGuestGalleryUrl(
+  origin: string,
+  slug: string,
+  accessToken: string,
+  permissions: MemoriesGuestSharePermissions,
+  shareId?: string | number | null
+): string {
+  const base = origin.replace(/\/$/, '');
+  const u = new URL(`${base}/memories/e/${encodeURIComponent(String(slug).trim())}`);
+  const t = String(accessToken ?? '').trim();
+  if (t) {
+    u.searchParams.set('token', t);
+    u.searchParams.set('t', t);
+  }
+  applyMemoriesGuestShareQueryParams(u, permissions);
+  const sid = shareId != null && String(shareId).trim() !== '' ? String(shareId).trim() : '';
+  if (sid) u.searchParams.set('shareId', sid);
+  return u.toString();
+}

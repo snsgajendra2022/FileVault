@@ -361,9 +361,9 @@ The Memories photographer dashboard pages (`src/pages/memories/*`) now expect **
 | Method | Path | Purpose |
 |--------|------|---------|
 | `GET` | `/api/memories/events` | List events for the current authenticated host. Response may be `{ events: [...] }` or a bare array. |
-| `POST` | `/api/memories/events` | Create event. Body: `{ name, dateTime, location, privacy? }` (UI defaults **`privacy` to `invite`**), optional **`summary`**, **`description`**, **`eventType`**. Response: `{ event: ... }` or event object. |
+| `POST` | `/api/memories/events` | Create event. Body: `{ name, dateTime, location, privacy? }` (UI defaults **`privacy` to `invite`**), optional **`summary`**, **`description`**, **`eventType`**, **`coverImageUrl`**, **`photobookNeeded`** (default false), **`photobookTemplateId`** (valid `photo_themes` / photobook template id), **`photobookThankYouMessage`**. Response: `{ event: ... }` or event object. |
 | `GET` | `/api/memories/events/{id}` | Fetch one event with images. Response: `{ event: ... }` or event object. Optional query: **`token`** or **`t`** (access token; client may send both), **`shareId`** — used when opening a numeric guest URL so unauthenticated clients can load the event. |
-| `PUT` | `/api/memories/events/{id}` | Update event fields (`name`, `dateTime`, `location`, `privacy`, optional `coverImageUrl`). |
+| `PUT` | `/api/memories/events/{id}` | Partial update: `name`, `dateTime`, `location`, `privacy`, `coverImageUrl`, optional `summary`, `description`, `eventType`, `photobookNeeded`, `photobookTemplateId` (null clears when turning photobook off), `photobookThankYouMessage` (empty string clears thank-you per API rules). |
 | `DELETE` | `/api/memories/events/{id}` | Delete event. |
 | `POST` | `/api/memories/events/{id}/images` | Attach uploaded images to event. Body: `{ imageIds: (number|string)[] }`. |
 
@@ -378,6 +378,7 @@ The UI expects each image to provide (names are flexible; the client maps severa
 
 ### Notes
 
+- **Guest gallery URL (`/memories/e/{slug}`):** The host app includes **`token`** and legacy **`t`** (same value) plus `guest`, `allowImageUpload`, and `allowViewEventImages`. If **`POST /api/public-share/send`** (or email/SMS templates) append **`shareId`**, they must **merge** into the existing query string and **must not drop** `token` / `t`. When **`slug` is numeric** (e.g. `/memories/e/3`), the client **only** calls **`GET /api/memories/events/{id}?t=<token>&token=<token>&shareId=<id>`** (query params only for that GET — same whether the site is opened on `localhost` or a LAN/public URL). Non-numeric slugs use **`GET /api/simple-invitations/memories-event-guest`**.
 - **Privacy** is shown in the events list via icon (`public` / `invite` / `private`). Backend can store `privacy` as a string field.
 - **Likes & comments** are still client-only for now; if you want persistence, add endpoints under `/api/memories/...` and return `likes` / `comments` on each image.
 

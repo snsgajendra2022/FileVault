@@ -217,6 +217,7 @@ const AppRoutes = () => {
         <Route path="memories/dashboard" element={<MemoriesDashboardPage />} />
         <Route path="memories/events" element={<MemoriesEventsListPage />} />
         <Route path="memories/events/new" element={<MemoriesCreateEventPage />} />
+        <Route path="memories/events/:eventId/edit" element={<MemoriesCreateEventPage />} />
         <Route path="memories/events/:eventId" element={<MemoriesEventManagePage />} />
         <Route path="memories/shared" element={<MemoriesSharedWithMePage />} />
         {/* Phone Book / Contacts */}

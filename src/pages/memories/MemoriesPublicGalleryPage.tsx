@@ -4,11 +4,10 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { FaArrowLeft, FaCloudUploadAlt, FaHeart, FaImages } from 'react-icons/fa';
 import { useMemoriesStore } from '../../features/memories/memoriesStore';
-import { fetchGuestMemoriesEventBySlug } from '../../services/memoriesShareService';
+import { loadRemoteMemoriesForPublicGallery } from '../../services/memoriesShareService';
 import {
   addMemoriesEventImageComment,
   flattenImagesFromGroups,
-  getMemoriesEventById,
   guestUploadToMemoriesEvent,
   likeMemoriesEventImage,
 } from '../../services/memoriesService';
@@ -109,21 +108,10 @@ const MemoriesPublicGalleryPage: React.FC = () => {
     }
     let cancelled = false;
     setFetchingRemote(true);
-    const isNumericSlug = /^\d+$/.test(slug);
     const run = async () => {
       try {
-        // If slug is a numeric id (e.g. /memories/e/1), prefer the same host API used by manage page.
-        // If that fails (e.g. unauthenticated), fall back to guest API.
-        if (isNumericSlug) {
-          const host = await getMemoriesEventById(slug, {
-            accessToken: token || undefined,
-            shareId: shareId || undefined,
-          });
-          if (!cancelled) setRemote(host);
-          if (host) return;
-        }
-        const guest = await fetchGuestMemoriesEventBySlug(slug, token || undefined, shareId || undefined);
-        if (!cancelled) setRemote(guest);
+        const loaded = await loadRemoteMemoriesForPublicGallery(slug, token, shareId);
+        if (!cancelled) setRemote(loaded);
       } finally {
         if (!cancelled) setFetchingRemote(false);
       }
@@ -137,14 +125,17 @@ const MemoriesPublicGalleryPage: React.FC = () => {
 
   const ev = local || remote;
 
-  /** If the loaded event includes `accessToken` but the address bar omitted it, add `token=` (keeps guest/shareId params). */
+  /** If the loaded event includes `accessToken` but the address bar omitted it, add `token=` + `t=` (keeps guest/shareId params). */
   React.useEffect(() => {
     if (getMemoriesShareAccessTokenFromSearchParams(searchParams)) return;
     if (!ev) return;
+    // Signed-in users load via localStorage JWT; don't rewrite the URL with `ev.accessToken` (wrong for share links).
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('token')?.trim()) return;
     const at = String(ev.accessToken ?? '').trim();
     if (!at) return;
     const next = new URLSearchParams(searchParams);
     next.set('token', at);
+    next.set('t', at);
     setSearchParams(next, { replace: true });
   }, [ev, searchParams, setSearchParams]);
 
@@ -302,19 +293,8 @@ const MemoriesPublicGalleryPage: React.FC = () => {
     if (!slug || local) return;
     setFetchingRemote(true);
     try {
-      const isNumericSlug = /^\d+$/.test(slug);
-      if (isNumericSlug) {
-        const host = await getMemoriesEventById(slug, {
-          accessToken: token || undefined,
-          shareId: shareId || undefined,
-        });
-        if (host) {
-          setRemote(host);
-          return;
-        }
-      }
-      const guest = await fetchGuestMemoriesEventBySlug(slug, token || undefined, shareId || undefined);
-      setRemote(guest);
+      const loaded = await loadRemoteMemoriesForPublicGallery(slug, token, shareId);
+      setRemote(loaded);
     } finally {
       setFetchingRemote(false);
     }

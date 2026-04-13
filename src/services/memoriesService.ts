@@ -96,15 +96,30 @@ export function flattenImagesFromGroups(imageGroups: MemoriesImageGroup[]): Memo
 const authHeader = (bearerToken?: string) =>
   bearerToken?.trim() ? { Authorization: `Bearer ${bearerToken.trim()}` } : undefined;
 
+function pickPhotobookTemplateId(ev: ApiEvent): number | null {
+  const v = ev?.photobookTemplateId ?? ev?.photobook_template_id;
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 function pickAccessToken(ev: ApiEvent): string {
   const raw =
     ev?.accessToken ??
     ev?.token ??
     ev?.access_token ??
     ev?.shareToken ??
+    ev?.share_token ??
     ev?.galleryToken ??
+    ev?.gallery_token ??
     ev?.publicToken ??
-    ev?.guestToken;
+    ev?.public_token ??
+    ev?.guestToken ??
+    ev?.guest_token ??
+    ev?.guestAccessToken ??
+    ev?.guest_access_token ??
+    ev?.inviteToken ??
+    ev?.invite_token;
   return raw != null && String(raw).trim() !== '' ? String(raw).trim() : '';
 }
 
@@ -145,6 +160,14 @@ function mapEvent(ev: ApiEvent): MemoriesEvent {
             ? String(ev.eventCategory).trim()
             : undefined,
     coverImageUrl: ev?.coverImageUrl != null ? String(ev.coverImageUrl) : undefined,
+    photobookNeeded: Boolean(ev?.photobookNeeded ?? ev?.photobook_needed ?? false),
+    photobookTemplateId: pickPhotobookTemplateId(ev),
+    photobookThankYouMessage:
+      ev?.photobookThankYouMessage != null
+        ? String(ev.photobookThankYouMessage).trim() || null
+        : ev?.photobook_thank_you_message != null
+          ? String(ev.photobook_thank_you_message).trim() || null
+          : null,
     accessToken: pickAccessToken(ev),
     createdAt: String(ev?.createdAt ?? new Date().toISOString()),
     updatedAt: String(ev?.updatedAt ?? new Date().toISOString()),
@@ -178,25 +201,46 @@ export async function getMemoriesEventById(
   id: string,
   opts?: { accessToken?: string; shareId?: string }
 ): Promise<MemoriesEvent | null> {
-  try {
-    const t = opts?.accessToken?.trim();
-    const sid = opts?.shareId?.trim();
-    const params: Record<string, string> = {};
-    if (t) {
-      params.t = t;
-      params.token = t;
+  const sid = opts?.shareId?.trim();
+  const guestToken = opts?.accessToken?.trim();
+  const sessionJwt =
+    typeof localStorage !== 'undefined' ? localStorage.getItem('token')?.trim() || '' : '';
+
+  const tryGet = async (includeGuestQuery: boolean): Promise<MemoriesEvent | null> => {
+    try {
+      const params: Record<string, string> = {};
+      if (includeGuestQuery && guestToken) {
+        params.t = guestToken;
+        params.token = guestToken;
+      }
+      if (sid) params.shareId = sid;
+      const res = await api.get(`/api/memories/events/${encodeURIComponent(id)}`, {
+        // params: Object.keys(params).length ? params : undefined,
+        headers: authHeader(guestToken),
+      });
+      const d = res.data as any;
+      const ev = (d?.event ?? d) as ApiEvent;
+      const mapped = mapEvent(ev);
+      return mapped?.id ? mapped : null;
+    } catch {
+      return null;
     }
-    if (sid) params.shareId = sid;
-    const res = await api.get(`/api/memories/events/${encodeURIComponent(id)}`, {
-      params: Object.keys(params).length ? params : undefined,
-    });
-    const d = res.data as any;
-    const ev = (d?.event ?? d) as ApiEvent;
-    const mapped = mapEvent(ev);
-    return mapped?.id ? mapped : null;
-  } catch {
-    return null;
+  };
+
+  // Logged-in app user: axios interceptor sends `Authorization: Bearer <localStorage token>`.
+  // Do not also send `?token=` / `?t=` from the gallery URL — it can override or confuse the server.
+  if (sessionJwt) {
+    const bySession = await tryGet(false);
+    if (bySession) return bySession;
   }
+  if (guestToken) {
+    const byGuest = await tryGet(true);
+    if (byGuest) return byGuest;
+  }
+  if (!sessionJwt) {
+    return tryGet(false);
+  }
+  return null;
 }
 
 export async function createMemoriesEvent(input: {
@@ -207,6 +251,10 @@ export async function createMemoriesEvent(input: {
   summary?: string;
   description?: string;
   eventType?: string;
+  coverImageUrl?: string;
+  photobookNeeded?: boolean;
+  photobookTemplateId?: number | null;
+  photobookThankYouMessage?: string | null;
 }): Promise<MemoriesEvent> {
   const res = await api.post('/api/memories/events', {
     name: input.name,
@@ -216,6 +264,14 @@ export async function createMemoriesEvent(input: {
     ...(input.summary?.trim() ? { summary: input.summary.trim() } : {}),
     ...(input.description?.trim() ? { description: input.description.trim() } : {}),
     ...(input.eventType?.trim() ? { eventType: input.eventType.trim() } : {}),
+    ...(input.coverImageUrl?.trim() ? { coverImageUrl: input.coverImageUrl.trim() } : {}),
+    photobookNeeded: Boolean(input.photobookNeeded),
+    ...(input.photobookNeeded && input.photobookTemplateId != null
+      ? { photobookTemplateId: input.photobookTemplateId }
+      : {}),
+    ...(input.photobookThankYouMessage != null && String(input.photobookThankYouMessage).trim() !== ''
+      ? { photobookThankYouMessage: String(input.photobookThankYouMessage).trim() }
+      : {}),
   });
   const d = res.data as any;
   const ev = (d?.event ?? d) as ApiEvent;
@@ -232,10 +288,21 @@ export async function updateMemoriesEvent(
     location: string;
     coverImageUrl?: string;
     privacy?: MemoriesPrivacy;
+    summary?: string;
+    description?: string;
+    eventType?: string;
     accessToken?: string;
+    photobookNeeded?: boolean;
+    photobookTemplateId?: number | null;
+    photobookThankYouMessage?: string | null;
   }>
 ): Promise<MemoriesEvent> {
-  const res = await api.put(`/api/memories/events/${encodeURIComponent(id)}`, patch);
+  const body: Record<string, unknown> = { ...patch };
+  if (patch.photobookThankYouMessage !== undefined) {
+    body.photobookThankYouMessage =
+      patch.photobookThankYouMessage == null ? '' : String(patch.photobookThankYouMessage).trim();
+  }
+  const res = await api.put(`/api/memories/events/${encodeURIComponent(id)}`, body);
   const d = res.data as any;
   const ev = (d?.event ?? d) as ApiEvent;
   const mapped = mapEvent(ev);
@@ -247,17 +314,39 @@ export async function deleteMemoriesEvent(id: string): Promise<void> {
   await api.delete(`/api/memories/events/${encodeURIComponent(id)}`);
 }
 
-export async function addImagesToMemoriesEvent(eventId: string, imageIds: Array<number | string>,shareId?: string): Promise<void> {
+export async function addImagesToMemoriesEvent(
+  eventId: string,
+  imageIds: Array<number | string>,
+  shareId?: string,
+  opts?: { bearerToken?: string }
+): Promise<void> {
   const ids = imageIds
     .map((x) => (typeof x === 'string' ? x.trim() : x))
     .filter((x) => x !== '' && x != null);
-  await api.post(`/api/memories/events/${encodeURIComponent(eventId)}/images`, { imageIds: ids, shareId: shareId});
+  const sessionToken =
+    typeof localStorage !== 'undefined' ? localStorage.getItem('token')?.trim() || '' : '';
+  const body: Record<string, unknown> = { imageIds: ids };
+  if (shareId != null && String(shareId).trim() !== '') {
+    body.shareId = shareId;
+  }
+  if (sessionToken) {
+    body.token = sessionToken;
+  }
+  const headers = authHeader(opts?.bearerToken);
+  await api.post(`/api/memories/events/${encodeURIComponent(eventId)}/images`, body, {
+    ...(headers ? { headers } : {}),
+  });
 }
 
 /** Share API requires a non-empty access token; mint and persist one if the event payload omitted it. */
 export async function ensureMemoriesEventAccessTokenForShare(ev: MemoriesEvent): Promise<MemoriesEvent> {
   if (ev.accessToken?.trim()) return ev;
-  return updateMemoriesEvent(ev.id, { accessToken: randomToken(24) });
+  const minted = randomToken(24);
+  const updated = await updateMemoriesEvent(ev.id, { accessToken: minted });
+  const out = updated.accessToken?.trim();
+  if (out) return updated;
+  // Many APIs persist the token but omit it from the PUT response — use the value we just saved.
+  return { ...updated, accessToken: minted };
 }
 
 export async function likeMemoriesEventImage(
@@ -396,7 +485,9 @@ export async function guestUploadToMemoriesEvent(input: {
     if (imageId == null) {
       throw new Error('Upload succeeded but no image id was returned');
     }
-     await addImagesToMemoriesEvent( input.eventId, [imageId],input.shareId)
+     await addImagesToMemoriesEvent(input.eventId, [imageId], input.shareId, {
+          bearerToken: bearer,
+        })
         .then(() => {
           toast.success(`✓ Added image to event`);
         })

@@ -51,6 +51,10 @@ export type MemoriesEvent = {
   /** e.g. wedding | birthday | corporate | family | other — drives welcome imagery */
   eventType?: string;
   coverImageUrl?: string;
+  /** When true, server may generate a photobook from event images using the chosen template. */
+  photobookNeeded?: boolean;
+  photobookTemplateId?: number | null;
+  photobookThankYouMessage?: string | null;
   /** Opaque token for QR / private links */
   accessToken: string;
   createdAt: string;

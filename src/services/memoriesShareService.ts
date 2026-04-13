@@ -2,6 +2,7 @@ import api from './api';
 import type { MemoriesEvent, MemoriesImage } from '../features/memories/types';
 import {
   flattenImagesFromGroups,
+  getMemoriesEventById,
   mapMemoriesApiImage,
   mapMemoriesImageGroupFromApi,
 } from './memoriesService';
@@ -136,13 +137,14 @@ export async function fetchGuestMemoriesEventBySlug(
   shareId?: string
 ): Promise<MemoriesEvent | null> {
   try {
+    const bearer = token?.trim() || undefined;
     const sid = shareId?.trim() || undefined;
     const response = await api.get('/api/simple-invitations/memories-event-guest', {
       params: {
         slug,
-        ...(token ? { t: token, token } : {}),
         ...(sid ? { shareId: sid } : {}),
       },
+      ...(bearer ? { headers: { Authorization: `Bearer ${bearer}` } } : {}),
     });
     const data = response.data as Record<string, unknown>;
     const ev = (data?.event ?? data) as Record<string, unknown>;
@@ -196,4 +198,29 @@ export async function fetchGuestMemoriesEventBySlug(
   } catch {
     return null;
   }
+}
+
+/**
+ * Load event for `/memories/e/:slug` when not in local demo store.
+ * - **Numeric slug** (e.g. `/memories/e/3`): always **`GET /api/memories/events/{id}`** with query
+ *   `t`, `token` (when present), and `shareId` (when present) — same on localhost and any public host/IP.
+ * - **Non-numeric slug**: **`GET /api/simple-invitations/memories-event-guest`** with slug + token + shareId.
+ */
+export async function loadRemoteMemoriesForPublicGallery(
+  slug: string,
+  token: string,
+  shareId: string
+): Promise<MemoriesEvent | null> {
+  const t = token.trim();
+  const sid = shareId.trim();
+  const isNumericSlug = /^\d+$/.test(slug);
+
+  if (isNumericSlug) {
+    return getMemoriesEventById(slug, {
+      accessToken: t || undefined,
+      shareId: sid || undefined,
+    });
+  }
+
+  return fetchGuestMemoriesEventBySlug(slug, t || undefined, sid || undefined);
 }

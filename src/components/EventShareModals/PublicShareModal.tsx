@@ -91,6 +91,8 @@ interface PublicShareModalProps {
   showMessage?: boolean;
   /** Optional: hide channel toggles (default: true). */
   showChannels?: boolean;
+  /** Optional: override modal title (e.g. Our Memories vs Photo Studio checkout). */
+  dialogTitle?: string;
 }
 
 const EventPublicShareModal: React.FC<PublicShareModalProps> = ({
@@ -124,6 +126,7 @@ const EventPublicShareModal: React.FC<PublicShareModalProps> = ({
   disabledContent,
   showMessage = true,
   showChannels = true,
+  dialogTitle,
 }) => {
   const { t } = useTranslation();
 
@@ -165,7 +168,7 @@ const EventPublicShareModal: React.FC<PublicShareModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">{L.title}</h3>
+          <h3 className="text-lg font-semibold text-gray-900">{dialogTitle ?? L.title}</h3>
           <button onClick={handleClose} className="p-1 rounded hover:bg-gray-100 text-gray-600">
             <FaTimes className="w-5 h-5" />
           </button>
