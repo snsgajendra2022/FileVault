@@ -15,7 +15,10 @@ import {
 import { MemoriesSkeletonGrid } from './components/MemoriesSkeletonGrid';
 import { MemoriesLightbox } from './components/MemoriesLightbox';
 import type { MemoriesEvent, MemoriesImage } from '../../features/memories/types';
-import { parseMemoriesGuestShareSearchParams } from '../../utils/memoriesGuestShareQuery';
+import {
+  getMemoriesShareAccessTokenFromSearchParams,
+  parseMemoriesGuestShareSearchParams,
+} from '../../utils/memoriesGuestShareQuery';
 import {
   getMemoriesEventTypePreviewUrls,
   normalizeMemoriesEventType,
@@ -58,8 +61,11 @@ function patchEventImage(
 const MemoriesPublicGalleryPage: React.FC = () => {
   const { t } = useTranslation(undefined, { keyPrefix: 'memoriesPlatform' });
   const { eventSlug } = useParams<{ eventSlug: string }>();
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get('t')?.trim() || '';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const token = React.useMemo(
+    () => getMemoriesShareAccessTokenFromSearchParams(searchParams),
+    [searchParams]
+  );
   const shareId = searchParams.get('shareId')?.trim() || searchParams.get('sid')?.trim() || '';
 
   const guestQuery = React.useMemo(
@@ -109,11 +115,14 @@ const MemoriesPublicGalleryPage: React.FC = () => {
         // If slug is a numeric id (e.g. /memories/e/1), prefer the same host API used by manage page.
         // If that fails (e.g. unauthenticated), fall back to guest API.
         if (isNumericSlug) {
-          const host = await getMemoriesEventById(slug);
+          const host = await getMemoriesEventById(slug, {
+            accessToken: token || undefined,
+            shareId: shareId || undefined,
+          });
           if (!cancelled) setRemote(host);
           if (host) return;
         }
-        const guest = await fetchGuestMemoriesEventBySlug(slug, token || undefined);
+        const guest = await fetchGuestMemoriesEventBySlug(slug, token || undefined, shareId || undefined);
         if (!cancelled) setRemote(guest);
       } finally {
         if (!cancelled) setFetchingRemote(false);
@@ -124,10 +133,29 @@ const MemoriesPublicGalleryPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [slug, token, local]);
+  }, [slug, token, shareId, local]);
 
   const ev = local || remote;
+
+  /** If the loaded event includes `accessToken` but the address bar omitted it, add `token=` (keeps guest/shareId params). */
+  React.useEffect(() => {
+    if (getMemoriesShareAccessTokenFromSearchParams(searchParams)) return;
+    if (!ev) return;
+    const at = String(ev.accessToken ?? '').trim();
+    if (!at) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('token', at);
+    setSearchParams(next, { replace: true });
+  }, [ev, searchParams, setSearchParams]);
+
   const isRemoteOnly = !!remote && !local;
+  const guestCommentsAuth = React.useMemo(
+    () =>
+      isRemoteOnly
+        ? { bearerToken: token || undefined, shareId: shareId || undefined }
+        : undefined,
+    [isRemoteOnly, token, shareId]
+  );
   const [likedImageIds, setLikedImageIds] = React.useState<Set<string>>(new Set());
 
   const [lightbox, setLightbox] = React.useState<{ open: boolean; index: number }>({
@@ -170,7 +198,13 @@ const MemoriesPublicGalleryPage: React.FC = () => {
         }));
       });
 
-      likeMemoriesEventImage(String(ev.id), imageId, delta, shareId || undefined).catch(() => {
+      likeMemoriesEventImage(
+        String(ev.id),
+        imageId,
+        delta,
+        shareId || undefined,
+        token || undefined
+      ).catch(() => {
         // rollback on failure
         setLikedImageIds((prev) => {
           const next = new Set(prev);
@@ -187,7 +221,7 @@ const MemoriesPublicGalleryPage: React.FC = () => {
         });
       });
     },
-    [ev, isRemoteOnly, likedImageIds, toggleLike, shareId]
+    [ev, isRemoteOnly, likedImageIds, toggleLike, shareId, token]
   );
 
   React.useEffect(() => {
@@ -270,18 +304,21 @@ const MemoriesPublicGalleryPage: React.FC = () => {
     try {
       const isNumericSlug = /^\d+$/.test(slug);
       if (isNumericSlug) {
-        const host = await getMemoriesEventById(slug);
+        const host = await getMemoriesEventById(slug, {
+          accessToken: token || undefined,
+          shareId: shareId || undefined,
+        });
         if (host) {
           setRemote(host);
           return;
         }
       }
-      const guest = await fetchGuestMemoriesEventBySlug(slug, token || undefined);
+      const guest = await fetchGuestMemoriesEventBySlug(slug, token || undefined, shareId || undefined);
       setRemote(guest);
     } finally {
       setFetchingRemote(false);
     }
-  }, [slug, token, local]);
+  }, [slug, token, shareId, local]);
 
   const handleGuestIntroNext = React.useCallback(() => {
     const { allowImageUpload, allowViewEventImages } = guestQuery;
@@ -829,6 +866,7 @@ const MemoriesPublicGalleryPage: React.FC = () => {
         readOnly={false}
         isLiked={isLiked}
         eventId={String(ev.id)}
+        commentsFetchAuth={guestCommentsAuth}
         onClose={() => setLightbox((s) => ({ ...s, open: false }))}
         onLike={(imageId) => {
           handleLike(imageId);
@@ -849,7 +887,14 @@ const MemoriesPublicGalleryPage: React.FC = () => {
               comments: [...(img.comments ?? []), optimistic],
             }));
           });
-          addMemoriesEventImageComment(String(ev.id), imageId, text)
+          addMemoriesEventImageComment(
+            String(ev.id),
+            imageId,
+            text,
+            isRemoteOnly && (token || shareId)
+              ? { bearerToken: token || undefined, shareId: shareId || undefined }
+              : undefined
+          )
             .then((saved) => {
               setRemote((prev) => {
                 if (!prev) return prev;

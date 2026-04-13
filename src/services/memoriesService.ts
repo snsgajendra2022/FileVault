@@ -93,6 +93,9 @@ export function flattenImagesFromGroups(imageGroups: MemoriesImageGroup[]): Memo
   return out;
 }
 
+const authHeader = (bearerToken?: string) =>
+  bearerToken?.trim() ? { Authorization: `Bearer ${bearerToken.trim()}` } : undefined;
+
 function pickAccessToken(ev: ApiEvent): string {
   const raw =
     ev?.accessToken ??
@@ -171,9 +174,22 @@ export async function listMemoriesEvents(): Promise<MemoriesEvent[]> {
   return normalizeList(res.data).map(mapEvent).filter((e) => Boolean(e.id));
 }
 
-export async function getMemoriesEventById(id: string): Promise<MemoriesEvent | null> {
+export async function getMemoriesEventById(
+  id: string,
+  opts?: { accessToken?: string; shareId?: string }
+): Promise<MemoriesEvent | null> {
   try {
-    const res = await api.get(`/api/memories/events/${encodeURIComponent(id)}`);
+    const t = opts?.accessToken?.trim();
+    const sid = opts?.shareId?.trim();
+    const params: Record<string, string> = {};
+    if (t) {
+      params.t = t;
+      params.token = t;
+    }
+    if (sid) params.shareId = sid;
+    const res = await api.get(`/api/memories/events/${encodeURIComponent(id)}`, {
+      params: Object.keys(params).length ? params : undefined,
+    });
     const d = res.data as any;
     const ev = (d?.event ?? d) as ApiEvent;
     const mapped = mapEvent(ev);
@@ -248,23 +264,33 @@ export async function likeMemoriesEventImage(
   eventId: string,
   imageId: string,
   delta: 1 | -1 = 1,
-  shareId?: string | number
+  shareId?: string | number,
+  bearerToken?: string
 ): Promise<void> {
   const sid = shareId != null && String(shareId).trim() !== '' ? String(shareId).trim() : undefined;
   const url = `/api/memories/events/${encodeURIComponent(eventId)}/images/${encodeURIComponent(imageId)}/likes`;
-  await api.post(url, { delta, ...(sid ? { shareId: sid } : {}) }, { params: sid ? { shareId: sid } : undefined });
+  const headers = authHeader(bearerToken);
+  await api.post(
+    url,
+    { delta, ...(sid ? { shareId: sid } : {}) },
+    { params: sid ? { shareId: sid } : undefined, ...(headers ? { headers } : {}) }
+  );
 }
 
 export async function addMemoriesEventImageComment(
   eventId: string,
   imageId: string,
   text: string,
-  auth?: { bearerToken?: string }
+  auth?: { bearerToken?: string; shareId?: string }
 ): Promise<{ id: string; text: string; createdAt: string }> {
+  const sid = auth?.shareId?.trim();
   const res = await api.post(
     `/api/memories/events/${encodeURIComponent(eventId)}/images/${encodeURIComponent(imageId)}/comments`,
     { text },
-    { headers: authHeader(auth?.bearerToken) }
+    {
+      params: sid ? { shareId: sid } : undefined,
+      headers: authHeader(auth?.bearerToken),
+    }
   );
   const d = res.data as any;
   const c = (d?.comment ?? d) as any;
@@ -277,10 +303,15 @@ export async function addMemoriesEventImageComment(
 
 export async function getMemoriesEventImageComments(
   eventId: string,
-  imageId: string
+  imageId: string,
+  auth?: { bearerToken?: string; shareId?: string }
 ): Promise<Array<{ id: string; text: string; createdAt: string; userId?: number; userName?: string; displayName?: string }>> {
+  const sid = auth?.shareId?.trim();
+  const params = sid ? { shareId: sid } : undefined;
+  const headers = authHeader(auth?.bearerToken);
   const res = await api.get(
-    `/api/memories/events/${encodeURIComponent(eventId)}/images/${encodeURIComponent(imageId)}/comments`
+    `/api/memories/events/${encodeURIComponent(eventId)}/images/${encodeURIComponent(imageId)}/comments`,
+    { params, ...(headers ? { headers } : {}) }
   );
   const d = res.data as any;
   const raw = (Array.isArray(d?.comments) && d.comments) || (Array.isArray(d) ? d : []);
@@ -316,9 +347,6 @@ function pickUploadedImageId(res: UploadResponse): string | null {
   const s3 = res.cloudUploads?.s3?.id;
   return tryPick(s3);
 }
-
-const authHeader = (bearerToken?: string) =>
-  bearerToken?.trim() ? { Authorization: `Bearer ${bearerToken.trim()}` } : undefined;
 
 /**
  * Register guest upload metadata after each successful `/api/images/upload`.

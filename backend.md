@@ -338,15 +338,15 @@ The React app mirrors the **album share** pattern (`POST /api/simple-invitations
 
 | `POST` | `/api/simple-invitations/share-memories-event` | Body: `{ eventId, slug, accessToken, clientIds: number[] }` — grant invited users access to this memories event. |
 | `GET` | `/api/simple-invitations/shared-memories-events` | Return events shared **with the current user** (invitee). Response may use `sharedMemoriesEvents`, `sharedEvents`, or a bare array; see `memoriesShareService.ts`. |
-| `GET` | `/api/simple-invitations/memories-event-guest` | Query: `slug`, optional `t` (access token). Returns event + images for **guest / invitee** when the event is not in the photographer’s browser storage. |
+| `GET` | `/api/simple-invitations/memories-event-guest` | Query: **`slug`** (required), optional **`token`** or **`t`** (gallery access token; client sends both names in API params when present), optional **`shareId`** (recipient share batch id from email/SMS links). Guest URLs should include both when the backend issues per-recipient shares, e.g. `/memories/e/1?guest=1&shareId=38&token=<token>`. |
 
-Invitees open **`/memories/e/{slug}?t={token}`** from the shared list; the guest endpoint supplies data when local demo storage is empty.
+Invitees open **`/memories/e/{slug}?token={token}`** (legacy **`t=`** still read by the app) from the shared list; the guest endpoint supplies data when local demo storage is empty.
 
 When the host sends share notifications via **`POST /api/public-share/send`** from the event manage modal, the body may include optional booleans **`allowImageUpload`** and **`allowViewEventImages`** (UI: “Images upload” / “View Event Images”). The backend may ignore them until guest permissions are modeled.
 
 Share links built in the app also append **`guest=1`**, **`allowImageUpload=0|1`**, and **`allowViewEventImages=0|1`** so the guest page can show the intro → upload → gallery flow. If the backend replaces `publicUrl` when emailing, it should preserve these query params (and **`shareId`** when present).
 
-**Guest upload (Our Memories public page):** For each file the client calls **`POST /api/images/upload`** (`multipart/form-data`, field **`file`**). When the response returns an **`imageId`**, **if the guest entered an upload note** the client then calls **`POST /api/memories/events/{eventId}/image`** with JSON **`{ "imageId", "comments" }`** and **`POST /api/memories/events/{eventId}/images/{imageId}/comments`** with **`{ "text": "<same note>" }`**, both with **`Authorization: Bearer`** from the share link’s **`t`** query when the user is not logged in. If the note is empty, only the image upload runs (link the image to the event another way if your backend requires it).
+**Guest upload (Our Memories public page):** For each file the client calls **`POST /api/images/upload`** (`multipart/form-data`, field **`file`**). When the response returns an **`imageId`**, **if the guest entered an upload note** the client then calls **`POST /api/memories/events/{eventId}/image`** with JSON **`{ "imageId", "comments" }`** and **`POST /api/memories/events/{eventId}/images/{imageId}/comments`** with **`{ "text": "<same note>" }`**, both with **`Authorization: Bearer`** from the share link’s **`token`** (or legacy **`t`**) query when the user is not logged in. If the note is empty, only the image upload runs (link the image to the event another way if your backend requires it).
 
 Event payloads may include **`description`** / **`summary`** (or **`details`** / **`subtitle`**) for the guest intro screen, and optional **`eventType`** (or **`type`** / **`eventCategory`**) — string such as `wedding` | `birthday` | `corporate` | `family` | `other` — used for welcome-screen imagery.
 
@@ -362,7 +362,7 @@ The Memories photographer dashboard pages (`src/pages/memories/*`) now expect **
 |--------|------|---------|
 | `GET` | `/api/memories/events` | List events for the current authenticated host. Response may be `{ events: [...] }` or a bare array. |
 | `POST` | `/api/memories/events` | Create event. Body: `{ name, dateTime, location, privacy? }` (UI defaults **`privacy` to `invite`**), optional **`summary`**, **`description`**, **`eventType`**. Response: `{ event: ... }` or event object. |
-| `GET` | `/api/memories/events/{id}` | Fetch one event with images. Response: `{ event: ... }` or event object. |
+| `GET` | `/api/memories/events/{id}` | Fetch one event with images. Response: `{ event: ... }` or event object. Optional query: **`token`** or **`t`** (access token; client may send both), **`shareId`** — used when opening a numeric guest URL so unauthenticated clients can load the event. |
 | `PUT` | `/api/memories/events/{id}` | Update event fields (`name`, `dateTime`, `location`, `privacy`, optional `coverImageUrl`). |
 | `DELETE` | `/api/memories/events/{id}` | Delete event. |
 | `POST` | `/api/memories/events/{id}/images` | Attach uploaded images to event. Body: `{ imageIds: (number|string)[] }`. |

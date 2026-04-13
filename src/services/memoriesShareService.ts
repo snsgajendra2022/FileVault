@@ -132,11 +132,17 @@ export async function fetchSharedMemoriesEventsForMe(): Promise<SharedMemoriesEv
 /** Guest/public load when event is not in local zustand (invited user on another device). */
 export async function fetchGuestMemoriesEventBySlug(
   slug: string,
-  token?: string
+  token?: string,
+  shareId?: string
 ): Promise<MemoriesEvent | null> {
   try {
+    const sid = shareId?.trim() || undefined;
     const response = await api.get('/api/simple-invitations/memories-event-guest', {
-      params: { slug, ...(token ? { t: token } : {}) },
+      params: {
+        slug,
+        ...(token ? { t: token, token } : {}),
+        ...(sid ? { shareId: sid } : {}),
+      },
     });
     const data = response.data as Record<string, unknown>;
     const ev = (data?.event ?? data) as Record<string, unknown>;

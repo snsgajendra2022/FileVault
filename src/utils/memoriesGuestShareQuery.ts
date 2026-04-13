@@ -1,5 +1,15 @@
 /** Query params for Our Memories guest share links (`/memories/e/:slug?...`). */
 
+/**
+ * Gallery access token from the public share URL.
+ * Prefer `token` (e.g. `?token=...&shareId=...`); fall back to legacy `t`.
+ */
+export function getMemoriesShareAccessTokenFromSearchParams(searchParams: URLSearchParams): string {
+  const fromToken = searchParams.get('token')?.trim();
+  if (fromToken) return fromToken;
+  return searchParams.get('t')?.trim() || '';
+}
+
 export type MemoriesGuestSharePermissions = {
   allowImageUpload: boolean;
   allowViewEventImages: boolean;

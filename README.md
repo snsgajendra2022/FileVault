@@ -287,3 +287,5 @@ This frontend integrates with the ImageSecurity API backend. Ensure the backend 
 ---
 
 **FileVault** - Secure, scalable image management for modern businesses.
+
+

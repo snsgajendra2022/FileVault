@@ -22,6 +22,7 @@ import {
   getMemoriesEventById,
 } from '../../services/memoriesService';
 import EventPublicShareModal from 'src/components/EventShareModals/PublicShareModal';
+import type { MemoriesEvent } from '../../features/memories/types';
 import { applyMemoriesGuestShareQueryParams } from '../../utils/memoriesGuestShareQuery';
 import { MemoriesLightbox } from './components/MemoriesLightbox';
 
@@ -172,10 +173,43 @@ const MemoriesEventManagePage: React.FC = () => {
   const shareUrl = React.useMemo(() => {
     if (!ev || typeof window === 'undefined') return '';
     const u = new URL(`${window.location.origin}/memories/e/${ev.slug}`);
-    if (ev.accessToken) u.searchParams.set('t', ev.accessToken);
+    if (ev.accessToken) u.searchParams.set('token', ev.accessToken);
     applyMemoriesGuestShareQueryParams(u, shareGuestPermissions);
     return u.toString();
   }, [ev, shareGuestPermissions]);
+
+  const accessTokenMintInFlightRef = React.useRef(false);
+  const accessTokenMintFailedEventIdRef = React.useRef<string | null>(null);
+  const eventAccessTokenKey = ev?.accessToken?.trim() ?? '';
+
+  React.useEffect(() => {
+    if (!eventId) return;
+    if (eventAccessTokenKey) {
+      accessTokenMintFailedEventIdRef.current = null;
+      return;
+    }
+    const snap = qc.getQueryData<MemoriesEvent | null>(['memoriesEvent', eventId]);
+    if (!snap?.id) return;
+    if (accessTokenMintFailedEventIdRef.current === eventId) return;
+    if (accessTokenMintInFlightRef.current) return;
+    accessTokenMintInFlightRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const updated = await ensureMemoriesEventAccessTokenForShare(snap);
+        if (cancelled) return;
+        qc.setQueryData(['memoriesEvent', eventId], updated);
+      } catch {
+        accessTokenMintFailedEventIdRef.current = eventId;
+      } finally {
+        if (!cancelled) accessTokenMintInFlightRef.current = false;
+      }
+    })();
+    return () => {
+      cancelled = true;
+      accessTokenMintInFlightRef.current = false;
+    };
+  }, [eventId, qc, ev?.id, eventAccessTokenKey]);
 
   const checkRecipient = React.useCallback(
     async (emailInput: string, mobileInput: string) => {
@@ -245,7 +279,7 @@ const MemoriesEventManagePage: React.FC = () => {
       const ready = await ensureMemoriesEventAccessTokenForShare(ev);
       const publicUrl = (() => {
         const u = new URL(`${window.location.origin}/memories/e/${ready.slug}`);
-        if (ready.accessToken) u.searchParams.set('t', ready.accessToken);
+        if (ready.accessToken) u.searchParams.set('token', ready.accessToken);
         applyMemoriesGuestShareQueryParams(u, shareGuestPermissions);
         return u.toString();
       })();

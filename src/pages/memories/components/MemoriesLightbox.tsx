@@ -7,7 +7,6 @@ import type { MemoriesImage } from '../../../features/memories/types';
 import { getMemoriesEventImageComments } from '../../../services/memoriesService';
 import 'swiper/css';
 import 'swiper/css/navigation';
-import api from 'src/services/api';
 
 type Props = {
   open: boolean;
@@ -23,6 +22,8 @@ type Props = {
   eventId?: string;
   /** Server-backed gallery — likes not persisted locally */
   readOnly?: boolean;
+  /** Guest share link: Bearer + optional shareId for loading comments */
+  commentsFetchAuth?: { bearerToken?: string; shareId?: string };
 };
 
 export const MemoriesLightbox: React.FC<Props> = ({
@@ -36,6 +37,7 @@ export const MemoriesLightbox: React.FC<Props> = ({
   isLiked,
   eventId,
   readOnly = false,
+  commentsFetchAuth,
 }) => {
   const [hdLoaded, setHdLoaded] = React.useState<Record<string, boolean>>({});
   const [active, setActive] = React.useState(initialIndex);
@@ -79,7 +81,7 @@ export const MemoriesLightbox: React.FC<Props> = ({
 
     let cancelled = false;
     setLoadingCommentsForId((prev) => ({ ...prev, [cur.id]: true }));
-    getMemoriesEventImageComments(eventId, cur.id)
+    getMemoriesEventImageComments(eventId, cur.id, commentsFetchAuth)
       .then((list) => {
         if (cancelled) return;
         setServerCommentsByImageId((prev) => ({ ...prev, [cur.id]: list }));
@@ -90,7 +92,7 @@ export const MemoriesLightbox: React.FC<Props> = ({
     return () => {
       cancelled = true;
     };
-  }, [open, commentsOpen, eventId, active, images, serverCommentsByImageId]);
+  }, [open, commentsOpen, eventId, active, images, serverCommentsByImageId, commentsFetchAuth]);
 
   if (!open) return null;
 
