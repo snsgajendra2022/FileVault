@@ -2325,6 +2325,8 @@ const PhotoThemeCategoryPage: React.FC = () => {
   );
   const photobookIdRef = React.useRef(photobookId);
   photobookIdRef.current = photobookId;
+  const activeTemplateIdRef = React.useRef(activeTemplateId);
+  activeTemplateIdRef.current = activeTemplateId;
 
   const [isLoadingSelectedTheme, setIsLoadingSelectedTheme] = React.useState(false);
 
@@ -2482,15 +2484,22 @@ const PhotoThemeCategoryPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, activeTemplateId]);
 
-  // Load saved covers from API when editing an existing album (not when "Create new" with no photobookId).
+  // Load saved covers: photobook-scoped only when editing a book (no template fallback — avoids wrong book).
+  // Without photobookId, legacy template-scoped /api/covers when a template is selected.
   React.useEffect(() => {
     let cancelled = false;
-    const loadId = photobookId;
 
-    if (!user?.id || !loadId) {
+    if (!user?.id) {
       setIsLoadingCovers(false);
       return;
     }
+    if (photobookId == null && !activeTemplateId) {
+      setIsLoadingCovers(false);
+      return;
+    }
+
+    const pbAtStart = photobookId;
+    const tplAtStart = activeTemplateId;
 
     const loadSavedCovers = async () => {
       setIsLoadingCovers(true);
@@ -2499,10 +2508,28 @@ const PhotoThemeCategoryPage: React.FC = () => {
         const headers = { ...(token ? { 'X-API-KEY': token } : {}) };
         let payload: { frontCover?: ApiCoverSide; backCover?: ApiCoverSide } | null = null;
 
-        const res = await api.get(`/api/photobooks/${loadId}/covers`, { headers }).catch(() => null);
-        if (res?.data && (res.data.frontCover || res.data.backCover)) {
-          payload = { frontCover: res.data.frontCover, backCover: res.data.backCover };
+        if (photobookId != null) {
+          const res = await api
+            .get(`/api/photobooks/${photobookId}/covers`, { headers })
+            .catch(() => null);
+          if (res?.data?.frontCover || res?.data?.backCover) {
+            payload = { frontCover: res.data.frontCover, backCover: res.data.backCover };
+          }
+        } else if (activeTemplateId) {
+          const res = await api
+            .get<ApiCoverRecord[]>('/api/covers', {
+              params: { userId: user.id, templateId: String(activeTemplateId) },
+              headers,
+            })
+            .catch(() => null);
+          if (res?.data) {
+            const rec = Array.isArray(res.data) ? res.data[0] : res.data;
+            if (rec && (rec.frontCover || rec.backCover)) {
+              payload = { frontCover: rec.frontCover, backCover: rec.backCover };
+            }
+          }
         }
+
         if (
           payload &&
           isApiCoverSideEmpty(payload.frontCover) &&
@@ -2510,27 +2537,16 @@ const PhotoThemeCategoryPage: React.FC = () => {
         ) {
           payload = null;
         }
-        if (!payload && user?.id && activeTemplateId) {
-          try {
-            const r2 = await api.get<ApiCoverRecord[]>('/api/covers', {
-              params: { userId: user.id, templateId: String(activeTemplateId) },
-              headers,
-            });
-            const rec = r2.data?.[0];
-            if (
-              rec &&
-              (!isApiCoverSideEmpty(rec.frontCover) || !isApiCoverSideEmpty(rec.backCover))
-            ) {
-              payload = { frontCover: rec.frontCover, backCover: rec.backCover };
-            }
-          } catch {
-            /* ignore */
-          }
+
+        if (
+          cancelled ||
+          photobookIdRef.current !== pbAtStart ||
+          activeTemplateIdRef.current !== tplAtStart
+        ) {
+          return;
         }
 
-        if (cancelled || photobookIdRef.current !== loadId) return;
-
-        const extras = loadCoverLeafExtras(loadId);
+        const extras = loadCoverLeafExtras(pbAtStart);
 
         if (payload) {
           const { frontCover, backCover } = payload;
@@ -2551,7 +2567,12 @@ const PhotoThemeCategoryPage: React.FC = () => {
       } catch (error: any) {
         console.error('Failed to load saved covers:', error);
       } finally {
-        if (photobookIdRef.current === loadId) setIsLoadingCovers(false);
+        if (
+          photobookIdRef.current === pbAtStart &&
+          activeTemplateIdRef.current === tplAtStart
+        ) {
+          setIsLoadingCovers(false);
+        }
       }
     };
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import HTMLFlipBook from 'react-pageflip';
@@ -876,11 +876,17 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   const { categorySlug = '' } = useParams<{ categorySlug: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const location = useLocation() as {
     state?: {
-      coverPage?: EditablePageState; lastPage?: EditablePageState;
-      dbTemplateId?: number; photobookId?: number;
-      fromStudioAlbum?: boolean; albumImageIds?: number[]; albumName?: string;
+      coverPage?: EditablePageState;
+      lastPage?: EditablePageState;
+      dbTemplateId?: number;
+      templateId?: number;
+      photobookId?: number;
+      fromStudioAlbum?: boolean;
+      albumImageIds?: number[];
+      albumName?: string;
       /** When set from PhotoBook page: open preview in big view (flip or page) */
       openPreview?: 'flip' | 'page';
     };
@@ -932,12 +938,32 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   };
 
   const getInitialTemplateId = (): number | null => {
-    if (location.state?.dbTemplateId) return location.state.dbTemplateId;
+    if (location.state?.dbTemplateId != null) {
+      const n = Number(location.state.dbTemplateId);
+      if (!Number.isNaN(n)) return n;
+    }
+    if (location.state?.templateId != null) {
+      const n = Number(location.state.templateId);
+      if (!Number.isNaN(n)) return n;
+    }
+    const q = searchParams.get('templateId');
+    if (q != null && q !== '') {
+      const n = Number(q);
+      if (!Number.isNaN(n)) return n;
+    }
     return getStoredPhotobook()?.templateId ?? null;
   };
 
   const getInitialPhotobookId = (): number | null => {
-    if (location.state?.photobookId) return location.state.photobookId;
+    if (location.state?.photobookId != null) {
+      const n = Number(location.state.photobookId);
+      if (!Number.isNaN(n)) return n;
+    }
+    const q = searchParams.get('photobookId');
+    if (q != null && q !== '') {
+      const n = Number(q);
+      if (!Number.isNaN(n)) return n;
+    }
     return getStoredPhotobook()?.photobookId ?? null;
   };
 
@@ -946,10 +972,15 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
 
   // When navigating (e.g. Edit from Photo Book), sync from location state so we load the correct album
   React.useEffect(() => {
-    const fromState = location.state as { photobookId?: number; dbTemplateId?: number } | null;
-    if (fromState?.photobookId != null) setPhotobookId(fromState.photobookId);
-    if (fromState?.dbTemplateId != null) setDbTemplateId(fromState.dbTemplateId);
-  }, [location.state?.photobookId, location.state?.dbTemplateId]);
+    const fromState = location.state as {
+      photobookId?: number;
+      dbTemplateId?: number;
+      templateId?: number;
+    } | null;
+    if (fromState?.photobookId != null) setPhotobookId(Number(fromState.photobookId));
+    if (fromState?.dbTemplateId != null) setDbTemplateId(Number(fromState.dbTemplateId));
+    if (fromState?.templateId != null) setDbTemplateId(Number(fromState.templateId));
+  }, [location.state?.photobookId, location.state?.dbTemplateId, location.state?.templateId]);
 
   // Persist to localStorage whenever photobookId or dbTemplateId change
   React.useEffect(() => {
@@ -963,9 +994,30 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     }
   }, [photobookId, dbTemplateId, PHOTOBOOK_KEY]);
 
-  // Recover photobookId + templateId from API if missing
+  // Event / API-generated books: deep link with ?photobookId= only — resolve template from the photobook row.
   React.useEffect(() => {
-    if ((dbTemplateId && photobookId) || !user?.id || !categorySlug) return;
+    if (!photobookId || dbTemplateId != null || !user?.id) return;
+    const fill = async () => {
+      try {
+        const token = getStoredToken();
+        const r = await api.get<{ templateId?: number }>(`/api/photobooks/${photobookId}`, {
+          headers: { ...(token ? { 'X-API-KEY': token } : {}) },
+        });
+        if (r.data?.templateId != null) setDbTemplateId(Number(r.data.templateId));
+      } catch {
+        /* ignore */
+      }
+    };
+    fill();
+  }, [photobookId, dbTemplateId, user?.id]);
+
+  // Recover photobookId + templateId from API when neither deep link nor storage gave a book id
+  // (skip when photobookId is set but template missing — filled by GET /api/photobooks/:id above).
+  React.useEffect(() => {
+    if (!user?.id || !categorySlug) return;
+    if (photobookId && dbTemplateId) return;
+    if (photobookId && !dbTemplateId) return;
+
     const recover = async () => {
       try {
         const token = getStoredToken();
@@ -975,8 +1027,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         const list = Array.isArray(res.data) ? res.data : (res.data ? [res.data] : []);
         const latest = list[0];
         if (latest?.templateId) {
-          if (!dbTemplateId) setDbTemplateId(latest.templateId);
-          if (!photobookId) setPhotobookId(latest.id);
+          if (dbTemplateId == null) setDbTemplateId(latest.templateId);
+          if (photobookId == null) setPhotobookId(latest.id);
         }
       } catch {
         console.warn('No saved photobook found for category:', categorySlug);
@@ -984,7 +1036,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     };
     recover();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, categorySlug]);
+  }, [user?.id, categorySlug, photobookId, dbTemplateId]);
 
   const [effectiveCover, setEffectiveCover] = React.useState<EditablePageState | undefined>(() => {
     const fromLoc = location.state?.coverPage;
@@ -1371,19 +1423,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         weddingBackground: selectedWeddingBackground,
       };
 
-      // Try new photobook-scoped endpoint, fall back to old one
-      try {
-        await api.post(`/api/photobooks/${pbId}/pages`, saveBody, { headers });
-      } catch {
-        if (resolvedTemplateId) {
-          await api.post(
-            `/api/album-pages/bulk?userId=${user.id}&templateId=${resolvedTemplateId}`,
-            saveBody, { headers },
-          );
-        } else {
-          throw new Error('Failed to save album pages');
-        }
-      }
+      // Always persist under this photobook — do not fall back to /album-pages/bulk (same template = wrong book).
+      await api.post(`/api/photobooks/${pbId}/pages`, saveBody, { headers });
 
       try {
         await api.put(`/api/photobooks/${pbId}`, {
@@ -1533,51 +1574,59 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
 
       try {
         let pages: ApiAlbumPageResponse[] = [];
-        let pagesBundle: PhotobookPagesApiResponse | null = null;
         const coversFromRoute = !!location.state?.coverPage;
 
-        // Try photobook-scoped endpoint first, fall back to old (userId, templateId) endpoint
+        // Photobook-scoped load only when we have a book id — empty pages are valid for a new book.
+        // Do NOT fall back to /api/album-pages (userId+templateId): that merges legacy rows for
+        // that template and shows another book's content.
         if (photobookId) {
           try {
             const res = await api.get<PhotobookPagesApiResponse>(
-              `/api/photobooks/${photobookId}/pages`, { headers });
-            pagesBundle = res.data ?? null;
+              `/api/photobooks/${photobookId}/pages`,
+              { headers },
+            );
             pages = res.data?.pages ?? [];
             if (res.data?.templateId != null) setDbTemplateId(Number(res.data.templateId));
-          } catch { /* new endpoint might not be deployed yet */ }
-        }
-        if (pages.length === 0 && dbTemplateId) {
+            if (res.data?.photobookId != null) setPhotobookId(Number(res.data.photobookId));
+          } catch {
+            /* endpoint error — leave pages empty */
+          }
+        } else if (dbTemplateId) {
           try {
             const res = await api.get<{ pages: ApiAlbumPageResponse[]; total: number }>(
-              `/api/album-pages?userId=${user.id}&templateId=${dbTemplateId}`, { headers });
+              `/api/album-pages?userId=${user.id}&templateId=${dbTemplateId}`,
+              { headers },
+            );
             pages = res.data?.pages ?? [];
-          } catch { /* fallback also failed */ }
+          } catch {
+            /* legacy load failed */
+          }
         }
-        // When covers come from route state (just saved), skip loading cover/last images
-        // from the pages table — they'll come from coverFromState / lastFromState instead
+
         applyLoadedPages(pages, coversFromRoute);
 
-        // Load covers from API only when NOT coming from the cover editing page
         if (!coversFromRoute) {
           let coverData: any = null;
-          if (pagesBundle && (pagesBundle.frontCover || pagesBundle.backCover)) {
-            coverData = { frontCover: pagesBundle.frontCover, backCover: pagesBundle.backCover };
-          }
-          if (!coverData?.frontCover && !coverData?.backCover && photobookId) {
+          if (photobookId) {
             try {
               const r = await api.get(`/api/photobooks/${photobookId}/covers`, { headers });
               coverData = r.data;
-            } catch { /* new endpoint might not exist */ }
-          }
-          if (!coverData?.frontCover && !coverData?.backCover && dbTemplateId) {
+            } catch {
+              /* leave null */
+            }
+          } else if (dbTemplateId) {
             try {
-              const r = await api.get(`/api/covers?userId=${user.id}&templateId=${dbTemplateId}`, { headers });
+              const r = await api.get(`/api/covers`, {
+                params: { userId: user.id, templateId: String(dbTemplateId) },
+                headers,
+              });
               coverData = Array.isArray(r.data) ? r.data[0] : r.data;
-            } catch { /* fallback also failed */ }
+            } catch {
+              /* legacy covers failed */
+            }
           }
           if (coverData) {
             applyLoadedCovers(coverData);
-            // Sync cover/back cover images into pageImages so cover and last page display correctly when editing
             setPageImages((prev) => {
               const next = { ...prev };
               if (coverData?.frontCover) {
@@ -3437,7 +3486,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                           <p className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider">{t('coverTextPanel')}</p>
                           <span className="text-[9px] font-semibold text-indigo-600/80">{isCover ? t('frontCover') : t('backCover')}</span>
                         </div>
-                        <div className="flex flex-wrap gap-1">
+                        {/* <div className="flex flex-wrap gap-1">
                           {([
                             ['birthday', () => {
                               if (isCover) setEffectiveCover(buildThemeDefaultCover('birthday', t));
@@ -3575,7 +3624,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                               <option value="bottom">{t('alignBottom')}</option>
                             </select>
                           </label>
-                        </div>
+                        </div> */}
                         <p className="text-[10px] text-slate-600 leading-snug">
                           {t('editIn')}{' '}
                           <button
