@@ -1136,15 +1136,20 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     }));
   }, [basePages, pageCount]);
 
-  /** Flip modal: front cover becomes two pages (typography + full-bleed photo). Editor/PDF still use `albumPages`. */
+  /** Flip modal: cover + back cover behave as 2 leaves (text then photo). Editor/PDF still use `albumPages`. */
   const flipBookAlbumPages: AlbumPage[] = React.useMemo(() => {
     if (!albumPages.length) return albumPages;
-    const [first, ...rest] = albumPages;
-    if (first.type !== 'cover') return albumPages;
+    const first = albumPages[0];
+    const last = albumPages[albumPages.length - 1];
+    if (first?.type !== 'cover' || last?.type !== 'last') return albumPages;
+
+    const middle = albumPages.slice(1, -1);
     return [
       { ...first, coverSplit: 'text' },
       { ...first, coverSplit: 'image' },
-      ...rest,
+      ...middle,
+      { ...last, coverSplit: 'image' },
+      { ...last, coverSplit: 'text' },
     ];
   }, [albumPages]);
 
@@ -1702,9 +1707,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     const arrangement = getArrangementForLayoutId(layoutLabel);
     const isCover = page.type === 'cover';
     const isLast = page.type === 'last';
-    /** Flip book only: first leaf = title copy in a glass panel; second leaf = front photo only */
-    const coverTextOnly = isCover && page.coverSplit === 'text';
-    const coverImageOnly = isCover && page.coverSplit === 'image';
+    /** Flip book only: cover/back-cover become text leaf then photo leaf */
+    const coverTextOnly = (isCover || isLast) && page.coverSplit === 'text';
+    const coverImageOnly = (isCover || isLast) && page.coverSplit === 'image';
     const textState: EditablePageState | undefined = isCover
       ? (coverFromState ?? { headline: t('cover'), subheadline: '', description: '' } as EditablePageState)
       : isLast
