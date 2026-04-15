@@ -2125,12 +2125,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   />
                 </div>
               )}
-              <div
-                className={
-                  textState.style?.align === 'center' ? 'text-center' :
-                  textState.style?.align === 'right' ? 'text-right' : 'text-left'
-                }
-              >
+              <div className="text-center flex flex-col items-center">
                 {textState.headline && (
                   <div className="leading-tight" style={{
                     fontSize: size === 'pdf' ? Math.min(40, (textState.style?.fontSize ?? 22) * 1.35) : Math.min(34, (textState.style?.fontSize ?? 22) * 1.15),
@@ -2151,7 +2146,23 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   }}>{textState.subheadline}</div>
                 )}
                 {textState.description && (
-                  <p className="mt-4 max-w-none whitespace-pre-wrap" style={getDescriptionTypographyStyle(textState.style)}>
+                  <p
+                    className="mt-4 whitespace-pre-wrap"
+                    style={{
+                      ...getDescriptionTypographyStyle(textState.style),
+                      // When inside a centered flex column, avoid shrink-wrapping that makes
+                      // multiline text appear left-anchored.
+                      width: '100%',
+                      maxWidth: '22rem',
+                      marginLeft: 'auto',
+                      marginRight: 'auto',
+                      textAlign: 'center',
+                      color: textState.style?.descriptionColor ?? '#ffffff',
+                      fontSize: size === 'pdf' ? 18 : 14,
+                      lineHeight: 1.5,
+                      opacity: 0.95,
+                    }}
+                  >
                     {textState.description}
                   </p>
                 )}
