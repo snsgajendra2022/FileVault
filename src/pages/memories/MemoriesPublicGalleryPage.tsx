@@ -300,21 +300,44 @@ const MemoriesPublicGalleryPage: React.FC = () => {
     }
   }, [slug, token, shareId, local]);
 
+  const isEventDateExpired = React.useMemo(() => {
+    if (!ev?.dateTime) return false;
+    const dt = new Date(ev.dateTime);
+    if (Number.isNaN(dt.getTime())) return false;
+    // Expire by calendar date (local): if event date is before today, treat as expired.
+    const today = new Date();
+    const eventYmd = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+    const todayYmd = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    return eventYmd < todayYmd;
+  }, [ev?.dateTime]);
+
+  const [showGuestExpiredThanks, setShowGuestExpiredThanks] = React.useState(false);
+
+  const canGuestUpload = guestQuery.allowImageUpload && !isEventDateExpired;
+
   const handleGuestIntroNext = React.useCallback(() => {
-    const { allowImageUpload, allowViewEventImages } = guestQuery;
-    if (!allowImageUpload && !allowViewEventImages) return;
-    if (!allowImageUpload && allowViewEventImages) {
+    if (!guestQuery.allowImageUpload && !guestQuery.allowViewEventImages) return;
+
+    if (isEventDateExpired) {
+      setShowGuestExpiredThanks(true);
+      return;
+    }
+
+    if (guestQuery.allowViewEventImages) {
       setGuestStep('gallery');
       return;
     }
-    if (allowImageUpload && !allowViewEventImages) {
+    if (guestQuery.allowImageUpload) {
       setGuestStep('hub');
       return;
     }
-    setGuestStep('hub');
-  }, [guestQuery.allowImageUpload, guestQuery.allowViewEventImages]);
+  }, [guestQuery.allowImageUpload, guestQuery.allowViewEventImages, isEventDateExpired]);
 
   const handleGuestUploadSubmit = React.useCallback(async () => {
+    if (isEventDateExpired) {
+      toast.error('Uploads are closed for this event.');
+      return;
+    }
     if (!ev || guestUploadFiles.length === 0) {
       toast.error(t('guestUploadPickFiles'));
       return;
@@ -346,6 +369,7 @@ const MemoriesPublicGalleryPage: React.FC = () => {
     token,
     shareId,
     guestQuery.allowViewEventImages,
+    isEventDateExpired,
     refetchRemoteEvent,
     t,
   ]);
@@ -531,14 +555,76 @@ const MemoriesPublicGalleryPage: React.FC = () => {
               <p className="mt-10 text-amber-200/90 text-sm rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
                 {t('guestNoAccessBothDisabled')}
               </p>
+            ) : isEventDateExpired ? (
+              <div className="mt-10 rounded-3xl border border-white/10 bg-white/[0.06] backdrop-blur-2xl px-5 py-5 shadow-[0_20px_60px_rgba(0,0,0,0.45)]">
+                <p className="text-lg font-extrabold tracking-tight text-white">Thank you for uploading</p>
+                <p className="mt-2 text-sm text-slate-300/90 leading-relaxed">
+                  {guestQuery.allowViewEventImages
+                    ? 'You can still view the gallery images.'
+                    : 'The gallery is no longer available.'}
+                </p>
+
+                {guestQuery.allowViewEventImages ? (
+                  <button
+                    type="button"
+                    onClick={() => setGuestStep('gallery')}
+                    className="mt-4 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3 text-sm font-bold text-white hover:opacity-95 transition-opacity"
+                  >
+                    <FaImages className="h-4 w-4" />
+                    View gallery images
+                  </button>
+                ) : null}
+              </div>
             ) : (
-              <button
-                type="button"
-                onClick={handleGuestIntroNext}
-                className="mt-10 w-full sm:w-auto min-w-[200px] rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-10 py-4 text-sm font-bold text-white shadow-lg shadow-violet-900/40 hover:opacity-95 transition-opacity"
-              >
-                {t('guestIntroNext')}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleGuestIntroNext}
+                  className="mt-10 w-full sm:w-auto min-w-[200px] rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-10 py-4 text-sm font-bold text-white shadow-lg shadow-violet-900/40 hover:opacity-95 transition-opacity"
+                >
+                  {t('guestIntroNext')}
+                </button>
+
+                {showGuestExpiredThanks ? (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
+                    <button
+                      type="button"
+                      aria-label="Close"
+                      onClick={() => setShowGuestExpiredThanks(false)}
+                      className="absolute inset-0 bg-black/70"
+                    />
+                    <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-[#0b0b12]/95 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.65)] px-6 py-6">
+                      <p className="text-lg font-extrabold tracking-tight text-white">Thank you for uploading</p>
+                      <p className="mt-2 text-sm text-slate-300/90 leading-relaxed">
+                        You can still view the gallery images.
+                      </p>
+
+                      <div className="mt-5 flex flex-row flex-wrap gap-2">
+                        {guestQuery.allowViewEventImages ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowGuestExpiredThanks(false);
+                              setGuestStep('gallery');
+                            }}
+                            className="flex-1 min-w-[180px] inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-3 text-sm font-bold text-white hover:opacity-95 transition-opacity"
+                          >
+                            <FaImages className="h-4 w-4" />
+                            View gallery images
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => setShowGuestExpiredThanks(false)}
+                          className="flex-1 min-w-[140px] inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] px-4 py-3 text-sm font-semibold text-slate-100 hover:bg-white/[0.1] transition-colors"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </>
             )}
           </div>
         </div>
@@ -552,7 +638,7 @@ const MemoriesPublicGalleryPage: React.FC = () => {
     accessOk &&
     guestQuery.useGuestFlow &&
     guestStep === 'hub' &&
-    guestQuery.allowImageUpload
+    canGuestUpload
   ) {
     return (
       <div className="min-h-screen bg-[#07070a] text-slate-100 relative overflow-hidden pb-24">
@@ -686,7 +772,7 @@ const MemoriesPublicGalleryPage: React.FC = () => {
               <FaArrowLeft className="h-3 w-3" />
               {t('guestBackIntro')}
             </button>
-            {guestQuery.allowImageUpload ? (
+            {canGuestUpload ? (
               <button
                 type="button"
                 onClick={() => setGuestStep('hub')}

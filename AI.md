@@ -29,7 +29,6 @@ OPENAI_API_KEY=sk-or-v1-0cf66b14ebd4f2e04b1bc59f0c9d1eaf8113c9cfe02cb3b8104b1b88
 OPENAI_MODEL=openai/gpt-4o-mini
 OPENAI_API_BASE=https://openrouter.ai/api/v1
 OPENCLAW_DEV_PORT=9093
-OPENROUTER_HTTP_REFERER=http://localhost:3000
 #  ===========================================Start live url============================================================
 #  ===========================================Start live url============================================================
 #  REACT_APP_API_URL=https://filevault.mytiny.us/

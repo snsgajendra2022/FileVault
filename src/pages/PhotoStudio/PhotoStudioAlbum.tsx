@@ -15,7 +15,9 @@ import {
   FaShare,
   FaUserFriends,
   FaCopy,
-  FaTrash
+  FaTrash,
+  FaDownload,
+  FaSpinner
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -26,6 +28,7 @@ import DashboardLoading from '../../components/common/DashboardLoading';
 import toast from 'react-hot-toast';
 import ShareAlbumModal from './ShareAlbumModal';
 import PublicShareModal from '../../components/modals/PublicShareModal';
+import JSZip from 'jszip';
 
 interface Album {
   id: number;
@@ -180,6 +183,7 @@ const PhotoStudioAlbum: React.FC = () => {
   const [albumImages, setAlbumImages] = useState<Map<number, AlbumImage[]>>(new Map());
   const [coverImageErrors, setCoverImageErrors] = useState<Set<number>>(new Set());
   const [fullScreenImage, setFullScreenImage] = useState<{ image: AlbumImage; albumId: number; index: number } | null>(null);
+  const [isDownloadingZip, setIsDownloadingZip] = useState(false);
 
   // Share link modal (public URL – send to contacts / email / SMS, same as StudioCheckout)
   const [showShareLinkModal, setShowShareLinkModal] = useState(false);
@@ -770,6 +774,80 @@ const PhotoStudioAlbum: React.FC = () => {
     return image.originalFilename || image.filename || t('photoStudioAlbumPage.unknown');
   };
 
+  const resolveToAbsoluteUrl = useCallback((url: string): string => {
+    if (!url) return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    const base = typeof api.defaults.baseURL === 'string' ? api.defaults.baseURL : '';
+    const baseTrim = (base || '').trim().replace(/\/+$/, '');
+    if (!baseTrim) return url;
+    const path = url.startsWith('/') ? url : `/${url}`;
+    return `${baseTrim}${path}`;
+  }, []);
+
+  const triggerDownloadBlob = useCallback((blob: Blob, filename: string) => {
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(href), 2500);
+  }, []);
+
+  const downloadImagesAsZip = useCallback(
+    async (images: AlbumImage[], zipNameBase: string) => {
+      if (isDownloadingZip) return;
+      if (!images?.length) {
+        toast.error(t('photoStudioAlbumPage.noImagesAvailable'));
+        return;
+      }
+
+      setIsDownloadingZip(true);
+      const zip = new JSZip();
+
+      try {
+        let added = 0;
+        for (let i = 0; i < images.length; i++) {
+          const img = images[i];
+          const urlRaw = img.downloadUrl || img.previewUrl || '';
+          if (!urlRaw) continue;
+          const url = resolveToAbsoluteUrl(urlRaw);
+          const nameBase = getImageFilename(img) || `image-${i + 1}`;
+          const safeName = nameBase.replace(/[\\/:"*?<>|]+/g, '_').trim() || `image-${i + 1}`;
+
+          try {
+            const res = await api.get(url, { responseType: 'blob' });
+            const blob = res.data as Blob;
+            if (!blob || !(blob instanceof Blob)) continue;
+            zip.file(safeName, blob);
+            added += 1;
+          } catch {
+            /* skip failed image */
+          }
+        }
+
+        if (added === 0) {
+          toast.error(t('photoStudioAlbumPage.imageNotAvailable'));
+          return;
+        }
+
+        const outBlob = await zip.generateAsync({ type: 'blob' });
+        const date = new Date();
+        const stamp = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        triggerDownloadBlob(outBlob, `${zipNameBase || 'images'}-${stamp}.zip`);
+        toast.success(t('photoStudioAlbumPage.toastDownloadStarted'));
+      } catch (e: any) {
+        console.error('ZIP download failed:', e);
+        toast.error(t('photoStudioAlbumPage.toastFailedDownloadZip'));
+      } finally {
+        setIsDownloadingZip(false);
+      }
+    },
+    [getImageFilename, isDownloadingZip, resolveToAbsoluteUrl, t, triggerDownloadBlob]
+  );
+
   // Get file type from filename
   const getFileType = (image: AlbumImage): string => {
     const filename = getImageFilename(image);
@@ -1213,6 +1291,19 @@ const PhotoStudioAlbum: React.FC = () => {
         </div>
         <div className="flex items-center space-x-3">
           <button
+            onClick={() => downloadImagesAsZip(shareLinkSelectedImages, selectedAlbumsName || 'albums')}
+            disabled={selectedAlbums.size === 0 || isDownloadingZip}
+            className="px-4 py-2 rounded-lg bg-white border border-gray-200 text-gray-800 hover:bg-gray-50 transition-colors flex items-center disabled:opacity-60 disabled:cursor-not-allowed"
+            title={t('photoStudioAlbumPage.downloadZipTitle')}
+          >
+            {isDownloadingZip ? (
+              <FaSpinner className="mr-2 animate-spin" />
+            ) : (
+              <FaDownload className="mr-2" />
+            )}
+            {t('photoStudioAlbumPage.downloadZip')}
+          </button>
+          <button
             onClick={() => {
               const ids = Array.from(selectedAlbums);
               if (ids.length === 0) {
@@ -1335,6 +1426,20 @@ const PhotoStudioAlbum: React.FC = () => {
                 </button>
                 <h2 className="text-xl font-semibold text-gray-900 truncate flex-1">{album.name}</h2>
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => downloadImagesAsZip(images, album.name || 'album')}
+                    disabled={images.length === 0 || isDownloadingZip}
+                    className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-800 hover:bg-gray-50 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                    title={t('photoStudioAlbumPage.downloadZipTitle')}
+                  >
+                    {isDownloadingZip ? (
+                      <FaSpinner className="mr-1 inline animate-spin" />
+                    ) : (
+                      <FaDownload className="mr-1 inline" />
+                    )}
+                    {t('photoStudioAlbumPage.downloadZip')}
+                  </button>
                   <button
                     type="button"
                     onClick={() => { setSelectedImages(new Set()); setShowAddImagesModal(album.id); }}
