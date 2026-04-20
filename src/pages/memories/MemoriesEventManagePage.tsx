@@ -27,7 +27,7 @@ import {
   updateMemoriesEvent,
 } from '../../services/memoriesService';
 import { listPhotobookTemplates } from '../../services/photobookTemplatesService';
-import EventPublicShareModal from 'src/components/EventShareModals/PublicShareModal';
+import EventPublicShareModal from '../../components/EventShareModals/PublicShareModal';
 import type { MemoriesEvent } from '../../features/memories/types';
 import {
   normalizeMemoriesEventType,

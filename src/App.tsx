@@ -4,66 +4,84 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/layout/Layout';
-import ImagesPage from './pages/ImagesPage';
-import NotFoundPage from './pages/NotFoundPage';
+// common
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { clearNavigationState } from './utils/navigation';
 import { enableInspectBlock } from './utils/blockInspect';
 import './index.css';
-import AdminPage from './pages/AdminPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import UploadPage from './pages/UploadPage';
-import SettingsPage from './pages/SettingsPage';
-import BillingPage from './pages/BillingPage';
-import UsagePage from './pages/UsagePage';
-import PlanDetailsPage from './pages/PlanDetailsPage';
-import PlansPage from './pages/PlansPage';
-import CheckoutPage from './pages/CheckoutPage';
-import ServicesPage from './pages/ServicesPage';
-import ProfilePage from './pages/ProfilePage';
-import ChangePasswordPage from './pages/ChangePasswordPage';
-import DashboardPage from './pages/DashboardPage';
-import RegisterPage from './pages/RegisterPage';
-import LoginPage from './pages/LoginPage';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
-import AcceptInvitationPage from './pages/AcceptInvitationPage';
-import InvitationsPage from './pages/InvitationsPage';
-import ServiceConfigPage from './pages/ServiceConfigPage';
-// PhotoStudio Pro imports
-import StudioLanding from './pages/PhotoStudio/StudioLanding';
-import StudioAuthPage from './pages/PhotoStudio/StudioAuthPage';
-import StudioDashboard from './pages/PhotoStudio/StudioDashboard';
-import ClientManagement from './pages/PhotoStudio/ClientManagement';
-import PhotoGallery from './pages/PhotoStudio/PhotoGallery';
-import ClientPortal from './pages/PhotoStudio/ClientPortal';
-import BarcodeSystem from './pages/PhotoStudio/BarcodeSystem';
-import StudioSettings from './pages/PhotoStudio/StudioSettings';
-import StudioCheckout from './pages/PhotoStudio/StudioCheckout';
-import ViewImagePage from './pages/ViewImagePage';
+
+// auth pages
+import LoginPage from './pages/auth/LoginPage';
+import RegisterPage from './pages/auth/RegisterPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
+import ChangePasswordPage from './pages/auth/ChangePasswordPage';
+
+// dashboard pages
+import AdminPage from './pages/dashboard/AdminPage';
+import DashboardPage from './pages/dashboard/DashboardPage';
+
+// user pages
+import ProfilePage from './pages/user/ProfilePage';
+import SettingsPage from './pages/user/SettingsPage';
+import AnalyticsPage from './pages/user/AnalyticsPage';
+import ServicesPage from './pages/user/ServicesPage';
+import ServiceConfigPage from './pages/user/ServiceConfigPage';
+
+// billing pages
+import BillingPage from './pages/billing/BillingPage';
+import UsagePage from './pages/billing/UsagePage';
+import PlansPage from './pages/billing/PlansPage';
+import PlanDetailsPage from './pages/billing/PlanDetailsPage';
+import CheckoutPage from './pages/billing/CheckoutPage';
+
+// images pages
+import ImagesPage from './pages/images/ImagesPage';
+import UploadPage from './pages/images/UploadPage';
+import UploadFamilyImagesPage from './pages/images/UploadFamilyImagesPage';
+import ViewImagePage from './pages/images/ViewImagePage';
+
+// invitation pages
+import AcceptInvitationPage from './pages/invitations/AcceptInvitationPage';
+import InvitationsPage from './pages/invitations/InvitationsPage';
+import InvitationCodePage from './pages/invitations/InvitationCodePage';
+import InviteUserPage from './pages/invitations/InviteUserPage';
+import ConnectionsPage from './pages/invitations/ConnectionsPage';
 import FamilyTree from './components/invitations/FamilyTree';
 import CreateClientInvitationForm from './components/invitations/CreateClient';
-import ClientTreePage from './pages/PhotoStudio/ClientTree';
-import ClientImagesPage from './pages/PhotoStudio/ImagesPage';
-import SheetPage from './pages/PhotoStudio/JsFile/Sheet';
-import Tree from './pages/PhotoStudio/JsFile/Tree';
-import PhotoStudioAlbum from './pages/PhotoStudio/PhotoStudioAlbum';
-import PublicSelectionPage from './pages/PhotoStudio/PublicSelectionPage';
-import PublicCheckoutPage from './pages/PhotoStudio/PublicCheckoutPage';
-import PublicImagesDisplayPage from './pages/PhotoStudio/PublicImagesDisplayPage';
-import SharedAlbums from './pages/PhotoStudio/SharedAlbums';
+
+// family tree
+import FamilyTreePage from './pages/family-tree/FamilyTreePage';
+
+// photo-studio pages
+import StudioLanding from './pages/photo-studio/StudioLanding';
+import StudioAuthPage from './pages/photo-studio/StudioAuthPage';
+import StudioDashboard from './pages/photo-studio/StudioDashboard';
+import ClientManagement from './pages/photo-studio/ClientManagement';
+import PhotoGallery from './pages/photo-studio/PhotoGallery';
+import ClientPortal from './pages/photo-studio/ClientPortal';
+import BarcodeSystem from './pages/photo-studio/BarcodeSystem';
+import StudioSettings from './pages/photo-studio/StudioSettings';
+import StudioCheckout from './pages/photo-studio/StudioCheckout';
+import ClientTreePage from './pages/photo-studio/ClientTree';
+import ClientImagesPage from './pages/photo-studio/ImagesPage';
+import SheetPage from './pages/photo-studio/labor-sheet/Sheet';
+import PhotoStudioAlbum from './pages/photo-studio/PhotoStudioAlbum';
+import PublicSelectionPage from './pages/photo-studio/PublicSelectionPage';
+import PublicCheckoutPage from './pages/photo-studio/PublicCheckoutPage';
+import PublicImagesDisplayPage from './pages/photo-studio/PublicImagesDisplayPage';
+import SharedAlbums from './pages/photo-studio/SharedAlbums';
 import PaymentManagement from './components/admin/PaymentManagement';
-// Photo Themes
-import PhotoThemesPage from './pages/PhotoThemesPage';
-import PhotoThemeCategoryPage from './pages/PhotoThemeCategoryPage';
-import PhotoThemeAlbumBuilderPage from './pages/PhotoThemeAlbumBuilderPage';
-import PhotoBook from './pages/PhotoBook';
-import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
-import OMPrivacyPolicyPage from './pages/OMPrivacyPolicyPage';
-import UploadFamilyImagesPage from './pages/UploadFamilyImages/UploadPage';
-import InvitationCodePage from './pages/InvitationCodePage';
-import InviteUserPage from './pages/InviteUserPage';
-import ConnectionsPage from './pages/ConnectionsPage';
+
+// photo-themes pages
+import PhotoThemesPage from './pages/photo-themes/PhotoThemesPage';
+import PhotoThemeCategoryPage from './pages/photo-themes/PhotoThemeCategoryPage';
+import PhotoThemeAlbumBuilderPage from './pages/photo-themes/PhotoThemeAlbumBuilderPage';
+
+// photo-book pages
+import PhotoBook from './pages/photo-book/PhotoBookPage';
+
+// memories pages
 import MemoriesLandingPage from './pages/memories/MemoriesLandingPage';
 import MemoriesPublicGalleryPage from './pages/memories/MemoriesPublicGalleryPage';
 import MemoriesDashboardPage from './pages/memories/MemoriesDashboardPage';
@@ -71,10 +89,17 @@ import MemoriesEventsListPage from './pages/memories/MemoriesEventsListPage';
 import MemoriesCreateEventPage from './pages/memories/MemoriesCreateEventPage';
 import MemoriesEventManagePage from './pages/memories/MemoriesEventManagePage';
 import MemoriesSharedWithMePage from './pages/memories/MemoriesSharedWithMePage';
+
+// phonebook pages
 import PhoneBookListPage from './pages/PhoneBook/PhoneBookListPage';
 import PhoneBookCreatePage from './pages/PhoneBook/PhoneBookCreatePage';
 import PhoneBookDetailPage from './pages/PhoneBook/PhoneBookDetailPage';
 import PhoneBookEditPage from './pages/PhoneBook/PhoneBookEditPage';
+
+// misc pages
+import NotFoundPage from './pages/misc/NotFoundPage';
+import PrivacyPolicyPage from './pages/misc/PrivacyPolicyPage';
+import OMPrivacyPolicyPage from './pages/misc/OMPrivacyPolicyPage';
 
 
 const queryClient = new QueryClient({
@@ -208,7 +233,7 @@ const AppRoutes = () => {
         <Route path="studio/albums" element={<PhotoStudioAlbum />} />
         <Route path="studio/shared-albums" element={<SharedAlbums />} />
         <Route path="client-tree" element={<ClientTreePage />} />
-        <Route path="family-tree" element={<FamilyTree />} />
+        <Route path="family-tree" element={<FamilyTreePage />} />
         <Route path="Sheet" element={<SheetPage />} />
         <Route path="create-client" element={<CreateClientInvitationForm onInvitationCreated={() => {}} />} />
         {/* Photo Themes */}
