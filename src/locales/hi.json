@@ -59,7 +59,8 @@
       "featureFlags": "फ़ीचर फ़्लैग",
       "usageAnalytics": "उपयोग विश्लेषण",
       "systemHealth": "सिस्टम हेल्थ",
-      "paymentManagement": "भुगतान प्रबंधन"
+      "paymentManagement": "भुगतान प्रबंधन",
+      "adminSettings": "एडमिन सेटिंग्स"
     }
   },
   "login": {

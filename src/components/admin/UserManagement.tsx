@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import adminService, { AdminUser, UserStatistics } from '../../services/adminService';
-import { FaPlus, FaEye, FaEdit, FaCheck, FaTimes, FaUser } from 'react-icons/fa';
+import { FaPlus, FaEye, FaEdit, FaCheck, FaTimes, FaUser, FaTrash } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import CreateUserModal from './CreateUserModal';
 
@@ -420,7 +420,7 @@ const UserManagement = () => {
                           className="text-red-600 hover:text-red-900 p-1"
                           title="Delete User"
                         >
-                                                     <FaTimes className="h-4 w-4" />
+                          <FaTrash className="h-4 w-4" />
                         </button>
                       </div>
                     </td>

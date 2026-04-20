@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { FaUsers, FaCloud, FaChartBar, FaCog, FaPlus, FaUser, FaShieldAlt, FaRupeeSign, FaFlag } from 'react-icons/fa';
+import {
+  FaUsers, FaCloud, FaChartBar, FaCog, FaPlus, FaUser, FaShieldAlt,
+  FaRupeeSign, FaFlag
+} from 'react-icons/fa';
 import UserManagement from '../../components/admin/UserManagement';
 import ServiceManagement from '../../components/admin/ServiceManagement';
 import PlanManagement from '../../components/admin/PlanManagement';
@@ -83,31 +86,6 @@ const AdminPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Tab Navigation */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="px-6">
-          <div className="flex space-x-8 overflow-x-auto">
-            {tabDefs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
-                  className={`flex items-center px-3 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <Icon className="h-4 w-4 mr-2" />
-                  {t(`adminPage.tabs.${tab.id}`)}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
       {/* Tab Content */}
       <div className="flex-1">
         {renderTabContent()}
@@ -119,7 +97,12 @@ const AdminPage = () => {
 // Admin Dashboard Component
 const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void }) => {
   const { t } = useTranslation();
-  const [dashboardData, setDashboardData] = useState({
+  const [dashboardData, setDashboardData] = useState<{
+    userStats: any;
+    systemHealth: any;
+    usageStats: any;
+    serviceStats: any;
+  }>({
     userStats: null,
     systemHealth: null,
     usageStats: null,

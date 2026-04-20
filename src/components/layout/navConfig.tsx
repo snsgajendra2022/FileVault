@@ -19,6 +19,8 @@ import {
   FaPalette,
   FaBook,
   FaHeart,
+  FaFlag,
+  FaCog,
 } from 'react-icons/fa';
 
 /** Single source for sidebar + mobile nav (labelKey → en.json / hi.json `nav.*`) */
@@ -78,8 +80,10 @@ export const adminNavigation: NavGroup = {
     { labelKey: 'nav.admin.userManagement', href: '/admin?tab=users', icon: FaUsers, enabled: true },
     { labelKey: 'nav.admin.serviceConfig', href: '/admin?tab=services', icon: FaCloud, enabled: true },
     { labelKey: 'nav.admin.planManagement', href: '/admin?tab=plans', icon: FaPlus, enabled: true },
+    { labelKey: 'nav.admin.paymentManagement', href: '/admin?tab=payments', icon: FaRupeeSign, enabled: true },
+    { labelKey: 'nav.admin.featureFlags', href: '/admin?tab=flags', icon: FaFlag, enabled: true },
     { labelKey: 'nav.admin.usageAnalytics', href: '/admin?tab=analytics', icon: FaChartBar, enabled: true },
     { labelKey: 'nav.admin.systemHealth', href: '/admin?tab=health', icon: FaShieldAlt, enabled: true },
-    { labelKey: 'nav.admin.paymentManagement', href: '/admin?tab=payments', icon: FaRupeeSign, enabled: true },
+    { labelKey: 'nav.admin.adminSettings', href: '/admin?tab=settings', icon: FaCog, enabled: true },
   ],
 };

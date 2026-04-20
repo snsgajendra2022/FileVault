@@ -67,8 +67,8 @@ const FlagManagement = () => {
   };
 
   return (
-    <div className="p-6 bg-white min-h-screen">
-      <div className="max-w-4xl mx-auto">
+    <div className="bg-white p-2 min-h-screen">
+      <div>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-900">Feature Flags</h2>
           <button

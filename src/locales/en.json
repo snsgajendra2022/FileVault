@@ -59,7 +59,8 @@
       "featureFlags": "Feature Flags",
       "usageAnalytics": "Usage Analytics",
       "systemHealth": "System Health",
-      "paymentManagement": "Payment Management"
+      "paymentManagement": "Payment Management",
+      "adminSettings": "Admin Settings"
     }
   },
   "login": {
