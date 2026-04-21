@@ -3,6 +3,7 @@ import { FaUser, FaShieldAlt, FaCog, FaCloud, FaEye, FaEyeSlash, FaTimes } from 
 import { AdminUser } from '../../api/services/adminService';
 import api from '../../api/client/axiosInstance';
 import { useAuth } from '../../state/context/AuthContext';
+import { toast } from 'react-hot-toast';
 
 interface CreateUserModalProps {
   onClose: () => void;
@@ -107,9 +108,11 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit, is
           console.log('User created successfully! Welcome to Portal.');
           // Don't fail the user creation if plan upgrade fails
         }
+        toast.success('User created successfully!');
+        onClose();
       } catch (error: any) {
         console.error('User creation failed:', error);
-        throw error; // Re-throw to let parent component handle the error
+        toast.error(error.message || 'Failed to create user. Please try again.');
       }
     }
   };
