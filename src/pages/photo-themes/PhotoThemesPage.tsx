@@ -137,13 +137,13 @@ const ThemeCard: React.FC<{
 
   return (
     <div
-      className="group relative bg-white/95 rounded-2xl p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_18px_40px_-16px_rgba(15,23,42,0.35)] border border-slate-200/80 overflow-hidden backdrop-blur-sm"
+      className="group relative bg-white/95 rounded-2xl p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_18px_40px_-16px_rgba(15,23,42,0.35)] border border-slate-200/80 overflow-hidden backdrop-blur-sm flex flex-col"
     >
       <div
         className={`absolute inset-0 bg-gradient-to-br ${theme.color} opacity-[0.03]`}
       ></div>
 
-      <div className="relative z-10">
+      <div className="relative z-10 flex flex-col h-full">
         <div
           className={`w-14 h-14 bg-gradient-to-br ${theme.color} rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-slate-900/20`}
         >
@@ -154,6 +154,8 @@ const ThemeCard: React.FC<{
           {theme.title}
         </h3>
         <p className="text-xs text-slate-500 mb-4 line-clamp-2">{theme.subtitle}</p>
+
+        <div className="flex-1" />
 
         {/* Albums for this theme (from API by category) */}
         {albumList.length > 0 && (

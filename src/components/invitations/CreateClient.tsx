@@ -247,7 +247,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
                 required
                 value={formData.inviteeEmail}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400"
                 placeholder={t(`${CF}.placeholderEmail`)}
               />
             </div>
@@ -264,7 +264,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
                 required
                 value={formData.inviteeFirstName}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400"
                 placeholder={t(`${CF}.placeholderFirst`)}
               />
             </div>
@@ -281,7 +281,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
                 required
                 value={formData.inviteeLastName}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400"
                 placeholder={t(`${CF}.placeholderLast`)}
               />
             </div>
@@ -297,7 +297,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
                 required
                 value={formData.relationshipType}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900"
               >
                 {RELATIONSHIP_TYPES.map((type) => (
                   <option key={type} value={type}>
@@ -318,7 +318,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
                 required
                 value={formData.expiresInDays}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900"
               >
                 {[7, 14, 30, 60, 90].map((d) => (
                   <option key={d} value={d}>
@@ -340,7 +340,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
               rows={3}
               value={formData.relationshipNotes}
               onChange={handleInputChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400"
               placeholder={t(`${CF}.placeholderNotes`)}
             />
           </div>
