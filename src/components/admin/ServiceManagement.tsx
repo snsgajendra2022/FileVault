@@ -37,6 +37,8 @@ const ServiceManagement = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [currentService, setCurrentService] = useState<DynamicServiceConfiguration | null>(null);
 
+  const [testingServiceId, setTestingServiceId] = useState<number | null>(null);
+
   const queryClient = useQueryClient();
 
   // Fetch service configurations
@@ -60,10 +62,14 @@ const ServiceManagement = () => {
     mutationFn: (subscriptionId: number) => adminService.testServiceConfiguration(subscriptionId),
     onSuccess: (data) => {
       toast.success(data.message || 'Service test completed');
+      setTestingServiceId(null);
       queryClient.invalidateQueries({ queryKey: ['serviceConfigurations'] });
       queryClient.invalidateQueries({ queryKey: ['serviceStatistics'] });
     },
-    onError: () => toast.error('Failed to test service configuration')
+    onError: () => {
+      setTestingServiceId(null);
+      toast.error('Failed to test service configuration');
+    }
   });
 
   // Create service configuration mutation
@@ -347,12 +353,15 @@ const ServiceManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => testServiceMutation.mutate(service.id)}
-                          disabled={testServiceMutation.isPending}
+                          onClick={() => {
+                            setTestingServiceId(service.id);
+                            testServiceMutation.mutate(service.id);
+                          }}
+                          disabled={testingServiceId === service.id}
                           className="text-blue-600 hover:text-blue-900 p-1"
                           title="Test Connection"
                         >
-                          <FaEye className={`h-4 w-4 ${testServiceMutation.isPending ? 'animate-spin' : ''}`} />
+                          <FaEye className={`h-4 w-4 ${testingServiceId === service.id ? 'animate-spin' : ''}`} />
                         </button>
                         <button
                           className="text-gray-600 hover:text-gray-900 p-1"
