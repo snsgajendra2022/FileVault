@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../state/context/AuthContext';
 import { FaEnvelope, FaUsers, FaPlus } from 'react-icons/fa';
 import CreateInvitationForm from '../../components/invitations/CreateInvitationForm';
 import InvitationHistory from '../../components/invitations/InvitationHistory';

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
 import { FaEnvelope, FaUser, FaLock, FaCheck, FaArrowRight, FaEye, FaEyeSlash } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 
 const AcceptInvitationPage: React.FC = () => {
   const { t } = useTranslation();

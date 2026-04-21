@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 import axios from 'axios';
 import {
   FaStar,

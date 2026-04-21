@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import adminService, { AdminUser, UserStatistics } from '../../services/adminService';
+import adminService, { AdminUser, UserStatistics } from '../../api/services/adminService';
 import { FaPlus, FaEye, FaEdit, FaCheck, FaTimes, FaUser, FaTrash } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import CreateUserModal from './CreateUserModal';

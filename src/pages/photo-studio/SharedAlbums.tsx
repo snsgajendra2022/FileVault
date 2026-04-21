@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../state/context/AuthContext';
 import { 
   FaFolder, 
   FaFolderOpen, 
@@ -14,7 +14,7 @@ import {
   FaUserFriends
 } from 'react-icons/fa';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import DashboardLoading from '../../components/common/DashboardLoading';
 import toast from 'react-hot-toast';

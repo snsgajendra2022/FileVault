@@ -1,4 +1,4 @@
-import api from './api';
+import api from '../client/axiosInstance';
 
 export interface ImagePermission {
   canView: boolean;
@@ -247,6 +247,7 @@ class ImageService {
 }
 
 export default new ImageService();
+
 
 
 

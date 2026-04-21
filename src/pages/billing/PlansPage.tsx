@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 import toast from 'react-hot-toast';
 import { FaCheck, FaTimes, FaCrown, FaShieldAlt, FaCloud, FaUpload, FaUsers, FaStar, FaDollarSign } from 'react-icons/fa';
 import LoadingSpinner from '../../components/common/LoadingSpinner';

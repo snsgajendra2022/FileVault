@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FaPlus, FaCalendarAlt, FaImages, FaHeart, FaEye } from 'react-icons/fa';
 import { useQuery } from '@tanstack/react-query';
-import { listMemoriesEvents } from '../../services/memoriesService';
+import { listMemoriesEvents } from '../../api/services/memoriesService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 
 const MemoriesDashboardPage: React.FC = () => {

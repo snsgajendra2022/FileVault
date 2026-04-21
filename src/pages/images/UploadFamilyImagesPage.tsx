@@ -2,11 +2,11 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
 import { useDropzone } from 'react-dropzone';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../state/context/AuthContext';
 import { getStoredToken, getStoredUserData } from '../../utils/authUtils';
 import { FamilyRelationship } from '../../types/user';
-import api from '../../services/api';
-import imageService from '../../services/imageService';
+import api from '../../api/client/axiosInstance';
+import imageService from '../../api/services/imageService';
 import toast from 'react-hot-toast';
 import {
   FaCloudUploadAlt,
@@ -24,7 +24,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useQuery } from '@tanstack/react-query';
 import { getVideoDuration, trimVideoTo30Seconds, isVideoFile, VIDEO_TRIM_THRESHOLD_SECONDS } from '../../utils/videoTrim';
 import JSZip from 'jszip';
-import { addImagesToMemoriesEvent, listMemoriesEvents } from '../../services/memoriesService';
+import { addImagesToMemoriesEvent, listMemoriesEvents } from '../../api/services/memoriesService';
 
 // ---------------------------------------------------------------------------
 // Persistent queue types and IndexedDB (survives refresh/navigation)

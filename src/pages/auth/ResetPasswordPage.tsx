@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 import toast from 'react-hot-toast';
 import { FaLock, FaShieldAlt, FaArrowLeft, FaEye, FaEyeSlash } from 'react-icons/fa';
 

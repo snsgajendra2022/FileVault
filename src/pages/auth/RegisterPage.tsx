@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../state/context/AuthContext';
 import toast from 'react-hot-toast';
 import { FaEye, FaEyeSlash, FaUser, FaEnvelope, FaPhone, FaBuilding, FaBriefcase, FaShieldAlt, FaArrowRight, FaArrowLeft, FaSave, FaStar } from 'react-icons/fa';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 
 interface RegistrationData {
   username: string;

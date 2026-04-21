@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import adminService, { Plan } from '../../services/adminService';
+import adminService, { Plan } from '../../api/services/adminService';
 import { FaPlus, FaEdit, FaTimes, FaEye, FaCheck, FaCrown, FaStar, FaShieldAlt, FaCloud, FaUpload, FaLock, FaUsers, FaCog } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 

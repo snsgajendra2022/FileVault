@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../state/context/AuthContext';
 import { FaCog, FaCrown } from 'react-icons/fa';
 import {
   regularNavigation,

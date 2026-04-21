@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 import { FaChartBar, FaUpload, FaCloud, FaExclamationTriangle } from 'react-icons/fa';
 import { FiDownload } from 'react-icons/fi';
 import LoadingSpinner from '../../components/common/LoadingSpinner';

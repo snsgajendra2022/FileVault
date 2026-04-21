@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../state/context/AuthContext';
 import {
   FaUsers, FaCloud, FaChartBar, FaCog, FaPlus, FaUser, FaShieldAlt,
   FaRupeeSign, FaFlag
@@ -13,7 +13,7 @@ import PaymentManagement from '../../components/admin/PaymentManagement';
 import FlagManagement from '../../components/admin/FlagManagement';
 import UsageAnalytics from '../../components/admin/UsageAnalytics';
 import SystemHealth from '../../components/admin/SystemHealth';
-import adminService from '../../services/adminService';
+import adminService from '../../api/services/adminService';
 import { toast } from 'react-hot-toast';
 
 const tabDefs = [

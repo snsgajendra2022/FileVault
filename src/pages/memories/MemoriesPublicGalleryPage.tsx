@@ -4,13 +4,13 @@ import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { FaArrowLeft, FaCloudUploadAlt, FaHeart, FaImages } from 'react-icons/fa';
 import { useMemoriesStore } from '../../features/memories/memoriesStore';
-import { loadRemoteMemoriesForPublicGallery } from '../../services/memoriesShareService';
+import { loadRemoteMemoriesForPublicGallery } from '../../api/services/memoriesShareService';
 import {
   addMemoriesEventImageComment,
   flattenImagesFromGroups,
   guestUploadToMemoriesEvent,
   likeMemoriesEventImage,
-} from '../../services/memoriesService';
+} from '../../api/services/memoriesService';
 import { MemoriesSkeletonGrid } from './components/MemoriesSkeletonGrid';
 import { MemoriesLightbox } from './components/MemoriesLightbox';
 import type { MemoriesEvent, MemoriesImage } from '../../features/memories/types';

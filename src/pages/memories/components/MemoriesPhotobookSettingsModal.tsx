@@ -2,7 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { FaTimes } from 'react-icons/fa';
-import type { PhotobookTemplateOption } from '../../../services/photobookTemplatesService';
+import type { PhotobookTemplateOption } from '../../../api/services/photobookTemplatesService';
 
 export type MemoriesPhotobookFormValues = {
   photobookNeeded: boolean;

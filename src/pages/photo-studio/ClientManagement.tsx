@@ -15,7 +15,7 @@ import {
 } from 'react-icons/fa';
 import './ClientManagement.css';
 import toast from 'react-hot-toast';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 import DashboardLoading from '../../components/common/DashboardLoading';
 
 interface Client {

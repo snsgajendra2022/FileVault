@@ -1,4 +1,4 @@
-import api from './api';
+import api from '../client/axiosInstance';
 
 export interface ChunkedUploadOptions {
   file: File;
@@ -329,4 +329,5 @@ class ChunkedUploadService {
 }
 
 export default new ChunkedUploadService();
+
 

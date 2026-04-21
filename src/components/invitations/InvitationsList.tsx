@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { FaClock, FaCheck, FaTimes, FaUsers } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
-import { acceptInvitation, getInvitations, Invitation, rejectInvitation } from '../../services/invitationService';
+import { acceptInvitation, getInvitations, Invitation, rejectInvitation } from '../../api/services/invitationService';
 import { getStoredUserData } from '../../utils/authUtils';
 
 const InvitationsList: React.FC = () => {

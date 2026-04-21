@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 import toast from 'react-hot-toast';
 import { FaCheck, FaTimes, FaCrown, FaShieldAlt, FaCloud, FaUpload, FaStar, FaArrowLeft } from 'react-icons/fa';
 import LoadingSpinner from '../../components/common/LoadingSpinner';

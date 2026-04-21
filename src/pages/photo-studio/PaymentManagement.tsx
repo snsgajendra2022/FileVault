@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 import { FaCheck, FaTimes, FaEye, FaImage, FaRupeeSign, FaClock, FaUser, FaFileImage } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 

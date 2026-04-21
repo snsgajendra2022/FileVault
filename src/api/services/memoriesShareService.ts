@@ -1,5 +1,5 @@
-import api from './api';
-import type { MemoriesEvent, MemoriesImage } from '../features/memories/types';
+import api from '../client/axiosInstance';
+import type { MemoriesEvent, MemoriesImage } from '../../features/memories/types';
 import {
   flattenImagesFromGroups,
   getMemoriesEventById,
@@ -224,3 +224,5 @@ export async function loadRemoteMemoriesForPublicGallery(
 
   return fetchGuestMemoriesEventBySlug(slug, t || undefined, sid || undefined);
 }
+
+

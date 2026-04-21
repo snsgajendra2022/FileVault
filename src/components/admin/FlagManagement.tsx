@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import adminService from '../../services/adminService';
+import adminService from '../../api/services/adminService';
 import { FaPlus, FaTimes, FaFlag, FaCheck, FaEdit } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import LoadingSpinner from '../common/LoadingSpinner';

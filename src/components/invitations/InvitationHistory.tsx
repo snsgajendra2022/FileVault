@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FaEnvelope, FaUser } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 import './invitation.css';
 interface Invitation {
   id: number;

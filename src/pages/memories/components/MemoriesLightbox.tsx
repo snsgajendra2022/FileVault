@@ -4,7 +4,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Keyboard, Navigation } from 'swiper/modules';
 import { FaArrowUp, FaDownload, FaHeart, FaShare, FaTimes } from 'react-icons/fa';
 import type { MemoriesImage } from '../../../features/memories/types';
-import { getMemoriesEventImageComments } from '../../../services/memoriesService';
+import { getMemoriesEventImageComments } from '../../../api/services/memoriesService';
 import 'swiper/css';
 import 'swiper/css/navigation';
 

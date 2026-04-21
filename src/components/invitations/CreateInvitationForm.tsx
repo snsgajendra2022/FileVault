@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FaEnvelope, FaUser, FaUsers } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 
 interface CreateInvitationFormProps {
   onInvitationCreated: (invitation: any) => void;

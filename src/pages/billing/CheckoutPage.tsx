@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../state/context/AuthContext';
 import toast from 'react-hot-toast';
 import { FaArrowLeft, FaHeart, FaCreditCard, FaAmazon, FaDollarSign, FaLock, FaCheck, FaInfoCircle } from 'react-icons/fa';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 
 interface PlanDetails {
   id: number;

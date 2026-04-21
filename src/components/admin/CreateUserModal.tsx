@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { FaUser, FaShieldAlt, FaCog, FaCloud, FaEye, FaEyeSlash, FaTimes } from 'react-icons/fa';
-import { AdminUser } from '../../services/adminService';
-import api from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
+import { AdminUser } from '../../api/services/adminService';
+import api from '../../api/client/axiosInstance';
+import { useAuth } from '../../state/context/AuthContext';
 
 interface CreateUserModalProps {
   onClose: () => void;

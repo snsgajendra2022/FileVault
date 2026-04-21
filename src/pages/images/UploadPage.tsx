@@ -2,9 +2,9 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
 import { useDropzone } from 'react-dropzone';
-import { useAuth } from '../../context/AuthContext';
-import api from '../../services/api';
-import imageService from '../../services/imageService';
+import { useAuth } from '../../state/context/AuthContext';
+import api from '../../api/client/axiosInstance';
+import imageService from '../../api/services/imageService';
 import toast from 'react-hot-toast';
 import {
   FaCloudUploadAlt,

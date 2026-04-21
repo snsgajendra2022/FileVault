@@ -1,5 +1,5 @@
 import React from 'react';
-import type { PhoneBookContactMeta, PhoneBookContactType } from '../../../services/phoneBookService';
+import type { PhoneBookContactMeta, PhoneBookContactType } from '../../../api/services/phoneBookService';
 
 export type PhoneBookContactFormValue = {
   displayName: string;

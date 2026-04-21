@@ -1,4 +1,4 @@
-import api from './api';
+import api from '../client/axiosInstance';
 
 export type PhoneBookContact = {
   id: string;
@@ -161,4 +161,5 @@ export async function updatePhoneBookContact(
 export async function deletePhoneBookContact(id: string): Promise<void> {
   await api.delete(`/api/public-share/contacts/${encodeURIComponent(id)}`);
 }
+
 

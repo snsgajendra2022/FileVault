@@ -13,8 +13,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import type { MemoriesEvent, MemoriesPrivacy } from '../../features/memories/types';
-import { listMemoriesEvents, updateMemoriesEvent } from '../../services/memoriesService';
-import { listPhotobookTemplates } from '../../services/photobookTemplatesService';
+import { listMemoriesEvents, updateMemoriesEvent } from '../../api/services/memoriesService';
+import { listPhotobookTemplates } from '../../api/services/photobookTemplatesService';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import MemoriesPhotobookSettingsModal, {
   type MemoriesPhotobookFormValues,

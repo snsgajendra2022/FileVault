@@ -1,4 +1,4 @@
-import api from './api';
+import api from '../client/axiosInstance';
 
 export type PhotobookTemplateOption = {
   id: number;
@@ -22,3 +22,4 @@ export async function listPhotobookTemplates(): Promise<PhotobookTemplateOption[
     }))
     .filter((t) => Number.isFinite(t.id) && t.name.length > 0 && t.isActive !== false);
 }
+

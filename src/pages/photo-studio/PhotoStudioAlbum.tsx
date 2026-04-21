@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../state/context/AuthContext';
 import { 
   FaFolder, 
   FaFolderOpen, 
@@ -22,7 +22,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import DashboardLoading from '../../components/common/DashboardLoading';
 import toast from 'react-hot-toast';

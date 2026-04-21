@@ -12,21 +12,21 @@ import {
   FaQrcode,
   FaUserFriends,
 } from 'react-icons/fa';
-import { useAuth } from '../../context/AuthContext';
-import api from '../../services/api';
+import { useAuth } from '../../state/context/AuthContext';
+import api from '../../api/client/axiosInstance';
 import {
   fetchInvitableUsers,
   shareMemoriesEventWithClients,
   type InvitableUser,
-} from '../../services/memoriesShareService';
+} from '../../api/services/memoriesShareService';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import {
   ensureMemoriesEventAccessTokenForShare,
   getMemoriesEventById,
   updateMemoriesEvent,
-} from '../../services/memoriesService';
-import { listPhotobookTemplates } from '../../services/photobookTemplatesService';
+} from '../../api/services/memoriesService';
+import { listPhotobookTemplates } from '../../api/services/photobookTemplatesService';
 import EventPublicShareModal from '../../components/EventShareModals/PublicShareModal';
 import type { MemoriesEvent } from '../../features/memories/types';
 import {

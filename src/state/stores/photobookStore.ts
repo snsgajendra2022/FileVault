@@ -1,13 +1,13 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { PhotoBookAlbum, PhotoBookPhoto } from '../types/photobook'
+import type { PhotoBookAlbum, PhotoBookPhoto } from '../../types/photobook'
 import {
   createPhotoBookAlbumFromTemplate,
   getPhotoBookLayout,
   getPhotoBookTemplate,
-} from '../templates/photobookTemplates'
-import { newPhotoBookId } from '../utils/photobookId'
-import { photobookDbDeletePhoto, photobookDbGetPhoto, photobookDbSetPhoto } from '../utils/photobookDb'
+} from '../../templates/photobookTemplates'
+import { newPhotoBookId } from '../../utils/photobookId'
+import { photobookDbDeletePhoto, photobookDbGetPhoto, photobookDbSetPhoto } from '../../utils/photobookDb'
 
 type PhotoBookState = {
   album: PhotoBookAlbum | null

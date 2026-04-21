@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useMutation } from '@tanstack/react-query';
 import { FaKey, FaCopy } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
-import { useAuth } from '../../context/AuthContext';
-import { generateInvitationCode } from '../../services/invitationService';
+import { useAuth } from '../../state/context/AuthContext';
+import { generateInvitationCode } from '../../api/services/invitationService';
 
 const InvitationCodeGenerator: React.FC = () => {
   const { t } = useTranslation();

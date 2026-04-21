@@ -1,7 +1,7 @@
 import React, { type ReactNode } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { usePhotoBookStore } from '../../store/photobookStore'
+import { usePhotoBookStore } from '../../state/stores/photobookStore'
 
 function PhotoBookNavLink({ to, end, children }: { to: string; end?: boolean; children: ReactNode }) {
   return (

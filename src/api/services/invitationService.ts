@@ -1,4 +1,4 @@
-import { apiRequest } from './http';
+import { apiRequest } from '../client/httpClient';
 
 export type Invitation = {
   invitationId: number;
@@ -63,4 +63,5 @@ export async function getConnections(): Promise<Connection[]> {
   if (Array.isArray(data?.connections)) return data.connections as Connection[];
   return [];
 }
+
 

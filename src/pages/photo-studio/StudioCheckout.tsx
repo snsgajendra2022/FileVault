@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams, Link } from 'react-router-dom';
 import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaCopy, FaShare, FaFolder, FaFolderOpen, FaChevronRight, FaCheck, FaCog, FaTrash, FaSave, FaTimes } from 'react-icons/fa';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import PublicShareModal from '../../components/modals/PublicShareModal';

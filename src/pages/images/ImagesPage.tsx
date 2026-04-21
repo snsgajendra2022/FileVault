@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../context/AuthContext';
-import api from '../../services/api';
+import { useAuth } from '../../state/context/AuthContext';
+import api from '../../api/client/axiosInstance';
 import { FaUpload, FaEye, FaLock, FaTimes, FaCloud, FaUsers, FaUser } from 'react-icons/fa';
 import { FiDownload, FiTrash2 } from 'react-icons/fi';
 import toast from 'react-hot-toast';

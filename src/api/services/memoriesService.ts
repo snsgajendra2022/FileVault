@@ -1,12 +1,12 @@
-import api from './api';
+import api from '../client/axiosInstance';
 import type {
   MemoriesAlbumComment,
   MemoriesEvent,
   MemoriesImage,
   MemoriesImageGroup,
   MemoriesPrivacy,
-} from '../features/memories/types';
-import { randomToken } from '../features/memories/utils';
+} from '../../features/memories/types';
+import { randomToken } from '../../features/memories/utils';
 import imageService, { type UploadResponse } from './imageService';
 import toast from 'react-hot-toast';
 
@@ -504,4 +504,6 @@ export async function guestUploadToMemoriesEvent(input: {
     }
   }
 }
+
+
 

@@ -7,7 +7,7 @@ import {
   getPhoneBookContactById,
   type PhoneBookContactMeta,
   updatePhoneBookContact,
-} from '../../services/phoneBookService';
+} from '../../api/services/phoneBookService';
 import { PhoneBookContactForm, type PhoneBookContactFormValue } from './components/PhoneBookContactForm';
 
 const PhoneBookEditPage: React.FC = () => {

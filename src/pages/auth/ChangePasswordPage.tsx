@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FaLock, FaEye, FaEyeSlash, FaShieldAlt, FaCheck, FaTimes } from 'react-icons/fa';
 import toast from 'react-hot-toast';
-import adminService from '../../services/adminService';
+import adminService from '../../api/services/adminService';
 
 const ChangePasswordPage = () => {
   const { t } = useTranslation();

@@ -29,10 +29,10 @@ import {
   Legend,
 } from 'recharts';
 import './StudioDashboard.css';
-import adminService from '../../services/adminService';
-import api from '../../services/api';
+import adminService from '../../api/services/adminService';
+import api from '../../api/client/axiosInstance';
 import DashboardLoading from '../../components/common/DashboardLoading';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../state/context/AuthContext';
 
 interface DashboardStats {
   totalClients?: number;

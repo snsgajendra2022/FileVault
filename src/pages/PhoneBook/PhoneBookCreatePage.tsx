@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { FaArrowLeft, FaSave } from 'react-icons/fa';
-import { createPhoneBookContact, type PhoneBookContactMeta } from '../../services/phoneBookService';
+import { createPhoneBookContact, type PhoneBookContactMeta } from '../../api/services/phoneBookService';
 import { PhoneBookContactForm, type PhoneBookContactFormValue } from './components/PhoneBookContactForm';
 
 const PhoneBookCreatePage: React.FC = () => {

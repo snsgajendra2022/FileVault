@@ -26,9 +26,9 @@ import { getPhotoBookTemplate } from '../../templates/photobookTemplates';
 import { FileVaultImagePicker } from '../../components/PhotoBook/FileVaultImagePicker';
 import type { EditablePageState } from './PhotoThemeCategoryPage';
 import { getDescriptionTypographyStyle } from './PhotoThemeCategoryPage';
-import api from '../../services/api';
-import imageService from '../../services/imageService';
-import { useAuth } from '../../context/AuthContext';
+import api from '../../api/client/axiosInstance';
+import imageService from '../../api/services/imageService';
+import { useAuth } from '../../state/context/AuthContext';
 import { getStoredToken } from '../../utils/authUtils';
 
 /** Same host as axios — required for `<img src>` on photobook thumbnails. */

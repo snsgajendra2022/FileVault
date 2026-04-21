@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaChevronLeft, FaCheck, FaRedoAlt, FaTimes, FaUpload, FaFileImage, FaExpandArrowsAlt } from 'react-icons/fa';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { decompressFileList } from '../../utils/checkoutUrlEncoding';

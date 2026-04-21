@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 import toast from 'react-hot-toast';
 import { FaUser, FaEnvelope, FaPhone, FaLock, FaSave } from 'react-icons/fa';
 import DashboardLoading from '../../components/common/DashboardLoading';

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
-import { Connection, getConnections } from '../../services/invitationService';
+import { Connection, getConnections } from '../../api/services/invitationService';
 
 const ConnectionsPage: React.FC = () => {
   const { t } = useTranslation();

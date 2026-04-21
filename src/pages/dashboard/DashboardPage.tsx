@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../state/context/AuthContext';
 import { 
   FaCloud, 
   FaShieldAlt, 
@@ -21,7 +21,7 @@ import {
   FaRedoAlt
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 
 // Interface definitions for dynamic data
 interface DashboardStats {

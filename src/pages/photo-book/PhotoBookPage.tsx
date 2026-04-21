@@ -8,8 +8,8 @@ import {
   FaSpinner,
   FaTimes,
 } from 'react-icons/fa';
-import api from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
+import api from '../../api/client/axiosInstance';
+import { useAuth } from '../../state/context/AuthContext';
 import { getStoredToken } from '../../utils/authUtils';
 
 const ThreeDotsIcon = () => (

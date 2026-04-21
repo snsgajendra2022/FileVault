@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import ReactDOMServer from 'react-dom/server';
 import QRCode from 'react-qr-code';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useAuth } from '../../context/AuthContext';
-import api from '../../services/api';
+import { useAuth } from '../../state/context/AuthContext';
+import api from '../../api/client/axiosInstance';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   FaImages, 

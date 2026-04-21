@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
-import { sendInvitation } from '../../services/invitationService';
+import { sendInvitation } from '../../api/services/invitationService';
 
 const InviteUserPage: React.FC = () => {
   const { t } = useTranslation();

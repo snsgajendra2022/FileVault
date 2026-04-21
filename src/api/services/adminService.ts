@@ -1,4 +1,4 @@
-import api from './api';
+import api from '../client/axiosInstance';
 
 export interface AdminUser {
   id: number;
@@ -286,3 +286,4 @@ class AdminService {
 }
 
 export default new AdminService();
+

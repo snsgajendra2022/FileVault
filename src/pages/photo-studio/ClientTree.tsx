@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "i18next";
 import * as d3 from "d3";
-import api from "../../services/api";
+import api from '../../api/client/axiosInstance';
 import { toast } from "react-hot-toast";
 import './Tree.css';
 

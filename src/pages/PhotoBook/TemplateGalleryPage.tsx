@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { photobookTemplates } from '../../templates/photobookTemplates'
-import { usePhotoBookStore } from '../../store/photobookStore'
+import { usePhotoBookStore } from '../../state/stores/photobookStore'
 
 export function PhotoBookTemplateGalleryPage() {
   const { t } = useTranslation()

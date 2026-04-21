@@ -6,7 +6,7 @@ import { FaArrowLeft, FaChevronRight, FaImages, FaUser } from 'react-icons/fa';
 import {
   fetchSharedMemoriesEventsForMe,
   type SharedMemoriesEventRow,
-} from '../../services/memoriesShareService';
+} from '../../api/services/memoriesShareService';
 
 const MemoriesSharedWithMePage: React.FC = () => {
   const { t } = useTranslation(undefined, { keyPrefix: 'memoriesPlatform' });

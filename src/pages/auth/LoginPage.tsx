@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../state/context/AuthContext';
 import toast from 'react-hot-toast';
 import {
   FaEye,
@@ -16,7 +16,7 @@ import {
   FaQrcode,
   FaShieldAlt,
 } from 'react-icons/fa';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 
 const LoginPage = () => {
   const { t } = useTranslation();
