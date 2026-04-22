@@ -212,6 +212,7 @@ const ImageCard = memo(function ImageCard({
   onToggleSelect,
 }: ImageCardProps) {
   const [loadState, setLoadState] = useState<ImageLoadState>('idle');
+  const [hovered, setHovered] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const showImage = isImageType(image.fileType);
   const showVideo = isVideoType(image.fileType, image.filename);
@@ -243,23 +244,29 @@ const ImageCard = memo(function ImageCard({
     <div
       ref={cardRef}
       data-index={index}
-      className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-300"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all duration-300"
+      style={{ transform: hovered ? 'translateY(-4px)' : 'translateY(0)', transition: 'transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease' }}
     >
-      {/* Preview area - fixed aspect ratio to prevent layout shift */}
+      {/* Preview area */}
       <div
-        className="relative w-full bg-gray-100"
+        className="relative w-full bg-gray-100 overflow-hidden"
         style={{ paddingBottom: `${(1 / ASPECT_RATIO) * 100}%` }}
       >
         <div className="absolute inset-0">
           {showSkeleton && <SkeletonPlaceholder />}
-          {showImg &&  image.fileType !== 'unknown' && (
+          {showImg && image.fileType !== 'unknown' && (
             <img
               ref={imgRef}
-              src={isVisible ?image.thumbnailUrl || image.previewUrl : undefined}
+              src={isVisible ? image.thumbnailUrl || image.previewUrl : undefined}
               alt={image.filename}
-              className="w-full h-full object-cover transition-opacity duration-300"
+              className="w-full h-full object-cover transition-all duration-500"
               style={{
                 opacity: loadState === 'loaded' ? 1 : 0,
+                filter: hovered ? 'blur(0px) brightness(1)' : 'blur(4px) brightness(0.92)',
+                transform: hovered ? 'scale(1.05)' : 'scale(1)',
+                transition: 'filter 0.4s ease, transform 0.4s ease, opacity 0.3s ease',
               }}
               loading="lazy"
               onLoad={handleLoad}
@@ -270,8 +277,8 @@ const ImageCard = memo(function ImageCard({
           {showVideo && (
             <video
               src={isVisible ? image.previewUrl : undefined}
-              className="w-full h-full object-cover transition-opacity duration-300"
-              style={{ opacity: loadState === 'loaded' ? 1 : 0 }}
+              className="w-full h-full object-cover"
+              style={{ opacity: loadState === 'loaded' ? 1 : 0, transition: 'opacity 0.3s ease' }}
               onLoadedData={handleLoad}
               onError={handleError}
               controls
@@ -293,94 +300,104 @@ const ImageCard = memo(function ImageCard({
             </div>
           )}
           {showIcon && !showError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
               <div
-                className={`${getFileTypeColor(image.fileType, image.filename)} text-white rounded-xl p-4 text-3xl shadow-inner`}
+                className={`${getFileTypeColor(image.fileType, image.filename)} text-white rounded-2xl p-5 text-4xl shadow-lg`}
               >
                 {getFileTypeIcon(image.fileType, image.filename)}
               </div>
             </div>
           )}
 
+          {/* Overlay gradient on hover */}
+          <div
+            className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none"
+            style={{ opacity: hovered ? 1 : 0, transition: 'opacity 0.4s ease' }}
+          />
+
+          {/* File type badge */}
           <div className="absolute top-2 left-2">
-            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-800/90 text-white backdrop-blur-sm">
+            <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-black/70 text-white backdrop-blur-sm tracking-wide">
               {showVideo ? 'VIDEO' : image.fileType.toUpperCase()}
             </span>
           </div>
+
+          {/* Top-right: checkbox + services */}
           <div className="absolute top-2 right-2 flex items-center gap-1">
             {onToggleSelect && (
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onToggleSelect(image); }}
-                className={`flex-shrink-0 w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-colors ${
-                  isSelected ? 'bg-[#2731db] border-[#2731db] text-white' : 'bg-white/90 border-gray-300 hover:border-[#2731db]'
+                className={`flex-shrink-0 w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
+                  isSelected ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white/90 border-gray-300 hover:border-indigo-500'
                 }`}
                 aria-label={isSelected ? 'Deselect' : 'Select for share'}
               >
                 {isSelected && <FaCheck className="w-3 h-3" />}
               </button>
             )}
-            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800">
-              <FaCloud className="h-3 w-3 mr-1" />
+            <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/90 text-white backdrop-blur-sm">
+              <FaCloud className="h-2.5 w-2.5 mr-1" />
               {getEnabledServicesCount(image.enabledServices)}
             </span>
+          </div>
+
+          {/* Quick action buttons on hover */}
+          <div
+            className="absolute bottom-2 left-2 right-2 flex gap-1.5 pointer-events-none"
+            style={{ opacity: hovered ? 1 : 0, transform: hovered ? 'translateY(0)' : 'translateY(8px)', transition: 'opacity 0.3s ease, transform 0.3s ease', pointerEvents: hovered ? 'auto' : 'none' }}
+          >
+            <button
+              type="button"
+              onClick={() => onView(image)}
+              className="flex-1 inline-flex justify-center items-center px-2 py-1.5 text-xs font-semibold rounded-lg text-white bg-white/20 hover:bg-white/35 backdrop-blur-sm border border-white/30 transition-colors"
+            >
+              <FaEye className="h-3 w-3 mr-1" />
+              View
+            </button>
+            <button
+              type="button"
+              onClick={() => onDownload(image)}
+              className="flex-1 inline-flex justify-center items-center px-2 py-1.5 text-xs font-semibold rounded-lg text-white bg-white/20 hover:bg-white/35 backdrop-blur-sm border border-white/30 transition-colors"
+            >
+              <FiDownload className="h-3 w-3 mr-1" />
+              Save
+            </button>
+            {viewMode === 'my' && (
+              <button
+                type="button"
+                onClick={() => onDelete(image)}
+                disabled={deletePending}
+                className="inline-flex justify-center items-center px-2 py-1.5 text-xs font-semibold rounded-lg text-white bg-red-500/70 hover:bg-red-500/90 backdrop-blur-sm border border-red-400/40 transition-colors disabled:opacity-50 min-w-[2rem]"
+              >
+                {deletePending ? <LoadingSpinner size="sm" /> : <FiTrash2 className="h-3 w-3" />}
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Info & actions */}
-      <div className="p-4">
+      {/* Info footer */}
+      <div className="px-3 py-2.5">
         <h3
-          className="text-sm font-medium text-gray-900 truncate"
+          className="text-xs font-semibold text-gray-800 truncate leading-tight"
           title={image.filename}
         >
           {image.filename}
         </h3>
-        <p className="text-xs text-gray-500 mt-1">{formatDate(image.uploadTime)}</p>
+        <p className="text-[10px] text-gray-400 mt-0.5">{formatDate(image.uploadTime)}</p>
         {Object.keys(image.enabledServices).length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
+          <div className="mt-1.5 flex flex-wrap gap-1">
             {Object.keys(image.enabledServices).map((service) => (
               <span
                 key={service}
-                className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100"
               >
                 {service}
               </span>
             ))}
           </div>
         )}
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            onClick={() => onView(image)}
-            className="flex-1 inline-flex justify-center items-center px-2 py-1.5 border border-gray-200 text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-          >
-            <FaEye className="h-3 w-3 mr-1" />
-            View
-          </button>
-          <button
-            type="button"
-            onClick={() => onDownload(image)}
-            className="flex-1 inline-flex justify-center items-center px-2 py-1.5 border border-gray-200 text-xs font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-          >
-            <FiDownload className="h-3 w-3 mr-1" />
-            Download
-          </button>
-          {viewMode === 'my' && (
-            <button
-              type="button"
-              onClick={() => onDelete(image)}
-              disabled={deletePending}
-              className="inline-flex justify-center items-center px-2 py-1.5 border border-red-200 text-xs font-medium rounded-lg text-red-700 bg-white hover:bg-red-50 transition-colors disabled:opacity-50 min-w-[2rem]"
-            >
-              {deletePending ? (
-                <LoadingSpinner size="sm" />
-              ) : (
-                <FiTrash2 className="h-3 w-3" />
-              )}
-            </button>
-          )}
-        </div>
       </div>
     </div>
   );
@@ -1252,6 +1269,7 @@ const ClientImagesPage = () => {
                   slidesPerView={1.2}
                   speed={600}
                   grabCursor
+                  style={{ alignItems: 'stretch' }}
                   breakpoints={{
                     768: { slidesPerView: 2.2, spaceBetween: 16 },
                     1024: { slidesPerView: 3.2, spaceBetween: 18 },
@@ -1259,50 +1277,66 @@ const ClientImagesPage = () => {
                   className="family-members-swiper px-1 md:px-2 py-1"
                 >
                   {familyRelationships.map((member) => (
-                    <SwiperSlide key={member.inviterId} className="h-auto">
+                    <SwiperSlide key={member.inviterId} style={{ height: 'auto', alignSelf: 'stretch' }}>
                       <div
                         role="button"
                         tabIndex={0}
                         onClick={() => handleUserSelect(member)}
                         onKeyDown={(e) => e.key === 'Enter' && handleUserSelect(member)}
-                        className="h-full p-3.5 md:p-4 rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300 ease-out cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+                        className="p-4 rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-blue-50/40 shadow-sm hover:shadow-lg hover:border-blue-300 hover:scale-[1.02] transition-all duration-300 ease-out cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
                       >
-                        <div className="flex items-center mb-3">
-                          <div className="w-9 h-9 md:w-10 md:h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <FaUser className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
+                        {/* Avatar + name */}
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
+                            style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)', boxShadow: '0 4px 12px rgba(99,102,241,0.35)' }}>
+                            <FaUser className="h-5 w-5 text-white" />
                           </div>
-                          <div className="ml-3 min-w-0">
-                            <h4 className="font-semibold text-gray-900 leading-tight truncate">
+                          <div className="min-w-0">
+                            <h4 className="font-semibold text-gray-900 leading-tight truncate text-sm">
                               {member.inviterFirstName} {member.inviterLastName}
                             </h4>
-                            <p className="text-sm text-gray-500">{member.relationshipType}</p>
+                            <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-indigo-100 text-indigo-700">
+                              {member.relationshipType}
+                            </span>
                           </div>
                         </div>
-                        {member.relationshipNotes && (
-                          <p className="text-xs text-gray-600 leading-relaxed mb-3">
-                            <span className="font-medium text-gray-700">{t('common.notes')}</span>{' '}
-                            {member.relationshipNotes}
-                          </p>
-                        )}
-                        <div className="flex flex-wrap gap-1.5">
+
+                        {/* Notes – grows to fill space */}
+                        <div className="flex-1">
+                          {member.relationshipNotes && (
+                            <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
+                              <span className="font-medium text-gray-600">{t('common.notes')}:</span>{' '}
+                              {member.relationshipNotes}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Permission tags – always at bottom */}
+                        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-gray-100">
                           {member.canViewImages && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-700">
                               {t('imagesPage.view')}
                             </span>
                           )}
                           {member.canUploadImages && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-700">
                               {t('imagesPage.upload')}
                             </span>
                           )}
                           {member.canDeleteImages && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-100 text-red-700">
                               {t('imagesPage.delete')}
                             </span>
                           )}
                           {member.canManageAlbums && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-100 text-purple-700">
                               {t('imagesPage.albums')}
+                            </span>
+                          )}
+                          {!member.canViewImages && !member.canUploadImages && !member.canDeleteImages && !member.canManageAlbums && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-500">
+                              No permissions
                             </span>
                           )}
                         </div>

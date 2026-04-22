@@ -571,37 +571,34 @@ const DashboardPage = () => {
   }
 
   return (
-    <div className="space-y-8 w-full">
-      {/* Stunning Welcome Section */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl p-8 text-white shadow-2xl transform transition-all duration-500 hover:scale-[1.02] hover:shadow-3xl">
+    <div className="space-y-4 w-full">
+      {/* Welcome Section */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-2xl p-5 text-white shadow-lg">
         <div className="absolute inset-0 bg-black opacity-10"></div>
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -translate-y-32 translate-x-32"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full translate-y-24 -translate-x-24"></div>
+        <div className="absolute top-0 right-0 w-48 h-48 bg-white opacity-5 rounded-full -translate-y-24 translate-x-24"></div>
+        <div className="absolute bottom-0 left-0 w-36 h-36 bg-white opacity-5 rounded-full translate-y-16 -translate-x-16"></div>
         
         <div className="relative z-10">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-5xl font-bold mb-3 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold mb-1 text-white">
                 {t('mainDashboard.welcome', { name: user?.firstName || 'User' })}
         </h1>
-              <p className="text-xl text-blue-100 mb-4">
+              <p className="text-sm text-blue-100 mb-3">
                 {isAdmin ? t('mainDashboard.subtitleAdmin') : t('mainDashboard.subtitleUser')}
               </p>
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-3">
                 {user?.accountType && (
-                  <div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-white bg-opacity-20 backdrop-blur-sm border border-white border-opacity-30">
-                    <FaStar className="mr-2 text-yellow-300" />
+                  <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white bg-opacity-20 backdrop-blur-sm border border-white border-opacity-30">
+                    <FaStar className="mr-1.5 text-yellow-300" />
                     {t('mainDashboard.plan', { type: user.accountType })}
                   </div>
                 )}
-                <div className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-white bg-opacity-20 backdrop-blur-sm border border-white border-opacity-30">
-                  <FaBell className="mr-2" />
+                <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white bg-opacity-20 backdrop-blur-sm border border-white border-opacity-30">
+                  <FaBell className="mr-1.5" />
                   {currentTime.toLocaleTimeString()}
                 </div>
               </div>
-            </div>
-            <div className="text-right">
-              <div className="text-6xl font-bold text-white opacity-20">📊</div>
             </div>
           </div>
         </div>
@@ -609,24 +606,19 @@ const DashboardPage = () => {
 
       {/* API Errors Banner */}
       {Object.keys(apiErrors).length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-start space-x-3">
-            <FaExclamationTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
+          <div className="flex items-start space-x-2">
+            <FaExclamationTriangle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <h3 className="text-sm font-medium text-yellow-800">{t('mainDashboard.apiPartial')}</h3>
-              <div className="mt-2 text-sm text-yellow-700">
-                <ul className="list-disc list-inside space-y-1">
+              <h3 className="text-xs font-medium text-yellow-800">{t('mainDashboard.apiPartial')}</h3>
+              <ul className="mt-1 text-xs text-yellow-700 list-disc list-inside space-y-0.5">
                   {Object.entries(apiErrors).map(([key, error]) => (
                     <li key={key}>{error}</li>
                   ))}
                 </ul>
-              </div>
             </div>
-            <button
-              onClick={handleRefresh}
-              className="text-yellow-600 hover:text-yellow-800"
-            >
-              <FaRedoAlt className="h-4 w-4" />
+            <button onClick={handleRefresh} className="text-yellow-600 hover:text-yellow-800 flex-shrink-0">
+              <FaRedoAlt className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
@@ -634,37 +626,34 @@ const DashboardPage = () => {
 
       {/* Refresh Button and Last Updated */}
       <div className="flex justify-between items-center">
-        <div className="text-sm text-gray-600">
+        <div className="text-xs text-gray-500">
           {lastUpdated && (
-            <span>
-              {t('mainDashboard.lastUpdated')} {lastUpdated.toLocaleTimeString()}
-            </span>
+            <span>{t('mainDashboard.lastUpdated')} {lastUpdated.toLocaleTimeString()}</span>
           )}
         </div>
         <button
           onClick={handleRefresh}
           disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2"
+          className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-1.5 text-sm font-medium"
         >
-          <FaRedoAlt className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <FaRedoAlt className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           <span>{loading ? t('mainDashboard.refreshing') : t('mainDashboard.refreshData')}</span>
         </button>
       </div>
 
-      {/* Stunning Stats Grid with Dynamic Hover Effects */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-4 gap-6">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {loading && dynamicStats.length === 0 ? (
-          // Loading skeleton for stats
           Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 animate-pulse">
-              <div className="flex items-center justify-between mb-4">
+            <div key={index} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex-1">
-                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-8 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded mb-3"></div>
-                  <div className="h-6 bg-gray-200 rounded"></div>
+                  <div className="h-3 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-5 bg-gray-200 rounded w-16"></div>
                 </div>
-                <div className="w-16 h-16 bg-gray-200 rounded-2xl"></div>
+                <div className="w-12 h-12 bg-gray-200 rounded-xl ml-3"></div>
               </div>
             </div>
           ))
@@ -674,45 +663,37 @@ const DashboardPage = () => {
           return (
             <div 
               key={stat.name} 
-              className="group relative bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transform transition-all duration-300 hover:scale-105 hover:-translate-y-2 border border-gray-100 overflow-hidden"
+              className="group relative bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-1 border border-gray-100 overflow-hidden"
             >
-              {/* Animated background gradient */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
-              
-              {/* Floating particles effect */}
-              <div className="absolute top-2 right-2 w-2 h-2 bg-blue-400 rounded-full opacity-0 group-hover:opacity-60 animate-pulse"></div>
-              <div className="absolute top-4 right-4 w-1 h-1 bg-purple-400 rounded-full opacity-0 group-hover:opacity-40 animate-ping"></div>
+              <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-5 transition-opacity duration-200`}></div>
               
               <div className="relative z-10">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">{stat.name}</p>
-                    <p className="text-4xl font-bold text-gray-900 mb-2">{stat.value}</p>
-                    <p className="text-sm text-gray-600 mb-3">{stat.description}</p>
-                    <div className="flex items-center space-x-2">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        stat.changeType === 'positive' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {stat.change}
-                      </span>
-                      <span className="text-xs text-gray-500">{t('mainDashboard.fromLastMonth')}</span>
-                    </div>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{stat.name}</p>
+                    <p className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</p>
+                    <p className="text-xs text-gray-500 mb-2 truncate">{stat.description}</p>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      stat.changeType === 'positive' 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-red-100 text-red-700'
+                    }`}>
+                      {stat.change}
+                    </span>
                   </div>
-                  <div className={`w-16 h-16 bg-gradient-to-br ${stat.color} rounded-2xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
-                    <Icon className="h-8 w-8 text-white" />
+                  <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center flex-shrink-0 ml-3 shadow-sm`}>
+                    <Icon className="h-6 w-6 text-white" />
                   </div>
                 </div>
                 
                 {/* Hover details panel */}
-                <div className="absolute inset-0 bg-white rounded-2xl p-6 opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:scale-100 scale-95 pointer-events-none group-hover:pointer-events-auto">
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-gray-900 text-lg">{t('mainDashboard.detailedBreakdown')}</h4>
+                <div className="absolute inset-0 bg-white rounded-xl p-4 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto shadow-lg border border-gray-100">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-gray-900 text-sm">{t('mainDashboard.detailedBreakdown')}</h4>
                     {Object.entries(stat.details).map(([key, value]) => (
                       <div key={key} className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600 capitalize">{key}:</span>
-                        <span className="text-sm font-semibold text-gray-900">{value}</span>
+                        <span className="text-xs text-gray-500 capitalize">{key}:</span>
+                        <span className="text-xs font-semibold text-gray-900">{value}</span>
                       </div>
                     ))}
                   </div>
@@ -724,59 +705,56 @@ const DashboardPage = () => {
         )}
       </div>
 
-      {/* Enhanced Activity and System Health Section */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
-        {/* Enhanced Recent Activity */}
-        <div className="xl:col-span-2 2xl:col-span-2">
-          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">{t('mainDashboard.recentActivity')}</h3>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-sm text-gray-600">{t('mainDashboard.liveUpdates')}</span>
+      {/* Activity and System Health Section */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        {/* Recent Activity */}
+        <div className="xl:col-span-2">
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-gray-900">{t('mainDashboard.recentActivity')}</h3>
+              <div className="flex items-center space-x-1.5">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-xs text-gray-500">{t('mainDashboard.liveUpdates')}</span>
               </div>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-2 scrollable scrollable-lg scrollable-content">
               {recentActivity.map((activity) => {
                 const Icon = activity.icon;
                 return (
                   <div 
                     key={activity.id} 
-                    className={`group relative p-4 ${activity.bgColor} rounded-xl border border-gray-200 hover:shadow-lg transform transition-all duration-300 hover:scale-[1.02] cursor-pointer`}
+                    className={`group relative p-3 ${activity.bgColor} rounded-lg border border-gray-100 hover:shadow-sm transition-all duration-200 hover:translate-x-1 cursor-pointer`}
                   >
-                    <div className="flex items-start space-x-4">
-                      <div className={`w-12 h-12 ${activity.bgColor} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                        <Icon className={`h-6 w-6 ${activity.color}`} />
+                    <div className="flex items-start space-x-3">
+                      <div className={`w-9 h-9 ${activity.bgColor} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                        <Icon className={`h-4 w-4 ${activity.color}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 mb-1">{activity.title}</h4>
-                        <p className="text-sm text-gray-600 mb-2">{activity.message}</p>
+                        <h4 className="font-semibold text-gray-900 text-sm mb-0.5">{activity.title}</h4>
+                        <p className="text-xs text-gray-500 mb-1">{activity.message}</p>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">{activity.time}</span>
-                          <div className="flex items-center space-x-2">
-                            {activity.status === 'completed' && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                <FaStar className="w-3 h-3 mr-1" />
-                                {t('mainDashboard.completed')}
-                              </span>
-                            )}
-                          </div>
+                          <span className="text-xs text-gray-400">{activity.time}</span>
+                          {activity.status === 'completed' && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                              {t('mainDashboard.completed')}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
                     
                     {/* Hover details */}
-                    <div className="absolute inset-0 bg-white rounded-xl p-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:scale-100 scale-95 pointer-events-none group-hover:pointer-events-auto shadow-xl">
-                      <div className="space-y-3">
-                        <h4 className="font-semibold text-gray-900">{activity.title}</h4>
-                        <p className="text-sm text-gray-600">{activity.message}</p>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                                                     {Object.entries(activity).filter(([key]) => !['id', 'type', 'title', 'message', 'time', 'icon', 'color', 'bgColor', 'status'].includes(key)).map(([key, value]) => (
-                             <div key={key} className="flex justify-between">
-                               <span className="text-gray-500 capitalize">{key}:</span>
-                               <span className="font-medium text-gray-900">{String(value)}</span>
-                             </div>
-                           ))}
+                    <div className="absolute inset-0 bg-white rounded-lg p-3 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto shadow-md border border-gray-100">
+                      <div className="space-y-1.5">
+                        <h4 className="font-semibold text-gray-900 text-sm">{activity.title}</h4>
+                        <p className="text-xs text-gray-500">{activity.message}</p>
+                        <div className="grid grid-cols-2 gap-1 text-xs">
+                          {Object.entries(activity).filter(([key]) => !['id', 'type', 'title', 'message', 'time', 'icon', 'color', 'bgColor', 'status'].includes(key)).map(([key, value]) => (
+                            <div key={key} className="flex justify-between">
+                              <span className="text-gray-400 capitalize">{key}:</span>
+                              <span className="font-medium text-gray-800">{String(value)}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -788,30 +766,30 @@ const DashboardPage = () => {
         </div>
 
         {/* System Health Status */}
-        <div className="xl:col-span-1 2xl:col-span-1">
-          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">{t('mainDashboard.systemHealth')}</h3>
-            <div className="space-y-4">
+        <div className="xl:col-span-1">
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">{t('mainDashboard.systemHealth')}</h3>
+            <div className="space-y-2">
               {systemHealth.map((health) => {
                 const Icon = health.icon;
                 return (
                   <div 
                     key={health.name}
-                    className="group relative p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transform transition-all duration-300 hover:scale-105 cursor-pointer"
+                    className="group relative p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all duration-200 cursor-pointer"
                   >
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                        <Icon className="h-5 w-5 text-green-600" />
+                      <div className="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Icon className="h-4 w-4 text-green-600" />
                     </div>
-                    <div className="flex-1">
-                        <h4 className="font-semibold text-gray-900 text-sm">{health.name}</h4>
-                        <p className="text-lg font-bold text-green-600">{health.value}</p>
+                    <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-gray-800 text-xs">{health.name}</h4>
+                        <p className="text-sm font-bold text-green-600">{health.value}</p>
                       </div>
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
                     </div>
                     
                     {/* Hover tooltip */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
                       {health.details}
                       <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
                     </div>
@@ -821,35 +799,38 @@ const DashboardPage = () => {
             </div>
           </div>
         </div>
+      </div>
 
+      {/* Quick Actions + Quick Insights row */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         {/* Quick Actions */}
-        <div className="xl:col-span-1 2xl:col-span-1">
-          <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">
+        <div className="xl:col-span-1">
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">
               {isAdmin ? t('mainDashboard.adminActions') : t('mainDashboard.quickActions')}
             </h3>
-            <div className="space-y-4">
+            <div className="space-y-2">
               {isAdmin ? (
                 <>
                   <button 
                     onClick={() => navigate('/admin')}
-                    className="w-full group relative bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-xl font-semibold transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
+                    className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 px-3 rounded-lg font-medium text-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 flex items-center justify-center space-x-2"
                   >
-                    <FaUsers className="h-5 w-5" />
+                    <FaUsers className="h-4 w-4" />
                     <span>{t('mainDashboard.userManagement')}</span>
                   </button>
                   <button 
                     onClick={() => navigate('/analytics')}
-                    className="w-full group relative bg-gradient-to-r from-purple-500 to-purple-600 text-white py-3 px-4 rounded-xl font-semibold transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
+                    className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-2.5 px-3 rounded-lg font-medium text-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 flex items-center justify-center space-x-2"
                   >
-                    <FaChartBar className="h-5 w-5" />
+                    <FaChartBar className="h-4 w-4" />
                     <span>{t('mainDashboard.systemAnalytics')}</span>
                   </button>
                   <button 
                     onClick={() => navigate('/services')}
-                    className="w-full group relative bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl font-semibold transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
+                    className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2.5 px-3 rounded-lg font-medium text-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 flex items-center justify-center space-x-2"
                   >
-                    <FaCloud className="h-5 w-5" />
+                    <FaCloud className="h-4 w-4" />
                     <span>{t('mainDashboard.serviceManagement')}</span>
                   </button>
                 </>
@@ -857,87 +838,89 @@ const DashboardPage = () => {
                 <>
                   <button 
                     onClick={() => navigate('/upload')}
-                    className="w-full group relative bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-xl font-semibold transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
+                    className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2.5 px-3 rounded-lg font-medium text-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 flex items-center justify-center space-x-2"
                   >
-                <FaUpload className="h-5 w-5" />
-                <span>{t('mainDashboard.uploadFiles')}</span>
-              </button>
+                    <FaUpload className="h-4 w-4" />
+                    <span>{t('mainDashboard.uploadFiles')}</span>
+                  </button>
                   <button 
                     onClick={() => navigate('/images')}
-                    className="w-full group relative bg-gradient-to-r from-purple-500 to-purple-600 text-white py-3 px-4 rounded-xl font-semibold transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
+                    className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-2.5 px-3 rounded-lg font-medium text-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 flex items-center justify-center space-x-2"
                   >
-                <FaShieldAlt className="h-5 w-5" />
+                    <FaShieldAlt className="h-4 w-4" />
                     <span>{t('mainDashboard.myFiles')}</span>
-              </button>
+                  </button>
                   <button 
                     onClick={() => navigate('/services')}
-                    className="w-full group relative bg-gradient-to-r from-green-500 to-green-600 text-white py-3 px-4 rounded-xl font-semibold transform transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center justify-center space-x-2"
+                    className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-2.5 px-3 rounded-lg font-medium text-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 flex items-center justify-center space-x-2"
                   >
-                    <FaCloud className="h-5 w-5" />
+                    <FaCloud className="h-4 w-4" />
                     <span>{t('mainDashboard.cloudServices')}</span>
-              </button>
+                  </button>
                 </>
               )}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Quick Insights Section */}
-      <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-        <h3 className="text-2xl font-bold text-gray-900 mb-6">{t('mainDashboard.quickInsights')}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {quickInsights.map((insight) => {
-            const Icon = insight.icon;
-            return (
-              <div 
-                key={insight.title}
-                className="group relative p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl hover:from-gray-100 hover:to-gray-200 transform transition-all duration-300 hover:scale-105 cursor-pointer border border-gray-200"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`w-10 h-10 ${insight.color.replace('text-', 'bg-').replace('-600', '-100')} rounded-xl flex items-center justify-center`}>
-                    <Icon className={`h-5 w-5 ${insight.color}`} />
+        {/* Quick Insights */}
+        <div className="xl:col-span-2">
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <h3 className="text-base font-semibold text-gray-900 mb-4">{t('mainDashboard.quickInsights')}</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {quickInsights.map((insight) => {
+                const Icon = insight.icon;
+                return (
+                  <div 
+                    key={insight.title}
+                    className="group p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-all duration-200 cursor-pointer border border-gray-100"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-9 h-9 ${insight.color.replace('text-', 'bg-').replace('-600', '-100')} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                        <Icon className={`h-4 w-4 ${insight.color}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-medium text-gray-700 text-xs truncate">{insight.title}</h4>
+                        <p className="text-base font-bold text-gray-900">{insight.value}</p>
+                        <p className="text-xs text-gray-500 truncate">{insight.description}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 text-sm">{insight.title}</h4>
-                    <p className="text-lg font-bold text-gray-900">{insight.value}</p>
-                    <p className="text-xs text-gray-600">{insight.description}</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Dynamic File Analytics Section */}
       {stats && !apiErrors.fileStats && (
-        <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-3xl font-bold text-gray-900">{t('mainDashboard.fileAnalyticsTitle')}</h3>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-600">{t('mainDashboard.realtimeData')}</span>
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-gray-900">{t('mainDashboard.fileAnalyticsTitle')}</h3>
+            <div className="flex items-center space-x-1.5">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs text-gray-500">{t('mainDashboard.realtimeData')}</span>
             </div>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* File Overview */}
             <div className="lg:col-span-1">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
-                <h4 className="text-xl font-bold text-blue-900 mb-4">{t('mainDashboard.fileOverviewTitle')}</h4>
-                <div className="space-y-4">
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <h4 className="text-sm font-semibold text-blue-900 mb-3">{t('mainDashboard.fileOverviewTitle')}</h4>
+                <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-blue-700 font-semibold">{t('mainDashboard.totalFilesLabel')}</span>
-                    <span className="text-2xl font-bold text-blue-900">{stats.totalFiles.toLocaleString()}</span>
+                    <span className="text-xs text-blue-700 font-medium">{t('mainDashboard.totalFilesLabel')}</span>
+                    <span className="text-lg font-bold text-blue-900">{stats.totalFiles.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-blue-700 font-semibold">{t('mainDashboard.totalSizeLabel')}</span>
-                    <span className="text-xl font-bold text-blue-900">{stats.totalSize}</span>
+                    <span className="text-xs text-blue-700 font-medium">{t('mainDashboard.totalSizeLabel')}</span>
+                    <span className="text-base font-bold text-blue-900">{stats.totalSize}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-blue-700 font-semibold">{t('mainDashboard.recentUploadsLabel')}</span>
-                    <span className="text-lg font-bold text-blue-900">{stats.recentUploads}</span>
+                    <span className="text-xs text-blue-700 font-medium">{t('mainDashboard.recentUploadsLabel')}</span>
+                    <span className="text-base font-bold text-blue-900">{stats.recentUploads}</span>
                   </div>
                 </div>
               </div>
@@ -945,29 +928,29 @@ const DashboardPage = () => {
 
             {/* File Types Breakdown */}
             <div className="lg:col-span-2">
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
-                <h4 className="text-xl font-bold text-green-900 mb-4">{t('mainDashboard.fileTypesBreakdownTitle')}</h4>
+              <div className="bg-green-50 rounded-xl p-4 border border-green-100">
+                <h4 className="text-sm font-semibold text-green-900 mb-3">{t('mainDashboard.fileTypesBreakdownTitle')}</h4>
                 {Object.keys(stats.fileTypes).length > 0 ? (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     {Object.entries(stats.fileTypes).map(([type, data]) => (
-                      <div key={type} className="bg-white rounded-xl p-4 shadow-sm">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-semibold text-gray-900 capitalize">{type}</span>
-                          <span className="text-lg font-bold text-green-600">{data.count}</span>
+                      <div key={type} className="bg-white rounded-lg p-3 shadow-sm">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-semibold text-gray-800 capitalize">{type}</span>
+                          <span className="text-sm font-bold text-green-600">{data.count}</span>
                         </div>
-                        <div className="flex justify-between text-sm text-gray-600 mb-2">
+                        <div className="flex justify-between text-xs text-gray-500 mb-1.5">
                           <span>{data.size}</span>
                           <span>{data.percentage}%</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-green-500 h-2 rounded-full" style={{ width: `${data.percentage}%` }}></div>
+                        <div className="w-full bg-gray-100 rounded-full h-1.5">
+                          <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${data.percentage}%` }}></div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">{t('mainDashboard.noFileTypeData')}</p>
+                  <div className="text-center py-6">
+                    <p className="text-sm text-gray-400">{t('mainDashboard.noFileTypeData')}</p>
                   </div>
                 )}
               </div>
@@ -978,16 +961,13 @@ const DashboardPage = () => {
 
       {/* File Analytics Error Fallback */}
       {apiErrors.fileStats && (
-        <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-          <div className="text-center py-8">
-            <FaExclamationTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('mainDashboard.fileAnalyticsUnavailable')}</h3>
-            <p className="text-gray-600 mb-4">{t('mainDashboard.fileStatsRefresh')}</p>
-            <button
-              onClick={handleRefresh}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 mx-auto"
-            >
-              <FaRedoAlt className="h-4 w-4" />
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="text-center py-6">
+            <FaExclamationTriangle className="h-8 w-8 text-red-400 mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-gray-800 mb-1">{t('mainDashboard.fileAnalyticsUnavailable')}</h3>
+            <p className="text-xs text-gray-500 mb-3">{t('mainDashboard.fileStatsRefresh')}</p>
+            <button onClick={handleRefresh} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 flex items-center space-x-1.5 mx-auto text-sm">
+              <FaRedoAlt className="h-3.5 w-3.5" />
               <span>{t('common.retry')}</span>
             </button>
           </div>
@@ -996,39 +976,35 @@ const DashboardPage = () => {
 
       {/* Dynamic Service Analytics Section */}
       {serviceData.length > 0 && !apiErrors.services && (
-        <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-3xl font-bold text-gray-900">{t('mainDashboard.serviceAnalyticsTitle')}</h3>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-600">{t('mainDashboard.allServicesConnected')}</span>
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-gray-900">{t('mainDashboard.serviceAnalyticsTitle')}</h3>
+            <div className="flex items-center space-x-1.5">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs text-gray-500">{t('mainDashboard.allServicesConnected')}</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Connected Services */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
-              <h4 className="text-xl font-bold text-blue-900 mb-4">{t('mainDashboard.connectedServicesTitle')}</h4>
-              <div className="space-y-4">
+            <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+              <h4 className="text-sm font-semibold text-blue-900 mb-3">{t('mainDashboard.connectedServicesTitle')}</h4>
+              <div className="space-y-2">
                 {serviceData.map((service, index) => (
-                  <div key={index} className="bg-white rounded-xl p-4 shadow-sm">
+                  <div key={index} className="bg-white rounded-lg p-3 shadow-sm">
                     <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h5 className="font-semibold text-gray-900">{service.name}</h5>
-                        <p className="text-sm text-gray-600">
-                          {t('mainDashboard.lastSync')} {service.lastSync}
-                        </p>
+                      <div className="flex-1 min-w-0">
+                        <h5 className="text-sm font-semibold text-gray-800 truncate">{service.name}</h5>
+                        <p className="text-xs text-gray-400">{t('mainDashboard.lastSync')} {service.lastSync}</p>
                       </div>
-                      <div className="text-right">
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-3 h-3 rounded-full ${service.status === 'Connected' ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                          <span className={`text-sm font-semibold ${service.status === 'Connected' ? 'text-green-600' : 'text-red-600'}`}>
+                      <div className="text-right ml-3 flex-shrink-0">
+                        <div className="flex items-center space-x-1.5 justify-end">
+                          <div className={`w-2 h-2 rounded-full ${service.status === 'Connected' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          <span className={`text-xs font-semibold ${service.status === 'Connected' ? 'text-green-600' : 'text-red-600'}`}>
                             {service.status}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600">
-                          {service.files} {t('mainDashboard.filesSuffix')}
-                        </p>
+                        <p className="text-xs text-gray-400">{service.files} {t('mainDashboard.filesSuffix')}</p>
                       </div>
                     </div>
                   </div>
@@ -1037,20 +1013,18 @@ const DashboardPage = () => {
             </div>
 
             {/* Service Performance */}
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 border border-purple-200">
-              <h4 className="text-xl font-bold text-purple-900 mb-4">{t('mainDashboard.servicePerformanceTitle')}</h4>
-              <div className="space-y-4">
+            <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+              <h4 className="text-sm font-semibold text-purple-900 mb-3">{t('mainDashboard.servicePerformanceTitle')}</h4>
+              <div className="space-y-2">
                 {serviceData.map((service, index) => (
-                  <div key={index} className="bg-white rounded-xl p-4 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-gray-900">{service.name}</span>
-                      <span className="text-lg font-bold text-purple-600">{service.uptime}%</span>
+                  <div key={index} className="bg-white rounded-lg p-3 shadow-sm">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-semibold text-gray-800 truncate">{service.name}</span>
+                      <span className="text-sm font-bold text-purple-600 ml-2">{service.uptime}%</span>
                     </div>
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>
-                        {t('mainDashboard.speedLabel')} {service.speed}
-                      </span>
-                      <span className="font-semibold text-purple-600">{t('mainDashboard.good')}</span>
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>{t('mainDashboard.speedLabel')} {service.speed}</span>
+                      <span className="font-medium text-purple-600">{t('mainDashboard.good')}</span>
                     </div>
                   </div>
                 ))}
@@ -1062,16 +1036,13 @@ const DashboardPage = () => {
 
       {/* Services Error Fallback */}
       {apiErrors.services && (
-        <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-          <div className="text-center py-8">
-            <FaExclamationTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('mainDashboard.serviceAnalyticsUnavailable')}</h3>
-            <p className="text-gray-600 mb-4">{t('mainDashboard.serviceDataRefresh')}</p>
-            <button
-              onClick={handleRefresh}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 mx-auto"
-            >
-              <FaRedoAlt className="h-4 w-4" />
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="text-center py-6">
+            <FaExclamationTriangle className="h-8 w-8 text-red-400 mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-gray-800 mb-1">{t('mainDashboard.serviceAnalyticsUnavailable')}</h3>
+            <p className="text-xs text-gray-500 mb-3">{t('mainDashboard.serviceDataRefresh')}</p>
+            <button onClick={handleRefresh} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 flex items-center space-x-1.5 mx-auto text-sm">
+              <FaRedoAlt className="h-3.5 w-3.5" />
               <span>{t('common.retry')}</span>
             </button>
           </div>
@@ -1080,33 +1051,33 @@ const DashboardPage = () => {
 
       {/* Dynamic User Analytics Section (Admin Only) */}
       {isAdmin && userAnalytics && !apiErrors.userAnalytics && (
-        <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-3xl font-bold text-gray-900">{t('mainDashboard.userAnalyticsTitle')}</h3>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-600">{t('mainDashboard.activeUsers')}</span>
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-gray-900">{t('mainDashboard.userAnalyticsTitle')}</h3>
+            <div className="flex items-center space-x-1.5">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs text-gray-500">{t('mainDashboard.activeUsers')}</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* User Overview */}
             <div className="lg:col-span-1">
-              <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-2xl p-6 border border-pink-200">
-                <h4 className="text-xl font-bold text-pink-900 mb-4">{t('mainDashboard.userOverviewTitle')}</h4>
-                <div className="space-y-4">
+              <div className="bg-pink-50 rounded-xl p-4 border border-pink-100">
+                <h4 className="text-sm font-semibold text-pink-900 mb-3">{t('mainDashboard.userOverviewTitle')}</h4>
+                <div className="space-y-3">
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-pink-600 mb-2">{userAnalytics.totalUsers.toLocaleString()}</div>
-                    <p className="text-pink-700 font-semibold">{t('mainDashboard.totalUsers')}</p>
+                    <div className="text-3xl font-bold text-pink-600 mb-1">{userAnalytics.totalUsers.toLocaleString()}</div>
+                    <p className="text-xs text-pink-700 font-medium">{t('mainDashboard.totalUsers')}</p>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <span className="text-pink-700">{t('mainDashboard.active')}</span>
-                      <span className="font-semibold text-pink-900">{userAnalytics.activeUsers.toLocaleString()}</span>
+                      <span className="text-xs text-pink-600">{t('mainDashboard.active')}</span>
+                      <span className="text-sm font-semibold text-pink-900">{userAnalytics.activeUsers.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-pink-700">{t('mainDashboard.newToday')}</span>
-                      <span className="font-semibold text-pink-900">{userAnalytics.newUsers}</span>
+                      <span className="text-xs text-pink-600">{t('mainDashboard.newToday')}</span>
+                      <span className="text-sm font-semibold text-pink-900">{userAnalytics.newUsers}</span>
                     </div>
                   </div>
                 </div>
@@ -1115,15 +1086,13 @@ const DashboardPage = () => {
 
             {/* User Activity */}
             <div className="lg:col-span-2">
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-6 border border-orange-200">
-                <h4 className="text-xl font-bold text-orange-900 mb-4">{t('mainDashboard.userActivityTitle')}</h4>
-                <div className="grid grid-cols-3 gap-4">
+              <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
+                <h4 className="text-sm font-semibold text-orange-900 mb-3">{t('mainDashboard.userActivityTitle')}</h4>
+                <div className="grid grid-cols-3 gap-3">
                   {Object.entries(userAnalytics.userActivity).map(([period, count]) => (
-                    <div key={period} className="bg-white rounded-xl p-4 shadow-sm text-center">
-                      <div className="text-2xl font-bold text-orange-600 mb-1">{count.toLocaleString()}</div>
-                      <p className="text-sm text-orange-700 capitalize">
-                        {period} {t('mainDashboard.usersSuffix')}
-                      </p>
+                    <div key={period} className="bg-white rounded-lg p-3 shadow-sm text-center">
+                      <div className="text-xl font-bold text-orange-600 mb-0.5">{count.toLocaleString()}</div>
+                      <p className="text-xs text-orange-600 capitalize">{period} {t('mainDashboard.usersSuffix')}</p>
                     </div>
                   ))}
                 </div>
@@ -1133,45 +1102,43 @@ const DashboardPage = () => {
 
           {/* User Plans and Recent Activity */}
           {userAnalytics.userStats.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
-                <h4 className="text-xl font-bold text-green-900 mb-4">{t('mainDashboard.userPlansTitle')}</h4>
-                <div className="space-y-3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+              <div className="bg-green-50 rounded-xl p-4 border border-green-100">
+                <h4 className="text-sm font-semibold text-green-900 mb-3">{t('mainDashboard.userPlansTitle')}</h4>
+                <div className="space-y-2">
                   {userAnalytics.userStats.map((plan, index) => (
-                    <div key={index} className="bg-white rounded-xl p-4 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-gray-900">{plan.plan}</span>
-                        <span className="text-lg font-bold text-green-600">{plan.users.toLocaleString()}</span>
+                    <div key={index} className="bg-white rounded-lg p-3 shadow-sm">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-semibold text-gray-800">{plan.plan}</span>
+                        <span className="text-sm font-bold text-green-600">{plan.users.toLocaleString()}</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                        <div className="bg-green-500 h-2 rounded-full" style={{ width: `${plan.percentage}%` }}></div>
+                      <div className="w-full bg-gray-100 rounded-full h-1.5 mb-1">
+                        <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${plan.percentage}%` }}></div>
                       </div>
-                      <p className="text-sm text-green-600 mt-1">
-                        {t('mainDashboard.percentOfTotal', { n: plan.percentage })}
-                      </p>
+                      <p className="text-xs text-green-600">{t('mainDashboard.percentOfTotal', { n: plan.percentage })}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
-                <h4 className="text-xl font-bold text-blue-900 mb-4">{t('mainDashboard.recentUserActivityTitle')}</h4>
-                <div className="space-y-3">
+              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                <h4 className="text-sm font-semibold text-blue-900 mb-3">{t('mainDashboard.recentUserActivityTitle')}</h4>
+                <div className="space-y-2">
                   {userAnalytics.recentActivity.length > 0 ? (
                     userAnalytics.recentActivity.map((activity, index) => (
-                      <div key={index} className="bg-white rounded-xl p-3 shadow-sm">
+                      <div key={index} className="bg-white rounded-lg p-3 shadow-sm">
                         <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <p className="font-semibold text-gray-900 text-sm">{activity.user}</p>
-                            <p className="text-xs text-gray-600">{activity.action}</p>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-800 truncate">{activity.user}</p>
+                            <p className="text-xs text-gray-500">{activity.action}</p>
                           </div>
-                          <span className="text-xs text-blue-600">{activity.time}</span>
+                          <span className="text-xs text-blue-600 ml-2 flex-shrink-0">{activity.time}</span>
                         </div>
                       </div>
                     ))
                   ) : (
                     <div className="text-center py-4">
-                      <p className="text-gray-500">{t('mainDashboard.noRecentActivityData')}</p>
+                      <p className="text-xs text-gray-400">{t('mainDashboard.noRecentActivityData')}</p>
                     </div>
                   )}
                 </div>
@@ -1183,16 +1150,13 @@ const DashboardPage = () => {
 
       {/* User Analytics Error Fallback (Admin Only) */}
       {isAdmin && apiErrors.userAnalytics && (
-        <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-          <div className="text-center py-8">
-            <FaExclamationTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('mainDashboard.userAnalyticsUnavailable')}</h3>
-            <p className="text-gray-600 mb-4">{t('mainDashboard.userAnalyticsRefresh')}</p>
-            <button
-              onClick={handleRefresh}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 mx-auto"
-            >
-              <FaRedoAlt className="h-4 w-4" />
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="text-center py-6">
+            <FaExclamationTriangle className="h-8 w-8 text-red-400 mx-auto mb-3" />
+            <h3 className="text-sm font-semibold text-gray-800 mb-1">{t('mainDashboard.userAnalyticsUnavailable')}</h3>
+            <p className="text-xs text-gray-500 mb-3">{t('mainDashboard.userAnalyticsRefresh')}</p>
+            <button onClick={handleRefresh} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 flex items-center space-x-1.5 mx-auto text-sm">
+              <FaRedoAlt className="h-3.5 w-3.5" />
               <span>{t('common.retry')}</span>
             </button>
           </div>

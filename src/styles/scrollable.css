@@ -1,0 +1,148 @@
+/* Scrollable Container Utilities */
+
+/* Base scrollable container with custom scrollbar */
+.scrollable {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Minimal styled scrollbar */
+.scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollable::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.scrollable::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Firefox scrollbar styling */
+.scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
+}
+
+/* Height variants */
+.scrollable-sm {
+  max-height: 200px;
+}
+
+.scrollable-md {
+  max-height: 300px;
+}
+
+.scrollable-lg {
+  max-height: 400px;
+}
+
+.scrollable-xl {
+  max-height: 500px;
+}
+
+.scrollable-2xl {
+  max-height: 600px;
+}
+
+/* Responsive height variants */
+@media (min-width: 768px) {
+  .md\:scrollable-sm {
+    max-height: 200px;
+  }
+
+  .md\:scrollable-md {
+    max-height: 300px;
+  }
+
+  .md\:scrollable-lg {
+    max-height: 400px;
+  }
+
+  .md\:scrollable-xl {
+    max-height: 500px;
+  }
+
+  .md\:scrollable-2xl {
+    max-height: 600px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg\:scrollable-sm {
+    max-height: 200px;
+  }
+
+  .lg\:scrollable-md {
+    max-height: 300px;
+  }
+
+  .lg\:scrollable-lg {
+    max-height: 400px;
+  }
+
+  .lg\:scrollable-xl {
+    max-height: 500px;
+  }
+
+  .lg\:scrollable-2xl {
+    max-height: 600px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .xl\:scrollable-sm {
+    max-height: 200px;
+  }
+
+  .xl\:scrollable-md {
+    max-height: 300px;
+  }
+
+  .xl\:scrollable-lg {
+    max-height: 400px;
+  }
+
+  .xl\:scrollable-xl {
+    max-height: 500px;
+  }
+
+  .xl\:scrollable-2xl {
+    max-height: 600px;
+  }
+}
+
+/* Fade effect at bottom when scrollable */
+.scrollable-fade {
+  position: relative;
+}
+
+.scrollable-fade::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.9));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.scrollable-fade.has-scroll::after {
+  opacity: 1;
+}
+
+/* Padding adjustment for scrollable content */
+.scrollable-content {
+  padding-right: 4px;
+}

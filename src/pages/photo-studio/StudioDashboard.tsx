@@ -491,14 +491,14 @@ const StudioDashboard: React.FC = () => {
                       paddingAngle={2}
                       dataKey="value"
                       nameKey="name"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={false}
                       labelLine={false}
                     >
                       {pieChartData.map((entry, i) => (
                         <Cell key={i} fill={entry.color} stroke="none" />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }} formatter={(value: number) => [value, t('dashboard.images')]} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }} formatter={(value: number, name: string, props: any) => [`${value} ${t('dashboard.images')} (${(props.payload.percent * 100).toFixed(1)}%)`, name]} />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
@@ -514,7 +514,7 @@ const StudioDashboard: React.FC = () => {
               <h3>{t('dashboard.recentActivity')}</h3>
               <Link to="/client-images" className="view-all-link">{t('dashboard.viewAll')}</Link>
             </div>
-            <div className="activity-list timeline">
+            <div className="activity-list timeline scrollable scrollable-lg scrollable-content">
               {recentActivity.length === 0 ? (
                 <div className="activity-item">
                   <div className="activity-icon-wrapper">{getActivityIcon('upload')}</div>
@@ -554,7 +554,7 @@ const StudioDashboard: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="clients-list">
+              <div className="clients-list scrollable scrollable-lg scrollable-content">
                 {recentClients.map(client => (
                   <div key={client.id} className="client-item">
                     <div className="client-avatar">

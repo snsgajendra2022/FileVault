@@ -1261,8 +1261,8 @@ const StudioCheckout: React.FC = () => {
               return (
                 <div
                   key={album.id}
-                  className={`rounded-2xl border overflow-visible transition-all ${
-                    isSelected ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50 shadow-lg' : 'border-gray-100 shadow-sm hover:shadow-md'
+                  className={`rounded-2xl overflow-visible transition-all ${
+                    isSelected ? 'border-2 border-[#2731db] shadow-lg' : 'border border-gray-100 shadow-sm hover:shadow-md'
                   } ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}
                 >
                   {/* Card: cover + name + count + expand */}
@@ -1381,7 +1381,7 @@ const StudioCheckout: React.FC = () => {
                               }
                             }}
                             className={`w-full text-left rounded-xl overflow-hidden bg-white p-2 border-2 transition-all hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2731db] ${
-                              isImageSelected ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-40 shadow-md' : 'border-transparent hover:border-gray-200 shadow-sm'
+                              isImageSelected ? 'border-[#2731db] shadow-md' : 'border-transparent hover:border-gray-200 shadow-sm'
                             }`}
                           >
                             <div className="aspect-square rounded-lg bg-gray-100 overflow-hidden relative mb-2">
