@@ -28,7 +28,7 @@ import DashboardLoading from '../../components/common/DashboardLoading';
 import toast from 'react-hot-toast';
 import ShareAlbumModal from './ShareAlbumModal';
 import PublicShareModal from '../../components/modals/PublicShareModal';
-import JSZip from 'jszip';
+import { downloadSingleImage, downloadImagesAsZip as downloadZip } from '../../utils/downloadUtils';
 
 interface Album {
   id: number;
@@ -184,6 +184,19 @@ const PhotoStudioAlbum: React.FC = () => {
   const [coverImageErrors, setCoverImageErrors] = useState<Set<number>>(new Set());
   const [fullScreenImage, setFullScreenImage] = useState<{ image: AlbumImage; albumId: number; index: number } | null>(null);
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
+
+  // Per-photo selection inside album detail view
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<Set<number>>(new Set());
+  const [showPhotoShareModal, setShowPhotoShareModal] = useState(false);
+  const [photoShareContactIds, setPhotoShareContactIds] = useState<Set<string>>(new Set());
+  const [photoShareNewEmails, setPhotoShareNewEmails] = useState('');
+  const [photoShareNewMobileCountryCode, setPhotoShareNewMobileCountryCode] = useState('+91');
+  const [photoShareNewMobiles, setPhotoShareNewMobiles] = useState('');
+  const [photoShareMessage, setPhotoShareMessage] = useState('');
+  const [photoShareChannels, setPhotoShareChannels] = useState<{ email: boolean; sms: boolean }>({ email: true, sms: true });
+  const [photoShareSending, setPhotoShareSending] = useState(false);
+  const [photoShareContactSearch, setPhotoShareContactSearch] = useState('');
+  const [photoShareAlreadySent, setPhotoShareAlreadySent] = useState<{ email?: string; mobile?: string; alreadySent: boolean } | null>(null);
 
   // Share link modal (public URL – send to contacts / email / SMS, same as StudioCheckout)
   const [showShareLinkModal, setShowShareLinkModal] = useState(false);
@@ -774,28 +787,6 @@ const PhotoStudioAlbum: React.FC = () => {
     return image.originalFilename || image.filename || t('photoStudioAlbumPage.unknown');
   };
 
-  const resolveToAbsoluteUrl = useCallback((url: string): string => {
-    if (!url) return url;
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    const base = typeof api.defaults.baseURL === 'string' ? api.defaults.baseURL : '';
-    const baseTrim = (base || '').trim().replace(/\/+$/, '');
-    if (!baseTrim) return url;
-    const path = url.startsWith('/') ? url : `/${url}`;
-    return `${baseTrim}${path}`;
-  }, []);
-
-  const triggerDownloadBlob = useCallback((blob: Blob, filename: string) => {
-    const href = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = href;
-    a.download = filename;
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(href), 2500);
-  }, []);
-
   const downloadImagesAsZip = useCallback(
     async (images: AlbumImage[], zipNameBase: string) => {
       if (isDownloadingZip) return;
@@ -803,49 +794,17 @@ const PhotoStudioAlbum: React.FC = () => {
         toast.error(t('photoStudioAlbumPage.noImagesAvailable'));
         return;
       }
-
       setIsDownloadingZip(true);
-      const zip = new JSZip();
-
       try {
-        let added = 0;
-        for (let i = 0; i < images.length; i++) {
-          const img = images[i];
-          const urlRaw = img.downloadUrl || img.previewUrl || '';
-          if (!urlRaw) continue;
-          const url = resolveToAbsoluteUrl(urlRaw);
-          const nameBase = getImageFilename(img) || `image-${i + 1}`;
-          const safeName = nameBase.replace(/[\\/:"*?<>|]+/g, '_').trim() || `image-${i + 1}`;
-
-          try {
-            const res = await api.get(url, { responseType: 'blob' });
-            const blob = res.data as Blob;
-            if (!blob || !(blob instanceof Blob)) continue;
-            zip.file(safeName, blob);
-            added += 1;
-          } catch {
-            /* skip failed image */
-          }
-        }
-
-        if (added === 0) {
-          toast.error(t('photoStudioAlbumPage.imageNotAvailable'));
-          return;
-        }
-
-        const outBlob = await zip.generateAsync({ type: 'blob' });
-        const date = new Date();
-        const stamp = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        triggerDownloadBlob(outBlob, `${zipNameBase || 'images'}-${stamp}.zip`);
+        await downloadZip(images, zipNameBase);
         toast.success(t('photoStudioAlbumPage.toastDownloadStarted'));
-      } catch (e: any) {
-        console.error('ZIP download failed:', e);
+      } catch {
         toast.error(t('photoStudioAlbumPage.toastFailedDownloadZip'));
       } finally {
         setIsDownloadingZip(false);
       }
     },
-    [getImageFilename, isDownloadingZip, resolveToAbsoluteUrl, t, triggerDownloadBlob]
+    [isDownloadingZip, t]
   );
 
   // Get file type from filename
@@ -1139,21 +1098,126 @@ const PhotoStudioAlbum: React.FC = () => {
     }
   }, [shareLinkUrlType, publicCheckoutUrl, publicSelectionUrl, publicImagesDisplayUrl, shareLinkNewEmails, shareLinkNewMobiles, shareLinkNewMobileCountryCode, shareLinkContactIds, shareLinkChannels, shareLinkMessage, t, selectedAlbumsName]);
 
-  const blobToDataUrl = (blob: Blob) => {
-    return new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
-  };
+  // ── Per-photo share (album detail view) ──────────────────────────────────
 
-  const fetchAsDataUrl = async (url: string): Promise<string> => {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to fetch image (${res.status})`);
-    const blob = await res.blob();
-    return blobToDataUrl(blob);
-  };
+  const togglePhotoSelection = useCallback((imageId: number) => {
+    setSelectedPhotoIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(imageId)) next.delete(imageId);
+      else next.add(imageId);
+      return next;
+    });
+  }, []);
+
+  const selectAllPhotos = useCallback((images: AlbumImage[]) => {
+    setSelectedPhotoIds(new Set(images.map((img) => img.id)));
+  }, []);
+
+  const clearPhotoSelection = useCallback(() => {
+    setSelectedPhotoIds(new Set());
+  }, []);
+
+  // Build public URL for selected photos (images-display for view-only, no payment)
+  const selectedPhotoImages = useMemo((): AlbumImage[] => {
+    if (!viewingAlbumId) return [];
+    const album = albums.find((a) => a.id === viewingAlbumId);
+    const images = album ? (albumImages.get(viewingAlbumId) || extractAlbumImages(album)) : [];
+    return images.filter((img) => selectedPhotoIds.has(img.id));
+  }, [viewingAlbumId, albums, albumImages, selectedPhotoIds]);
+
+  // Generate public images-display URL for selected photos (view-only, no payment)
+  const photoSharePublicUrl = useMemo(() => {
+    if (selectedPhotoImages.length === 0) return '';
+    const ids = selectedPhotoImages.map((img) => img.id).join(',');
+    return `${baseUrl}/public/images-display?token=${encodeURIComponent(tokenForUrl)}&imageIds=${ids}`;
+  }, [selectedPhotoImages, baseUrl, tokenForUrl]);
+
+  // Fetch contacts for photo share modal (reuse same endpoint)
+  const { data: photoShareContactsData } = useQuery({
+    queryKey: ['photoShareContacts', photoShareContactSearch],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/api/simple-invitations/family-relationships');
+        const payload = res?.data;
+        const allNodes: any[] = [];
+        const addNode = (node: any) => { if (node && typeof node === 'object') allNodes.push(node); };
+        const addList = (list: any[]) => { if (!Array.isArray(list)) return; list.forEach((item) => { addNode(item); if (Array.isArray(item?.clients)) addList(item.clients); }); };
+        const fd = payload?.familyData;
+        if (fd) { addNode(fd?.you); addList(fd?.parents ?? []); addList(fd?.siblings ?? []); addNode(fd?.spouse); addList(fd?.children ?? []); addList(fd?.grandparents ?? []); addList(fd?.unclesAunts ?? []); addList(fd?.cousins ?? []); addList(fd?.clients ?? []); }
+        const currentUserId = userId != null ? String(userId) : '';
+        const mapped = allNodes.filter((item) => {
+          const inviterCandidates = [item?.invitedBy, item?.invitedById, item?.createdBy, item?.ownerId].filter((v) => v != null);
+          if (inviterCandidates.some((v) => String(v) === currentUserId)) return true;
+          return String(item?.relation ?? '').toLowerCase() === 'client' && !!item?.userId && !item?.isYou;
+        }).map((item) => ({
+          id: String(item?.id ?? item?.userId ?? ''),
+          email: item?.email ?? item?.username ?? '',
+          mobile: item?.mobile ?? item?.phone ?? '',
+          displayName: item?.name ?? [item?.firstName, item?.lastName].filter(Boolean).join(' ').trim() ?? '',
+        })).filter((c) => c.id);
+        return { contacts: mapped.filter((c, i, arr) => i === arr.findIndex((x) => x.id === c.id)) };
+      } catch { return { contacts: [] }; }
+    },
+    enabled: showPhotoShareModal,
+    retry: 0,
+  });
+
+  const photoShareContacts = useMemo(() => {
+    const contacts = photoShareContactsData?.contacts ?? [];
+    const q = photoShareContactSearch.trim().toLowerCase();
+    if (!q) return contacts;
+    return contacts.filter((c) => `${c.displayName} ${c.email} ${c.mobile}`.toLowerCase().includes(q));
+  }, [photoShareContactsData?.contacts, photoShareContactSearch]);
+
+  const checkPhotoShareRecipient = useCallback(async (emailInput: string, mobileInput: string) => {
+    const firstEmail = emailInput.split(/[\s,]+/).map((e) => e.trim()).filter(Boolean)[0] ?? '';
+    const firstPart = mobileInput.split(/[\s,]+/).map((m) => m.trim()).filter(Boolean)[0] ?? '';
+    const m = firstPart ? (firstPart.startsWith('+') ? firstPart : `${photoShareNewMobileCountryCode.replace(/\s/g, '')}${firstPart}`) : '';
+    if (!firstEmail && !m) { setPhotoShareAlreadySent(null); return; }
+    try {
+      const params = new URLSearchParams();
+      if (firstEmail) params.set('email', firstEmail);
+      if (m) params.set('mobile', m);
+      if (photoSharePublicUrl) params.set('publicUrl', photoSharePublicUrl);
+      const res = await api.get<{ alreadySent?: boolean; email?: string | null; mobile?: string | null }>(`/api/public-share/check-recipient?${params.toString()}`);
+      setPhotoShareAlreadySent({ email: res.data?.email ?? undefined, mobile: res.data?.mobile ?? undefined, alreadySent: !!res.data?.alreadySent });
+    } catch { setPhotoShareAlreadySent(null); }
+  }, [photoSharePublicUrl, photoShareNewMobileCountryCode]);
+
+  const handlePhotoShareSend = useCallback(async () => {
+    if (!photoSharePublicUrl) { toast.error(t('photoStudioAlbumPage.toastNoUrl')); return; }
+    const emails = photoShareNewEmails.split(/[\s,]+/).map((e) => e.trim()).filter(Boolean);
+    const mobileParts = photoShareNewMobiles.split(/[\s,]+/).map((m) => m.trim()).filter(Boolean);
+    const mobiles = mobileParts.map((part) => (part.startsWith('+') ? part : `${photoShareNewMobileCountryCode.replace(/\s/g, '')}${part}`));
+    if (photoShareContactIds.size === 0 && emails.length === 0 && mobiles.length === 0) { toast.error(t('photoStudioAlbumPage.toastSelectContact')); return; }
+    const channels: string[] = [];
+    if (photoShareChannels.email) channels.push('email');
+    if (photoShareChannels.sms) channels.push('sms');
+    if (channels.length === 0) { toast.error(t('photoStudioAlbumPage.toastSelectChannel')); return; }
+    setPhotoShareSending(true);
+    try {
+      const res = await api.post<{ success?: boolean; sent?: { email?: number; sms?: number } }>('/api/public-share/send', {
+        publicUrl: photoSharePublicUrl,
+        message: photoShareMessage.trim() || undefined,
+        sendTo: { contactIds: Array.from(photoShareContactIds), emails, mobiles },
+        albumName: albums.find((a) => a.id === viewingAlbumId)?.name ?? 'Album',
+        channels,
+      });
+      if (res.data?.success) {
+        toast.success(t('photoStudioAlbumPage.toastLinkSent', { email: res.data.sent?.email ?? 0, sms: res.data.sent?.sms ?? 0, suffix: '' }));
+        setShowPhotoShareModal(false);
+        setPhotoShareContactIds(new Set());
+        setPhotoShareNewEmails('');
+        setPhotoShareNewMobiles('');
+        setPhotoShareMessage('');
+        setPhotoShareAlreadySent(null);
+      } else { toast.error(t('photoStudioAlbumPage.toastFailedSend')); }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || t('photoStudioAlbumPage.toastFailedSendShare'));
+    } finally { setPhotoShareSending(false); }
+  }, [photoSharePublicUrl, photoShareNewEmails, photoShareNewMobiles, photoShareNewMobileCountryCode, photoShareContactIds, photoShareChannels, photoShareMessage, t, albums, viewingAlbumId]);
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   const transferAlbumsToPhotoBook = useCallback(async (albumIds: number[], categorySlug: string) => {
     if (!albumIds?.length) {
@@ -1220,6 +1284,8 @@ const PhotoStudioAlbum: React.FC = () => {
       if (prev.has(albumId)) return new Set<number>();
       return new Set([albumId]);
     });
+    // Clear per-photo selection when switching albums
+    setSelectedPhotoIds(new Set());
   }, []);
 
   const toggleAlbum = (albumId: number) => {
@@ -1418,7 +1484,7 @@ const PhotoStudioAlbum: React.FC = () => {
               <div className="flex items-center gap-4">
                 <button
                   type="button"
-                  onClick={() => setViewingAlbumId(null)}
+                  onClick={() => { setViewingAlbumId(null); setSelectedPhotoIds(new Set()); }}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium"
                 >
                   <FaChevronLeft className="h-4 w-4" />
@@ -1461,6 +1527,37 @@ const PhotoStudioAlbum: React.FC = () => {
               </div>
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 {images.length > 0 ? (
+                  <>
+                    {/* Select-all / clear row */}
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-sm text-gray-500">
+                        {selectedPhotoIds.size > 0
+                          ? `${selectedPhotoIds.size} of ${images.length} selected`
+                          : `${images.length} ${images.length === 1 ? t('photoStudioAlbumPage.photo') : t('photoStudioAlbumPage.photos')}`}
+                      </p>
+                      <div className="flex items-center gap-3">
+                        {selectedPhotoIds.size > 0 && (
+                          <button
+                            type="button"
+                            onClick={clearPhotoSelection}
+                            className="text-sm text-gray-500 hover:text-gray-700"
+                          >
+                            Clear
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            selectedPhotoIds.size === images.length
+                              ? clearPhotoSelection()
+                              : selectAllPhotos(images)
+                          }
+                          className="text-sm font-medium text-[#2731db] hover:underline"
+                        >
+                          {selectedPhotoIds.size === images.length ? 'Deselect all' : 'Select all'}
+                        </button>
+                      </div>
+                    </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {images.map((image, index) => {
                       const imageUrl = getImageUrl(image);
@@ -1468,15 +1565,50 @@ const PhotoStudioAlbum: React.FC = () => {
                       const fileType = getFileType(image);
                       const filename = getImageFilename(image);
                       const canViewFullScreen = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                      const isPhotoSelected = selectedPhotoIds.has(image.id);
+                      const downloadUrl = image.downloadUrl || image.previewUrl || imageUrl;
                       return (
                         <div
                           key={image.id}
-                          className={`relative rounded-xl overflow-hidden border border-gray-100 bg-white shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-200 group ${canViewFullScreen ? 'cursor-pointer' : ''}`}
-                          onClick={() => {
-                            if (canViewFullScreen) setFullScreenImage({ image, albumId: album.id, index });
-                          }}
+                          className={`relative rounded-xl overflow-hidden border-2 bg-white shadow-sm hover:shadow-md transition-all duration-200 group ${
+                            isPhotoSelected ? 'border-[#2731db] shadow-md' : 'border-transparent hover:border-gray-200'
+                          }`}
                         >
-                          <div className="aspect-square bg-gray-100 overflow-hidden relative">
+                          {/* Checkbox overlay */}
+                          <button
+                            type="button"
+                            onClick={() => togglePhotoSelection(image.id)}
+                            className="absolute top-2 left-2 z-10 p-1 rounded-md bg-white/90 hover:bg-white shadow-sm"
+                            title={isPhotoSelected ? 'Deselect' : 'Select'}
+                          >
+                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${isPhotoSelected ? 'border-[#2731db] bg-[#2731db]' : 'border-gray-400 bg-white'}`}>
+                              {isPhotoSelected && <FaCheck className="h-2.5 w-2.5 text-white" />}
+                            </div>
+                          </button>
+                          {/* Download button – visible on hover */}
+                          {downloadUrl && (
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await downloadSingleImage(downloadUrl, filename);
+                                } catch {
+                                  toast.error('Download failed');
+                                }
+                              }}
+                              className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-white/90 hover:bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                              title={`Download ${filename}`}
+                            >
+                              <FaDownload className="h-3 w-3 text-gray-700" />
+                            </button>
+                          )}
+                          <div
+                            className={`aspect-square bg-gray-100 overflow-hidden relative ${canViewFullScreen ? 'cursor-pointer' : ''}`}
+                            onClick={() => {
+                              if (canViewFullScreen) setFullScreenImage({ image, albumId: album.id, index });
+                            }}
+                          >
                             {canViewFullScreen ? (
                               <>
                                 <img
@@ -1500,6 +1632,7 @@ const PhotoStudioAlbum: React.FC = () => {
                       );
                     })}
                   </div>
+                  </>
                 ) : (
                   <div className="text-center py-16 text-gray-500">
                     <FaImages className="mx-auto mb-3 text-5xl text-gray-300" />
@@ -1516,6 +1649,97 @@ const PhotoStudioAlbum: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Sticky action bar – appears when photos are selected */}
+              {selectedPhotoIds.size > 0 && (
+                <div className="sticky bottom-4 z-40 mx-auto max-w-xl">
+                  <div className="bg-white border border-[#2731db] rounded-2xl shadow-xl px-5 py-3 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {selectedPhotoIds.size} photo{selectedPhotoIds.size !== 1 ? 's' : ''} selected
+                      </p>
+                      <p className="text-xs text-gray-500">Share or download selected photos</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      <button
+                        type="button"
+                        onClick={clearPhotoSelection}
+                        className="px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-sm hover:bg-gray-50"
+                      >
+                        Clear
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isDownloadingZip}
+                        onClick={() => downloadImagesAsZip(selectedPhotoImages, album.name || 'photos')}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {isDownloadingZip ? <FaSpinner className="h-3.5 w-3.5 animate-spin" /> : <FaDownload className="h-3.5 w-3.5" />}
+                        Download
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowPhotoShareModal(true)}
+                        className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#2731db] text-white text-sm font-semibold hover:bg-blue-700"
+                      >
+                        <FaShare className="h-3.5 w-3.5" />
+                        Share Photos
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Photo Share Modal */}
+              <PublicShareModal
+                isOpen={showPhotoShareModal}
+                onClose={() => setShowPhotoShareModal(false)}
+                contacts={photoShareContacts}
+                contactSearch={photoShareContactSearch}
+                onContactSearchChange={setPhotoShareContactSearch}
+                selectedContactIds={photoShareContactIds}
+                onSelectedContactIdsChange={setPhotoShareContactIds}
+                showEmail={true}
+                showPhone={true}
+                newEmails={photoShareNewEmails}
+                onNewEmailsChange={setPhotoShareNewEmails}
+                mobileCountryCode={photoShareNewMobileCountryCode}
+                onMobileCountryCodeChange={setPhotoShareNewMobileCountryCode}
+                newMobiles={photoShareNewMobiles}
+                onNewMobilesChange={setPhotoShareNewMobiles}
+                alreadySent={photoShareAlreadySent}
+                onAlreadySentChange={setPhotoShareAlreadySent}
+                message={photoShareMessage}
+                onMessageChange={setPhotoShareMessage}
+                channels={photoShareChannels}
+                onChannelsChange={setPhotoShareChannels}
+                onCheckRecipient={checkPhotoShareRecipient}
+                onSend={handlePhotoShareSend}
+                sending={photoShareSending}
+                labels={{
+                  title: `Share ${selectedPhotoIds.size} Photo${selectedPhotoIds.size !== 1 ? 's' : ''}`,
+                  existingContactsLabel: t('photoStudioAlbumPage.shareLinkExistingContacts'),
+                  searchContactsPlaceholder: t('photoStudioAlbumPage.shareLinkContactSearchPlaceholder'),
+                  noContactsYet: t('photoStudioAlbumPage.shareLinkNoContacts'),
+                  newRecipientsEmailLabel: t('photoStudioAlbumPage.shareLinkNewEmailsLabel'),
+                  emailPlaceholder: t('photoStudioAlbumPage.emailPlaceholderList'),
+                  newRecipientsMobileLabel: t('photoStudioAlbumPage.shareLinkNewMobilesLabel'),
+                  mobilePlaceholder: t('photoStudioAlbumPage.mobilePlaceholderList'),
+                  optionalMessageLabel: t('photoStudioAlbumPage.shareLinkOptionalMessage'),
+                  messagePlaceholder: t('photoStudioAlbumPage.shareLinkMessagePlaceholder'),
+                  sendViaEmailLabel: t('photoStudioAlbumPage.sendViaEmail'),
+                  sendViaSmsLabel: t('photoStudioAlbumPage.sendViaSms'),
+                  cancelLabel: t('photoStudioAlbumPage.cancel'),
+                  sendingLabel: t('photoStudioAlbumPage.shareLinkSendingBtn'),
+                  sendLabel: t('photoStudioAlbumPage.shareLinkSend'),
+                  alreadySentWarning: () =>
+                    photoShareAlreadySent?.email
+                      ? t('photoStudioAlbumPage.shareLinkAlreadySentEmail')
+                      : t('photoStudioAlbumPage.shareLinkAlreadySentMobile'),
+                  emailTypeLabel: '',
+                  mobileTypeLabel: '',
+                }}
+              />
             </div>
           );
         })()

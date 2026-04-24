@@ -1,11 +1,12 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, Link } from 'react-router-dom';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { FaImages, FaDownload, FaExclamationTriangle, FaTimes, FaExpandArrowsAlt } from 'react-icons/fa';
+import { FaImages, FaDownload, FaExclamationTriangle, FaTimes, FaExpandArrowsAlt, FaChevronLeft, FaChevronRight, FaSpinner } from 'react-icons/fa';
 import api from '../../api/client/axiosInstance';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { downloadSingleImage, downloadImagesAsZip } from '../../utils/downloadUtils';
 
 interface DisplayImage {
   id: number;
@@ -113,6 +114,9 @@ const PublicImagesDisplayPage: React.FC = () => {
   const [verifyInfoMessage, setVerifyInfoMessage] = useState('');
   const [verifyUserId, setVerifyUserId] = useState<string | null>(null);
   const [fullscreenImage, setFullscreenImage] = useState<DisplayImage | null>(null);
+  const [sliderIndex, setSliderIndex] = useState<number>(0);
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -328,6 +332,67 @@ const PublicImagesDisplayPage: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  // Open slider at a specific index
+  const openSlider = useCallback((img: DisplayImage) => {
+    const idx = images.findIndex((i) => i.id === img.id);
+    setSliderIndex(idx >= 0 ? idx : 0);
+    setFullscreenImage(img);
+  }, [images]);
+
+  const sliderPrev = useCallback(() => {
+    if (images.length === 0) return;
+    const newIdx = (sliderIndex - 1 + images.length) % images.length;
+    setSliderIndex(newIdx);
+    setFullscreenImage(images[newIdx]);
+  }, [images, sliderIndex]);
+
+  const sliderNext = useCallback(() => {
+    if (images.length === 0) return;
+    const newIdx = (sliderIndex + 1) % images.length;
+    setSliderIndex(newIdx);
+    setFullscreenImage(images[newIdx]);
+  }, [images, sliderIndex]);
+
+  // Keyboard navigation for slider
+  useEffect(() => {
+    if (!fullscreenImage) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') sliderPrev();
+      else if (e.key === 'ArrowRight') sliderNext();
+      else if (e.key === 'Escape') setFullscreenImage(null);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [fullscreenImage, sliderPrev, sliderNext]);
+
+  // Force-download a single image as blob
+  const handleForceDownload = useCallback(async (img: DisplayImage) => {
+    const url = img.downloadUrl || img.previewUrl || null;
+    if (!url) { toast.error(t('publicImagesDisplay.downloadNotAvailable')); return; }
+    setDownloadingId(img.id);
+    try {
+      await downloadSingleImage(url, getImageFilename(img));
+    } catch {
+      toast.error(t('publicImagesDisplay.downloadNotAvailable'));
+    } finally {
+      setDownloadingId(null);
+    }
+  }, [t]);
+
+  // Download all images as ZIP
+  const handleDownloadAll = useCallback(async () => {
+    if (images.length === 0) return;
+    setIsDownloadingAll(true);
+    try {
+      await downloadImagesAsZip(images, 'shared-photos');
+      toast.success(`Downloaded ${images.length} photos`);
+    } catch {
+      toast.error('Failed to download photos');
+    } finally {
+      setIsDownloadingAll(false);
+    }
+  }, [images]);
+
   if (!hasValidInput && !sidParam) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -475,13 +540,32 @@ const PublicImagesDisplayPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 px-4 py-8">
       <div className="max-w-6xl mx-auto">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-            <FaImages className="mr-3 text-[#2731db]" />
-            {t('publicImagesDisplay.titleSelected')}
-          </h1>
-          <p className="text-gray-600 mt-2 text-sm sm:text-base">
-            {t('publicImagesDisplay.photoCount', { count: images.length })}
-          </p>
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+                <FaImages className="mr-3 text-[#2731db]" />
+                {t('publicImagesDisplay.titleSelected')}
+              </h1>
+              <p className="text-gray-600 mt-2 text-sm sm:text-base">
+                {t('publicImagesDisplay.photoCount', { count: images.length })}
+              </p>
+            </div>
+            {images.length > 0 && (
+              <button
+                type="button"
+                onClick={handleDownloadAll}
+                disabled={isDownloadingAll}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#2731db] text-white font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+              >
+                {isDownloadingAll ? (
+                  <FaSpinner className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FaDownload className="h-4 w-4" />
+                )}
+                {isDownloadingAll ? 'Downloading...' : `Download All (${images.length})`}
+              </button>
+            )}
+          </div>
         </header>
 
         <main className="bg-white rounded-2xl shadow-lg border border-gray-100 p-5">
@@ -506,43 +590,38 @@ const PublicImagesDisplayPage: React.FC = () => {
                 const filename = getImageFilename(img);
                 const fileType = getFileType(img);
                 const canView = (thumbUrl || imageUrl) && /^(png|jpg|jpeg|gif|webp|MP4|mp4)$/i.test(fileType);
+                const isDownloadingThis = downloadingId === img.id;
                 return (
                   <div
                     key={img.id}
-                    className="rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all relative"
+                    className="rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all relative group"
                   >
                     <div className="h-48 bg-gray-100 overflow-hidden relative">
+                      {/* Expand / slide button */}
                       <button
                         type="button"
-                        onClick={() => setFullscreenImage(img)}
+                        onClick={() => openSlider(img)}
                         className="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-black/50 hover:bg-black/70 text-white flex items-center justify-center"
                         title={t('publicImagesDisplay.viewFullScreen')}
                       >
                         <FaExpandArrowsAlt className="text-sm" />
                       </button>
                       {canView ? (
-                        <>
-                       {fileType == 'mp4' && <video src={imageUrl}   
-                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
-                       controls
-                       muted
-                       playsInline
-                       preload="auto"
-                       onClick={() => setFullscreenImage(img)} />}
-
-                       {fileType !== 'mp4' && <img
-                        src={(thumbUrl || imageUrl)!}
-                        alt={filename}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
-                        onClick={() => setFullscreenImage(img)}
-                      />}
-                        {/* <img
-                          src={(thumbUrl || imageUrl)!}
-                          alt={filename}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
-                          onClick={() => setFullscreenImage(img)}
-                        /> */}
-                        </>
+                        fileType === 'mp4' ? (
+                          <video
+                            src={imageUrl!}
+                            className="w-full h-full object-cover cursor-pointer"
+                            controls muted playsInline preload="auto"
+                            onClick={() => openSlider(img)}
+                          />
+                        ) : (
+                          <img
+                            src={(thumbUrl || imageUrl)!}
+                            alt={filename}
+                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
+                            onClick={() => openSlider(img)}
+                          />
+                        )
                       ) : (
                         <div className="flex items-center justify-center h-full text-gray-500 text-sm">
                           {fileType.toUpperCase()}
@@ -558,16 +637,21 @@ const PublicImagesDisplayPage: React.FC = () => {
                           {new Date(img.uploadTime).toLocaleString()}
                         </p>
                       )}
-                      {/* <div className="mt-3 flex items-center justify-between">
-                        <span className="text-xs text-gray-500">{fileType.toUpperCase()}</span>
+                      <div className="mt-2 flex items-center justify-end">
                         <button
                           type="button"
-                          onClick={() => handleDownload(img)}
-                          className="inline-flex items-center px-2 py-1 text-xs rounded-md bg-[#2731db] text-white hover:bg-blue-800"
+                          onClick={() => handleForceDownload(img)}
+                          disabled={isDownloadingThis}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-[#2731db] text-white hover:bg-blue-800 disabled:opacity-60"
                         >
-                          <FaDownload className="mr-1" /> Download
+                          {isDownloadingThis ? (
+                            <FaSpinner className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <FaDownload className="h-3 w-3" />
+                          )}
+                          Download
                         </button>
-                      </div> */}
+                      </div>
                     </div>
                   </div>
                 );
@@ -583,42 +667,123 @@ const PublicImagesDisplayPage: React.FC = () => {
           )}
         </main>
 
+        {/* Image Slider / Lightbox */}
         {fullscreenImage && (
           <div
-            className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4"
-            onClick={() => setFullscreenImage(null)}
+            className="fixed inset-0 z-[100] bg-black/95 flex flex-col"
             role="dialog"
             aria-modal="true"
-            aria-label={t('publicImagesDisplay.fullscreenDialogLabel')}
           >
-            <button
-              type="button"
-              onClick={() => setFullscreenImage(null)}
-              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center"
-              aria-label={t('publicImagesDisplay.close')}
-            >
-              <FaTimes className="text-xl" />
-            </button>
-            <div
-              className="max-w-[90vw] max-h-[90vh] flex items-center justify-center"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {getImageUrl(fullscreenImage) ? (
-                <>
-                 <img
-                   src={getImageUrl(fullscreenImage)!}
-                   alt={getImageFilename(fullscreenImage)}
-                   className="max-w-full max-h-[90vh] w-auto h-auto object-contain"
-                   onClick={(e) => e.stopPropagation()}
-                 />
-                </>
-              ) : (
-                <p className="text-white">{t('publicImagesDisplay.imageNotAvailable')}</p>
+            {/* Top bar */}
+            <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
+              <p className="text-white/70 text-sm">
+                {sliderIndex + 1} / {images.length}
+              </p>
+              <p className="text-white text-sm font-medium truncate max-w-[50vw]">
+                {getImageFilename(fullscreenImage)}
+              </p>
+              <div className="flex items-center gap-2">
+                {/* Download current image */}
+                <button
+                  type="button"
+                  onClick={() => handleForceDownload(fullscreenImage)}
+                  disabled={downloadingId === fullscreenImage.id}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-sm disabled:opacity-50"
+                  title="Download this photo"
+                >
+                  {downloadingId === fullscreenImage.id ? (
+                    <FaSpinner className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <FaDownload className="h-3.5 w-3.5" />
+                  )}
+                  Download
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFullscreenImage(null)}
+                  className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center"
+                  aria-label={t('publicImagesDisplay.close')}
+                >
+                  <FaTimes className="text-lg" />
+                </button>
+              </div>
+            </div>
+
+            {/* Main image area */}
+            <div className="flex-1 flex items-center justify-center relative min-h-0 px-14">
+              {/* Prev */}
+              {images.length > 1 && (
+                <button
+                  type="button"
+                  onClick={sliderPrev}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center z-10"
+                  aria-label="Previous"
+                >
+                  <FaChevronLeft className="text-lg" />
+                </button>
+              )}
+
+              <div className="max-w-[85vw] max-h-[80vh] flex items-center justify-center">
+                {getImageUrl(fullscreenImage) ? (
+                  getFileType(fullscreenImage) === 'mp4' ? (
+                    <video
+                      key={fullscreenImage.id}
+                      src={getImageUrl(fullscreenImage)!}
+                      className="max-w-full max-h-[80vh] rounded-lg"
+                      controls autoPlay muted playsInline
+                    />
+                  ) : (
+                    <img
+                      key={fullscreenImage.id}
+                      src={getImageUrl(fullscreenImage)!}
+                      alt={getImageFilename(fullscreenImage)}
+                      className="max-w-full max-h-[80vh] w-auto h-auto object-contain rounded-lg"
+                    />
+                  )
+                ) : (
+                  <p className="text-white">{t('publicImagesDisplay.imageNotAvailable')}</p>
+                )}
+              </div>
+
+              {/* Next */}
+              {images.length > 1 && (
+                <button
+                  type="button"
+                  onClick={sliderNext}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center z-10"
+                  aria-label="Next"
+                >
+                  <FaChevronRight className="text-lg" />
+                </button>
               )}
             </div>
-            <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-sm truncate max-w-[90vw]">
-              {getImageFilename(fullscreenImage)}
-            </p>
+
+            {/* Thumbnail strip */}
+            {images.length > 1 && (
+              <div className="flex-shrink-0 flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide">
+                {images.map((img, idx) => {
+                  const thumb = getThumbnailUrl(img) || getImageUrl(img);
+                  return (
+                    <button
+                      key={img.id}
+                      type="button"
+                      onClick={() => { setSliderIndex(idx); setFullscreenImage(img); }}
+                      className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
+                        idx === sliderIndex ? 'border-white opacity-100' : 'border-transparent opacity-50 hover:opacity-80'
+                      }`}
+                    >
+                      {thumb ? (
+                        <img src={thumb} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-white/20 flex items-center justify-center text-white text-xs">
+                          {idx + 1}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
