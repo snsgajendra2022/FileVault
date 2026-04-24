@@ -193,7 +193,7 @@ const PhotoStudioAlbum: React.FC = () => {
   const [photoShareNewMobileCountryCode, setPhotoShareNewMobileCountryCode] = useState('+91');
   const [photoShareNewMobiles, setPhotoShareNewMobiles] = useState('');
   const [photoShareMessage, setPhotoShareMessage] = useState('');
-  const [photoShareChannels, setPhotoShareChannels] = useState<{ email: boolean; sms: boolean }>({ email: true, sms: true });
+  const [photoShareChannels, setPhotoShareChannels] = useState<{ email: boolean; sms: boolean }>({ email: false, sms: false });
   const [photoShareSending, setPhotoShareSending] = useState(false);
   const [photoShareContactSearch, setPhotoShareContactSearch] = useState('');
   const [photoShareAlreadySent, setPhotoShareAlreadySent] = useState<{ email?: string; mobile?: string; alreadySent: boolean } | null>(null);
@@ -224,7 +224,7 @@ const PhotoStudioAlbum: React.FC = () => {
   const [shareLinkNewMobileCountryCode, setShareLinkNewMobileCountryCode] = useState('+91');
   const [shareLinkNewMobiles, setShareLinkNewMobiles] = useState('');
   const [shareLinkMessage, setShareLinkMessage] = useState('');
-  const [shareLinkChannels, setShareLinkChannels] = useState<{ email: boolean; sms: boolean }>({ email: true, sms: true });
+  const [shareLinkChannels, setShareLinkChannels] = useState<{ email: boolean; sms: boolean }>({ email: false, sms: false });
   const [shareLinkUrlType, setShareLinkUrlType] = useState<'checkout' | 'selection' | 'images_display'>('selection');
   const [shareLinkSending, setShareLinkSending] = useState(false);
   const [shareLinkContactSearch, setShareLinkContactSearch] = useState('');
@@ -1526,7 +1526,8 @@ const PhotoStudioAlbum: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
+      {/* Header – hidden when viewing a single album */}
+      {viewingAlbumId === null && (
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center">
@@ -1586,6 +1587,7 @@ const PhotoStudioAlbum: React.FC = () => {
           </button>
         </div>
       </div>
+      )}
 
       {/* Share link modal – send public URL to contacts / email / SMS (same as StudioCheckout) */}
       <PublicShareModal
@@ -1676,20 +1678,6 @@ const PhotoStudioAlbum: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => downloadImagesAsZip(images, album.name || 'album')}
-                    disabled={images.length === 0 || isDownloadingZip}
-                    className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-800 hover:bg-gray-50 text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-                    title={t('photoStudioAlbumPage.downloadZipTitle')}
-                  >
-                    {isDownloadingZip ? (
-                      <FaSpinner className="mr-1 inline animate-spin" />
-                    ) : (
-                      <FaDownload className="mr-1 inline" />
-                    )}
-                    {t('photoStudioAlbumPage.downloadZip')}
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => { setSelectedImages(new Set()); setShowAddImagesModal(album.id); }}
                     className="px-4 py-2 rounded-xl bg-[#2731db] text-white hover:bg-blue-700 text-sm font-medium"
                   >
@@ -1763,7 +1751,7 @@ const PhotoStudioAlbum: React.FC = () => {
                       >
                         {isEditingSharedImages ? 'Stop editing shared images' : 'Edit shared images'}
                       </button>
-                      <button
+                      {/* <button
                         type="button"
                         disabled={shareManageLoading || images.length === 0}
                         onClick={async () => {
@@ -1799,7 +1787,7 @@ const PhotoStudioAlbum: React.FC = () => {
                         className="px-4 py-2 rounded-xl border border-gray-200 text-gray-800 hover:bg-gray-50 text-sm font-medium disabled:opacity-60"
                       >
                         {shareManageLoading ? 'Creating…' : 'Create new link'}
-                      </button>
+                      </button> */}
                       {isEditingSharedImages && (
                         <button
                           type="button"
@@ -1831,7 +1819,7 @@ const PhotoStudioAlbum: React.FC = () => {
                   )}
                   {!selectedShareAlbum && (
                     <div className="flex items-center gap-2">
-                      <button
+                      {/* <button
                         type="button"
                         disabled={shareManageLoading || images.length === 0}
                         onClick={async () => {
@@ -1868,7 +1856,7 @@ const PhotoStudioAlbum: React.FC = () => {
                         className="px-4 py-2 rounded-xl bg-[#2731db] text-white hover:bg-blue-700 text-sm font-medium disabled:opacity-60"
                       >
                         {shareManageLoading ? 'Creating…' : 'Create shared link'}
-                      </button>
+                      </button> */}
                     </div>
                   )}
                 </div>
