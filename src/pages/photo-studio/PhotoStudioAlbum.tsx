@@ -214,6 +214,8 @@ const PhotoStudioAlbum: React.FC = () => {
   const [isEditingSharedImages, setIsEditingSharedImages] = useState(false);
   const [savingSharedImages, setSavingSharedImages] = useState(false);
   const [sharedImagesOnly, setSharedImagesOnly] = useState(false);
+  const [shareRecipientEmail, setShareRecipientEmail] = useState('');
+  const [addingRecipient, setAddingRecipient] = useState(false);
 
   // Share link modal (public URL – send to contacts / email / SMS, same as StudioCheckout)
   const [showShareLinkModal, setShowShareLinkModal] = useState(false);
@@ -1891,6 +1893,60 @@ const PhotoStudioAlbum: React.FC = () => {
                           ) : null}
                         </ul>
                       )}
+
+                      <div className="mt-3 flex items-center gap-2">
+                        <input
+                          type="email"
+                          value={shareRecipientEmail}
+                          onChange={(e) => setShareRecipientEmail(e.target.value)}
+                          placeholder="Add recipient email"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900"
+                        />
+                        <button
+                          type="button"
+                          disabled={addingRecipient || !shareRecipientEmail.trim()}
+                          onClick={async () => {
+                            if (!selectedShareAlbum) return;
+                            const email = shareRecipientEmail.trim();
+                            if (!email) return;
+                            setAddingRecipient(true);
+                            try {
+                              const urlToShare = `${baseUrl}/public/images-display?token=${encodeURIComponent(tokenForUrl)}&albumToken=${encodeURIComponent(selectedShareAlbum.token)}`;
+                              const res = await api.post<{ success?: boolean; sent?: { email?: number; sms?: number } }>(
+                                '/api/public-share/send',
+                                {
+                                  publicUrl: urlToShare,
+                                  message: undefined,
+                                  shareAlbumId: selectedShareAlbum.shareAlbumId,
+                                  sendTo: { contactIds: [], emails: [email], mobiles: [] },
+                                  albumName: album?.name ?? 'Album',
+                                  channels: ['email'],
+                                }
+                              );
+                              if (res.data?.success) {
+                                toast.success('Recipient added');
+                                setShareRecipientEmail('');
+                                // Refresh recipients list
+                                try {
+                                  const rec = await api.get<{ recipients?: { recipientEmail?: string | null; recipientMobile?: string | null }[] }>(
+                                    `/api/public-share/albums/${selectedShareAlbum.shareAlbumId}/recipients`
+                                  );
+                                  setShareRecipients(Array.isArray(rec.data?.recipients) ? rec.data.recipients : []);
+                                } catch {}
+                              } else {
+                                toast.error('Failed to add recipient');
+                              }
+                            } catch {
+                              toast.error('Failed to add recipient');
+                            } finally {
+                              setAddingRecipient(false);
+                            }
+                          }}
+                          className="shrink-0 px-3 py-2 rounded-xl bg-[#111827] text-white hover:bg-slate-800 text-sm font-medium disabled:opacity-60"
+                        >
+                          {addingRecipient ? 'Adding…' : 'Add'}
+                        </button>
+                      </div>
                     </div>
                     <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                       <div className="text-xs font-semibold text-gray-700">Current shared images</div>
