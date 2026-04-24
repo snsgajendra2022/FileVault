@@ -198,6 +198,23 @@ const PhotoStudioAlbum: React.FC = () => {
   const [photoShareContactSearch, setPhotoShareContactSearch] = useState('');
   const [photoShareAlreadySent, setPhotoShareAlreadySent] = useState<{ email?: string; mobile?: string; alreadySent: boolean } | null>(null);
 
+  // Share-album management (same link updates)
+  const [shareAlbums, setShareAlbums] = useState<
+    { shareAlbumId: number; token: string; status?: string | null; createdAt?: string | null }[]
+  >([]);
+  const [selectedShareAlbumId, setSelectedShareAlbumId] = useState<number | null>(null);
+  const selectedShareAlbum = useMemo(() => {
+    if (!selectedShareAlbumId) return null;
+    return shareAlbums.find((a) => a.shareAlbumId === selectedShareAlbumId) ?? null;
+  }, [shareAlbums, selectedShareAlbumId]);
+  const [shareRecipients, setShareRecipients] = useState<{ recipientEmail?: string | null; recipientMobile?: string | null }[]>([]);
+  const [shareManageLoading, setShareManageLoading] = useState(false);
+  const [shareManageError, setShareManageError] = useState<string | null>(null);
+  const [sharedImageIds, setSharedImageIds] = useState<Set<number>>(new Set());
+  const [isEditingSharedImages, setIsEditingSharedImages] = useState(false);
+  const [savingSharedImages, setSavingSharedImages] = useState(false);
+  const [sharedImagesOnly, setSharedImagesOnly] = useState(false);
+
   // Share link modal (public URL – send to contacts / email / SMS, same as StudioCheckout)
   const [showShareLinkModal, setShowShareLinkModal] = useState(false);
   const [shareLinkContactIds, setShareLinkContactIds] = useState<Set<string>>(new Set());
@@ -845,6 +862,10 @@ const PhotoStudioAlbum: React.FC = () => {
   const shareLinkSingleAlbumId = selectedAlbums.size === 1 ? Array.from(selectedAlbums)[0] : null;
   const shareLinkAlbumIdQuery = shareLinkSingleAlbumId != null ? `&albumId=${shareLinkSingleAlbumId}` : '';
 
+  // DB-backed share album token for images-display links (lets us modify images later by creating a new link)
+  const [shareLinkAlbumToken, setShareLinkAlbumToken] = useState<string | null>(null);
+  const [shareLinkAlbumTokenLoading, setShareLinkAlbumTokenLoading] = useState(false);
+
   const longPublicSelectionUrl = useMemo(() => {
     if (shareLinkSelectedImages.length === 0) return '';
     const fileNames = shareLinkSelectedImages.map((img) => getImageFilename(img)).join(',');
@@ -890,11 +911,146 @@ const PhotoStudioAlbum: React.FC = () => {
     ? `${baseUrl}/public/selection?sid=${encodeURIComponent(shareLinkId)}`
     : longPublicSelectionUrl;
 
+  // Create a DB-backed share album for the selected images (only needed for images-display links).
+  useEffect(() => {
+    if (shareLinkSelectedImages.length === 0) {
+      setShareLinkAlbumToken(null);
+      setShareLinkAlbumTokenLoading(false);
+      return;
+    }
+    // Important UX rule:
+    // - Only create/maintain a stable albumToken when the selection belongs to EXACTLY one studio album.
+    // - For multi-album selections, fall back to the old imageIds link to avoid generating extra tokens.
+    if (!shareLinkSingleAlbumId) {
+      setShareLinkAlbumToken(null);
+      setShareLinkAlbumTokenLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setShareLinkAlbumTokenLoading(true);
+    const imageIds = shareLinkSelectedImages.map((img) => img.id);
+    api
+      .post<{ token?: string; shareAlbumId?: number }>('/api/public-share/albums', {
+        imageIds,
+        sourceAlbumId: shareLinkSingleAlbumId,
+        title: albums.find((a) => a.id === shareLinkSingleAlbumId)?.name ?? undefined,
+      })
+      .then((res) => {
+        const tok = res.data?.token ?? null;
+        if (!cancelled) setShareLinkAlbumToken(tok);
+      })
+      .catch(() => {
+        if (!cancelled) setShareLinkAlbumToken(null);
+      })
+      .finally(() => {
+        if (!cancelled) setShareLinkAlbumTokenLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shareLinkSelectedImages, shareLinkSingleAlbumId, albums]);
+
+  // When we create a DB-backed share album for selected albums, tag it with sourceAlbumId if exactly one album selected.
+  // (this enables “manage share from inside album” UX)
+
+  // When viewing a single studio album, load its latest share album (if any) and recipients.
+  useEffect(() => {
+    if (viewingAlbumId == null) {
+      setShareAlbums([]);
+      setSelectedShareAlbumId(null);
+      setShareRecipients([]);
+      setSharedImageIds(new Set());
+      setIsEditingSharedImages(false);
+      setShareManageError(null);
+      return;
+    }
+    let cancelled = false;
+    setShareManageLoading(true);
+    setShareManageError(null);
+    api
+      .get<{ albums?: any[] }>(`/api/public-share/albums/source/list`, { params: { albumId: viewingAlbumId } })
+      .then(async (res) => {
+        if (cancelled) return;
+        const items = Array.isArray(res.data?.albums) ? res.data.albums : [];
+        const mapped = items
+          .map((a) => ({
+            shareAlbumId: Number(a.shareAlbumId ?? 0),
+            token: String(a.token ?? ''),
+            status: a.status ?? null,
+            createdAt: a.createdAt ?? null,
+          }))
+          .filter((a) => a.shareAlbumId > 0 && a.token);
+        setShareAlbums(mapped);
+        const defaultSelected = mapped.find((a) => String(a.status ?? '').toUpperCase() === 'ACTIVE') ?? mapped[0] ?? null;
+        setSelectedShareAlbumId(defaultSelected ? defaultSelected.shareAlbumId : null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setShareAlbums([]);
+          setSelectedShareAlbumId(null);
+          setShareRecipients([]);
+          setSharedImageIds(new Set());
+          setShareManageError('Could not load share info');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setShareManageLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [viewingAlbumId]);
+
+  // When selected share link changes, load its recipients and current shared images.
+  useEffect(() => {
+    if (!selectedShareAlbum || !selectedShareAlbumId) {
+      setShareRecipients([]);
+      setSharedImageIds(new Set());
+      setIsEditingSharedImages(false);
+      return;
+    }
+    let cancelled = false;
+    const shareAlbumId = selectedShareAlbumId;
+    const token = selectedShareAlbum.token;
+
+    (async () => {
+      // Resolve current image ids for marking selections.
+      try {
+        const resolved = await api.get<{ imageIds?: number[] }>(`/api/public-share/albums/${shareAlbumId}/resolve`);
+        const ids = Array.isArray(resolved.data?.imageIds)
+          ? resolved.data.imageIds.map((x) => Number(x)).filter((n) => !isNaN(n))
+          : [];
+        if (!cancelled) setSharedImageIds(new Set(ids));
+      } catch {
+        if (!cancelled) setSharedImageIds(new Set());
+      }
+
+      // Load recipients list
+      try {
+        const rec = await api.get<{ recipients?: { recipientEmail?: string | null; recipientMobile?: string | null }[] }>(
+          `/api/public-share/albums/${shareAlbumId}/recipients`
+        );
+        if (!cancelled) setShareRecipients(Array.isArray(rec.data?.recipients) ? rec.data.recipients : []);
+      } catch {
+        if (!cancelled) setShareRecipients([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedShareAlbum, selectedShareAlbumId]);
+
   const publicImagesDisplayUrl = useMemo(() => {
     if (shareLinkSelectedImages.length === 0) return '';
+    if (shareLinkAlbumTokenLoading) return '';
+    if (shareLinkAlbumToken) {
+      return `${baseUrl}/public/images-display?token=${encodeURIComponent(tokenForUrl)}&albumToken=${encodeURIComponent(shareLinkAlbumToken)}`;
+    }
+    // Fallback: old link style (keeps the page working if album-token creation fails)
     const ids = shareLinkSelectedImages.map((img) => img.id).join(',');
     return `${baseUrl}/public/images-display?token=${encodeURIComponent(tokenForUrl)}&imageIds=${ids}`;
-  }, [shareLinkSelectedImages, tokenForUrl, baseUrl]);
+  }, [shareLinkSelectedImages, tokenForUrl, baseUrl, shareLinkAlbumToken, shareLinkAlbumTokenLoading]);
 
   const copyToClipboard = useCallback((text: string) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
@@ -1128,8 +1284,10 @@ const PhotoStudioAlbum: React.FC = () => {
   // Generate public images-display URL for selected photos (view-only, no payment)
   const photoSharePublicUrl = useMemo(() => {
     if (selectedPhotoImages.length === 0) return '';
-    const ids = selectedPhotoImages.map((img) => img.id).join(',');
-    return `${baseUrl}/public/images-display?token=${encodeURIComponent(tokenForUrl)}&imageIds=${ids}`;
+    const ids = selectedPhotoImages.map((img) => img.id);
+    // For per-photo share we can also use a DB-backed album; create on-demand when sending (below).
+    // Here we keep the old URL shape as a fallback/preview.
+    return `${baseUrl}/public/images-display?token=${encodeURIComponent(tokenForUrl)}&imageIds=${ids.join(',')}`;
   }, [selectedPhotoImages, baseUrl, tokenForUrl]);
 
   // Fetch contacts for photo share modal (reuse same endpoint)
@@ -1186,6 +1344,27 @@ const PhotoStudioAlbum: React.FC = () => {
 
   const handlePhotoShareSend = useCallback(async () => {
     if (!photoSharePublicUrl) { toast.error(t('photoStudioAlbumPage.toastNoUrl')); return; }
+    // Prefer DB-backed albumToken link so the host can update image list later.
+    let urlToShare = photoSharePublicUrl;
+    let shareAlbumIdForSend: number | undefined;
+    try {
+      const imageIds = selectedPhotoImages.map((img) => img.id).filter((id) => typeof id === 'number' && id > 0);
+      if (imageIds.length > 0) {
+        const resAlbum = await api.post<{ token?: string; shareAlbumId?: number }>('/api/public-share/albums', {
+          imageIds,
+          sourceAlbumId: viewingAlbumId ?? undefined,
+          title: albums.find((a) => a.id === viewingAlbumId)?.name ?? undefined,
+        });
+        const tok = resAlbum.data?.token;
+        const shareAlbumId = Number(resAlbum.data?.shareAlbumId ?? 0);
+        if (tok && shareAlbumId) {
+          shareAlbumIdForSend = shareAlbumId;
+          urlToShare = `${baseUrl}/public/images-display?token=${encodeURIComponent(tokenForUrl)}&albumToken=${encodeURIComponent(tok)}`;
+        }
+      }
+    } catch {
+      // Keep fallback urlToShare (imageIds=...) if creation fails.
+    }
     const emails = photoShareNewEmails.split(/[\s,]+/).map((e) => e.trim()).filter(Boolean);
     const mobileParts = photoShareNewMobiles.split(/[\s,]+/).map((m) => m.trim()).filter(Boolean);
     const mobiles = mobileParts.map((part) => (part.startsWith('+') ? part : `${photoShareNewMobileCountryCode.replace(/\s/g, '')}${part}`));
@@ -1197,8 +1376,9 @@ const PhotoStudioAlbum: React.FC = () => {
     setPhotoShareSending(true);
     try {
       const res = await api.post<{ success?: boolean; sent?: { email?: number; sms?: number } }>('/api/public-share/send', {
-        publicUrl: photoSharePublicUrl,
+        publicUrl: urlToShare,
         message: photoShareMessage.trim() || undefined,
+        shareAlbumId: shareAlbumIdForSend,
         sendTo: { contactIds: Array.from(photoShareContactIds), emails, mobiles },
         albumName: albums.find((a) => a.id === viewingAlbumId)?.name ?? 'Album',
         channels,
@@ -1215,7 +1395,7 @@ const PhotoStudioAlbum: React.FC = () => {
     } catch (err: any) {
       toast.error(err.response?.data?.message || t('photoStudioAlbumPage.toastFailedSendShare'));
     } finally { setPhotoShareSending(false); }
-  }, [photoSharePublicUrl, photoShareNewEmails, photoShareNewMobiles, photoShareNewMobileCountryCode, photoShareContactIds, photoShareChannels, photoShareMessage, t, albums, viewingAlbumId]);
+  }, [photoSharePublicUrl, photoShareNewEmails, photoShareNewMobiles, photoShareNewMobileCountryCode, photoShareContactIds, photoShareChannels, photoShareMessage, t, albums, viewingAlbumId, selectedPhotoImages, baseUrl, tokenForUrl]);
 
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -1525,6 +1705,208 @@ const PhotoStudioAlbum: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* Share management panel (one link shared to many recipients) */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Shared link</h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {selectedShareAlbum
+                        ? 'This album is shared. You can add/remove images and the same link will show updates.'
+                        : 'This album is not shared yet.'}
+                    </p>
+                    {shareAlbums.length > 0 && (
+                      <div className="mt-3">
+                        <div className="text-xs font-semibold text-gray-700">Select share link</div>
+                        <select
+                          className="mt-1 w-full max-w-[520px] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900"
+                          value={selectedShareAlbumId ?? ''}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            setSelectedShareAlbumId(!isNaN(v) && v > 0 ? v : null);
+                            setIsEditingSharedImages(false);
+                          }}
+                        >
+                          {shareAlbums.map((a) => (
+                            <option key={a.shareAlbumId} value={a.shareAlbumId}>
+                              {a.status ? `${String(a.status).toUpperCase()} • ` : ''}
+                              {a.token}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {shareManageError && (
+                      <p className="mt-2 text-sm text-red-600">{shareManageError}</p>
+                    )}
+                  </div>
+                  {selectedShareAlbum && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingSharedImages((v) => {
+                            const next = !v;
+                            if (next) {
+                              // When entering edit mode, preselect previously shared images
+                              // so the user never accidentally loses existing shared selection.
+                              setSelectedPhotoIds(new Set(Array.from(sharedImageIds)));
+                              setSharedImagesOnly(false);
+                            }
+                            return next;
+                          });
+                        }}
+                        className="px-4 py-2 rounded-xl border border-gray-200 text-gray-800 hover:bg-gray-50 text-sm font-medium"
+                      >
+                        {isEditingSharedImages ? 'Stop editing shared images' : 'Edit shared images'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={shareManageLoading || images.length === 0}
+                        onClick={async () => {
+                          setShareManageError(null);
+                          setShareManageLoading(true);
+                          try {
+                            const imageIds = images
+                              .map((img) => img.id)
+                              .filter((id) => typeof id === 'number' && id > 0);
+                            if (imageIds.length === 0) {
+                              toast.error('No images in album');
+                              return;
+                            }
+                            const res = await api.post<{ shareAlbumId?: number; token?: string }>(
+                              '/api/public-share/albums',
+                              { imageIds, sourceAlbumId: album.id, title: album.name }
+                            );
+                            const shareAlbumId = Number(res.data?.shareAlbumId ?? 0);
+                            const token = String(res.data?.token ?? '');
+                            if (shareAlbumId && token) {
+                              setShareAlbums((prev) => [{ shareAlbumId, token, status: 'ACTIVE', createdAt: null }, ...prev]);
+                              setSelectedShareAlbumId(shareAlbumId);
+                              toast.success('New share link created');
+                            } else {
+                              toast.error('Could not create new share link');
+                            }
+                          } catch {
+                            toast.error('Could not create new share link');
+                          } finally {
+                            setShareManageLoading(false);
+                          }
+                        }}
+                        className="px-4 py-2 rounded-xl border border-gray-200 text-gray-800 hover:bg-gray-50 text-sm font-medium disabled:opacity-60"
+                      >
+                        {shareManageLoading ? 'Creating…' : 'Create new link'}
+                      </button>
+                      {isEditingSharedImages && (
+                        <button
+                          type="button"
+                          disabled={savingSharedImages}
+                          onClick={async () => {
+                            if (!selectedShareAlbum) return;
+                            setSavingSharedImages(true);
+                            try {
+                              const ids = Array.from(selectedPhotoIds);
+                              if (ids.length === 0) {
+                                toast.error('Select at least 1 image to share');
+                                return;
+                              }
+                              await api.put(`/api/public-share/albums/${selectedShareAlbum.shareAlbumId}/images`, { imageIds: ids });
+                              setSharedImageIds(new Set(ids));
+                              toast.success('Shared images updated');
+                            } catch {
+                              toast.error('Failed to update shared images');
+                            } finally {
+                              setSavingSharedImages(false);
+                            }
+                          }}
+                          className="px-4 py-2 rounded-xl bg-[#2731db] text-white hover:bg-blue-700 text-sm font-medium disabled:opacity-60"
+                        >
+                          {savingSharedImages ? 'Saving…' : 'Save shared images'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {!selectedShareAlbum && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={shareManageLoading || images.length === 0}
+                        onClick={async () => {
+                          setShareManageError(null);
+                          setShareManageLoading(true);
+                          try {
+                            const imageIds = images
+                              .map((img) => img.id)
+                              .filter((id) => typeof id === 'number' && id > 0);
+                            if (imageIds.length === 0) {
+                              toast.error('No images in album');
+                              return;
+                            }
+                            const res = await api.post<{ shareAlbumId?: number; token?: string }>(
+                              '/api/public-share/albums',
+                              { imageIds, sourceAlbumId: album.id, title: album.name }
+                            );
+                            const shareAlbumId = Number(res.data?.shareAlbumId ?? 0);
+                            const token = String(res.data?.token ?? '');
+                            if (shareAlbumId && token) {
+                              setShareAlbums([{ shareAlbumId, token, status: 'ACTIVE', createdAt: null }]);
+                              setSelectedShareAlbumId(shareAlbumId);
+                              setSharedImageIds(new Set(imageIds));
+                              toast.success('Shared link created');
+                            } else {
+                              toast.error('Could not create shared link');
+                            }
+                          } catch {
+                            toast.error('Could not create shared link');
+                          } finally {
+                            setShareManageLoading(false);
+                          }
+                        }}
+                        className="px-4 py-2 rounded-xl bg-[#2731db] text-white hover:bg-blue-700 text-sm font-medium disabled:opacity-60"
+                      >
+                        {shareManageLoading ? 'Creating…' : 'Create shared link'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {selectedShareAlbum && (
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                      <div className="text-xs font-semibold text-gray-700">Shared with</div>
+                      {shareManageLoading ? (
+                        <div className="mt-2 text-sm text-gray-500">Loading…</div>
+                      ) : shareRecipients.length === 0 ? (
+                        <div className="mt-2 text-sm text-gray-500">No recipients found for this link yet.</div>
+                      ) : (
+                        <ul className="mt-2 space-y-1 text-sm text-gray-800">
+                          {shareRecipients.slice(0, 8).map((r, idx) => (
+                            <li key={idx} className="truncate">
+                              {r.recipientEmail || r.recipientMobile || '—'}
+                            </li>
+                          ))}
+                          {shareRecipients.length > 8 ? (
+                            <li className="text-xs text-gray-500">+{shareRecipients.length - 8} more</li>
+                          ) : null}
+                        </ul>
+                      )}
+                    </div>
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                      <div className="text-xs font-semibold text-gray-700">Current shared images</div>
+                      <div className="mt-2 text-sm text-gray-800">
+                        {sharedImageIds.size} images in the shared link
+                      </div>
+                      {isEditingSharedImages && (
+                        <div className="mt-2 text-xs text-gray-600">
+                          Tip: select/unselect photos below, then click “Save shared images”.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 {images.length > 0 ? (
                   <>
@@ -1536,6 +1918,20 @@ const PhotoStudioAlbum: React.FC = () => {
                           : `${images.length} ${images.length === 1 ? t('photoStudioAlbumPage.photo') : t('photoStudioAlbumPage.photos')}`}
                       </p>
                       <div className="flex items-center gap-3">
+                        {selectedShareAlbum && isEditingSharedImages && (
+                          <button
+                            type="button"
+                            onClick={() => setSharedImagesOnly((v) => !v)}
+                            className={`text-sm font-medium px-3 py-1.5 rounded-lg border ${
+                              sharedImagesOnly
+                                ? 'border-[#2731db] text-[#2731db] bg-indigo-50'
+                                : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                            }`}
+                            title="Filter to previously shared images"
+                          >
+                            {sharedImagesOnly ? 'Showing shared only' : 'Filter: shared only'}
+                          </button>
+                        )}
                         {selectedPhotoIds.size > 0 && (
                           <button
                             type="button"
@@ -1559,13 +1955,14 @@ const PhotoStudioAlbum: React.FC = () => {
                       </div>
                     </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {images.map((image, index) => {
+                    {(sharedImagesOnly ? images.filter((img) => sharedImageIds.has(img.id)) : images).map((image, index) => {
                       const imageUrl = getImageUrl(image);
                       const thumbUrl = getThumbnailUrl(image);
                       const fileType = getFileType(image);
                       const filename = getImageFilename(image);
                       const canViewFullScreen = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
                       const isPhotoSelected = selectedPhotoIds.has(image.id);
+                      const isShared = sharedImageIds.has(image.id);
                       const downloadUrl = image.downloadUrl || image.previewUrl || imageUrl;
                       return (
                         <div
@@ -1574,6 +1971,12 @@ const PhotoStudioAlbum: React.FC = () => {
                             isPhotoSelected ? 'border-[#2731db] shadow-md' : 'border-transparent hover:border-gray-200'
                           }`}
                         >
+                          {/* Shared marker */}
+                          {selectedShareAlbum && isShared && !isEditingSharedImages && (
+                            <div className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded-md bg-black/60 text-white text-[10px] font-semibold">
+                              Shared
+                            </div>
+                          )}
                           {/* Checkbox overlay */}
                           <button
                             type="button"

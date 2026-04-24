@@ -71,6 +71,7 @@ import PublicSelectionPage from './pages/photo-studio/PublicSelectionPage';
 import PublicCheckoutPage from './pages/photo-studio/PublicCheckoutPage';
 import PublicImagesDisplayPage from './pages/photo-studio/PublicImagesDisplayPage';
 import SharedAlbums from './pages/photo-studio/SharedAlbums';
+import SharedPhotoLinks from './pages/photo-studio/SharedPhotoLinks';
 import PaymentManagement from './components/admin/PaymentManagement';
 
 // photo-themes pages
@@ -232,6 +233,7 @@ const AppRoutes = () => {
         {/* <Route path="treePage" element={<TreePage />} /> */}
         <Route path="studio/albums" element={<PhotoStudioAlbum />} />
         <Route path="studio/shared-albums" element={<SharedAlbums />} />
+        <Route path="studio/shared-photo-links" element={<SharedPhotoLinks />} />
         <Route path="client-tree" element={<ClientTreePage />} />
         <Route path="family-tree" element={<FamilyTreePage />} />
         <Route path="Sheet" element={<SheetPage />} />

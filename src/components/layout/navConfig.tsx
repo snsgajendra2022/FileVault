@@ -64,6 +64,7 @@ export const studioNavigation: NavGroup = {
     { labelKey: 'nav.studio.photoThemes', href: '/photo-themes', icon: FaPalette, enabled: true },
     { labelKey: 'nav.studio.phoneBook', href: '/phonebook', icon: FaBook, enabled: true },
     { labelKey: 'nav.studio.sharedAlbums', href: '/studio/shared-albums', icon: FaShare, enabled: true },
+    { labelKey: 'nav.studio.sharedPhotoLinks', href: '/studio/shared-photo-links', icon: FaShare, enabled: true },
     { labelKey: 'nav.studio.selectPay', href: '/studio/payments', icon: FaQrcode, enabled: true },
     { labelKey: 'nav.studio.membersTree', href: '/family-tree', icon: FaSitemap, enabled: true },
     { labelKey: 'nav.studio.createMembers', href: '/invitations', icon: FaUserPlus, enabled: true },

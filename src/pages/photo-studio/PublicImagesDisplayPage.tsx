@@ -29,6 +29,8 @@ const PublicImagesDisplayPage: React.FC = () => {
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const tokenParam = searchParams.get('token') || '';
   const imageIdsParam = searchParams.get('imageIds') || '';
+  const albumTokenParam = searchParams.get('albumToken') || '';
+  const viewerTokenParam = searchParams.get('t') || '';
   const shareIdParam = searchParams.get('shareId') || '';
   const sidParam = searchParams.get('sid') || '';
   const shareId = shareIdParam ? parseInt(shareIdParam, 10) : undefined;
@@ -38,6 +40,22 @@ const PublicImagesDisplayPage: React.FC = () => {
   const [resolvedFromSid, setResolvedFromSid] = useState<ResolvedFromSid | null>(null);
   const [sidLoading, setSidLoading] = useState(false);
   const [sidError, setSidError] = useState(false);
+
+  type ResolvedFromAlbumToken = { imageIds: number[] };
+  const [resolvedFromAlbumToken, setResolvedFromAlbumToken] = useState<ResolvedFromAlbumToken | null>(null);
+  const [albumTokenLoading, setAlbumTokenLoading] = useState(false);
+  const [albumTokenError, setAlbumTokenError] = useState(false);
+  const [albumTokenForbidden, setAlbumTokenForbidden] = useState(false);
+
+  type VerifyStatus = 'idle' | 'checking' | 'show_message' | 'needs_input' | 'otp_sent' | 'verified';
+  const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>('idle');
+  const [verifyEmail, setVerifyEmail] = useState('');
+  const [verifyOtp, setVerifyOtp] = useState('');
+  const [verifySending, setVerifySending] = useState(false);
+  const [verifyError, setVerifyError] = useState('');
+  const [verifyInfoMessage, setVerifyInfoMessage] = useState('');
+  const [verifyUserId, setVerifyUserId] = useState<string | null>(null);
+  const otpInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!sidParam.trim()) {
@@ -75,8 +93,61 @@ const PublicImagesDisplayPage: React.FC = () => {
     };
   }, [sidParam]);
 
+  useEffect(() => {
+    if (!albumTokenParam.trim()) {
+      setResolvedFromAlbumToken(null);
+      setAlbumTokenError(false);
+      setAlbumTokenForbidden(false);
+      return;
+    }
+    // If this is an albumToken link without viewer token `t`,
+    // we require OTP confirmation (shareId) before resolving.
+    if (!viewerTokenParam.trim() && verifyStatus !== 'verified') {
+      setResolvedFromAlbumToken(null);
+      setAlbumTokenError(false);
+      setAlbumTokenForbidden(false);
+      return;
+    }
+    let cancelled = false;
+    setAlbumTokenLoading(true);
+    setAlbumTokenError(false);
+    setAlbumTokenForbidden(false);
+    api
+      .get<{ imageIds?: number[] }>(`/api/public/albums/resolve`, {
+        params: {
+          albumToken: albumTokenParam.trim(),
+          t: viewerTokenParam.trim() || undefined,
+          shareId: !viewerTokenParam.trim() && validShareId != null ? validShareId : undefined,
+        },
+      })
+      .then((res) => {
+        if (cancelled) return;
+        const ids = Array.isArray(res.data?.imageIds)
+          ? res.data.imageIds
+              .map((id) => (typeof id === 'number' ? id : parseInt(String(id), 10)))
+              .filter((id) => !isNaN(id))
+          : [];
+        setResolvedFromAlbumToken({ imageIds: ids });
+      })
+      .catch((err: any) => {
+        if (!cancelled) {
+          const status = err?.response?.status;
+          if (status === 403) setAlbumTokenForbidden(true);
+          setAlbumTokenError(true);
+          setResolvedFromAlbumToken(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAlbumTokenLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [albumTokenParam, viewerTokenParam, validShareId, verifyStatus]);
+
   const effectiveToken = resolvedFromSid?.token ?? tokenParam;
   const effectiveImageIds = useMemo(() => {
+    const fromAlbumToken = resolvedFromAlbumToken?.imageIds?.length ? resolvedFromAlbumToken.imageIds : [];
     const fromSid = resolvedFromSid?.imageIds?.length ? resolvedFromSid.imageIds : [];
     const fromUrl = imageIdsParam.trim()
       ? imageIdsParam
@@ -84,8 +155,9 @@ const PublicImagesDisplayPage: React.FC = () => {
           .map((id) => parseInt(id.trim(), 10))
           .filter((id) => !isNaN(id))
       : [];
+    if (fromAlbumToken.length > 0) return fromAlbumToken;
     return fromSid.length > 0 ? fromSid : fromUrl;
-  }, [resolvedFromSid?.imageIds, imageIdsParam]);
+  }, [resolvedFromAlbumToken?.imageIds, resolvedFromSid?.imageIds, imageIdsParam]);
 
   const idsFromUrl = useMemo(() => {
     const param = searchParams.get('imageIds') || '';
@@ -105,14 +177,6 @@ const PublicImagesDisplayPage: React.FC = () => {
     () => `public_images_display_verified_${effectiveToken.slice(0, 24)}`,
     [effectiveToken]
   );
-  type VerifyStatus = 'idle' | 'checking' | 'show_message' | 'needs_input' | 'otp_sent' | 'verified';
-  const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>('idle');
-  const [verifyEmail, setVerifyEmail] = useState('');
-  const [verifyOtp, setVerifyOtp] = useState('');
-  const [verifySending, setVerifySending] = useState(false);
-  const [verifyError, setVerifyError] = useState('');
-  const [verifyInfoMessage, setVerifyInfoMessage] = useState('');
-  const [verifyUserId, setVerifyUserId] = useState<string | null>(null);
   const [fullscreenImage, setFullscreenImage] = useState<DisplayImage | null>(null);
   const [sliderIndex, setSliderIndex] = useState<number>(0);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
@@ -122,6 +186,9 @@ const PublicImagesDisplayPage: React.FC = () => {
   useEffect(() => {
     if (!effectiveToken) return;
     if (sidParam && resolvedFromSid == null && !sidError) return;
+    if (albumTokenParam && resolvedFromAlbumToken == null && !albumTokenError) return;
+    // Don’t overwrite the UI step while user is in OTP flow.
+    if (verifyStatus === 'otp_sent' || verifyStatus === 'show_message' || verifyStatus === 'verified') return;
     const stored = sessionStorage.getItem(verifyStorageKey);
     if (stored === '1') {
       setVerifyStatus('verified');
@@ -134,7 +201,7 @@ const PublicImagesDisplayPage: React.FC = () => {
       return;
     }
     setVerifyStatus('needs_input');
-  }, [effectiveToken, verifyStorageKey, validShareId, sidParam, resolvedFromSid, sidError, queryClient]);
+  }, [effectiveToken, verifyStorageKey, validShareId, sidParam, resolvedFromSid, sidError, albumTokenParam, resolvedFromAlbumToken, albumTokenError, queryClient, verifyStatus]);
 
   const handleVerifySubmit = async () => {
     const email = verifyEmail.trim();
@@ -195,6 +262,19 @@ const PublicImagesDisplayPage: React.FC = () => {
       setVerifySending(false);
     }
   };
+
+  // UX: when OTP is sent, jump to OTP confirmation step.
+  useEffect(() => {
+    if (verifyStatus !== 'otp_sent') return;
+    // Let the OTP input render first, then focus.
+    const id = window.setTimeout(() => {
+      try {
+        otpInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        otpInputRef.current?.focus();
+      } catch {}
+    }, 50);
+    return () => window.clearTimeout(id);
+  }, [verifyStatus]);
 
   const handleResendOtp = async () => {
     if (verifyUserId) {
@@ -418,6 +498,14 @@ const PublicImagesDisplayPage: React.FC = () => {
     );
   }
 
+  if (albumTokenParam && albumTokenLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
   if (sidParam && sidError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -425,6 +513,20 @@ const PublicImagesDisplayPage: React.FC = () => {
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
           <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('publicImagesDisplay.invalidExpired')}</h1>
           <p className="text-gray-600 text-sm">{t('publicImagesDisplay.linkNotLoaded')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (albumTokenParam && albumTokenError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
+          <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('publicImagesDisplay.invalidExpired')}</h1>
+          <p className="text-gray-600 text-sm">
+            {albumTokenForbidden ? 'Access denied for this link.' : t('publicImagesDisplay.linkNotLoaded')}
+          </p>
         </div>
       </div>
     );
@@ -491,6 +593,7 @@ const PublicImagesDisplayPage: React.FC = () => {
                   onChange={(e) => setVerifyOtp(e.target.value.replace(/\D/g, ''))}
                   placeholder={t('publicImagesDisplay.otpPlaceholder')}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  ref={otpInputRef}
                 />
               </div>
               {verifyError && <p className="text-sm text-red-600 mb-2">{verifyError}</p>}
