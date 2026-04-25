@@ -36,6 +36,15 @@ const PublicImagesDisplayPage: React.FC = () => {
   const shareId = shareIdParam ? parseInt(shareIdParam, 10) : undefined;
   const validShareId = shareId != null && !isNaN(shareId) && shareId > 0 ? shareId : undefined;
 
+  // Prevent flicker: only show spinner while async params (sid/albumToken) are resolving.
+  // For direct token+imageIds links the params are synchronously available — no delay needed.
+  const needsAsyncResolution = !!(sidParam.trim() || albumTokenParam.trim());
+  const [isCheckingParams, setIsCheckingParams] = useState(needsAsyncResolution);
+  useEffect(() => {
+    if (!needsAsyncResolution) return;
+    // Will be cleared once sidLoading / albumTokenLoading settle (see below)
+  }, [needsAsyncResolution]);
+
   type ResolvedFromSid = { token: string; imageIds: number[] };
   const [resolvedFromSid, setResolvedFromSid] = useState<ResolvedFromSid | null>(null);
   const [sidLoading, setSidLoading] = useState(false);
@@ -86,7 +95,7 @@ const PublicImagesDisplayPage: React.FC = () => {
         }
       })
       .finally(() => {
-        if (!cancelled) setSidLoading(false);
+        if (!cancelled) { setSidLoading(false); setIsCheckingParams(false); }
       });
     return () => {
       cancelled = true;
@@ -138,7 +147,7 @@ const PublicImagesDisplayPage: React.FC = () => {
         }
       })
       .finally(() => {
-        if (!cancelled) setAlbumTokenLoading(false);
+        if (!cancelled) { setAlbumTokenLoading(false); setIsCheckingParams(false); }
       });
     return () => {
       cancelled = true;
@@ -472,6 +481,15 @@ const PublicImagesDisplayPage: React.FC = () => {
       setIsDownloadingAll(false);
     }
   }, [images]);
+
+  if (isCheckingParams) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 gap-4">
+        <div className="w-10 h-10 rounded-full border-4 border-gray-200 border-t-[#2731db] animate-spin" />
+        <p className="text-sm text-gray-500 font-medium">{t('publicImagesDisplay.loading')}</p>
+      </div>
+    );
+  }
 
   if (!hasValidInput && !sidParam) {
     return (
