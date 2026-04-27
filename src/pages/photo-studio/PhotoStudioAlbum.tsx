@@ -122,9 +122,6 @@ function AlbumsPageSkeleton({ loadingLabel }: { loadingLabel: string }) {
       </div>
       {/* Card shell + grid */}
       <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-        <div className="mb-6 flex justify-center border-b border-gray-100 pb-6">
-          <LoadingSpinner size="md" text="" />
-        </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 md:gap-6 lg:grid-cols-5">
           {Array.from({ length: 10 }).map((_, i) => (
             <div
@@ -183,6 +180,12 @@ const PhotoStudioAlbum: React.FC = () => {
   const [albumImages, setAlbumImages] = useState<Map<number, AlbumImage[]>>(new Map());
   const [coverImageErrors, setCoverImageErrors] = useState<Set<number>>(new Set());
   const [fullScreenImage, setFullScreenImage] = useState<{ image: AlbumImage; albumId: number; index: number } | null>(null);
+  // Lightbox progressive loading state
+  const [lbDisplayedIndex, setLbDisplayedIndex] = useState<number>(0);
+  const [lbLoadingUrl, setLbLoadingUrl] = useState<string | null>(null);
+  const [lbImageReady, setLbImageReady] = useState(false);
+  const lbPendingIndexRef = useRef<number | null>(null);
+  const lbPreloadCacheRef = useRef<Set<string>>(new Set());
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
 
   // Per-photo selection inside album detail view
@@ -426,6 +429,67 @@ const PhotoStudioAlbum: React.FC = () => {
     }
   }, [albums]);
 
+  // Lightbox: navigate to a target index with progressive loading
+  const navigateFullScreen = useCallback((targetIndex: number, albumId: number, images: AlbumImage[]) => {
+    const total = images.length;
+    if (total === 0) return;
+    const idx = (targetIndex + total) % total;
+    const nextImage = images[idx];
+    const nextUrl = getImageUrl(nextImage) || getThumbnailUrl(nextImage);
+
+    // Track pending index for rapid-click handling
+    lbPendingIndexRef.current = idx;
+
+    // Start loading the new image in the background
+    setLbImageReady(false);
+    setLbLoadingUrl(nextUrl);
+
+    if (nextUrl) {
+      const img = new window.Image();
+      img.onload = () => {
+        // Only commit if this is still the pending navigation
+        if (lbPendingIndexRef.current === idx) {
+          setFullScreenImage({ image: nextImage, albumId, index: idx });
+          setLbDisplayedIndex(idx);
+          setLbImageReady(true);
+          lbPendingIndexRef.current = null;
+        }
+      };
+      img.onerror = () => {
+        // Commit anyway on error so user isn't stuck
+        if (lbPendingIndexRef.current === idx) {
+          setFullScreenImage({ image: nextImage, albumId, index: idx });
+          setLbDisplayedIndex(idx);
+          setLbImageReady(true);
+          lbPendingIndexRef.current = null;
+        }
+      };
+      img.src = nextUrl;
+    } else {
+      setFullScreenImage({ image: nextImage, albumId, index: idx });
+      setLbDisplayedIndex(idx);
+      setLbImageReady(true);
+      lbPendingIndexRef.current = null;
+    }
+
+    // Preload ±2 adjacent images
+    const preload = (i: number) => {
+      const ni = (i + total) % total;
+      const url = getImageUrl(images[ni]) || getThumbnailUrl(images[ni]);
+      if (url && !lbPreloadCacheRef.current.has(url)) {
+        lbPreloadCacheRef.current.add(url);
+        const pi = new window.Image();
+        pi.src = url;
+        // Limit cache size to avoid memory bloat
+        if (lbPreloadCacheRef.current.size > 20) {
+          const first = lbPreloadCacheRef.current.values().next().value;
+          if (first) lbPreloadCacheRef.current.delete(first);
+        }
+      }
+    };
+    preload(idx - 2); preload(idx - 1); preload(idx + 1); preload(idx + 2);
+  }, []);
+
   // Handle keyboard navigation for full-screen image viewer
   useEffect(() => {
     if (!fullScreenImage) return;
@@ -439,17 +503,15 @@ const PhotoStudioAlbum: React.FC = () => {
       if (e.key === 'Escape') {
         setFullScreenImage(null);
       } else if (e.key === 'ArrowLeft') {
-        const previousIndex = (index - 1 + total) % total;
-        setFullScreenImage({ image: images[previousIndex], albumId, index: previousIndex });
+        navigateFullScreen(index - 1, albumId, images);
       } else if (e.key === 'ArrowRight') {
-        const nextIndex = (index + 1) % total;
-        setFullScreenImage({ image: images[nextIndex], albumId, index: nextIndex });
+        navigateFullScreen(index + 1, albumId, images);
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [fullScreenImage, albumImages, albums]);
+  }, [fullScreenImage, albumImages, albums, navigateFullScreen]);
 
   // Infinite scroll: albums list
   useEffect(() => {
@@ -2053,7 +2115,26 @@ const PhotoStudioAlbum: React.FC = () => {
                           <div
                             className={`aspect-square bg-gray-100 overflow-hidden relative ${canViewFullScreen ? 'cursor-pointer' : ''}`}
                             onClick={() => {
-                              if (canViewFullScreen) setFullScreenImage({ image, albumId: album.id, index });
+                              if (canViewFullScreen) {
+                                const albumImgs = albumImages.get(album.id) || extractAlbumImages(album);
+                                setLbDisplayedIndex(index);
+                                setLbImageReady(true);
+                                setLbLoadingUrl(null);
+                                lbPendingIndexRef.current = null;
+                                lbPreloadCacheRef.current.clear();
+                                setFullScreenImage({ image, albumId: album.id, index });
+                                // Preload adjacent images immediately on open
+                                const total = albumImgs.length;
+                                const preload = (i: number) => {
+                                  const ni = (i + total) % total;
+                                  const url = getImageUrl(albumImgs[ni]) || getThumbnailUrl(albumImgs[ni]);
+                                  if (url && !lbPreloadCacheRef.current.has(url)) {
+                                    lbPreloadCacheRef.current.add(url);
+                                    const pi = new window.Image(); pi.src = url;
+                                  }
+                                };
+                                preload(index - 1); preload(index + 1); preload(index + 2);
+                              }
                             }}
                           >
                             {canViewFullScreen ? (
@@ -2783,23 +2864,28 @@ const PhotoStudioAlbum: React.FC = () => {
         const { image, albumId, index } = fullScreenImage;
         const images = albumImages.get(albumId) || extractAlbumImages(albums.find(a => a.id === albumId) || {} as Album);
         const imageUrl = getImageUrl(image);
+        const thumbUrl = getThumbnailUrl(image);
         const filename = getImageFilename(image);
         const total = images?.length || 0;
+        // Use lbDisplayedIndex for the counter so it only updates after image renders
+        const displayIndex = lbDisplayedIndex;
+        const isNavigating = !lbImageReady && lbLoadingUrl !== null;
         
-        const handlePrevious = () => {
-          if (total === 0) return;
-          const previousIndex = (index - 1 + total) % total;
-          setFullScreenImage({ image: images[previousIndex], albumId, index: previousIndex });
+        const handlePrevious = (e: React.MouseEvent) => {
+          e.stopPropagation();
+          navigateFullScreen(index - 1, albumId, images);
         };
         
-        const handleNext = () => {
-          if (total === 0) return;
-          const nextIndex = (index + 1) % total;
-          setFullScreenImage({ image: images[nextIndex], albumId, index: nextIndex });
+        const handleNext = (e: React.MouseEvent) => {
+          e.stopPropagation();
+          navigateFullScreen(index + 1, albumId, images);
         };
         
         const handleClose = () => {
           setFullScreenImage(null);
+          setLbImageReady(false);
+          setLbLoadingUrl(null);
+          lbPendingIndexRef.current = null;
         };
         
         return (
@@ -2818,10 +2904,7 @@ const PhotoStudioAlbum: React.FC = () => {
             
             {/* Previous Button */}
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handlePrevious();
-              }}
+              onClick={handlePrevious}
               className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-4"
               aria-label={t('photoStudioAlbumPage.previousImage')}
             >
@@ -2830,10 +2913,7 @@ const PhotoStudioAlbum: React.FC = () => {
             
             {/* Next Button */}
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleNext();
-              }}
+              onClick={handleNext}
               className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-4"
               aria-label={t('photoStudioAlbumPage.nextImage')}
             >
@@ -2842,17 +2922,48 @@ const PhotoStudioAlbum: React.FC = () => {
             
             {/* Image Container */}
             <div 
-              className="max-w-full max-h-full flex items-center justify-center"
+              className="relative max-w-full max-h-full flex items-center justify-center"
               onClick={(e) => e.stopPropagation()}
+              style={{ minWidth: 120, minHeight: 120 }}
             >
+              {/* Thumbnail shown instantly as blurred placeholder while full image loads */}
+              {thumbUrl && isNavigating && (
+                <img
+                  src={thumbUrl}
+                  alt={filename}
+                  className="absolute max-w-full max-h-[90vh] object-contain"
+                  style={{ filter: 'blur(6px)', opacity: 0.6, transition: 'opacity 0.15s' }}
+                  draggable={false}
+                />
+              )}
+
+              {/* Loading spinner overlay during navigation */}
+              {isNavigating && (
+                <div className="absolute inset-0 flex items-center justify-center z-10">
+                  <FaSpinner className="text-white text-3xl animate-spin opacity-80" />
+                </div>
+              )}
+
+              {/* Main image — fades in once loaded */}
               {imageUrl ? (
                 <img
+                  key={imageUrl}
                   src={imageUrl}
                   alt={filename}
                   className="max-w-full max-h-[90vh] object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
+                  style={{
+                    opacity: lbImageReady ? 1 : 0,
+                    transition: 'opacity 0.2s ease-in',
                   }}
+                  onLoad={() => {
+                    setLbImageReady(true);
+                    setLbDisplayedIndex(index);
+                  }}
+                  onError={() => {
+                    setLbImageReady(true);
+                    setLbDisplayedIndex(index);
+                  }}
+                  draggable={false}
                 />
               ) : (
                 <div className="text-white text-center">
@@ -2862,11 +2973,11 @@ const PhotoStudioAlbum: React.FC = () => {
               )}
             </div>
             
-            {/* Image Info */}
+            {/* Image Info — counter only updates after image renders */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-center z-10 bg-black bg-opacity-50 rounded-lg px-4 py-2">
               <p className="text-sm font-medium">{filename}</p>
               <p className="text-xs text-gray-300 mt-1">
-                {t('photoStudioAlbumPage.counterOf', { n: index + 1, total })}
+                {t('photoStudioAlbumPage.counterOf', { n: displayIndex + 1, total })}
               </p>
             </div>
           </div>
