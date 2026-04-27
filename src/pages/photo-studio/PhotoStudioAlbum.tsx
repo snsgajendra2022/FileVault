@@ -184,6 +184,7 @@ const PhotoStudioAlbum: React.FC = () => {
   const [lbDisplayedIndex, setLbDisplayedIndex] = useState<number>(0);
   const [lbLoadingUrl, setLbLoadingUrl] = useState<string | null>(null);
   const [lbImageReady, setLbImageReady] = useState(false);
+  const [lbNextThumbUrl, setLbNextThumbUrl] = useState<string | null>(null);
   const lbPendingIndexRef = useRef<number | null>(null);
   const lbPreloadCacheRef = useRef<Set<string>>(new Set());
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
@@ -440,6 +441,10 @@ const PhotoStudioAlbum: React.FC = () => {
     // Track pending index for rapid-click handling
     lbPendingIndexRef.current = idx;
 
+    // Store the incoming thumbnail so we can show it blurred as a preview overlay
+    const nextThumb = getThumbnailUrl(nextImage) || nextUrl;
+    setLbNextThumbUrl(nextThumb);
+
     // Start loading the new image in the background
     setLbImageReady(false);
     setLbLoadingUrl(nextUrl);
@@ -452,6 +457,7 @@ const PhotoStudioAlbum: React.FC = () => {
           setFullScreenImage({ image: nextImage, albumId, index: idx });
           setLbDisplayedIndex(idx);
           setLbImageReady(true);
+          setLbNextThumbUrl(null);
           lbPendingIndexRef.current = null;
         }
       };
@@ -461,6 +467,7 @@ const PhotoStudioAlbum: React.FC = () => {
           setFullScreenImage({ image: nextImage, albumId, index: idx });
           setLbDisplayedIndex(idx);
           setLbImageReady(true);
+          setLbNextThumbUrl(null);
           lbPendingIndexRef.current = null;
         }
       };
@@ -469,6 +476,7 @@ const PhotoStudioAlbum: React.FC = () => {
       setFullScreenImage({ image: nextImage, albumId, index: idx });
       setLbDisplayedIndex(idx);
       setLbImageReady(true);
+      setLbNextThumbUrl(null);
       lbPendingIndexRef.current = null;
     }
 
@@ -2885,6 +2893,7 @@ const PhotoStudioAlbum: React.FC = () => {
           setFullScreenImage(null);
           setLbImageReady(false);
           setLbLoadingUrl(null);
+          setLbNextThumbUrl(null);
           lbPendingIndexRef.current = null;
         };
         
@@ -2926,43 +2935,29 @@ const PhotoStudioAlbum: React.FC = () => {
               onClick={(e) => e.stopPropagation()}
               style={{ minWidth: 120, minHeight: 120 }}
             >
-              {/* Thumbnail shown instantly as blurred placeholder while full image loads */}
-              {thumbUrl && isNavigating && (
-                <img
-                  src={thumbUrl}
-                  alt={filename}
-                  className="absolute max-w-full max-h-[90vh] object-contain"
-                  style={{ filter: 'blur(6px)', opacity: 0.6, transition: 'opacity 0.15s' }}
-                  draggable={false}
-                />
-              )}
-
-              {/* Loading spinner overlay during navigation */}
-              {isNavigating && (
-                <div className="absolute inset-0 flex items-center justify-center z-10">
-                  <FaSpinner className="text-white text-3xl animate-spin opacity-80" />
-                </div>
-              )}
-
-              {/* Main image — fades in once loaded */}
-              {imageUrl ? (
+              {isNavigating ? (
+                /* Loading state: blurred thumbnail of the NEXT image + spinner */
+                <>
+                  {lbNextThumbUrl && (
+                    <img
+                      src={lbNextThumbUrl}
+                      alt=""
+                      className="max-w-full max-h-[90vh] object-contain"
+                      style={{ filter: 'blur(12px)', transform: 'scale(1.06)', opacity: 0.7 }}
+                      draggable={false}
+                    />
+                  )}
+                  <div className="absolute inset-0 flex items-center justify-center z-10">
+                    <FaSpinner className="text-white text-3xl animate-spin drop-shadow-lg" />
+                  </div>
+                </>
+              ) : imageUrl ? (
+                /* Committed image — sharp, no transition needed since it's already loaded */
                 <img
                   key={imageUrl}
                   src={imageUrl}
                   alt={filename}
                   className="max-w-full max-h-[90vh] object-contain"
-                  style={{
-                    opacity: lbImageReady ? 1 : 0,
-                    transition: 'opacity 0.2s ease-in',
-                  }}
-                  onLoad={() => {
-                    setLbImageReady(true);
-                    setLbDisplayedIndex(index);
-                  }}
-                  onError={() => {
-                    setLbImageReady(true);
-                    setLbDisplayedIndex(index);
-                  }}
                   draggable={false}
                 />
               ) : (
