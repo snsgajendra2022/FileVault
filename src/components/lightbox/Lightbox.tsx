@@ -1,15 +1,3 @@
-/**
- * Lightbox - Full-screen image viewer with advanced preloading
- * 
- * Handles 1000+ high-resolution images with:
- * - Sliding-window preload strategy
- * - Directional preloading (forward/backward)
- * - Keyboard navigation
- * - Touch/swipe support
- * - Thumbnail strip
- * - Download support
- */
-
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -18,15 +6,15 @@ import {
   FaChevronRight,
   FaDownload,
   FaSpinner,
+  FaCheck,
+  FaExclamationTriangle,
 } from 'react-icons/fa';
 import LightboxImage from './LightboxImage';
 import { getImagePreloadManager } from '../../utils/imagePreloader/ImagePreloadManager';
 
 export interface LightboxItem {
   id: number | string;
-  /** Full-resolution URL */
   src: string | null;
-  /** Thumbnail URL for blur-up placeholder */
   thumbnailSrc?: string | null;
   alt: string;
   filename?: string;
@@ -37,15 +25,16 @@ interface LightboxProps {
   initialIndex: number;
   isOpen: boolean;
   onClose: () => void;
-  onDownload?: (item: LightboxItem) => void;
-  isDownloading?: boolean;
-  /** Render extra actions in the top bar */
+  /** Called to perform the actual download. Should return a Promise. */
+  onDownload?: (item: LightboxItem) => Promise<void>;
   renderActions?: (item: LightboxItem) => React.ReactNode;
 }
 
+type DownloadState = 'idle' | 'downloading' | 'done' | 'error';
+
 const PRELOAD_NEXT = 2;
 const PRELOAD_PREV = 1;
-const MAX_CACHE = 100; // Keep all viewed images — never evict on a normal session
+const MAX_CACHE = 100;
 
 const Lightbox: React.FC<LightboxProps> = ({
   items,
@@ -53,102 +42,112 @@ const Lightbox: React.FC<LightboxProps> = ({
   isOpen,
   onClose,
   onDownload,
-  isDownloading,
   renderActions,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [dlState, setDlState] = useState<DownloadState>('idle');
+  const doneTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+
   const manager = getImagePreloadManager({
     preloadNext: PRELOAD_NEXT,
     preloadPrev: PRELOAD_PREV,
     maxCacheSize: MAX_CACHE,
   });
 
-  // Sync index when initialIndex changes (e.g. user clicks different image)
+  // Sync index when lightbox opens
   useEffect(() => {
-    if (isOpen) {
-      setCurrentIndex(initialIndex);
-    }
+    if (isOpen) setCurrentIndex(initialIndex);
   }, [initialIndex, isOpen]);
 
-  // Trigger preload window whenever index changes
+  // Reset download state when image changes
+  useEffect(() => {
+    setDlState('idle');
+    if (doneTimerRef.current) clearTimeout(doneTimerRef.current);
+  }, [currentIndex]);
+
+  // Cleanup timer on unmount
+  useEffect(() => () => { if (doneTimerRef.current) clearTimeout(doneTimerRef.current); }, []);
+
+  // Preload sliding window
   useEffect(() => {
     if (!isOpen || items.length === 0) return;
-
-    const urls = items.map((item) => item.src).filter(Boolean) as string[];
-    if (urls.length === 0) return;
-
-    // Preload current window
+    const urls = items.map((i) => i.src).filter(Boolean) as string[];
     manager.preloadForIndex(currentIndex, urls).catch(() => {});
   }, [currentIndex, items, isOpen]);
 
-  // Cleanup cache when lightbox closes
-  useEffect(() => {
-    if (!isOpen) {
-      // Don't clear — keep cache warm for re-open
-    }
-  }, [isOpen]);
-
-  const goTo = useCallback(
-    (index: number) => {
-      const total = items.length;
-      if (total === 0) return;
-      const next = (index + total) % total;
-      setCurrentIndex(next);
-    },
-    [items.length]
-  );
+  const goTo = useCallback((index: number) => {
+    const total = items.length;
+    if (!total) return;
+    setCurrentIndex((index + total) % total);
+  }, [items.length]);
 
   const goPrev = useCallback(() => goTo(currentIndex - 1), [currentIndex, goTo]);
   const goNext = useCallback(() => goTo(currentIndex + 1), [currentIndex, goTo]);
 
-  // Keyboard navigation
+  // Keyboard nav
   useEffect(() => {
     if (!isOpen) return;
-
-    const handleKey = (e: KeyboardEvent) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
       else if (e.key === 'ArrowLeft') goPrev();
       else if (e.key === 'ArrowRight') goNext();
     };
-
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, goPrev, goNext, onClose]);
 
-  // Touch/swipe support
+  // Touch swipe
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
   };
-
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (touchStartX.current === null || touchStartY.current === null) return;
-
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
-
-    // Only trigger if horizontal swipe is dominant
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
-      if (dx < 0) goNext();
-      else goPrev();
+      dx < 0 ? goNext() : goPrev();
     }
-
     touchStartX.current = null;
     touchStartY.current = null;
   };
 
-  if (!isOpen || items.length === 0) return null;
+  // Download handler — fully self-contained state machine
+  const handleDownload = useCallback(async () => {
+    if (!onDownload || dlState === 'downloading') return;
+    const item = items[currentIndex];
+    if (!item) return;
 
+    setDlState('downloading');
+    try {
+      await onDownload(item);
+      setDlState('done');
+      // Auto-reset to idle after 2.5 s so user can download again
+      doneTimerRef.current = setTimeout(() => setDlState('idle'), 2500);
+    } catch {
+      setDlState('error');
+      doneTimerRef.current = setTimeout(() => setDlState('idle'), 3000);
+    }
+  }, [onDownload, dlState, items, currentIndex]);
+
+  if (!isOpen || items.length === 0) return null;
   const current = items[currentIndex];
   if (!current) return null;
-
   const total = items.length;
+
+  // ── Download button appearance ──────────────────────────────────────────
+  const dlConfig = {
+    idle:        { icon: <FaDownload className="h-3.5 w-3.5" />,                          label: 'Download',    cls: 'bg-white/20 hover:bg-white/30' },
+    downloading: { icon: <FaSpinner  className="h-3.5 w-3.5 animate-spin" />,             label: 'Downloading…', cls: 'bg-white/20 cursor-not-allowed' },
+    done:        { icon: <FaCheck    className="h-3.5 w-3.5" />,                           label: 'Downloaded',  cls: 'bg-green-500/80 hover:bg-green-500' },
+    error:       { icon: <FaExclamationTriangle className="h-3.5 w-3.5" />,                 label: 'Failed — retry', cls: 'bg-red-500/80 hover:bg-red-500' },
+  }[dlState];
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] bg-black/95 flex flex-col"
+      className="fixed inset-0 z-[9999] bg-black/95 flex flex-col"
       role="dialog"
       aria-modal="true"
       aria-label="Image viewer"
@@ -156,31 +155,29 @@ const Lightbox: React.FC<LightboxProps> = ({
       onTouchEnd={handleTouchEnd}
     >
       {/* ── Top bar ── */}
-      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 bg-black/40">
-        <p className="text-white/60 text-sm tabular-nums">
+      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 bg-black/50">
+        <p className="text-white/60 text-sm tabular-nums shrink-0">
           {currentIndex + 1} / {total}
         </p>
-        <p className="text-white text-sm font-medium truncate max-w-[40vw]">
+        <p className="text-white text-sm font-medium truncate mx-4 flex-1 text-center">
           {current.filename || current.alt}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {renderActions?.(current)}
+
           {onDownload && (
             <button
               type="button"
-              onClick={() => onDownload(current)}
-              disabled={isDownloading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-sm disabled:opacity-50 transition-colors"
-              title="Download"
+              onClick={dlState === 'error' ? handleDownload : handleDownload}
+              disabled={dlState === 'downloading'}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-sm font-medium transition-all duration-200 ${dlConfig.cls}`}
+              title={dlConfig.label}
             >
-              {isDownloading ? (
-                <FaSpinner className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <FaDownload className="h-3.5 w-3.5" />
-              )}
-              Download
+              {dlConfig.icon}
+              <span className="hidden sm:inline">{dlConfig.label}</span>
             </button>
           )}
+
           <button
             type="button"
             onClick={onClose}
@@ -194,7 +191,6 @@ const Lightbox: React.FC<LightboxProps> = ({
 
       {/* ── Main image area ── */}
       <div className="flex-1 relative min-h-0 overflow-hidden">
-        {/* Prev button — floats over image */}
         {total > 1 && (
           <button
             type="button"
@@ -206,7 +202,6 @@ const Lightbox: React.FC<LightboxProps> = ({
           </button>
         )}
 
-        {/* Image fills the entire area — NOT keyed so it never remounts */}
         <div className="w-full h-full">
           <LightboxImage
             src={current.src}
@@ -215,7 +210,6 @@ const Lightbox: React.FC<LightboxProps> = ({
           />
         </div>
 
-        {/* Next button — floats over image */}
         {total > 1 && (
           <button
             type="button"
@@ -228,9 +222,18 @@ const Lightbox: React.FC<LightboxProps> = ({
         )}
       </div>
 
+      {/* ── Download progress bar — visible only while downloading ── */}
+      {dlState === 'downloading' && (
+        <div className="absolute bottom-[72px] left-0 right-0 h-0.5 bg-white/10 z-40 overflow-hidden">
+          <div className="h-full bg-white/70 animate-[progress_1.8s_ease-in-out_infinite]"
+               style={{ width: '60%', animation: 'lightbox-progress 1.8s ease-in-out infinite' }} />
+        </div>
+      )}
+
       {/* ── Thumbnail strip ── */}
       {total > 1 && (
-        <div className="flex-shrink-0 flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide bg-black/40">
+        <div className="flex-shrink-0 flex gap-2 overflow-x-auto px-4 py-3 bg-black/50"
+             style={{ scrollbarWidth: 'none' }}>
           {items.map((item, idx) => {
             const thumb = item.thumbnailSrc || item.src;
             const isActive = idx === currentIndex;
@@ -240,29 +243,28 @@ const Lightbox: React.FC<LightboxProps> = ({
                 type="button"
                 onClick={() => goTo(idx)}
                 className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
-                  isActive
-                    ? 'border-white opacity-100 scale-105'
-                    : 'border-transparent opacity-50 hover:opacity-80'
+                  isActive ? 'border-white opacity-100 scale-105' : 'border-transparent opacity-50 hover:opacity-80'
                 }`}
                 aria-label={`Go to image ${idx + 1}`}
               >
-                {thumb ? (
-                  <img
-                    src={thumb}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-white/20 flex items-center justify-center text-white text-xs">
-                    {idx + 1}
-                  </div>
-                )}
+                {thumb
+                  ? <img src={thumb} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  : <div className="w-full h-full bg-white/20 flex items-center justify-center text-white text-xs">{idx + 1}</div>
+                }
               </button>
             );
           })}
         </div>
       )}
+
+      {/* Keyframe for indeterminate progress bar */}
+      <style>{`
+        @keyframes lightbox-progress {
+          0%   { transform: translateX(-100%); }
+          50%  { transform: translateX(80%); }
+          100% { transform: translateX(200%); }
+        }
+      `}</style>
     </div>,
     document.body
   );

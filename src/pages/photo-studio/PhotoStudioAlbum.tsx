@@ -2812,12 +2812,8 @@ const PhotoStudioAlbum: React.FC = () => {
             onClose={() => setFullScreenImage(null)}
             onDownload={async (item) => {
               const url = item.src;
-              if (!url) { toast.error(t('photoStudioAlbumPage.imageNotAvailable')); return; }
-              try {
-                await downloadSingleImage(url, item.filename || item.alt);
-              } catch {
-                toast.error(t('publicImagesDisplay.downloadNotAvailable'));
-              }
+              if (!url) throw new Error('No URL');
+              await downloadSingleImage(url, item.filename || item.alt);
             }}
           />
         );
