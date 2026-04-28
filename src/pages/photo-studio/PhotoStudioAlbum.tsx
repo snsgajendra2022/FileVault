@@ -29,6 +29,8 @@ import toast from 'react-hot-toast';
 import ShareAlbumModal from './ShareAlbumModal';
 import PublicShareModal from '../../components/modals/PublicShareModal';
 import { downloadSingleImage, downloadImagesAsZip as downloadZip } from '../../utils/downloadUtils';
+import Lightbox, { LightboxItem } from '../../components/lightbox/Lightbox';
+import { getImagePreloadManager } from '../../utils/imagePreloader/ImagePreloadManager';
 
 interface Album {
   id: number;
@@ -180,13 +182,9 @@ const PhotoStudioAlbum: React.FC = () => {
   const [albumImages, setAlbumImages] = useState<Map<number, AlbumImage[]>>(new Map());
   const [coverImageErrors, setCoverImageErrors] = useState<Set<number>>(new Set());
   const [fullScreenImage, setFullScreenImage] = useState<{ image: AlbumImage; albumId: number; index: number } | null>(null);
-  // Lightbox progressive loading state
-  const [lbDisplayedIndex, setLbDisplayedIndex] = useState<number>(0);
-  const [lbLoadingUrl, setLbLoadingUrl] = useState<string | null>(null);
-  const [lbImageReady, setLbImageReady] = useState(false);
-  const [lbNextThumbUrl, setLbNextThumbUrl] = useState<string | null>(null);
-  const lbPendingIndexRef = useRef<number | null>(null);
-  const lbPreloadCacheRef = useRef<Set<string>>(new Set());
+  // Lightbox state
+  const [lbIndex, setLbIndex] = useState<number>(0);
+  const [lbAlbumId, setLbAlbumId] = useState<number | null>(null);
   const [isDownloadingZip, setIsDownloadingZip] = useState(false);
 
   // Per-photo selection inside album detail view
@@ -430,96 +428,39 @@ const PhotoStudioAlbum: React.FC = () => {
     }
   }, [albums]);
 
-  // Lightbox: navigate to a target index with progressive loading
-  const navigateFullScreen = useCallback((targetIndex: number, albumId: number, images: AlbumImage[]) => {
-    const total = images.length;
-    if (total === 0) return;
-    const idx = (targetIndex + total) % total;
-    const nextImage = images[idx];
-    const nextUrl = getImageUrl(nextImage) || getThumbnailUrl(nextImage);
-
-    // Track pending index for rapid-click handling
-    lbPendingIndexRef.current = idx;
-
-    // Store the incoming thumbnail so we can show it blurred as a preview overlay
-    const nextThumb = getThumbnailUrl(nextImage) || nextUrl;
-    setLbNextThumbUrl(nextThumb);
-
-    // Start loading the new image in the background
-    setLbImageReady(false);
-    setLbLoadingUrl(nextUrl);
-
-    if (nextUrl) {
-      const img = new window.Image();
-      img.onload = () => {
-        // Only commit if this is still the pending navigation
-        if (lbPendingIndexRef.current === idx) {
-          setFullScreenImage({ image: nextImage, albumId, index: idx });
-          setLbDisplayedIndex(idx);
-          setLbImageReady(true);
-          setLbNextThumbUrl(null);
-          lbPendingIndexRef.current = null;
-        }
-      };
-      img.onerror = () => {
-        // Commit anyway on error so user isn't stuck
-        if (lbPendingIndexRef.current === idx) {
-          setFullScreenImage({ image: nextImage, albumId, index: idx });
-          setLbDisplayedIndex(idx);
-          setLbImageReady(true);
-          setLbNextThumbUrl(null);
-          lbPendingIndexRef.current = null;
-        }
-      };
-      img.src = nextUrl;
-    } else {
-      setFullScreenImage({ image: nextImage, albumId, index: idx });
-      setLbDisplayedIndex(idx);
-      setLbImageReady(true);
-      setLbNextThumbUrl(null);
-      lbPendingIndexRef.current = null;
-    }
-
-    // Preload ±2 adjacent images
-    const preload = (i: number) => {
-      const ni = (i + total) % total;
-      const url = getImageUrl(images[ni]) || getThumbnailUrl(images[ni]);
-      if (url && !lbPreloadCacheRef.current.has(url)) {
-        lbPreloadCacheRef.current.add(url);
-        const pi = new window.Image();
-        pi.src = url;
-        // Limit cache size to avoid memory bloat
-        if (lbPreloadCacheRef.current.size > 20) {
-          const first = lbPreloadCacheRef.current.values().next().value;
-          if (first) lbPreloadCacheRef.current.delete(first);
-        }
-      }
-    };
-    preload(idx - 2); preload(idx - 1); preload(idx + 1); preload(idx + 2);
+  // Open lightbox at a specific index
+  const openLightbox = useCallback((albumId: number, index: number, images: AlbumImage[]) => {
+    const manager = getImagePreloadManager({ preloadNext: 2, preloadPrev: 1, maxCacheSize: 20 });
+    const urls = images.map((img) => getImageUrl(img) || getThumbnailUrl(img)).filter(Boolean) as string[];
+    setLbAlbumId(albumId);
+    setLbIndex(index);
+    setFullScreenImage({ image: images[index], albumId, index });
+    // Kick off preload window immediately
+    manager.preloadForIndex(index, urls).catch(() => {});
   }, []);
 
   // Handle keyboard navigation for full-screen image viewer
   useEffect(() => {
     if (!fullScreenImage) return;
-    
     const { albumId, index } = fullScreenImage;
     const images = albumImages.get(albumId) || extractAlbumImages(albums.find(a => a.id === albumId) || {} as Album);
     const total = images?.length || 0;
-    
     const handleKeyDown = (e: KeyboardEvent) => {
       if (total === 0) return;
-      if (e.key === 'Escape') {
-        setFullScreenImage(null);
-      } else if (e.key === 'ArrowLeft') {
-        navigateFullScreen(index - 1, albumId, images);
+      if (e.key === 'Escape') setFullScreenImage(null);
+      else if (e.key === 'ArrowLeft') {
+        const prev = (index - 1 + total) % total;
+        setLbIndex(prev);
+        setFullScreenImage({ image: images[prev], albumId, index: prev });
       } else if (e.key === 'ArrowRight') {
-        navigateFullScreen(index + 1, albumId, images);
+        const next = (index + 1) % total;
+        setLbIndex(next);
+        setFullScreenImage({ image: images[next], albumId, index: next });
       }
     };
-    
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [fullScreenImage, albumImages, albums, navigateFullScreen]);
+  }, [fullScreenImage, albumImages, albums]);
 
   // Infinite scroll: albums list
   useEffect(() => {
@@ -2125,23 +2066,7 @@ const PhotoStudioAlbum: React.FC = () => {
                             onClick={() => {
                               if (canViewFullScreen) {
                                 const albumImgs = albumImages.get(album.id) || extractAlbumImages(album);
-                                setLbDisplayedIndex(index);
-                                setLbImageReady(true);
-                                setLbLoadingUrl(null);
-                                lbPendingIndexRef.current = null;
-                                lbPreloadCacheRef.current.clear();
-                                setFullScreenImage({ image, albumId: album.id, index });
-                                // Preload adjacent images immediately on open
-                                const total = albumImgs.length;
-                                const preload = (i: number) => {
-                                  const ni = (i + total) % total;
-                                  const url = getImageUrl(albumImgs[ni]) || getThumbnailUrl(albumImgs[ni]);
-                                  if (url && !lbPreloadCacheRef.current.has(url)) {
-                                    lbPreloadCacheRef.current.add(url);
-                                    const pi = new window.Image(); pi.src = url;
-                                  }
-                                };
-                                preload(index - 1); preload(index + 1); preload(index + 2);
+                                openLightbox(album.id, index, albumImgs);
                               }
                             }}
                           >
@@ -2150,6 +2075,8 @@ const PhotoStudioAlbum: React.FC = () => {
                                 <img
                                   src={(thumbUrl || imageUrl)!}
                                   alt={filename}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                 />
@@ -2867,115 +2794,32 @@ const PhotoStudioAlbum: React.FC = () => {
         </div>
       )}
 
-      {/* Full Screen Image Viewer */}
-      {fullScreenImage && (() => {
-        const { image, albumId, index } = fullScreenImage;
-        const images = albumImages.get(albumId) || extractAlbumImages(albums.find(a => a.id === albumId) || {} as Album);
-        const imageUrl = getImageUrl(image);
-        const thumbUrl = getThumbnailUrl(image);
-        const filename = getImageFilename(image);
-        const total = images?.length || 0;
-        // Use lbDisplayedIndex for the counter so it only updates after image renders
-        const displayIndex = lbDisplayedIndex;
-        const isNavigating = !lbImageReady && lbLoadingUrl !== null;
-        
-        const handlePrevious = (e: React.MouseEvent) => {
-          e.stopPropagation();
-          navigateFullScreen(index - 1, albumId, images);
-        };
-        
-        const handleNext = (e: React.MouseEvent) => {
-          e.stopPropagation();
-          navigateFullScreen(index + 1, albumId, images);
-        };
-        
-        const handleClose = () => {
-          setFullScreenImage(null);
-          setLbImageReady(false);
-          setLbLoadingUrl(null);
-          setLbNextThumbUrl(null);
-          lbPendingIndexRef.current = null;
-        };
-        
+      {/* Full Screen Image Viewer — powered by ImagePreloadManager */}
+      {fullScreenImage && lbAlbumId !== null && (() => {
+        const images = albumImages.get(lbAlbumId) || extractAlbumImages(albums.find(a => a.id === lbAlbumId) || {} as Album);
+        const lbItems: LightboxItem[] = images.map((img) => ({
+          id: img.id,
+          src: getImageUrl(img),
+          thumbnailSrc: getThumbnailUrl(img),
+          alt: getImageFilename(img),
+          filename: getImageFilename(img),
+        }));
         return (
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center p-4"
-            onClick={handleClose}
-          >
-            {/* Close Button */}
-            <button
-              onClick={handleClose}
-              className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-3"
-              aria-label={t('photoStudioAlbumPage.close')}
-            >
-              <FaTimes className="text-2xl" />
-            </button>
-            
-            {/* Previous Button */}
-            <button
-              onClick={handlePrevious}
-              className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-4"
-              aria-label={t('photoStudioAlbumPage.previousImage')}
-            >
-              <FaChevronLeft className="text-2xl" />
-            </button>
-            
-            {/* Next Button */}
-            <button
-              onClick={handleNext}
-              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-gray-300 transition-colors z-10 bg-black bg-opacity-50 rounded-full p-4"
-              aria-label={t('photoStudioAlbumPage.nextImage')}
-            >
-              <FaChevronRight className="text-2xl" />
-            </button>
-            
-            {/* Image Container */}
-            <div 
-              className="relative max-w-full max-h-full flex items-center justify-center"
-              onClick={(e) => e.stopPropagation()}
-              style={{ minWidth: 120, minHeight: 120 }}
-            >
-              {isNavigating ? (
-                /* Loading state: blurred thumbnail of the NEXT image + spinner */
-                <>
-                  {lbNextThumbUrl && (
-                    <img
-                      src={lbNextThumbUrl}
-                      alt=""
-                      className="max-w-full max-h-[90vh] object-contain"
-                      style={{ filter: 'blur(12px)', transform: 'scale(1.06)', opacity: 0.7 }}
-                      draggable={false}
-                    />
-                  )}
-                  <div className="absolute inset-0 flex items-center justify-center z-10">
-                    <FaSpinner className="text-white text-3xl animate-spin drop-shadow-lg" />
-                  </div>
-                </>
-              ) : imageUrl ? (
-                /* Committed image — sharp, no transition needed since it's already loaded */
-                <img
-                  key={imageUrl}
-                  src={imageUrl}
-                  alt={filename}
-                  className="max-w-full max-h-[90vh] object-contain"
-                  draggable={false}
-                />
-              ) : (
-                <div className="text-white text-center">
-                  <p className="text-lg mb-2">{t('photoStudioAlbumPage.imageNotAvailable')}</p>
-                  <p className="text-sm text-gray-400">{filename}</p>
-                </div>
-              )}
-            </div>
-            
-            {/* Image Info — counter only updates after image renders */}
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-center z-10 bg-black bg-opacity-50 rounded-lg px-4 py-2">
-              <p className="text-sm font-medium">{filename}</p>
-              <p className="text-xs text-gray-300 mt-1">
-                {t('photoStudioAlbumPage.counterOf', { n: displayIndex + 1, total })}
-              </p>
-            </div>
-          </div>
+          <Lightbox
+            items={lbItems}
+            initialIndex={lbIndex}
+            isOpen={true}
+            onClose={() => setFullScreenImage(null)}
+            onDownload={async (item) => {
+              const url = item.src;
+              if (!url) { toast.error(t('photoStudioAlbumPage.imageNotAvailable')); return; }
+              try {
+                await downloadSingleImage(url, item.filename || item.alt);
+              } catch {
+                toast.error(t('publicImagesDisplay.downloadNotAvailable'));
+              }
+            }}
+          />
         );
       })()}
     </div>
