@@ -5,6 +5,7 @@ import api from '../../api/client/axiosInstance';
 import toast from 'react-hot-toast';
 import { FaUser, FaEnvelope, FaPhone, FaLock, FaSave } from 'react-icons/fa';
 import DashboardLoading from '../../components/common/DashboardLoading';
+import { ProfileFormSkeleton } from '../../components/common/skeletons';
 import { useNavigate } from 'react-router-dom';
 
 interface ProfileData {
@@ -95,12 +96,13 @@ const ProfilePage = () => {
 
   if (profileLoading) {
     return (
-      <DashboardLoading 
-        title={t('profile.loadingTitle')}
-        subtitle={t('profile.loadingSubtitle')}
-        icon={FaUser}
-        showFeatures={false}
-      />
+      <div className="space-y-8">
+        <div className="text-center mb-10">
+          <div className="h-12 w-64 mx-auto rounded-xl bg-slate-200 animate-pulse mb-4" />
+          <div className="h-5 w-96 mx-auto rounded-lg bg-slate-100 animate-pulse" />
+        </div>
+        <ProfileFormSkeleton />
+      </div>
     );
   }
 

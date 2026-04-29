@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { FaClock, FaCheck, FaTimes, FaUsers } from 'react-icons/fa';
+import { ListRowSkeleton } from '../common/skeletons';
 import { toast } from 'react-hot-toast';
 import { acceptInvitation, getInvitations, Invitation, rejectInvitation } from '../../api/services/invitationService';
 import { getStoredUserData } from '../../utils/authUtils';
@@ -62,10 +63,7 @@ const InvitationsList: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin" />
-          {t(`${ic}.loading`)}
-        </div>
+        <ListRowSkeleton count={4} />
       ) : (
         <>
           {/* Pending */}

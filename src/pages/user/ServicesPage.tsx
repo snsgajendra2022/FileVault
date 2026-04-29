@@ -8,6 +8,7 @@ import api from '../../api/client/axiosInstance';
 import toast from 'react-hot-toast';
 import { FaTimes, FaPlus, FaCheck, FaExclamationTriangle, FaCog, FaCloud, FaEye, FaEdit } from 'react-icons/fa';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { ServiceCardSkeleton } from '../../components/common/skeletons';
 import servicesData from '../../data/services.json';
 
 interface UserService {
@@ -381,14 +382,7 @@ const ServicesPage = () => {
   if (isLoadingAvailableServices || isLoading) {
     return (
       <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="bg-gray-200 rounded-lg h-64"></div>
-            ))}
-          </div>
-        </div>
+        <ServiceCardSkeleton count={8} />
       </div>
     );
   }

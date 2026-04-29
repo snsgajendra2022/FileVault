@@ -22,6 +22,7 @@ import {
 } from 'react-icons/fa';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useQuery } from '@tanstack/react-query';
+import { FamilyMemberSkeleton } from '../../components/common/skeletons';
 import { getVideoDuration, trimVideoTo30Seconds, isVideoFile, VIDEO_TRIM_THRESHOLD_SECONDS } from '../../utils/videoTrim';
 import JSZip from 'jszip';
 import { addImagesToMemoriesEvent, listMemoriesEvents } from '../../api/services/memoriesService';
@@ -1473,10 +1474,9 @@ const UploadFamilyImagesPage = () => {
 
   if (userLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <LoadingSpinner size="lg" text={t('uploadFamilyPage.loadingProfile')} />
-        </div>
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        <div className="h-8 w-64 bg-slate-200 rounded-xl animate-pulse" />
+        <FamilyMemberSkeleton count={3} />
       </div>
     );
   }

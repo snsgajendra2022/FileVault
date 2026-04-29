@@ -4,7 +4,6 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { FaImages, FaQrcode, FaCheckCircle, FaDownload, FaCopy, FaShare, FaFolder, FaFolderOpen, FaChevronRight, FaCheck, FaCog, FaTrash, FaSave, FaTimes } from 'react-icons/fa';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/client/axiosInstance';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import PublicShareModal from '../../components/modals/PublicShareModal';
 import { compressFileList, shouldUseCompressedFileList } from '../../utils/checkoutUrlEncoding';
@@ -115,7 +114,7 @@ function StudioCheckoutSkeleton({ loadingLabel }: { loadingLabel: string }) {
           <div className="h-4 w-full max-w-xs rounded bg-gray-100 animate-pulse sm:ml-auto" />
         </div>
         <div className="mb-6 flex justify-center border-b border-gray-100 pb-6">
-          <LoadingSpinner size="md" text="" />
+          <div className="h-8 w-48 rounded-lg bg-gray-200 animate-pulse mx-auto" />
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 md:gap-6 lg:grid-cols-5">
           {Array.from({ length: 10 }).map((_, i) => (
@@ -1406,9 +1405,6 @@ const StudioCheckout: React.FC = () => {
                     </div>
                   ) : albumImagesPending ? (
                     <div className="space-y-4" role="status" aria-live="polite">
-                      <div className="flex justify-center py-2">
-                        <LoadingSpinner size="sm" text={t('studioCheckoutPage.loadingImages')} />
-                      </div>
                       <CheckoutAlbumImagesSkeleton />
                     </div>
                   ) : (

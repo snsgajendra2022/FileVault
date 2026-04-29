@@ -17,6 +17,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import api from '../../api/client/axiosInstance';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import DashboardLoading from '../../components/common/DashboardLoading';
+import { SharedAlbumsSkeleton } from '../../components/common/skeletons';
 import toast from 'react-hot-toast';
 
 interface SharedAlbumResponse {
@@ -275,16 +276,16 @@ const SharedAlbums: React.FC = () => {
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" text={t('photoStudioSharedAlbums.loadingUser')} />
+      <div className="p-6">
+        <SharedAlbumsSkeleton count={4} />
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" text={t('photoStudioSharedAlbums.loadingShared')} />
+      <div className="p-6">
+        <SharedAlbumsSkeleton count={4} />
       </div>
     );
   }

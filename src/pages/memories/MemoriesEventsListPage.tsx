@@ -15,7 +15,7 @@ import toast from 'react-hot-toast';
 import type { MemoriesEvent, MemoriesPrivacy } from '../../features/memories/types';
 import { listMemoriesEvents, updateMemoriesEvent } from '../../api/services/memoriesService';
 import { listPhotobookTemplates } from '../../api/services/photobookTemplatesService';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { MemoriesEventCardSkeleton } from '../../components/common/skeletons';
 import MemoriesPhotobookSettingsModal, {
   type MemoriesPhotobookFormValues,
 } from './components/MemoriesPhotobookSettingsModal';
@@ -139,8 +139,8 @@ const MemoriesEventsListPage: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div className="rounded-3xl border border-slate-200/80 bg-white px-6 py-12 text-center">
-          <LoadingSpinner size="lg" text={t('refresh')} />
+        <div className="rounded-3xl border border-slate-200/80 bg-white px-6 py-8">
+          <MemoriesEventCardSkeleton count={4} />
         </div>
       ) : isError ? (
         <div className="rounded-3xl border border-rose-200 bg-rose-50 px-6 py-10 text-center">

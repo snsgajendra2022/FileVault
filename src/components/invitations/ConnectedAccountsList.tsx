@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { FaUsers } from 'react-icons/fa';
+import { ListRowSkeleton } from '../common/skeletons';
 import { Connection, getConnections } from '../../api/services/invitationService';
 
 const ConnectedAccountsList: React.FC = () => {
@@ -27,10 +28,7 @@ const ConnectedAccountsList: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin" />
-          {t(`${ic}.loading`)}
-        </div>
+        <ListRowSkeleton count={4} />
       ) : accounts.length === 0 ? (
         <p className="text-[11px] text-slate-500 border border-dashed border-slate-200 rounded-lg px-3 py-2">
           {t(`${ic}.empty`)}

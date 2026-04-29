@@ -15,6 +15,7 @@ import {
   FaPalette,
   FaSpinner,
 } from 'react-icons/fa';
+import { ThemeCardSkeleton } from '../../components/common/skeletons';
 import { getStoredToken, getStoredUserData } from '../../utils/authUtils';
 import { User } from '../../types/user';
 
@@ -523,9 +524,6 @@ const PhotoThemesPage: React.FC = () => {
         {/* Header - Show even during loading */}
         <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6 md:p-7 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_22px_60px_-20px_rgba(15,23,42,0.4)]">
           <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-cyan-500 via-indigo-500 to-violet-500 rounded-t-3xl" />
-          <div className="absolute top-0 right-0 w-40 h-40 bg-cyan-400/10 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-36 h-36 bg-indigo-400/10 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
-
           <div className="relative z-10 flex items-center gap-4">
             <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-slate-900/40">
               <FaPalette className="h-8 w-8 text-cyan-300" />
@@ -540,34 +538,7 @@ const PhotoThemesPage: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Loading State – premium futuristic */}
-        <div className="relative flex flex-col items-center justify-center min-h-[380px] rounded-2xl overflow-hidden border border-slate-200/80 bg-gradient-to-b from-slate-50 via-white to-slate-50 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_20px_50px_-20px_rgba(15,23,42,0.15)]">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(56,189,248,0.08),transparent_60%)] pointer-events-none" />
-          <div className="relative flex flex-col items-center">
-            {/* Double ring + icon */}
-            <div className="relative w-20 h-20 flex items-center justify-center">
-              <div className="absolute inset-0 rounded-full border-2 border-slate-200/80" />
-              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-400 border-r-indigo-400 animate-spin" style={{ animationDuration: '0.9s' }} />
-              <div className="absolute inset-2 rounded-full border-2 border-transparent border-t-cyan-300 border-b-violet-300 animate-spin" style={{ animationDuration: '1.4s', animationDirection: 'reverse' }} />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="loader-glow-pulse absolute w-10 h-10 rounded-full bg-cyan-400/30" />
-                <FaPalette className="relative h-8 w-8 text-cyan-500 drop-shadow-sm" />
-              </div>
-            </div>
-            <p className="mt-6 text-base font-bold text-slate-800 tracking-tight">{t('loadingThemes')}</p>
-            <p className="mt-1 text-xs text-slate-500">{t('preparingTemplates')}</p>
-            {/* Shimmer bar */}
-            <div className="mt-5 w-32 h-1 rounded-full bg-slate-200/80 overflow-hidden">
-              <div className="loader-shimmer h-full w-full rounded-full" />
-            </div>
-            <div className="mt-4 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400/50 animate-pulse" style={{ animationDelay: '0ms' }} />
-              <span className="w-2 h-2 rounded-full bg-indigo-400 shadow-sm shadow-indigo-400/40 animate-pulse" style={{ animationDelay: '250ms' }} />
-              <span className="w-2 h-2 rounded-full bg-violet-400 shadow-sm shadow-violet-400/40 animate-pulse" style={{ animationDelay: '500ms' }} />
-            </div>
-          </div>
-        </div>
+        <ThemeCardSkeleton count={4} />
       </div>
     );
   }

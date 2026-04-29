@@ -6,6 +6,7 @@ import { FaChartBar, FaUpload, FaCloud, FaExclamationTriangle } from 'react-icon
 import { FiDownload } from 'react-icons/fi';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import DashboardLoading from '../../components/common/DashboardLoading';
+import { UsagePageSkeleton } from '../../components/common/skeletons';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -25,16 +26,11 @@ const UsagePage = () => {
 
   if (isLoading) {
     return (
-      <DashboardLoading 
-        title={t('usagePage.loadingTitle')}
-        subtitle={t('usagePage.loadingSubtitle')}
-        icon={FaChartBar}
-        features={[
-          { icon: FaUpload, label: t('usagePage.featUploads') },
-          { icon: FaCloud, label: t('usagePage.featStorage') },
-          { icon: FaChartBar, label: t('usagePage.featStatistics') }
-        ]}
-      />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <UsagePageSkeleton />
+        </div>
+      </div>
     );
   }
 

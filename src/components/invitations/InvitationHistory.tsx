@@ -4,6 +4,7 @@ import { FaEnvelope, FaUser } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import api from '../../api/client/axiosInstance';
 import './invitation.css';
+import { InvitationHistorySkeleton } from '../common/skeletons';
 interface Invitation {
   id: number;
   invitationToken: string;
@@ -149,9 +150,7 @@ const InvitationHistory: React.FC = () => {
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto p-6">
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-        </div>
+        <InvitationHistorySkeleton count={4} />
       </div>
     );
   }

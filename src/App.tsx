@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './state/context/AuthContext';
 import Layout from './components/layout/Layout';
 // common
 import ErrorBoundary from './components/common/ErrorBoundary';
+import { SkeletonTheme, SKELETON_BASE_COLOR, SKELETON_HIGHLIGHT } from './components/common/skeletons';
 import { clearNavigationState } from './utils/navigation';
 import { enableInspectBlock } from './utils/blockInspect';
 import './index.css';
@@ -286,6 +287,7 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
+        <SkeletonTheme baseColor={SKELETON_BASE_COLOR} highlightColor={SKELETON_HIGHLIGHT}>
         <AuthProvider>
           <Router>
             <AppRoutes />
@@ -301,6 +303,7 @@ function App() {
             />
           </Router>
         </AuthProvider>
+        </SkeletonTheme>
       </QueryClientProvider>
     </ErrorBoundary>
   );

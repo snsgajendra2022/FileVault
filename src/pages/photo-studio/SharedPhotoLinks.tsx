@@ -5,6 +5,7 @@ import { FaCopy, FaShare } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import api from '../../api/client/axiosInstance';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { SharedPhotoLinksSkeleton } from '../../components/common/skeletons';
 
 type AlbumListItem = {
   shareAlbumId: number;
@@ -65,8 +66,13 @@ export default function SharedPhotoLinks() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" text="Loading..." />
+      <div className="p-6 space-y-6">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="h-10 w-64 bg-slate-200 rounded-xl animate-pulse" />
+        </div>
+        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6">
+          <SharedPhotoLinksSkeleton count={5} />
+        </div>
       </div>
     );
   }

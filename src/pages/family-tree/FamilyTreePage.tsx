@@ -3,6 +3,7 @@ import * as d3 from "d3";
 import { useTranslation } from "react-i18next";
 import api from '../../api/client/axiosInstance';
 import { toast } from "react-hot-toast";
+import { FamilyTreeLoadingOverlay } from '../../components/common/skeletons';
 
 // Data types
 export type Person = {
@@ -322,14 +323,7 @@ export default function FamilyTree() {
       className="fixed top-16 left-0 lg:left-64 right-0 bottom-0 bg-[#f8fafc]"
       style={{ zIndex: 10 }}
     >
-      {loading && (
-        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
-          <div className="flex flex-col items-center gap-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="text-gray-600 font-medium">{t("loadingFamilyData")}</p>
-          </div>
-        </div>
-      )}
+      {loading && <FamilyTreeLoadingOverlay />}
       <div className="absolute inset-0 bg-white overflow-hidden">
         <svg ref={svgRef} className="w-full h-full block select-none" aria-label={t("ariaFamilyTree")}>
           <defs>

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { FaPlus, FaCalendarAlt, FaImages, FaHeart, FaEye } from 'react-icons/fa';
 import { useQuery } from '@tanstack/react-query';
 import { listMemoriesEvents } from '../../api/services/memoriesService';
-import LoadingSpinner from '../../components/common/LoadingSpinner';
+import { MemoriesStatsSkeleton, MemoriesEventCardSkeleton } from '../../components/common/skeletons';
 
 const MemoriesDashboardPage: React.FC = () => {
   const { t } = useTranslation(undefined, { keyPrefix: 'memoriesPlatform' });
@@ -39,9 +39,12 @@ const MemoriesDashboardPage: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-8 shadow-sm">
-          <LoadingSpinner size="lg" text={t('refresh')} />
-        </div>
+        <>
+          <MemoriesStatsSkeleton />
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-8 shadow-sm">
+            <MemoriesEventCardSkeleton count={3} />
+          </div>
+        </>
       ) : null}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-10">

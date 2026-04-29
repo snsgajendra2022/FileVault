@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { FaCheck, FaTimes, FaCrown, FaShieldAlt, FaCloud, FaUpload, FaUsers, FaStar, FaDollarSign } from 'react-icons/fa';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import DashboardLoading from '../../components/common/DashboardLoading';
+import { PlanCardSkeleton, StatCardSkeleton } from '../../components/common/skeletons';
 
 // API Response Interfaces
 interface Plan {
@@ -307,16 +308,14 @@ const PlansPage = () => {
 
   if (plansLoading || userPlanLoading || usageLoading) {
     return (
-      <DashboardLoading 
-        title={t('plansPage.loadingTitle')}
-        subtitle={t('plansPage.loadingSubtitle')}
-        icon={FaDollarSign}
-        features={[
-          { icon: FaDollarSign, label: t('plansPage.featPlans') },
-          { icon: FaCloud, label: t('plansPage.featStorage') },
-          { icon: FaUpload, label: t('plansPage.featUploads') }
-        ]}
-      />
+      <div className="space-y-6">
+        <div className="text-center mb-10">
+          <div className="h-12 w-72 mx-auto rounded-xl bg-slate-200 animate-pulse mb-4" />
+          <div className="h-5 w-96 mx-auto rounded-lg bg-slate-100 animate-pulse" />
+        </div>
+        <StatCardSkeleton count={3} />
+        <PlanCardSkeleton count={3} />
+      </div>
     );
   }
 

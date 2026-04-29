@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/client/axiosInstance';
 import { FaCheck, FaTimes, FaEye, FaImage, FaRupeeSign, FaClock, FaUser, FaFileImage } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import { PaymentTableSkeleton } from '../../components/common/skeletons';
 
 interface PendingPayment {
   id: number;
@@ -250,8 +251,8 @@ const PaymentManagement = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                    {t('photoStudioPayments.loadingPayments')}
+                  <td colSpan={6} className="px-6 py-8">
+                    <PaymentTableSkeleton count={5} />
                   </td>
                 </tr>
               ) : payments.length === 0 ? (

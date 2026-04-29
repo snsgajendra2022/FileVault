@@ -10,6 +10,7 @@ import {
 } from 'react-icons/fa';
 import api from '../../api/client/axiosInstance';
 import { useAuth } from '../../state/context/AuthContext';
+import { PhotoBookSkeleton } from '../../components/common/skeletons';
 import { getStoredToken } from '../../utils/authUtils';
 
 const ThreeDotsIcon = () => (
@@ -409,9 +410,12 @@ const PhotoBook: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <FaSpinner className="h-10 w-10 text-indigo-500 animate-spin mb-4" />
-            <p className="text-slate-500 font-medium">{t('photoBookHub.loading')}</p>
+          <div className="space-y-8">
+            <div className="flex items-center justify-between">
+              <div className="h-8 w-48 bg-slate-200 rounded-xl animate-pulse" />
+              <div className="h-10 w-36 bg-slate-200 rounded-xl animate-pulse" />
+            </div>
+            <PhotoBookSkeleton count={8} />
           </div>
         ) : books.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
