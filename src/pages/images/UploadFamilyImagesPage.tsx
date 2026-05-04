@@ -1580,7 +1580,7 @@ const UploadFamilyImagesPage = () => {
                 disabled={!canUpload()}
                 className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2731db] min-w-[200px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <option value="">{t('uploadFamilyPage.noAlbum')}</option>
+                <option value="">{t('uploadFamilyPage.selectAlbum')}</option>
                 {albums.map((album) => (
                   <option key={album.id} value={album.id}>
                     {album.name}{' '}

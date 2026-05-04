@@ -204,7 +204,7 @@ const ClientManagement: React.FC = () => {
                 onClick={() => setSelectedClient(null)}
               >
                 <FaArrowLeft />
-                {t('photoStudioClients.backToClients')}
+                <span style={{ color: '#111827' }}>{t('photoStudioClients.backToClients')}</span>
               </button>
             </div>
 
@@ -214,7 +214,7 @@ const ClientManagement: React.FC = () => {
                   <span>{getClientInitials(selectedClient)}</span>
                 </div>
                 <div className="profile-info">
-                  <h1>{displayName}</h1>
+                  <h1 style={{ color: '#111827' }}>{displayName}</h1>
                   <p className="client-status">
                     <span className="client-role-pill">{selectedClient.relation || 'Client'}</span>
                   </p>
@@ -222,7 +222,7 @@ const ClientManagement: React.FC = () => {
                     <div className="contact-info profile-contact">
                       <div className="contact-item">
                         <FaEnvelope className="meta-icon" aria-hidden />
-                        <span>{selectedClient.email}</span>
+                        <span style={{ color: '#111827' }}>{selectedClient.email}</span>
                       </div>
                     </div>
                   )}
@@ -234,8 +234,8 @@ const ClientManagement: React.FC = () => {
                   <div className="stat-item">
                     <FaUser className="stat-item-icon" aria-hidden />
                     <div>
-                      <p className="stat-item-label">{t('photoStudioClients.username')}</p>
-                      <h3 className="stat-item-value">{selectedClient.username}</h3>
+                      <p style={{ color: '#111827', margin: '0 0 4px 0', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('photoStudioClients.username')}</p>
+                      <h3 style={{ color: '#111827', margin: 0, fontSize: '1rem', fontWeight: 700 }}>{selectedClient.username}</h3>
                     </div>
                   </div>
                 )}
@@ -243,8 +243,8 @@ const ClientManagement: React.FC = () => {
                   <div className="stat-item">
                     <FaUsers className="stat-item-icon" aria-hidden />
                     <div>
-                      <p className="stat-item-label">{t('photoStudioClients.userId')}</p>
-                      <h3 className="stat-item-value">{selectedClient.userId}</h3>
+                      <p style={{ color: '#111827', margin: '0 0 4px 0', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('photoStudioClients.userId')}</p>
+                      <h3 style={{ color: '#111827', margin: 0, fontSize: '1rem', fontWeight: 700 }}>{selectedClient.userId}</h3>
                     </div>
                   </div>
                 ) : null}
@@ -252,14 +252,14 @@ const ClientManagement: React.FC = () => {
 
               <div className="profile-sections">
                 <div className="section section--elevated">
-                  <h3>{t('photoStudioClients.clientInformation')}</h3>
+                  <h3 style={{ color: '#111827' }}>{t('photoStudioClients.clientInformation')}</h3>
                   <div className="sessions-list">
                     {selectedClient.relation && (
                       <div className="session-item session-item--row">
                         <FaUserTag className="session-item-leading" aria-hidden />
                         <div className="session-info">
-                          <h4>{t('photoStudioClients.relationship')}</h4>
-                          <p>{selectedClient.relation}</p>
+                          <h4 style={{ color: '#111827', margin: '0 0 6px 0', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('photoStudioClients.relationship')}</h4>
+                          <p style={{ color: '#111827', margin: 0, fontSize: '0.9375rem', fontWeight: 500 }}>{selectedClient.relation}</p>
                         </div>
                       </div>
                     )}
@@ -267,8 +267,8 @@ const ClientManagement: React.FC = () => {
                       <div className="session-item session-item--row">
                         <FaEnvelope className="session-item-leading" aria-hidden />
                         <div className="session-info">
-                          <h4>{t('photoStudioClients.email')}</h4>
-                          <p>{selectedClient.email}</p>
+                          <h4 style={{ color: '#111827', margin: '0 0 6px 0', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('photoStudioClients.email')}</h4>
+                          <p style={{ color: '#111827', margin: 0, fontSize: '0.9375rem', fontWeight: 500 }}>{selectedClient.email}</p>
                         </div>
                       </div>
                     )}
@@ -276,8 +276,8 @@ const ClientManagement: React.FC = () => {
                       <div className="session-item session-item--row">
                         <FaUser className="session-item-leading" aria-hidden />
                         <div className="session-info">
-                          <h4>{t('photoStudioClients.username')}</h4>
-                          <p>{selectedClient.username}</p>
+                          <h4 style={{ color: '#111827', margin: '0 0 6px 0', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('photoStudioClients.username')}</h4>
+                          <p style={{ color: '#111827', margin: 0, fontSize: '0.9375rem', fontWeight: 500 }}>{selectedClient.username}</p>
                         </div>
                       </div>
                     )}
