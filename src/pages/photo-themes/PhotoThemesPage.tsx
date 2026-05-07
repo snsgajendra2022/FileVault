@@ -520,19 +520,19 @@ const PhotoThemesPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="space-y-8 w-full">
+      <div className="space-y-5 sm:space-y-8 w-full">
         {/* Header - Show even during loading */}
-        <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6 md:p-7 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_22px_60px_-20px_rgba(15,23,42,0.4)]">
+        <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-4 sm:p-6 md:p-7 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_22px_60px_-20px_rgba(15,23,42,0.4)]">
           <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-cyan-500 via-indigo-500 to-violet-500 rounded-t-3xl" />
-          <div className="relative z-10 flex items-center gap-4">
-            <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-slate-900/40">
-              <FaPalette className="h-8 w-8 text-cyan-300" />
+          <div className="relative z-10 flex items-center gap-3 sm:gap-4">
+            <div className="w-10 h-10 sm:w-14 sm:h-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-slate-900/40 shrink-0">
+              <FaPalette className="h-5 w-5 sm:h-8 sm:w-8 text-cyan-300" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
                 {t('title')}
               </h1>
-              <p className="text-sm md:text-base text-slate-500 mt-1">
+              <p className="text-xs sm:text-sm md:text-base text-slate-500 mt-0.5 sm:mt-1">
                 {t('subtitleLoading')}
               </p>
             </div>
@@ -544,28 +544,30 @@ const PhotoThemesPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 w-full">
+    <div className="space-y-5 sm:space-y-8 w-full">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6 md:p-7 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_22px_60px_-20px_rgba(15,23,42,0.4)]">
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-4 sm:p-6 md:p-7 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_22px_60px_-20px_rgba(15,23,42,0.4)]">
         <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-cyan-500 via-indigo-500 to-violet-500 rounded-t-3xl" />
         <div className="absolute top-0 right-0 w-40 h-40 bg-cyan-400/10 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-36 h-36 bg-indigo-400/10 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
 
-        <div className="relative z-10 flex items-center gap-4">
-          <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-slate-900/40">
-            <FaPalette className="h-8 w-8 text-cyan-300" />
-          </div>
-          <div className="flex-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
-              {t('title')}
-            </h1>
-            <p className="text-sm md:text-base text-slate-500 mt-1 max-w-xl">
-              {t('subtitleLoaded')}
-            </p>
+        <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+            <div className="w-10 h-10 sm:w-14 sm:h-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-slate-900/40 shrink-0">
+              <FaPalette className="h-5 w-5 sm:h-8 sm:w-8 text-cyan-300" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
+                {t('title')}
+              </h1>
+              <p className="text-xs sm:text-sm md:text-base text-slate-500 mt-0.5 sm:mt-1 max-w-xl">
+                {t('subtitleLoaded')}
+              </p>
+            </div>
           </div>
           <Link
             to="/photo-book"
-            className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            className="shrink-0 self-start sm:self-auto rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
           >
             {t('myPhotoBooks')}
           </Link>
@@ -579,7 +581,7 @@ const PhotoThemesPage: React.FC = () => {
       )}
 
       {/* Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
         {themes.map((theme) => (
           <ThemeCard
             key={theme.id}
@@ -592,7 +594,7 @@ const PhotoThemesPage: React.FC = () => {
       </div>
 
       {/* Info */}
-      <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-5 border border-slate-200/80">
+      <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-4 sm:p-5 border border-slate-200/80">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm shadow-slate-900/30">
             <FaPalette className="h-5 w-5 text-cyan-300" />

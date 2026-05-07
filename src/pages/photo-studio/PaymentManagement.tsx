@@ -163,18 +163,18 @@ const PaymentManagement = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center">
             <FaRupeeSign className="mr-2 text-[#2731db]" />
             {t('photoStudioPayments.title')}
           </h1>
-          <p className="text-gray-600 mt-1">{t('photoStudioPayments.subtitle')}</p>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">{t('photoStudioPayments.subtitle')}</p>
         </div>
         <button
           onClick={() => refetch()}
           disabled={isFetching}
-          className="px-4 py-2 bg-[#2731db] text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+          className="self-start sm:self-auto px-3 sm:px-4 py-2 bg-[#2731db] text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm"
         >
           {isFetching ? (
             <>
@@ -222,9 +222,43 @@ const PaymentManagement = () => {
         </div>
       </div>
 
-      {/* Payments Table */}
+      {/* Payments — table on desktop, cards on mobile */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile card list */}
+        <div className="block sm:hidden divide-y divide-gray-100">
+          {isLoading ? (
+            <div className="px-4 py-6"><PaymentTableSkeleton count={3} /></div>
+          ) : payments.length === 0 ? (
+            <p className="px-4 py-6 text-center text-gray-500 text-sm">{t('photoStudioPayments.noPending')}</p>
+          ) : payments.map((payment) => (
+            <div key={payment.id} className="p-4 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{t('photoStudioPayments.utrLabel', { utr: payment.utrNumber })}</p>
+                  <p className="text-xs text-gray-500">{t('photoStudioPayments.idLabel', { id: payment.id })}</p>
+                  {payment.albumName && <p className="text-xs text-gray-500 truncate">{t('photoStudioPayments.albumLabel', { name: payment.albumName })}</p>}
+                </div>
+                <div className="flex items-center text-green-600 font-bold text-sm shrink-0">
+                  <FaRupeeSign className="mr-0.5 h-3 w-3" />{payment.totalAmount}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                <span className="flex items-center gap-1"><FaUser className="h-3 w-3" />{payment.userName || t('photoStudioPayments.na')}</span>
+                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded-full font-medium">{payment.purchaseType.replace('_', ' ')}</span>
+                <span>{t('photoStudioPayments.imageCountShort', { count: payment.imageCount || payment.imageIds?.length || 0 })}</span>
+              </div>
+              <p className="text-xs text-gray-400">{formatDate(payment.createdAt)}</p>
+              <div className="flex items-center gap-2 pt-1">
+                <button onClick={() => handleViewDetails(payment)} className="flex-1 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">{t('photoStudioPayments.viewDetails')}</button>
+                <button onClick={() => handleConfirm(payment)} className="flex-1 py-1.5 text-xs font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">{t('photoStudioPayments.confirmPayment')}</button>
+                <button onClick={() => handleReject(payment)} className="flex-1 py-1.5 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">{t('photoStudioPayments.rejectPayment')}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -502,7 +536,7 @@ const PaymentManagement = () => {
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-lg p-4">
                   <p className="text-sm text-gray-600 mb-1">{t('photoStudioPayments.paymentId')}</p>
                   <p className="text-lg font-semibold text-gray-900">{selectedPayment.id}</p>
@@ -573,7 +607,7 @@ const PaymentManagement = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-lg p-4">
                   <p className="text-sm text-gray-600 mb-1">{t('photoStudioPayments.createdAt')}</p>
                   <p className="text-sm text-gray-900">{formatDate(selectedPayment.createdAt)}</p>

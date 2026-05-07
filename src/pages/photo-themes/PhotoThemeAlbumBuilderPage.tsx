@@ -2983,7 +2983,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       )}
 
       {studioAlbumImageIds && (
-        <div className="no-print mx-4 mt-2 rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200/60 px-4 py-2.5 flex items-center gap-3">
+        <div className="no-print mx-2 sm:mx-4 mt-2 rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200/60 px-3 sm:px-4 py-2 sm:py-2.5 flex items-center gap-2 sm:gap-3">
           <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
             <FaImages className="w-4 h-4 text-indigo-600" />
           </div>
@@ -2995,8 +2995,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       )}
 
       {/* 1. Top Navigation Bar */}
-      <header className="no-print sticky top-0 z-30 flex items-center justify-between gap-4 px-4 py-3 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
-        <div className="flex items-center gap-4 min-w-0">
+      <header className="no-print sticky top-0 z-30 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4 px-3 sm:px-4 py-2 sm:py-3 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <button
             type="button"
             onClick={() => navigate(`/photo-themes/${categorySlug}`, { state: { templateId: dbTemplateId, photobookId } })}
@@ -3006,7 +3006,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             <FaArrowLeft className="w-5 h-5" />
           </button>
           <div className="min-w-0">
-            <h1 className="text-base font-bold text-slate-900 truncate">
+            <h1 className="text-sm sm:text-base font-bold text-slate-900 truncate">
               {studioAlbumName || template?.name || t('myAlbum')}
             </h1>
             <p className="text-xs text-slate-500 truncate">
@@ -3015,7 +3015,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           </div>
         </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap shrink-0">
           <div className="hidden sm:flex items-center gap-1 rounded-lg bg-slate-100 p-1" title={t('undoRedoSoon')}>
             <button type="button" className="rounded-md px-2 py-1 text-[10px] font-semibold text-slate-400" disabled>{t('undo')}</button>
             <button type="button" className="rounded-md px-2 py-1 text-[10px] font-semibold text-slate-400" disabled>{t('redo')}</button>
@@ -3055,9 +3055,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       </header>
 
       {/* 2. Main workspace: Left sidebar | Center canvas | Right sidebar */}
-      <div className="album-pages-section flex-1 flex min-h-0 no-print">
+      <div className="album-pages-section flex-1 flex flex-col md:flex-row min-h-0 no-print">
         {/* Left Sidebar — Photo Library */}
-        <aside className="w-56 lg:w-64 shrink-0 border-r border-slate-200/80 bg-white flex flex-col overflow-hidden">
+        <aside className="hidden md:flex md:w-56 lg:w-64 shrink-0 border-r border-slate-200/80 bg-white flex-col overflow-hidden">
           <div className="p-3 border-b border-slate-100">
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
               <FaImages className="w-3.5 h-3.5 text-indigo-500" />
@@ -3205,7 +3205,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           return (
             <>
               {/* 3. Center — Album Canvas */}
-              <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-gradient-to-b from-slate-50/50 to-white p-4">
+              <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-gradient-to-b from-slate-50/50 to-white p-2 sm:p-4">
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <span className={`text-xs font-semibold uppercase tracking-wider rounded-lg px-3 py-1.5 ${
                     isCover ? 'bg-amber-100 text-amber-900' : isLast ? 'bg-stone-100 text-stone-800' : 'bg-slate-100 text-slate-700'
@@ -3293,7 +3293,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                       className="relative w-full rounded-xl overflow-hidden bg-white border border-slate-200/80 shadow-lg"
                       style={{
                         aspectRatio: '4/3',
-                        maxHeight: 'calc(100vh - 280px)',
+                        maxHeight: 'calc(100vh - 320px)',
                         boxShadow: '0 0 0 1px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.08)',
                       }}
                     >
@@ -3313,7 +3313,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
               </main>
 
               {/* 4. Right Sidebar — Layout & Settings */}
-              <aside className="w-[22rem] shrink-0 border-l border-slate-200/80 bg-white flex flex-col overflow-y-auto">
+              <aside className="w-full md:w-[22rem] shrink-0 border-t md:border-t-0 md:border-l border-slate-200/80 bg-white flex flex-col overflow-y-auto max-h-[50vh] md:max-h-none">
                 <div className="p-3 border-b border-slate-100">
                   <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
                     <FaPalette className="w-3.5 h-3.5 text-indigo-500" />
@@ -3662,7 +3662,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       </div>
 
       {/* 5. Bottom Filmstrip — page thumbnails, add/delete page */}
-      <div className="no-print border-t border-slate-200/80 bg-white flex items-center gap-2 px-3 py-2 overflow-x-auto shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+      <div className="no-print border-t border-slate-200/80 bg-white flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 overflow-x-auto shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
         <div ref={stepperRef} className="flex items-center gap-2 overflow-x-auto scroll-smooth flex-1 min-w-0" style={{ scrollPaddingInline: '8px' }}>
           {albumPages.map((p, i) => {
             const pState = pageImages[p.index] ?? {};
@@ -3677,7 +3677,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 className={`flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
                   active ? 'border-indigo-500 shadow-md ring-2 ring-indigo-500/30' : hasImg ? 'border-slate-200 hover:border-slate-300' : 'border-slate-200 opacity-80'
                 }`}
-                style={{ width: 48, height: 36 }}
+                style={{ width: 40, height: 30 }}
                 title={p.type === 'cover' ? t('cover') : p.type === 'last' ? t('back') : t('pageLabel', { n: p.index + 1 })}
               >
                 {hasImg && pState.imageDataUrl ? (

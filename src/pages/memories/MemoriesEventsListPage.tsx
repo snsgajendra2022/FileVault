@@ -12,6 +12,8 @@ import {
   FaCalendarAlt,
   FaEdit,
   FaBook,
+  FaSearch,
+  FaTimes,
 } from 'react-icons/fa';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -82,6 +84,7 @@ const MemoriesEventsListPage: React.FC = () => {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [photobookForEvent, setPhotobookForEvent] = React.useState<MemoriesEvent | null>(null);
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['memoriesEvents'],
@@ -90,6 +93,13 @@ const MemoriesEventsListPage: React.FC = () => {
     refetchOnWindowFocus: false,
   });
   const events = Array.isArray(data) ? data : [];
+  const filteredEvents = React.useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return events as MemoriesEvent[];
+    return (events as MemoriesEvent[]).filter((ev) =>
+      ev.name?.toLowerCase().includes(q)
+    );
+  }, [events, searchQuery]);
 
   const { data: photobookTemplates = [], isLoading: photobookTemplatesLoading } = useQuery({
     queryKey: ['photobookTemplates'],
@@ -170,6 +180,37 @@ const MemoriesEventsListPage: React.FC = () => {
         </div>
       </div>
 
+      {/* ── Search bar ── */}
+      <div className="max-w-6xl mx-auto px-2 pt-5 sm:px-4">
+        <div className="relative">
+          <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search events by name…"
+            className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-10 text-sm font-medium text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20 transition-all"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors"
+              aria-label="Clear search"
+            >
+              <FaTimes className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="mt-2 text-xs text-slate-500 pl-1">
+            {filteredEvents.length === 0
+              ? 'No events match your search'
+              : `${filteredEvents.length} event${filteredEvents.length !== 1 ? 's' : ''} found`}
+          </p>
+        )}
+      </div>
+
       {/* ── Content ── */}
       <div className="max-w-6xl mx-auto px-2 py-6 sm:px-4 sm:py-8">
 
@@ -208,7 +249,23 @@ const MemoriesEventsListPage: React.FC = () => {
 
         ) : (
           <ul className="space-y-5">
-            {(events as MemoriesEvent[]).map((ev) => {
+            {filteredEvents.length === 0 ? (
+              <li>
+                <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-16 text-center">
+                  <div className="text-4xl mb-3">🔍</div>
+                  <p className="text-base font-bold text-slate-700">No events found for "{searchQuery}"</p>
+                  <p className="text-sm text-slate-500 mt-1">Try a different name or clear the search</p>
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:border-violet-300 hover:text-violet-700 transition-all shadow-sm"
+                  >
+                    <FaTimes className="h-3.5 w-3.5" />
+                    Clear search
+                  </button>
+                </div>
+              </li>
+            ) : filteredEvents.map((ev) => {
               const privacy = (ev as MemoriesEvent & { privacy?: MemoriesPrivacy }).privacy ?? 'invite';
               const Icon = privacyIcon(privacy);
               const photoCount = Array.isArray(ev.images) ? ev.images.length : 0;
@@ -218,10 +275,11 @@ const MemoriesEventsListPage: React.FC = () => {
               const manageState = { memoriesSeedEvent: ev } as const;
               const goToEditEvent = () => navigate(editHref, { state: manageState });
 
+              // No highlight — show name as-is
+
               return (
                 <li key={ev.id}>
                   <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:border-violet-300/60 hover:shadow-[0_12px_40px_-8px_rgba(124,58,237,0.15)]">
-
                     <div className="flex flex-col sm:flex-row sm:items-stretch">
 
                       {/* ── Cover image ── */}
@@ -242,10 +300,7 @@ const MemoriesEventsListPage: React.FC = () => {
                             <span className="text-sm font-semibold text-white/60">Our Memories</span>
                           </div>
                         )}
-                        {/* gradient overlay */}
                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:to-white/5" />
-
-                        {/* photo count badge on cover */}
                         <div className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-black/50 px-2.5 py-1 backdrop-blur-sm">
                           <FaImages className="h-3 w-3 text-white/80" />
                           <span className="text-xs font-bold text-white tabular-nums">{photoCount}</span>
@@ -271,8 +326,6 @@ const MemoriesEventsListPage: React.FC = () => {
                                 </p>
                               )}
                             </div>
-
-                            {/* privacy badge */}
                             <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${privacyColor(privacy)}`}>
                               <Icon className={`h-3 w-3 ${privacyIconColor(privacy)}`} aria-hidden />
                               {t(privacyLabelKey(privacy))}
