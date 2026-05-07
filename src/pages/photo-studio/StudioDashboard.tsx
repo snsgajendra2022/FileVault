@@ -572,30 +572,44 @@ const StudioDashboard: React.FC = () => {
                   {/* Custom legend — full names, no truncation */}
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                    gap: '8px 16px',
-                    padding: '14px 6px 6px',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                    gap: '10px 16px',
+                    padding: '16px 6px 6px',
                     borderTop: '1px solid #F1F5F9',
                   }}>
                     {pieChartData.map((entry, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+                      <div key={i} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        background: '#F8FAFC', borderRadius: 10,
+                        padding: '8px 10px', minWidth: 0,
+                        border: '1px solid #F1F5F9',
+                      }}>
+                        {/* colour dot */}
                         <span style={{
-                          width: 12, height: 12, borderRadius: 4,
+                          width: 13, height: 13, borderRadius: 4,
                           background: entry.color, flexShrink: 0,
                         }} />
+                        {/* album name */}
                         <span style={{
-                          fontSize: 14, fontWeight: 600, color: '#334155',
-                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                          lineHeight: 1.5, flex: 1,
+                          fontSize: 13, fontWeight: 600, color: '#1E293B',
+                          overflow: 'hidden', textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap', flex: 1, lineHeight: 1.4,
                         }} title={entry.name}>
                           {entry.name}
                         </span>
+                        {/* count pill with "photos" label */}
                         <span style={{
-                          fontSize: 13, fontWeight: 700, color: '#6366F1',
-                          flexShrink: 0, background: '#EEF2FF',
-                          borderRadius: 6, padding: '1px 7px',
+                          display: 'inline-flex', alignItems: 'center', gap: 3,
+                          flexShrink: 0, background: entry.color + '1A',
+                          border: `1px solid ${entry.color}40`,
+                          borderRadius: 20, padding: '2px 9px',
                         }}>
-                          {entry.value}
+                          <span style={{ fontSize: 13, fontWeight: 800, color: entry.color }}>
+                            {entry.value}
+                          </span>
+                          <span style={{ fontSize: 11, fontWeight: 500, color: entry.color, opacity: 0.8 }}>
+                            photos
+                          </span>
                         </span>
                       </div>
                     ))}
