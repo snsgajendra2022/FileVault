@@ -129,6 +129,8 @@
     "uploadPhotos": "Upload Photos",
     "createAlbum": "Create Album",
     "totalClients": "Total Clients",
+    "totalMember": "Total Member",
+
     "fromFamilyClients": "From family & clients",
     "thisMonth": "{{n}}% this month",
     "totalAlbums": "Total Albums",

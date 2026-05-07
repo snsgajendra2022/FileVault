@@ -9,6 +9,9 @@ import {
   FaUserFriends,
   FaMapMarkerAlt,
   FaImages,
+  FaCalendarAlt,
+  FaEdit,
+  FaBook,
 } from 'react-icons/fa';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -30,6 +33,18 @@ const privacyLabelKey = (p: MemoriesPrivacy | undefined): `privacy.${MemoriesPri
   if (p === 'public') return 'privacy.public';
   if (p === 'private') return 'privacy.private';
   return 'privacy.invite';
+};
+
+const privacyColor = (p: MemoriesPrivacy | undefined) => {
+  if (p === 'public') return 'bg-emerald-50 border-emerald-200 text-emerald-800';
+  if (p === 'invite') return 'bg-blue-50 border-blue-200 text-blue-800';
+  return 'bg-slate-100 border-slate-200 text-slate-700';
+};
+
+const privacyIconColor = (p: MemoriesPrivacy | undefined) => {
+  if (p === 'public') return 'text-emerald-500';
+  if (p === 'invite') return 'text-blue-500';
+  return 'text-slate-400';
 };
 
 function formatListDate(iso: string): string {
@@ -90,9 +105,7 @@ const MemoriesEventsListPage: React.FC = () => {
         ...(values.photobookNeeded && values.photobookTemplateId != null
           ? { photobookTemplateId: values.photobookTemplateId }
           : {}),
-        photobookThankYouMessage: values.photobookNeeded
-          ? values.photobookThankYouMessage
-          : '',
+        photobookThankYouMessage: values.photobookNeeded ? values.photobookThankYouMessage : '',
       });
     },
     onSuccess: async () => {
@@ -104,7 +117,7 @@ const MemoriesEventsListPage: React.FC = () => {
   });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6">
+    <div className="min-h-screen bg-gradient-to-b from-violet-50/60 via-white to-white">
       <MemoriesPhotobookSettingsModal
         open={Boolean(photobookForEvent)}
         onClose={() => setPhotobookForEvent(null)}
@@ -118,159 +131,210 @@ const MemoriesEventsListPage: React.FC = () => {
         }}
       />
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{t('eventsTitle')}</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{t('eventsSubtitle')}</p>
-          <Link
-            to="/memories/shared"
-            className="inline-block mt-2 text-sm font-semibold text-violet-600 hover:underline"
-          >
-            {t('sharedWithMeTitle')} →
-          </Link>
-        </div>
-        <Link
-          to="/memories/events/new"
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 text-white px-4 py-2.5 text-sm font-bold hover:bg-slate-800 transition-colors shrink-0"
-        >
-          <FaPlus className="h-4 w-4" />
-          {t('newEvent')}
-        </Link>
-      </div>
+      {/* ── Hero header ── */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-violet-700 via-violet-600 to-fuchsia-600 px-4 py-8 sm:px-8 sm:py-12">
+        {/* decorative blobs */}
+        <div className="pointer-events-none absolute -top-16 -right-16 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-12 -left-12 h-48 w-48 rounded-full bg-fuchsia-400/20 blur-2xl" />
 
-      {isLoading ? (
-        <div className="rounded-3xl border border-slate-200/80 bg-white px-6 py-8">
-          <MemoriesEventCardSkeleton count={4} />
-        </div>
-      ) : isError ? (
-        <div className="rounded-3xl border border-rose-200 bg-rose-50 px-6 py-10 text-center">
-          <p className="text-rose-800 font-semibold">{t('eventsLoadError')}</p>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="mt-4 inline-flex items-center justify-center rounded-xl bg-slate-900 text-white px-4 py-2.5 text-sm font-bold hover:bg-slate-800"
-            disabled={isFetching}
-          >
-            {t('refresh')}
-          </button>
-        </div>
-      ) : events.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-16 text-center">
-          <p className="text-slate-600 font-medium">{t('emptyEvents')}</p>
+        <div className="relative max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+          <div>
+            {/* Brand label */}
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 mb-4">
+              <span className="text-xs font-black tracking-[0.3em] text-white/90 uppercase">OM</span>
+              <span className="text-xs font-semibold text-white/70">Our Memories</span>
+            </div>
+
+            <h1 className="text-4xl sm:text-5xl font-extrabold text-white leading-tight tracking-tight">
+              {t('eventsTitle')}
+            </h1>
+            <p className="mt-2 text-base sm:text-lg text-violet-100/90 font-medium">
+              {t('eventsSubtitle')}
+            </p>
+            <Link
+              to="/memories/shared"
+              className="inline-flex items-center gap-1.5 mt-4 text-sm font-bold text-white/80 hover:text-white transition-colors"
+            >
+              {t('sharedWithMeTitle')}
+              <FaChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+
           <Link
             to="/memories/events/new"
-            className="mt-4 inline-flex items-center gap-2 text-violet-600 font-bold hover:underline"
+            className="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-white text-violet-700 px-6 py-3.5 text-base font-extrabold shadow-lg hover:bg-violet-50 transition-all duration-200 shrink-0 hover:scale-[1.02] active:scale-[0.98]"
           >
-            {t('createFirst')} <FaChevronRight className="h-3 w-3" />
+            <FaPlus className="h-4 w-4" />
+            {t('newEvent')}
           </Link>
         </div>
-      ) : (
-        <ul className="space-y-4 sm:space-y-5">
-          {(events as MemoriesEvent[]).map((ev) => {
-            const privacy = (ev as MemoriesEvent & { privacy?: MemoriesPrivacy }).privacy ?? 'invite';
-            const Icon = privacyIcon(privacy);
-            const photoCount = Array.isArray(ev.images) ? ev.images.length : 0;
-            const listDate = formatListDate(ev.dateTime);
-            const manageHref = `/memories/events/${ev.id}`;
-            const editHref = `/memories/events/${ev.id}/edit`;
-            const manageState = { memoriesSeedEvent: ev } as const;
-            const goToEditEvent = () => navigate(editHref, { state: manageState });
-            return (
-              <li key={ev.id}>
-                <div className="group relative flex flex-col sm:flex-row sm:items-stretch gap-0 overflow-hidden rounded-[1.35rem] border border-slate-200/70 bg-gradient-to-br from-white via-white to-violet-50/40 shadow-[0_4px_24px_-6px_rgba(15,23,42,0.08)] ring-slate-900/[0.04] transition-all duration-300 hover:border-violet-300/50 hover:shadow-[0_16px_48px_-12px_rgba(124,58,237,0.18)] hover:ring-violet-500/10">
-                  <Link
-                    to={manageHref}
-                    state={manageState}
-                    className="relative flex min-h-0 flex-1 flex-col sm:flex-row sm:items-stretch focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500"
-                  >
-                    <div className="relative h-40 sm:h-auto sm:w-[min(38%,280px)] shrink-0 overflow-hidden sm:rounded-l-[1.35rem]">
-                      {ev.coverImageUrl ? (
-                        <img
-                          src={ev.coverImageUrl}
-                          alt=""
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                        />
-                      ) : (
-                        <div className="flex h-full min-h-[160px] w-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-violet-600 via-fuchsia-600 to-violet-800 p-4 sm:min-h-[140px]">
-                          <span className="text-[11px] font-black tracking-[0.35em] text-white/90">OM</span>
-                          <span className="text-[10px] font-medium text-white/70">Our Memories</span>
+      </div>
+
+      {/* ── Content ── */}
+      <div className="max-w-6xl mx-auto px-2 py-6 sm:px-4 sm:py-8">
+
+        {isLoading ? (
+          <div className="rounded-3xl border border-slate-200/80 bg-white px-6 py-8 shadow-sm">
+            <MemoriesEventCardSkeleton count={4} />
+          </div>
+
+        ) : isError ? (
+          <div className="rounded-3xl border border-rose-200 bg-rose-50 px-6 py-12 text-center shadow-sm">
+            <div className="text-4xl mb-3">😕</div>
+            <p className="text-lg font-bold text-rose-800">{t('eventsLoadError')}</p>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 text-white px-5 py-2.5 text-sm font-bold hover:bg-rose-700 disabled:opacity-60 transition-colors"
+            >
+              {t('refresh')}
+            </button>
+          </div>
+
+        ) : events.length === 0 ? (
+          <div className="rounded-3xl border-2 border-dashed border-violet-200 bg-violet-50/50 px-6 py-20 text-center">
+            <div className="text-5xl mb-4">📸</div>
+            <p className="text-xl font-bold text-slate-700">{t('emptyEvents')}</p>
+            <p className="text-sm text-slate-500 mt-1 mb-6">Start by creating your first memory event</p>
+            <Link
+              to="/memories/events/new"
+              className="inline-flex items-center gap-2 rounded-xl bg-violet-600 text-white px-6 py-3 text-base font-bold hover:bg-violet-700 transition-colors"
+            >
+              <FaPlus className="h-4 w-4" />
+              {t('createFirst')}
+            </Link>
+          </div>
+
+        ) : (
+          <ul className="space-y-5">
+            {(events as MemoriesEvent[]).map((ev) => {
+              const privacy = (ev as MemoriesEvent & { privacy?: MemoriesPrivacy }).privacy ?? 'invite';
+              const Icon = privacyIcon(privacy);
+              const photoCount = Array.isArray(ev.images) ? ev.images.length : 0;
+              const listDate = formatListDate(ev.dateTime);
+              const manageHref = `/memories/events/${ev.id}`;
+              const editHref = `/memories/events/${ev.id}/edit`;
+              const manageState = { memoriesSeedEvent: ev } as const;
+              const goToEditEvent = () => navigate(editHref, { state: manageState });
+
+              return (
+                <li key={ev.id}>
+                  <div className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:border-violet-300/60 hover:shadow-[0_12px_40px_-8px_rgba(124,58,237,0.15)]">
+
+                    <div className="flex flex-col sm:flex-row sm:items-stretch">
+
+                      {/* ── Cover image ── */}
+                      <Link
+                        to={manageHref}
+                        state={manageState}
+                        className="relative block h-52 sm:h-auto sm:w-64 shrink-0 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500"
+                      >
+                        {ev.coverImageUrl ? (
+                          <img
+                            src={ev.coverImageUrl}
+                            alt={ev.name}
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                          />
+                        ) : (
+                          <div className="flex h-full min-h-[208px] sm:min-h-0 w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-violet-600 via-fuchsia-600 to-violet-800">
+                            <span className="text-2xl font-black tracking-[0.3em] text-white/90">OM</span>
+                            <span className="text-sm font-semibold text-white/60">Our Memories</span>
+                          </div>
+                        )}
+                        {/* gradient overlay */}
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:to-white/5" />
+
+                        {/* photo count badge on cover */}
+                        <div className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-black/50 px-2.5 py-1 backdrop-blur-sm">
+                          <FaImages className="h-3 w-3 text-white/80" />
+                          <span className="text-xs font-bold text-white tabular-nums">{photoCount}</span>
                         </div>
-                      )}
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-900/50 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:via-transparent sm:to-white/10" />
-                    </div>
+                      </Link>
 
-                    <div className="flex flex-1 flex-col justify-center gap-3 p-5 sm:py-6 sm:pl-6 sm:pr-5">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <h2 className="line-clamp-2 text-lg font-bold tracking-tight text-slate-900 transition-colors group-hover:text-violet-800 sm:text-xl">
-                            {ev.name}
-                          </h2>
-                          {ev.summary ? (
-                            <p className="mt-1.5 line-clamp-2 text-sm leading-snug text-slate-600">{ev.summary}</p>
-                          ) : null}
+                      {/* ── Main content ── */}
+                      <div className="flex flex-1 flex-col min-w-0">
+                        <Link
+                          to={manageHref}
+                          state={manageState}
+                          className="flex flex-1 flex-col justify-between gap-4 p-5 sm:p-6 focus-visible:outline-none"
+                        >
+                          {/* top row */}
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 leading-snug group-hover:text-violet-800 transition-colors line-clamp-2">
+                                {ev.name}
+                              </h2>
+                              {ev.summary && (
+                                <p className="mt-2 text-sm sm:text-base text-slate-500 leading-relaxed line-clamp-2">
+                                  {ev.summary}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* privacy badge */}
+                            <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${privacyColor(privacy)}`}>
+                              <Icon className={`h-3 w-3 ${privacyIconColor(privacy)}`} aria-hidden />
+                              {t(privacyLabelKey(privacy))}
+                            </span>
+                          </div>
+
+                          {/* meta row */}
+                          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                            {listDate && (
+                              <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600">
+                                <FaCalendarAlt className="h-3.5 w-3.5 text-violet-400 shrink-0" />
+                                {listDate}
+                              </span>
+                            )}
+                            {ev.location && (
+                              <span className="inline-flex items-center gap-2 text-sm text-slate-500 min-w-0">
+                                <FaMapMarkerAlt className="h-3.5 w-3.5 text-violet-400 shrink-0" />
+                                <span className="truncate">{ev.location}</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {/* open gallery hint */}
+                          <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                            <span className="text-sm font-bold text-violet-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              {t('openGallery')} →
+                            </span>
+                            <span className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-400 transition-all duration-200 group-hover:border-violet-300 group-hover:bg-violet-50 group-hover:text-violet-600">
+                              <FaChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                            </span>
+                          </div>
+                        </Link>
+
+                        {/* ── Action buttons ── */}
+                        <div className="flex items-center gap-2 border-t border-slate-100 bg-slate-50/70 px-5 py-3 sm:px-6">
+                          <button
+                            type="button"
+                            onClick={goToEditEvent}
+                            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:border-violet-300 hover:text-violet-700 transition-all"
+                          >
+                            <FaEdit className="h-3.5 w-3.5" />
+                            {t('editEvent')}
+                          </button>
+                          <button
+                            type="button"
+                            title={t('photobookListTooltip')}
+                            onClick={() => setPhotobookForEvent(ev)}
+                            className="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-bold text-violet-800 shadow-sm hover:bg-violet-100 hover:border-violet-300 transition-all"
+                          >
+                            <FaBook className="h-3.5 w-3.5" />
+                            {t('photobookSettings')}
+                          </button>
                         </div>
-                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-violet-200/80 bg-violet-50/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-violet-800">
-                          <Icon className="h-3 w-3 text-violet-600" aria-hidden />
-                          {t(privacyLabelKey(privacy))}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
-                        {listDate ? (
-                          <span className="inline-flex items-center gap-1.5 font-medium text-slate-600">
-                            <span className="h-1 w-1 rounded-full bg-violet-400" aria-hidden />
-                            {listDate}
-                          </span>
-                        ) : null}
-                        {ev.location ? (
-                          <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
-                            <FaMapMarkerAlt className="h-3 w-3 shrink-0 text-violet-400" aria-hidden />
-                            <span className="truncate">{ev.location}</span>
-                          </span>
-                        ) : null}
-                        <span className="inline-flex items-center gap-1.5 text-slate-500">
-                          <FaImages className="h-3 w-3 shrink-0 text-violet-400" aria-hidden />
-                          <span className="tabular-nums">
-                            {photoCount} {t('photos')}
-                          </span>
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between border-t border-slate-100/80 pt-3 sm:border-0 sm:pt-0">
-                        <span className="text-xs font-semibold text-violet-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                          {t('openGallery')} →
-                        </span>
-                        <span className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200/80 bg-white text-slate-400 shadow-sm transition-all duration-300 group-hover:border-violet-300 group-hover:bg-violet-50 group-hover:text-violet-600 group-hover:shadow-md">
-                          <FaChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                        </span>
                       </div>
                     </div>
-                  </Link>
-
-                  <div className="relative z-20 flex flex-row sm:flex-col justify-center gap-2 border-t border-slate-100 bg-slate-50/90 px-4 py-3 sm:w-[9.5rem] sm:border-t-0 sm:border-l sm:border-slate-100 sm:py-4 shrink-0">
-                    <button
-                      type="button"
-                      onClick={goToEditEvent}
-                      className="inline-flex flex-1 sm:flex-none items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 shadow-sm hover:border-violet-300 hover:text-violet-700"
-                    >
-                      {t('editEvent')}
-                    </button>
-                    <button
-                      type="button"
-                      title={t('photobookListTooltip')}
-                      onClick={() => setPhotobookForEvent(ev)}
-                      className="inline-flex flex-1 sm:flex-none items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-bold text-violet-900 shadow-sm hover:bg-violet-100"
-                    >
-                      <FaImages className="h-3 w-3 shrink-0 opacity-80" aria-hidden />
-                      {t('photobookSettings')}
-                    </button>
                   </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   );
 };

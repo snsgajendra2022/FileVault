@@ -79,9 +79,16 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
       const response = await api.post('/api/simple-invitations', formData);
 
       if (response.data.success) {
+        // Debug: log full response to check emailSent status
+        console.log('[Invitation] API response:', JSON.stringify(response.data, null, 2));
         setCreatedInvitation(response.data.invitation);
         setShowSuccess(true);
         onInvitationCreated(response.data.invitation);
+
+        // Show warning if backend says email was not sent
+        if (response.data.emailSent === false || response.data.invitation?.emailSent === false) {
+          toast.error('Invitation created but email could not be sent. Share the link manually.');
+        }
 
         setFormData({
           inviteeEmail: '',
@@ -196,6 +203,25 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Invitation link — always visible so user can share manually if email fails */}
+          <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-200">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Invitation Link</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs text-gray-800 bg-white border border-gray-200 rounded-lg px-3 py-2 truncate select-all">
+                {`${window.location.origin}/accept-invitation?token=${createdInvitation.invitationToken}`}
+              </code>
+              <button
+                onClick={copyInvitationLink}
+                className="shrink-0 px-3 py-2 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Copy
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Share this link with <strong>{formData.inviteeFirstName}</strong> if they didn't receive the email.
+            </p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">

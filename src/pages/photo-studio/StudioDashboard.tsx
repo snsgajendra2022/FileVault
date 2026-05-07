@@ -26,7 +26,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
 } from 'recharts';
 import './StudioDashboard.css';
 import adminService from '../../api/services/adminService';
@@ -35,7 +34,7 @@ import DashboardLoading from '../../components/common/DashboardLoading';
 import { useAuth } from '../../state/context/AuthContext';
 
 interface DashboardStats {
-  totalClients?: number;
+  totalMember?: number;
   clientsTrendPercent?: number;
   clientsTrendLabel?: string;
   totalPhotos?: number;
@@ -91,6 +90,68 @@ interface ChartDataPoint {
   color: string;
 }
 
+// ── Timestamp formatter ──────────────────────────────────────────────────────
+// Handles: ISO strings, epoch ms strings, epoch numbers, "X ago" strings
+function formatActivityTime(raw: string | number | undefined | null): string {
+  if (!raw && raw !== 0) return '';
+
+  // Already a plain relative label with no parseable date — pass through
+  const str = String(raw).trim();
+  if (/^\d+\s*(mins?|hours?|days?|weeks?)\s*ago$/i.test(str)) return str;
+  if (/^just now$/i.test(str)) return str;
+
+  // Try to parse as epoch ms (number or numeric string)
+  const asNum = Number(str);
+  const date = !isNaN(asNum) && asNum > 1_000_000_000
+    ? new Date(asNum > 9_999_999_999 ? asNum : asNum * 1000) // seconds vs ms
+    : new Date(str);
+
+  if (isNaN(date.getTime())) return str; // unparseable — return as-is
+
+  // Time part: "07:03 AM"
+  const timePart = date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  const now = new Date();
+  const diffMs  = Date.now() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHr  = Math.floor(diffMin / 60);
+
+  // Same calendar day
+  const isToday =
+    date.getDate()     === now.getDate()   &&
+    date.getMonth()    === now.getMonth()  &&
+    date.getFullYear() === now.getFullYear();
+
+  // Previous calendar day
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    date.getDate()     === yesterday.getDate()   &&
+    date.getMonth()    === yesterday.getMonth()  &&
+    date.getFullYear() === yesterday.getFullYear();
+
+  if (isToday) {
+    if (diffSec < 60)  return 'Just now';
+    if (diffMin < 60)  return `${diffMin} min${diffMin === 1 ? '' : 's'} ago`;
+    if (diffHr  < 24)  return `${diffHr} hr${diffHr  === 1 ? '' : 's'} ago`;
+  }
+
+  if (isYesterday) return `Yesterday • ${timePart}`;
+
+  // Older: "06 May 2026 • 07:03 AM"
+  const datePart = date.toLocaleDateString('en-GB', {
+    day:   '2-digit',
+    month: 'short',
+    year:  'numeric',
+  });
+  return `${datePart} • ${timePart}`;
+}
+
 const CHART_COLORS = ['#6366F1', '#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#EC4899', '#14B8A6'];
 
 const StudioDashboard: React.FC = () => {
@@ -119,7 +180,7 @@ const StudioDashboard: React.FC = () => {
 
         if (userStatsRes.status === 'fulfilled') {
           const totalUsers = userStatsRes.value?.totalUsers;
-          if (typeof totalUsers === 'number') nextStats.totalClients = totalUsers;
+          if (typeof totalUsers === 'number') nextStats.totalMember = totalUsers;
         }
         if (systemHealthRes.status === 'fulfilled') {
           const totalImages = systemHealthRes.value?.totalImages;
@@ -132,7 +193,7 @@ const StudioDashboard: React.FC = () => {
         }
 
         const summary = dashbaordActivities?.data ?? {};
-        if (typeof summary.totalClients === 'number' && !nextStats.totalClients) nextStats.totalClients = summary.totalClients;
+        if (typeof summary.totalMember === 'number' && !nextStats.totalMember) nextStats.totalMember = summary.totalMember;
         if (typeof summary.totalPhotos === 'number') nextStats.totalPhotos = summary.totalPhotos;
         if (typeof summary.totalVideos === 'number') nextStats.totalVideos = summary.totalVideos;
         if (typeof summary.clientsTrendPercent === 'number') nextStats.clientsTrendPercent = summary.clientsTrendPercent;
@@ -178,8 +239,8 @@ const StudioDashboard: React.FC = () => {
           if (family.clients?.length) flattenClients(family.clients);
           const uniqueClients = allClients.filter((c, i, self) => i === self.findIndex(x => x.id === c.id));
           if (uniqueClients.length > 0) {
-            nextStats.totalClients = uniqueClients.length;
-            setStats(prev => ({ ...prev, totalClients: uniqueClients.length }));
+            nextStats.totalMember = uniqueClients.length;
+            setStats(prev => ({ ...prev, totalMember: uniqueClients.length }));
             const sorted = [...uniqueClients].sort((a, b) => (Number(b.userId) || 0) - (Number(a.userId) || 0));
             setRecentClients(
               sorted.slice(0, 5).map(p => ({
@@ -296,7 +357,7 @@ const StudioDashboard: React.FC = () => {
     const total = top.reduce((s, a) => s + (a.imageCount || 0), 0);
     const rest = totalAlbumImages - total;
     const data = top.map((a, i) => ({
-      name: (a.name || `Album ${a.id}`).slice(0, 12) + (a.name && a.name.length > 12 ? '…' : ''),
+      name: a.name || `Album ${a.id}`,   // full name — no truncation
       value: a.imageCount || 0,
       color: CHART_COLORS[i % CHART_COLORS.length],
     }));
@@ -348,12 +409,12 @@ const StudioDashboard: React.FC = () => {
         {/* 2. Statistics Cards */}
         <section className="stats-grid premium-stats">
           <div className="stat-card premium-card stat-clients">
-            <div className="stat-icon-wrap gradient-indigo">
+            <div className="stat-icon-wrap gradient-violet">
               <FaUsers className="stat-icon" />
             </div>
             <div className="stat-body">
-              <h3>{(typeof stats.totalClients === 'number' ? stats.totalClients : 0).toLocaleString()}</h3>
-              <p>{t('dashboard.totalClients')}</p>
+              <h3>{(typeof stats.totalMember === 'number' ? stats.totalMember : 0).toLocaleString()}</h3>
+              <p>{t('dashboard.totalMember')}</p>
               {typeof stats.clientsTrendPercent === 'number' ? (
                 <span className={`stat-trend ${stats.clientsTrendPercent >= 0 ? 'positive' : 'negative'}`}>
                   {t('dashboard.thisMonth', {
@@ -380,7 +441,7 @@ const StudioDashboard: React.FC = () => {
           </div>
 
           <div className="stat-card premium-card stat-videos">
-            <div className="stat-icon-wrap gradient-cyan">
+            <div className="stat-icon-wrap gradient-violet">
               <FaCamera className="stat-icon" />
             </div>
             <div className="stat-body">
@@ -391,7 +452,7 @@ const StudioDashboard: React.FC = () => {
           </div>
 
           <div className="stat-card premium-card stat-photos">
-            <div className="stat-icon-wrap gradient-emerald">
+            <div className="stat-icon-wrap gradient-violet">
               <FaImages className="stat-icon" />
             </div>
             <div className="stat-body">
@@ -480,28 +541,66 @@ const StudioDashboard: React.FC = () => {
                   <p>{t('dashboard.noDataYet')}</p>
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={280}>
-                  <PieChart>
-                    <Pie
-                      data={pieChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="value"
-                      nameKey="name"
-                      label={false}
-                      labelLine={false}
-                    >
-                      {pieChartData.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} stroke="none" />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', boxShadow: '0 10px 40px rgba(0,0,0,0.08)' }} formatter={(value: number, name: string, props: any) => [`${value} ${t('dashboard.images')} (${(props.payload.percent * 100).toFixed(1)}%)`, name]} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie
+                        data={pieChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={90}
+                        paddingAngle={2}
+                        dataKey="value"
+                        nameKey="name"
+                        label={false}
+                        labelLine={false}
+                      >
+                        {pieChartData.map((entry, i) => (
+                          <Cell key={i} fill={entry.color} stroke="none" />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', boxShadow: '0 10px 40px rgba(0,0,0,0.08)', fontSize: 13 }}
+                        formatter={(value: number, name: string, props: any) =>
+                          [`${value} ${t('dashboard.images')} (${(props.payload.percent * 100).toFixed(1)}%)`, name]
+                        }
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+
+                  {/* Custom legend — full names, no truncation */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                    gap: '8px 16px',
+                    padding: '14px 6px 6px',
+                    borderTop: '1px solid #F1F5F9',
+                  }}>
+                    {pieChartData.map((entry, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+                        <span style={{
+                          width: 12, height: 12, borderRadius: 4,
+                          background: entry.color, flexShrink: 0,
+                        }} />
+                        <span style={{
+                          fontSize: 14, fontWeight: 600, color: '#334155',
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          lineHeight: 1.5, flex: 1,
+                        }} title={entry.name}>
+                          {entry.name}
+                        </span>
+                        <span style={{
+                          fontSize: 13, fontWeight: 700, color: '#6366F1',
+                          flexShrink: 0, background: '#EEF2FF',
+                          borderRadius: 6, padding: '1px 7px',
+                        }}>
+                          {entry.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -529,7 +628,7 @@ const StudioDashboard: React.FC = () => {
                     <div className="activity-icon-wrapper">{getActivityIcon(activity.type)}</div>
                     <div className="activity-content">
                       <p className="activity-message">{activity.message}</p>
-                      <span className="activity-time">{activity.timestamp}</span>
+                      <span className="activity-time">{formatActivityTime(activity.timestamp)}</span>
                     </div>
                   </div>
                 ))
