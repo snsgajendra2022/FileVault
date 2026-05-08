@@ -335,7 +335,6 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
         const { reply, sessionId: next, navigateTo } = await openclawSendChat({
           message,
           sessionId,
-          context: openClawContext,
         });
         if (next) persistSession(next);
         const shown = polishAssistantReplyForDisplay(reply || t('emptyReply'));
@@ -724,12 +723,12 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
     return (
       <div className="flex h-full max-h-full min-h-0 flex-col gap-2">
         <div className="shrink-0 space-y-2">
-          <p className="text-[11px] text-slate-500 leading-relaxed px-0.5">{t('drawerHint')}</p>
-          {showDevHint ? (
+          {/* <p className="text-[11px] text-slate-500 leading-relaxed px-0.5">{t('drawerHint')}</p> */}
+          {/* {showDevHint ? (
             <p className="text-[10px] text-slate-400 leading-snug px-0.5 border border-slate-100 rounded-lg bg-slate-50/90 py-1.5 px-2">
               {t('assistantBackendHint')}
             </p>
-          ) : null}
+          ) : null} */}
           <div className="flex flex-wrap gap-1.5">
             {quickActions.map((a) => (
               <button

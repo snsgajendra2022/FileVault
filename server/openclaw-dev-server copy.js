@@ -15,55 +15,12 @@ const crypto = require('crypto');
 
 const PORT = Number(process.env.OPENCLAW_DEV_PORT || 9093);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
-// anthropic/claude-haiku-4.5
-// anthropic/claude-opus-4.6
-// anthropic/claude-sonnet-4.5
-// anthropic/claude-sonnet-4.6
-// deepseek/deepseek-r1
-// google/gemini-2.5-flash-lite
-// google/gemini-3-flash-preview
-// google/gemini-3.1-flash-lite-preview
-// google/gemini-3.1-pro-preview
-// inception/mercury-2
-// meta-llama/llama-3.3-70b-instruct
-// minimax/minimax-m2.5
-// mistralai/codestral-2508
-// mistralai/mistral-7b-instruct-v0.1
-// mistralai/mistral-large
-// mistralai/mistral-medium-3.1
-// mistralai/mistral-small-3.2-24b-instruct-2506
-// moonshotai/kimi-k2-thinking
-// openai/gpt-5
-// openai/gpt-5-mini
-// openai/gpt-5-nano
-// openai/gpt-5.1
-// openai/gpt-5.2
-// openai/gpt-5.2-pro
-// openai/gpt-5.3-chat
-// openai/gpt-5.4-mini
-// openai/gpt-5.4-nano
-// openai/gpt-5.4-pro
-// openai/gpt-oss-120b
-// perplexity/sonar
-// perplexity/sonar-pro
-// qwen/qwen3-235b-a22b
-// x-ai/grok-3
-// x-ai/grok-3-mini
-// x-ai/grok-4
-// x-ai/grok-4-fast
-// x-ai/grok-4.1-fast
-// z-ai/glm-5
-const BRIDGE_URL = (process.env.OPENCLAW_BRIDGE_URL || 'http://localhost:9093').trim();
+
+const BRIDGE_URL = (process.env.OPENCLAW_BRIDGE_URL || '').trim();
 const BRIDGE_TOKEN = (process.env.OPENCLAW_BRIDGE_TOKEN || '').trim();
 const OPENAI_KEY = (process.env.OPENAI_API_KEY || '').trim();
-const OPENAI_MODEL = (process.env.OPENAI_MODEL || 'google/gemma-4-31b-it:free').trim();
+const OPENAI_MODEL = (process.env.OPENAI_MODEL || 'gpt-4.1').trim();
 const OPENAI_API_BASE = (process.env.OPENAI_API_BASE || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
-
-// const BRIDGE_URL = ('http://localhost:9093').trim();
-// const BRIDGE_TOKEN = ('').trim();
-// const OPENAI_KEY = ('').trim();
-// const OPENAI_MODEL = ('baidu/cobuddy:free').trim();
-// const OPENAI_API_BASE = ('https://openrouter.ai/api/v1').replace(/\/$/, '');
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
@@ -364,7 +321,6 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
   const contextAppend = formatContextForModel(context);
   const localNav = routeFromUserText(textIn);
 
-  // Prepare the payload for OpenClaw Bridge
   const bridgePayload = {
     kind: imageBuffer ? 'image' : transcript != null ? 'voice' : 'chat',
     message: userText,
@@ -375,7 +331,6 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
   };
 
   try {
-    // If a Bridge URL is provided, try to call it first
     if (BRIDGE_URL) {
       const data = await tryBridge(req, bridgePayload);
       const reply = pickBridgeReply(data);
@@ -393,15 +348,14 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
     if (String(e.message).includes('404') || String(e.message).includes('Cannot POST')) {
       console.warn(
         '[openclaw-dev] Hint: Bridge must be an HTTP URL that accepts POST JSON at that path (see backend.md). ' +
-        'The OpenClaw Gateway port (e.g. :18789) uses WebSocket, not this POST bridge. ' +
-        'To use OpenRouter/OpenAI from this server only, leave OPENCLAW_BRIDGE_URL empty.'
+          'The OpenClaw Gateway port (e.g. :18789) uses WebSocket, not this POST bridge. ' +
+          'To use OpenRouter/OpenAI from this server only, leave OPENCLAW_BRIDGE_URL empty.',
       );
     }
   }
 
   let llmError = null;
   try {
-    // If the OpenAI key is provided, call OpenAI (or OpenRouter in this case)
     if (OPENAI_KEY) {
       const out = await tryOpenAI({
         sid,
@@ -425,7 +379,6 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
     console.warn('[openclaw-dev] OpenAI failed:', e.message);
   }
 
-  // If OpenAI failed, try to provide a helpful message
   if (OPENAI_KEY && llmError) {
     const detail = String(llmError.message || llmError).slice(0, 400);
     return res.json({
@@ -437,7 +390,6 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
     });
   }
 
-  // If local navigation is requested, return that path to navigate
   if (localNav) {
     return res.json({
       sessionId: sid,
@@ -446,7 +398,6 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
     });
   }
 
-  // If nothing else works, return a fallback reply
   const fb = fallbackReply(textIn);
   return res.json({ sessionId: sid, reply: fb });
 }

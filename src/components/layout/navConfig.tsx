@@ -58,12 +58,12 @@ export const studioNavigation: NavGroup = {
     { labelKey: 'nav.studio.myImages', href: '/client-images', icon: FaImages, enabled: true },
     { labelKey: 'nav.studio.album', href: '/studio/albums', icon: FaFolder, enabled: true },
     { labelKey: 'nav.studio.ourMemories', href: '/memories/events', icon: FaHeart, enabled: true },
-    {
-      labelKey: 'nav.studio.openclaw',
-      href: '/studio/openclaw',
-      icon: FaComments,
-      enabled: process.env.REACT_APP_OPENCLAW_ENABLED === 'true',
-    },
+    // {
+    //   labelKey: 'nav.studio.openclaw',
+    //   href: '/studio/openclaw',
+    //   icon: FaComments,
+    //   enabled: process.env.REACT_APP_OPENCLAW_ENABLED === 'true',
+    // },
     { labelKey: 'nav.studio.photoThemes', href: '/photo-themes', icon: FaPalette, enabled: true },
     { labelKey: 'nav.studio.photoBooks', href: '/photo-book', icon: FaBook, enabled: true },
     { labelKey: 'nav.studio.phoneBook', href: '/phonebook', icon: FaBook, enabled: true },

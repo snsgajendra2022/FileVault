@@ -21,9 +21,9 @@
     "om": "Om"
   },
   "openclawPage": {
-    "title": "OpenClaw assistant",
-    "subtitle": "Chat and voice send text to your API → OpenClaw Gateway. Voice uses the browser microphone and speech-to-text.",
-    "disabledTitle": "OpenClaw is turned off",
+    "title": "Om assistant",
+    "subtitle": "Chat and voice send text to your API → Om Gateway. Voice uses the browser microphone and speech-to-text.",
+    "disabledTitle": "Om is turned off",
     "disabledBody": "Set REACT_APP_OPENCLAW_ENABLED=true in .env and restart the dev server. Your backend must implement the /api/openclaw/* routes (see backend.md).",
     "emptyState": "Send a message, use a quick action, or attach an image.",
     "placeholder": "Message… (Enter to send, Shift+Enter for newline)",
@@ -109,7 +109,7 @@
     "drawerClose": "Close",
     "drawerSubtitle": "Chat & voice",
     "drawerHint": "Quick prompts below — or type and use Voice.",
-    "assistantBackendHint": "This panel uses the Filevault dev helper on port 9093 (npm run openclaw-server), not the OpenClaw Gateway alone. Put OPENAI_API_KEY (+ OPENAI_API_BASE for OpenRouter) in the repo .env, or an HTTP OPENCLAW_BRIDGE_URL — see backend.md. Production: /api/openclaw/* on your API.",
+    "assistantBackendHint": "",
     "action": {
       "memories": "Memories context",
       "memoriesPrompt": "Summarize what I can do in Our Memories in this app (events, guest gallery, sharing).",

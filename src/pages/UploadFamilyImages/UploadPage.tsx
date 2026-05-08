@@ -1609,7 +1609,7 @@ const UploadFamilyImagesPage = () => {
       </div>
 
       {/* Our Memories event selection (attach uploaded images to event) */}
-      <div className={`max-w-full mx-auto rounded-2xl p-6 border border-violet-100 transition-opacity ${canUpload() ? 'bg-gradient-to-r from-violet-50 to-fuchsia-50' : 'bg-gray-100 opacity-75 pointer-events-none'}`}>
+      {/* <div className={`max-w-full mx-auto rounded-2xl p-6 border border-violet-100 transition-opacity ${canUpload() ? 'bg-gradient-to-r from-violet-50 to-fuchsia-50' : 'bg-gray-100 opacity-75 pointer-events-none'}`}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
             <FaClock className="mr-3 font-medium text-violet-700" />
@@ -1641,7 +1641,7 @@ const UploadFamilyImagesPage = () => {
             </p>
           </div>
         ) : null}
-      </div>
+      </div> */}
 
       {/* Dropzone */}
       <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-3xl shadow-2xl border border-blue-100/50 relative">
