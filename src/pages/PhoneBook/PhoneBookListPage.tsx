@@ -2,8 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { FaPlus, FaSearch, FaStar, FaUser } from 'react-icons/fa';
-import { listPhoneBookContacts, type PhoneBookContact, type PhoneBookContactType } from '../../services/phoneBookService';
-import { usePhoneBookPrefsStore } from '../../features/phoneBook/phoneBookPrefsStore';
+import { listPhoneBookContacts, type PhoneBookContact, type PhoneBookContactType } from '../../api/services/phoneBookService';
+import { usePhoneBookPrefsStore } from '../../state/stores/phoneBookPrefsStore';
 
 const PhoneBookListPage: React.FC = () => {
   const [search, setSearch] = React.useState('');

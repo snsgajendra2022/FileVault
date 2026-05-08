@@ -32,6 +32,8 @@ export type PublicShareModalLabels = {
   alreadySentWarning: (typeLabel: string) => string;
   emailTypeLabel: string;
   mobileTypeLabel: string;
+  /** Tooltip shown on Send button when no recipient is provided */
+  recipientRequiredHint?: string;
 };
 
 interface PublicShareModalProps {
@@ -143,6 +145,12 @@ const PublicShareModal: React.FC<PublicShareModalProps> = ({
     onContactSearchChange('');
     onAlreadySentChange(null);
   };
+
+  // At least one recipient source must be provided before Send is allowed
+  const hasRecipient =
+    selectedContactIds.size > 0 ||
+    newEmails.trim().length > 0 ||
+    newMobiles.trim().length > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -306,8 +314,9 @@ const PublicShareModal: React.FC<PublicShareModalProps> = ({
           {!disabledContent && (
             <button
               onClick={onSend}
-              disabled={sending}
-              className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-sm font-semibold"
+              disabled={sending || !hasRecipient}
+              title={!hasRecipient ? L.recipientRequiredHint ?? 'Please provide at least one recipient' : undefined}
+              className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold"
             >
               {sending ? L.sendingLabel : L.sendLabel}
             </button>

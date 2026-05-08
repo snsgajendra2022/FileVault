@@ -190,6 +190,17 @@ input:-internal-autofill-selected {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
+
+/* Override autofill white text for light-background forms (invitations, etc.) */
+.bg-white input:-webkit-autofill,
+.bg-white input:-webkit-autofill:hover,
+.bg-white input:-webkit-autofill:focus,
+.bg-white input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #ffffff inset !important;
+  -webkit-text-fill-color: #111827 !important;
+  color: #111827 !important;
+  background-color: #ffffff !important;
+}
 .to-purple-600 {
     --tw-gradient-to: #2730db var(--tw-gradient-to-position) !important;
 }

@@ -2,7 +2,7 @@ import React, { useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { SpreadPreviewCanvas } from '../../components/PhotoBook/SpreadPreviewCanvas'
-import { usePhotoBookStore } from '../../store/photobookStore'
+import { usePhotoBookStore } from '../../state/stores/photobookStore'
 import { getPhotoBookLayout, getPhotoBookTemplate } from '../../templates/photobookTemplates'
 import { downloadTextFile } from '../../utils/photobookDownload'
 

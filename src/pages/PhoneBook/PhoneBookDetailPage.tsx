@@ -3,8 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { FaArrowLeft, FaEdit, FaEnvelope, FaPhone, FaShare, FaStar, FaTrash, FaUser } from 'react-icons/fa';
-import { deletePhoneBookContact, getPhoneBookContactById } from '../../services/phoneBookService';
-import { usePhoneBookPrefsStore } from '../../features/phoneBook/phoneBookPrefsStore';
+import { deletePhoneBookContact, getPhoneBookContactById } from '../../api/services/phoneBookService';
+import { usePhoneBookPrefsStore } from '../../state/stores/phoneBookPrefsStore';
 
 const PhoneBookDetailPage: React.FC = () => {
   const { contactId } = useParams<{ contactId: string }>();

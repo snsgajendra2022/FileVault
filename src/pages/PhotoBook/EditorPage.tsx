@@ -7,7 +7,7 @@ import { PhotoTray } from '../../components/PhotoBook/PhotoTray'
 import { FileVaultImagePicker } from '../../components/PhotoBook/FileVaultImagePicker'
 import { SpreadCanvas } from '../../components/PhotoBook/SpreadCanvas'
 import { SpreadList } from '../../components/PhotoBook/SpreadList'
-import { usePhotoBookStore } from '../../store/photobookStore'
+import { usePhotoBookStore } from '../../state/stores/photobookStore'
 import { getPhotoBookLayout, getPhotoBookTemplate, photobookTemplates } from '../../templates/photobookTemplates'
 
 export function PhotoBookEditorPage() {

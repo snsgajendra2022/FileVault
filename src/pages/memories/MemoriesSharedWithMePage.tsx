@@ -6,7 +6,7 @@ import { FaArrowLeft, FaChevronRight, FaImages, FaUser } from 'react-icons/fa';
 import {
   fetchSharedMemoriesEventsForMe,
   type SharedMemoriesEventRow,
-} from '../../services/memoriesShareService';
+} from '../../api/services/memoriesShareService';
 
 const MemoriesSharedWithMePage: React.FC = () => {
   const { t } = useTranslation(undefined, { keyPrefix: 'memoriesPlatform' });
@@ -23,7 +23,7 @@ const MemoriesSharedWithMePage: React.FC = () => {
   const openUrl = (r: SharedMemoriesEventRow) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const u = new URL(`${origin}/memories/e/${r.slug}`);
-    if (r.accessToken) u.searchParams.set('t', r.accessToken);
+    if (r.accessToken) u.searchParams.set('token', r.accessToken);
     return u.toString();
   };
 

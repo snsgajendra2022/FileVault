@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FaEnvelope, FaUser, FaUsers, FaPlus, FaEye } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
-import api from '../../services/api';
-import { useAuth } from '../../context/AuthContext';
+import api from '../../api/client/axiosInstance';
+import { useAuth } from '../../state/context/AuthContext';
 
 interface SharedImage {
   id: number;

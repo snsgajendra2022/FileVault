@@ -33,8 +33,8 @@ import {
   openclawSendVoice,
   openclawUploadImage,
   openclawCreateSession,
-} from '../../services/openclawService';
-import { listMemoriesEvents, getMemoriesEventById } from '../../services/memoriesService';
+} from '../../api/services/openclawService';
+import { listMemoriesEvents, getMemoriesEventById } from '../../api/services/memoriesService';
 
 const SESSION_KEY = 'openclaw_session_id';
 const ALWAYS_SPEAK_KEY = 'openclaw_always_speak';

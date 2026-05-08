@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FaEnvelope, FaUser, FaUsers } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
-import api from '../../services/api';
+import api from '../../api/client/axiosInstance';
 
 interface CreateInvitationFormProps {
   onInvitationCreated: (invitation: any) => void;
@@ -79,9 +79,16 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
       const response = await api.post('/api/simple-invitations', formData);
 
       if (response.data.success) {
+        // Debug: log full response to check emailSent status
+        console.log('[Invitation] API response:', JSON.stringify(response.data, null, 2));
         setCreatedInvitation(response.data.invitation);
         setShowSuccess(true);
         onInvitationCreated(response.data.invitation);
+
+        // Show warning if backend says email was not sent
+        if (response.data.emailSent === false || response.data.invitation?.emailSent === false) {
+          toast.error('Invitation created but email could not be sent. Share the link manually.');
+        }
 
         setFormData({
           inviteeEmail: '',
@@ -198,6 +205,25 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
             </div>
           </div>
 
+          {/* Invitation link — always visible so user can share manually if email fails */}
+          <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-200">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Invitation Link</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs text-gray-800 bg-white border border-gray-200 rounded-lg px-3 py-2 truncate select-all">
+                {`${window.location.origin}/accept-invitation?token=${createdInvitation.invitationToken}`}
+              </code>
+              <button
+                onClick={copyInvitationLink}
+                className="shrink-0 px-3 py-2 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Copy
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Share this link with <strong>{formData.inviteeFirstName}</strong> if they didn't receive the email.
+            </p>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={copyInvitationLink}
@@ -247,7 +273,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
                 required
                 value={formData.inviteeEmail}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400"
                 placeholder={t(`${CF}.placeholderEmail`)}
               />
             </div>
@@ -264,7 +290,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
                 required
                 value={formData.inviteeFirstName}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400"
                 placeholder={t(`${CF}.placeholderFirst`)}
               />
             </div>
@@ -281,7 +307,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
                 required
                 value={formData.inviteeLastName}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400"
                 placeholder={t(`${CF}.placeholderLast`)}
               />
             </div>
@@ -297,7 +323,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
                 required
                 value={formData.relationshipType}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900"
               >
                 {RELATIONSHIP_TYPES.map((type) => (
                   <option key={type} value={type}>
@@ -318,7 +344,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
                 required
                 value={formData.expiresInDays}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900"
               >
                 {[7, 14, 30, 60, 90].map((d) => (
                   <option key={d} value={d}>
@@ -340,7 +366,7 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
               rows={3}
               value={formData.relationshipNotes}
               onChange={handleInputChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-400"
               placeholder={t(`${CF}.placeholderNotes`)}
             />
           </div>

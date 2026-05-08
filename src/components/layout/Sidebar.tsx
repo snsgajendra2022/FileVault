@@ -1,7 +1,7 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../state/context/AuthContext';
 import { FaCog, FaCrown } from 'react-icons/fa';
 import {
   regularNavigation,
@@ -12,6 +12,7 @@ import {
 const Sidebar = () => {
   const { t } = useTranslation();
   const { user, isAdmin } = useAuth();
+  const location = useLocation();
 
   const navigationItems = regularNavigation;
   const studioNavigationItems = studioNavigation;
@@ -193,36 +194,39 @@ const Sidebar = () => {
                   </h3>
                 </div>
               </div>
-              {adminNavigationItems.active === true && adminNavigationItems.items.filter(i=>i.enabled!==false).map((item) => (
+              {adminNavigationItems.active === true && adminNavigationItems.items.filter(i=>i.enabled!==false).map((item) => {
+                // For admin items with query params, check both pathname and search
+                const isAdminItemActive = location.pathname + location.search === item.href ||
+                  (item.href.includes('?') && location.pathname === '/admin' && location.search === '?' + item.href.split('?')[1]);
+                return (
                 <NavLink
                   key={item.href}
                   to={item.href}
-                  className={({ isActive }) =>
+                  className={
                     `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
-                      isActive
+                      isAdminItemActive
                         ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-xl border-r-4 border-purple-400'
                         : 'text-gray-700 hover:text-gray-900 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 border-r-4 border-transparent hover:border-purple-200'
                     }`
                   }
                 >
-                  {({ isActive }) => (
-                    <>
-                      {/* Active indicator */}
-                      {isActive && (
-                        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
-                      )}
-                      
-                      <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-purple-700'}`}>
-                        <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
-                      </div>
-                      <span className="font-semibold">{t(item.labelKey)}</span>
-                      
-                      {/* Hover glow effect */}
-                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-400 to-pink-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-                    </>
-                  )}
+                  <>
+                    {/* Active indicator */}
+                    {isAdminItemActive && (
+                      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
+                    )}
+                    
+                    <div className={`relative ${isAdminItemActive ? 'text-white' : 'text-gray-600 group-hover:text-purple-700'}`}>
+                      <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
+                    </div>
+                    <span className="font-semibold">{t(item.labelKey)}</span>
+                    
+                    {/* Hover glow effect */}
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-400 to-pink-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
+                  </>
                 </NavLink>
-              ))}
+                );
+              })}
             </>
           )}
         </nav>

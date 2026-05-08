@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import adminService, { SystemHealth as SystemHealthType } from '../../services/adminService';
+import adminService, { SystemHealth as SystemHealthType } from '../../api/services/adminService';
 import { FaUsers, FaExclamationTriangle, FaCheck } from 'react-icons/fa';
 
 const SystemHealth = () => {

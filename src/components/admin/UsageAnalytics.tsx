@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import adminService, { UsageStatistics } from '../../services/adminService';
+import adminService, { UsageStatistics } from '../../api/services/adminService';
 import { FaChartBar, FaCloud, FaUsers } from 'react-icons/fa';
 
 const UsageAnalytics = () => {
