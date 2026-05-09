@@ -54,7 +54,7 @@ export const PhoneBookContactForm: React.FC<{
   const setMeta = (patch: Partial<PhoneBookContactMeta>) => onChange({ ...value, meta: { ...value.meta, ...patch } });
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-4" data-ai-form="phonebook_contact_form">
       <div className="grid gap-4 sm:grid-cols-[96px_1fr] sm:items-center">
         <div className="h-24 w-24 overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 ring-1 ring-slate-100">
           {value.avatarUrl.trim() ? (
@@ -71,6 +71,7 @@ export const PhoneBookContactForm: React.FC<{
             <input
               value={value.avatarUrl}
               onChange={(e) => set({ avatarUrl: e.target.value })}
+              data-ai-field="profile_image_url"
               className={inputClass}
               placeholder="Paste image URL (upload/camera can be added later)"
             />
@@ -100,6 +101,7 @@ export const PhoneBookContactForm: React.FC<{
                   setMeta({ tags: parseTags(next) });
                 }}
                 className={inputClass}
+                data-ai-field="tags"
                 placeholder="wedding, vip, lead…"
               />
             </div>
@@ -112,6 +114,7 @@ export const PhoneBookContactForm: React.FC<{
         <input
           value={value.displayName}
           onChange={(e) => set({ displayName: e.target.value })}
+          data-ai-field="client_name"
           className={inputClass}
           placeholder="Full name"
         />
@@ -123,6 +126,7 @@ export const PhoneBookContactForm: React.FC<{
           <input
             value={value.email}
             onChange={(e) => set({ email: e.target.value })}
+            data-ai-field="email"
             className={inputClass}
             placeholder="name@example.com"
             type="email"
@@ -141,6 +145,7 @@ export const PhoneBookContactForm: React.FC<{
             <input
               value={value.mobile}
               onChange={(e) => set({ mobile: e.target.value })}
+              data-ai-field="phone_number"
               className={`${inputClass} flex-1`}
               placeholder="9876543210"
               inputMode="tel"
@@ -218,6 +223,7 @@ export const PhoneBookContactForm: React.FC<{
         <textarea
           value={value.notes}
           onChange={(e) => set({ notes: e.target.value })}
+          data-ai-field="description"
           className={`${inputClass} min-h-[110px] resize-y`}
           placeholder="Preferences, last shoot details, reminders…"
         />

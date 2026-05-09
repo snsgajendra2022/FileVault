@@ -243,7 +243,7 @@ const OpenClawAgentDock: React.FC = () => {
             onClick={() => setOpen(false)}
           />
           <div
-            className="fixed top-0 right-0 z-[115] flex h-full w-[min(100vw,400px)] flex-col border-l border-slate-200 bg-white shadow-2xl"
+            className="fixed overflow-scroll top-0 right-0 z-[115] flex h-full w-[min(100vw,400px)] flex-col border-l border-slate-200 bg-white shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-labelledby="openclaw-drawer-title"

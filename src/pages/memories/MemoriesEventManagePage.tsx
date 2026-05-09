@@ -240,12 +240,40 @@ const MemoriesEventManagePage: React.FC = () => {
   }, [ev?.id, ev?.sharedWithUserIds]);
 
   const shareUrl = React.useMemo(() => {
-    if (!ev || typeof window === 'undefined') return '';
-    const at = ev.accessToken?.trim();
-    if (!at) return '';
-    const linkToken = pickTokenForMemoriesGuestLinkUrl(at);
-    return buildMemoriesGuestGalleryUrl(window.location.origin, ev.slug, linkToken, shareGuestPermissions);
-  }, [ev, shareGuestPermissions]);
+    if (typeof window === 'undefined') return '';
+    if (!ev) return '';
+  
+    const slug = String(ev.slug || '').trim();
+  
+    const accessToken = String(
+      ev.accessToken ||
+      ''
+    ).trim();
+  
+    if (!slug || !accessToken) {
+      console.log('QR URL not ready:', {
+        slug,
+        accessToken,
+        shareGuestPermissions,
+        ev,
+      });
+      return '';
+    }
+  
+    const linkToken = pickTokenForMemoriesGuestLinkUrl(accessToken);
+  
+    return buildMemoriesGuestGalleryUrl(
+      window.location.origin,
+      slug,
+      linkToken,
+      shareGuestPermissions
+    );
+  }, [
+    ev?.slug,
+    ev?.accessToken,
+    shareGuestPermissions,
+  ]);
+  const QrSahreUrl= `${shareUrl}`
 
   const accessTokenMintInFlightRef = React.useRef(false);
   const accessTokenMintFailedEventIdRef = React.useRef<string | null>(null);
@@ -942,9 +970,18 @@ const MemoriesEventManagePage: React.FC = () => {
               ref={qrWrapRef}
               className="flex justify-center rounded-2xl border border-slate-100 bg-gradient-to-b from-white to-slate-50/80 p-6 sm:p-8 shadow-inner"
             >
-              <div className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.06)]  ring-slate-100">
-                <QRCode value={shareUrl || ' '} size={200} level="M" />
-              </div>
+              {/* <div className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.06)]  ring-slate-100">
+                <QRCode value={QrSahreUrl || ' '} size={200} level="M" />
+              </div> */}
+                {shareUrl ? (
+                    <>
+                      <QRCode value={QrSahreUrl} size={200} level="M" />
+                    </>
+                  ) : (
+                    <p className="text-center text-sm text-slate-500">
+                      Generating QR code...
+                    </p>
+                  )}
             </div>
             <p className="text-xs text-slate-500 mt-5 text-center leading-relaxed max-w-sm mx-auto">
               {t('qrHint')}

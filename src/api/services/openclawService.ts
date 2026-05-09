@@ -42,6 +42,10 @@ export type OpenClawChatResponse = {
   /** If set (must be an app route the client allows), the UI will navigate here after showing the reply. */
   navigateTo?: string;
   navigation?: { path?: string };
+  /** Optional controlled action(s) returned by backend/bridge. */
+  action?: string;
+  payload?: Record<string, unknown>;
+  actions?: Array<{ id?: string; payload?: Record<string, unknown> }>;
 };
 
 export type OpenClawVoiceRequest = {
@@ -66,13 +70,30 @@ export async function openclawSendChat(body: OpenClawChatRequest): Promise<{
   reply: string;
   sessionId?: string;
   navigateTo: string | null;
+  action?: { id: string; payload?: Record<string, unknown> };
+  actions?: Array<{ id: string; payload?: Record<string, unknown> }>;
   raw: unknown;
 }> {
   const res = await openclawClient().post<OpenClawChatResponse>(openclawApiPaths.chat, body);
+  const rawActions = Array.isArray(res.data?.actions) ? res.data.actions : undefined;
+  const actions =
+    rawActions
+      ?.map((a) => ({
+        id: typeof a?.id === 'string' ? a.id : '',
+        payload: a?.payload && typeof a.payload === 'object' && !Array.isArray(a.payload) ? a.payload : undefined,
+      }))
+      .filter((a) => Boolean(a.id)) ?? undefined;
+  const actionId = typeof res.data?.action === 'string' ? res.data.action : '';
+  const actionPayload =
+    res.data?.payload && typeof res.data.payload === 'object' && !Array.isArray(res.data.payload)
+      ? res.data.payload
+      : undefined;
   return {
     reply: pickReply(res.data) || (res.data?.error ? String(res.data.error) : ''),
     sessionId: typeof res.data?.sessionId === 'string' ? res.data.sessionId : undefined,
     navigateTo: pickNavigateToFromApi(res.data),
+    ...(actionId ? { action: { id: actionId, ...(actionPayload ? { payload: actionPayload } : {}) } } : {}),
+    ...(actions && actions.length > 0 ? { actions } : {}),
     raw: res.data,
   };
 }
@@ -81,13 +102,30 @@ export async function openclawSendVoice(body: OpenClawVoiceRequest): Promise<{
   reply: string;
   sessionId?: string;
   navigateTo: string | null;
+  action?: { id: string; payload?: Record<string, unknown> };
+  actions?: Array<{ id: string; payload?: Record<string, unknown> }>;
   raw: unknown;
 }> {
   const res = await openclawClient().post<OpenClawChatResponse>(openclawApiPaths.voice, body);
+  const rawActions = Array.isArray(res.data?.actions) ? res.data.actions : undefined;
+  const actions =
+    rawActions
+      ?.map((a) => ({
+        id: typeof a?.id === 'string' ? a.id : '',
+        payload: a?.payload && typeof a.payload === 'object' && !Array.isArray(a.payload) ? a.payload : undefined,
+      }))
+      .filter((a) => Boolean(a.id)) ?? undefined;
+  const actionId = typeof res.data?.action === 'string' ? res.data.action : '';
+  const actionPayload =
+    res.data?.payload && typeof res.data.payload === 'object' && !Array.isArray(res.data.payload)
+      ? res.data.payload
+      : undefined;
   return {
     reply: pickReply(res.data) || (res.data?.error ? String(res.data.error) : ''),
     sessionId: typeof res.data?.sessionId === 'string' ? res.data.sessionId : undefined,
     navigateTo: pickNavigateToFromApi(res.data),
+    ...(actionId ? { action: { id: actionId, ...(actionPayload ? { payload: actionPayload } : {}) } } : {}),
+    ...(actions && actions.length > 0 ? { actions } : {}),
     raw: res.data,
   };
 }
@@ -98,7 +136,14 @@ export async function openclawUploadImage(params: {
   prompt?: string;
   /** Serialized JSON for the dev server / bridge (current route, open event, etc.). */
   context?: Record<string, unknown>;
-}): Promise<{ reply: string; sessionId?: string; navigateTo: string | null; raw: unknown }> {
+}): Promise<{
+  reply: string;
+  sessionId?: string;
+  navigateTo: string | null;
+  action?: { id: string; payload?: Record<string, unknown> };
+  actions?: Array<{ id: string; payload?: Record<string, unknown> }>;
+  raw: unknown;
+}> {
   const fd = new FormData();
   fd.append('file', params.file);
   if (params.sessionId) fd.append('sessionId', params.sessionId);
@@ -112,10 +157,25 @@ export async function openclawUploadImage(params: {
   }
 
   const res = await openclawClient().post<OpenClawChatResponse>(openclawApiPaths.image, fd);
+  const rawActions = Array.isArray(res.data?.actions) ? res.data.actions : undefined;
+  const actions =
+    rawActions
+      ?.map((a) => ({
+        id: typeof a?.id === 'string' ? a.id : '',
+        payload: a?.payload && typeof a.payload === 'object' && !Array.isArray(a.payload) ? a.payload : undefined,
+      }))
+      .filter((a) => Boolean(a.id)) ?? undefined;
+  const actionId = typeof res.data?.action === 'string' ? res.data.action : '';
+  const actionPayload =
+    res.data?.payload && typeof res.data.payload === 'object' && !Array.isArray(res.data.payload)
+      ? res.data.payload
+      : undefined;
   return {
     reply: pickReply(res.data) || (res.data?.error ? String(res.data.error) : ''),
     sessionId: typeof res.data?.sessionId === 'string' ? res.data.sessionId : undefined,
     navigateTo: pickNavigateToFromApi(res.data),
+    ...(actionId ? { action: { id: actionId, ...(actionPayload ? { payload: actionPayload } : {}) } } : {}),
+    ...(actions && actions.length > 0 ? { actions } : {}),
     raw: res.data,
   };
 }

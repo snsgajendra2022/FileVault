@@ -53,10 +53,11 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 
 // x-ai/grok-4-fast
 // x-ai/grok-4.1-fast
 // z-ai/glm-5
+
 const BRIDGE_URL = (process.env.OPENCLAW_BRIDGE_URL || 'http://localhost:9093').trim();
 const BRIDGE_TOKEN = (process.env.OPENCLAW_BRIDGE_TOKEN || '').trim();
 const OPENAI_KEY = (process.env.OPENAI_API_KEY || '').trim();
-const OPENAI_MODEL = (process.env.OPENAI_MODEL || 'google/gemma-4-31b-it:free').trim();
+const OPENAI_MODEL = (process.env.OPENAI_MODEL || 'baidu/cobuddy:free').trim();
 const OPENAI_API_BASE = (process.env.OPENAI_API_BASE || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
 
 // const BRIDGE_URL = ('http://localhost:9093').trim();
@@ -109,6 +110,19 @@ const PATH_LABELS = {
 
 const OM_SYSTEM = `You are the assistant for "Our Memories" (OM) — a photographer / family studio web app.
 You help with navigation and questions about the product. You cannot call HTTP APIs yourself unless the user’s server provides a bridge that does.
+
+You may propose controlled in-app actions. If and only if the user clearly asked you to do something in the UI, you can request actions by returning JSON (not code) in one of these formats:
+1) Single action:
+{"action":"open_route_memories_events","payload":{}}
+2) Multiple actions:
+{"actions":[{"id":"open_route_memories_events","payload":{}},{"id":"click_allowed_element","payload":{"actionId":"create-event"}}]}
+
+Rules:
+- Only use action IDs that the UI says are available (in the provided app context).
+- Never invent unknown action IDs.
+- Never request delete/payment/publish/final submit/sharing without explicit user confirmation.
+- For clicking UI elements, only request click_allowed_element with a whitelisted actionId (data-ai-action).
+- For uploads, you may request opening an allowed upload dialog, but the user must select files manually.
 
 In-app routes you may send the user to (exact paths only, one line at the very end of your message when they clearly want to open that screen):
 - /memories/events — list Memories events

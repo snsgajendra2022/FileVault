@@ -1129,6 +1129,7 @@ const UploadPage = () => {
             <button
               type="button"
               onClick={() => setShowCreateAlbumModal(true)}
+              data-ai-action="create-event"
               disabled={!canUpload()}
               className="flex items-center px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -1186,11 +1187,12 @@ const UploadPage = () => {
         <div className="p-10">
           <div
             {...getRootProps()}
+            data-ai-action="upload-family-images"
             className={`border-3 border-dashed rounded-3xl p-16 text-center cursor-pointer transition-all duration-300 ${
               isDragActive ? 'border-indigo-400 bg-gradient-to-br from-indigo-50 to-purple-50' : 'border-gray-300 hover:border-indigo-400 hover:bg-gradient-to-br from-blue-50/50 to-purple-50/50'
             } ${isAddingFiles ? 'pointer-events-none opacity-70' : ''}`}
           >
-            <input {...getInputProps()} />
+            <input {...getInputProps()} data-ai-upload="upload_family_images" />
             <FaCloudUploadAlt className="mx-auto h-20 w-20 text-indigo-500 mb-6" />
             <p className="mt-6 text-2xl font-bold text-gray-800">
               {isDragActive ? t('uploadPage.dropFilesHere') : t('uploadPage.dragDropHere')}
