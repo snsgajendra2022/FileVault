@@ -2,6 +2,7 @@ import axios, { type AxiosInstance } from 'axios';
 import api from '../../api/client/axiosInstance';
 import { openclawApiPaths, openclawDevBaseUrl } from '../../config/openclaw';
 import { pickNavigateToFromApi } from '../../utils/openclawNavigation';
+import { trackApiError, trackApiRequest, trackApiResponse } from '../../utils/openclawAssistantMonitor';
 
 let openclawDevClient: AxiosInstance | null = null;
 
@@ -16,6 +17,26 @@ function openclawClient(): AxiosInstance {
       timeout: 60_000,
     });
     openclawDevClient.interceptors.request.use((config) => {
+      const requestId = trackApiRequest(config as typeof config & { metadata?: Record<string, unknown> });
+      (config as typeof config & { metadata?: Record<string, unknown> }).metadata = {
+        ...((config as typeof config & { metadata?: Record<string, unknown> }).metadata || {}),
+        requestId,
+      };
+      return config;
+    });
+    openclawDevClient.interceptors.response.use(
+      (response) => {
+        const requestId = (response.config as { metadata?: Record<string, unknown> })?.metadata?.requestId;
+        if (typeof requestId === 'string') trackApiResponse(requestId, response);
+        return response;
+      },
+      (error) => {
+        const requestId = (error?.config as { metadata?: Record<string, unknown> })?.metadata?.requestId;
+        if (typeof requestId === 'string') trackApiError(requestId, error);
+        return Promise.reject(error);
+      }
+    );
+    openclawDevClient.interceptors.request.use((config) => {
       const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
       if (token && !config.headers.Authorization) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -29,6 +50,7 @@ function openclawClient(): AxiosInstance {
 export type OpenClawChatRequest = {
   message: string;
   sessionId?: string;
+  userId?: string;
   /** Optional UI context for the agent (e.g. current route, feature) */
   context?: Record<string, unknown>;
 };
@@ -51,6 +73,7 @@ export type OpenClawChatResponse = {
 export type OpenClawVoiceRequest = {
   transcript: string;
   sessionId?: string;
+  userId?: string;
   context?: Record<string, unknown>;
 };
 
@@ -133,6 +156,9 @@ export async function openclawSendVoice(body: OpenClawVoiceRequest): Promise<{
 export async function openclawUploadImage(params: {
   file: File;
   sessionId?: string;
+  userId?: string;
+  uploadId?: string;
+  onUploadProgress?: (progress: number) => void;
   prompt?: string;
   /** Serialized JSON for the dev server / bridge (current route, open event, etc.). */
   context?: Record<string, unknown>;
@@ -147,6 +173,7 @@ export async function openclawUploadImage(params: {
   const fd = new FormData();
   fd.append('file', params.file);
   if (params.sessionId) fd.append('sessionId', params.sessionId);
+  if (params.userId) fd.append('userId', params.userId);
   if (params.prompt?.trim()) fd.append('prompt', params.prompt.trim());
   if (params.context && Object.keys(params.context).length > 0) {
     try {
@@ -156,8 +183,24 @@ export async function openclawUploadImage(params: {
     }
   }
 
-  const res = await openclawClient().post<OpenClawChatResponse>(openclawApiPaths.image, fd);
-  const rawActions = Array.isArray(res.data?.actions) ? res.data.actions : undefined;
+  const res = await openclawClient().post<OpenClawChatResponse>(
+    openclawApiPaths.image,
+    fd,
+    ({
+      metadata: {
+        ...(params.uploadId ? { uploadId: params.uploadId } : {}),
+      },
+      onUploadProgress: params.onUploadProgress
+        ? (ev: { total?: number; loaded: number }) => {
+            if (!ev.total || ev.total <= 0) return;
+            const pct = Math.max(0, Math.min(100, Math.round((ev.loaded / ev.total) * 100)));
+            params.onUploadProgress?.(pct);
+          }
+        : undefined,
+    } as unknown as Record<string, unknown>)
+  );
+  const data = res.data as OpenClawChatResponse;
+  const rawActions = Array.isArray(data?.actions) ? data.actions : undefined;
   const actions =
     rawActions
       ?.map((a) => ({
@@ -165,18 +208,18 @@ export async function openclawUploadImage(params: {
         payload: a?.payload && typeof a.payload === 'object' && !Array.isArray(a.payload) ? a.payload : undefined,
       }))
       .filter((a) => Boolean(a.id)) ?? undefined;
-  const actionId = typeof res.data?.action === 'string' ? res.data.action : '';
+  const actionId = typeof data?.action === 'string' ? data.action : '';
   const actionPayload =
-    res.data?.payload && typeof res.data.payload === 'object' && !Array.isArray(res.data.payload)
-      ? res.data.payload
+    data?.payload && typeof data.payload === 'object' && !Array.isArray(data.payload)
+      ? data.payload
       : undefined;
   return {
-    reply: pickReply(res.data) || (res.data?.error ? String(res.data.error) : ''),
-    sessionId: typeof res.data?.sessionId === 'string' ? res.data.sessionId : undefined,
-    navigateTo: pickNavigateToFromApi(res.data),
+    reply: pickReply(data) || (data?.error ? String(data.error) : ''),
+    sessionId: typeof data?.sessionId === 'string' ? data.sessionId : undefined,
+    navigateTo: pickNavigateToFromApi(data),
     ...(actionId ? { action: { id: actionId, ...(actionPayload ? { payload: actionPayload } : {}) } } : {}),
     ...(actions && actions.length > 0 ? { actions } : {}),
-    raw: res.data,
+    raw: data,
   };
 }
 

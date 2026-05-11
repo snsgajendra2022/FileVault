@@ -35,7 +35,22 @@ import {
   openclawUploadImage,
 } from '../../api/services/openclawService';
 import { listMemoriesEvents, getMemoriesEventById } from '../../api/services/memoriesService';
-
+import { useAuth } from '../../state/context/AuthContext';
+import {
+  clearOldUploadStatuses,
+  getNetworkStatusSnapshot,
+  getRecentApiCallsSnapshot,
+  getRecentUiErrorsSnapshot,
+  getUploadStatusSnapshot,
+  installAssistantErrorListeners,
+  trackUploadFailed,
+  trackUploadProgress,
+  trackUploadSelected,
+  trackUploadStarted,
+  trackUploadSuccess,
+  type AssistantUploadItem,
+} from '../../utils/openclawAssistantMonitor';
+import { OpenClawChatbot } from 'openclaw';
 const SESSION_KEY = 'openclaw_session_id';
 const ALWAYS_SPEAK_KEY = 'openclaw_always_speak';
 const OPENCLAW_CHAT_SESSIONS_KEY = 'openclaw_chat_sessions';
@@ -57,6 +72,7 @@ export type OpenClawMessage = {
 
 export type OpenClawChatSession = {
   id: string;
+  userId: string;
   backendSessionId?: string;
   title: string;
   createdAt: string;
@@ -82,7 +98,10 @@ type AssistantActionPermission =
   | 'copy'
   | 'search'
   | 'filter'
-  | 'sort';
+  | 'sort'
+  | 'debug_network'
+  | 'debug_upload'
+  | 'debug_ui';
 
 type AssistantActionRisk = 'safe' | 'medium' | 'dangerous';
 
@@ -127,6 +146,9 @@ const assistantPermissionsDefaults: Record<AssistantActionPermission, boolean> =
   search: true,
   filter: true,
   sort: true,
+  debug_network: true,
+  debug_upload: true,
+  debug_ui: true,
 };
 
 const allowedDomActionIds = new Set([
@@ -247,10 +269,11 @@ function generateChatTitle(messages: OpenClawMessage[]): string {
   return normalized.length > 40 ? `${normalized.slice(0, 40).trimEnd()}...` : normalized;
 }
 
-function createNewChatSession(): OpenClawChatSession {
+function createNewChatSession(userId: string): OpenClawChatSession {
   const now = new Date().toISOString();
   return {
     id: newId(),
+    userId,
     title: 'New Chat',
     createdAt: now,
     updatedAt: now,
@@ -262,10 +285,12 @@ function isValidRole(role: unknown): role is ChatRole {
   return role === 'user' || role === 'assistant' || role === 'system';
 }
 
-function loadChatSessions(): OpenClawChatSession[] {
+function loadChatSessions(storageKey: string, currentUserId: string): OpenClawChatSession[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = window.localStorage.getItem(OPENCLAW_CHAT_SESSIONS_KEY);
+    const raw =
+      window.localStorage.getItem(storageKey) ||
+      (storageKey !== OPENCLAW_CHAT_SESSIONS_KEY ? window.localStorage.getItem(OPENCLAW_CHAT_SESSIONS_KEY) : null);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -320,6 +345,10 @@ function loadChatSessions(): OpenClawChatSession[] {
 
         return {
           id: typeof (session as { id?: unknown }).id === 'string' ? String((session as { id: string }).id) : newId(),
+          userId:
+            typeof (session as { userId?: unknown }).userId === 'string'
+              ? String((session as { userId: string }).userId)
+              : currentUserId,
           ...(backendSessionId ? { backendSessionId } : {}),
           title: titleCandidate.trim() || generateChatTitle(messages),
           createdAt,
@@ -327,16 +356,16 @@ function loadChatSessions(): OpenClawChatSession[] {
           messages,
         };
       })
-      .filter((session): session is OpenClawChatSession => Boolean(session));
+      .filter((session): session is OpenClawChatSession => Boolean(session) && session.userId === currentUserId);
   } catch {
     return [];
   }
 }
 
-function saveChatSessions(sessions: OpenClawChatSession[]): void {
+function saveChatSessions(sessions: OpenClawChatSession[], storageKey: string): void {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(OPENCLAW_CHAT_SESSIONS_KEY, JSON.stringify(sessions));
+    window.localStorage.setItem(storageKey, JSON.stringify(sessions));
   } catch {
     /* ignore */
   }
@@ -391,8 +420,37 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
   const navigate = useNavigate();
   const location = useLocation();
   const { t, i18n } = useTranslation(undefined, { keyPrefix: 'openclawPage' });
+  const { user } = useAuth();
   const isDrawer = layout === 'drawer';
   const assistantRootRef = React.useRef<HTMLDivElement | null>(null);
+  const getCurrentOpenClawUserId = React.useCallback((): string => {
+    const idCandidate = user?.id != null ? String(user.id).trim() : '';
+    if (idCandidate) return idCandidate;
+    const emailCandidate = typeof user?.email === 'string' ? user.email.trim().toLowerCase() : '';
+    if (emailCandidate) return emailCandidate;
+    const usernameCandidate = typeof user?.username === 'string' ? user.username.trim().toLowerCase() : '';
+    if (usernameCandidate) return usernameCandidate;
+    return 'guest';
+  }, [user?.email, user?.id, user?.username]);
+
+  const getOpenClawChatSessionsKey = React.useCallback(
+    (uid: string) => `openclaw_chat_sessions_${uid}`,
+    []
+  );
+  const getOpenClawActiveChatIdKey = React.useCallback(
+    (uid: string) => `openclaw_active_chat_id_${uid}`,
+    []
+  );
+
+  const currentUserId = React.useMemo(() => getCurrentOpenClawUserId(), [getCurrentOpenClawUserId]);
+  const chatSessionsStorageKey = React.useMemo(
+    () => getOpenClawChatSessionsKey(currentUserId),
+    [currentUserId, getOpenClawChatSessionsKey]
+  );
+  const activeChatStorageKey = React.useMemo(
+    () => getOpenClawActiveChatIdKey(currentUserId),
+    [currentUserId, getOpenClawActiveChatIdKey]
+  );
 
   const memoriesEventId = React.useMemo(
     () => parseMemoriesEventIdFromPath(location.pathname),
@@ -650,13 +708,27 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
     return base.filter((a) => assistantPermissions[a.permission as AssistantActionPermission] !== false);
   }, [assistantPermissions]);
 
+  const getReadableRouteName = React.useCallback((): string => {
+    const path = window.location.pathname || '/';
+    if (path === '/') return 'Home';
+    const clean = path
+      .split('/')
+      .filter(Boolean)
+      .map((part) => part.replace(/[-_]/g, ' '))
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' > ');
+    return clean || 'Home';
+  }, []);
+
   const buildAssistantPageContext = React.useCallback(
     (extraContext?: Record<string, unknown>) => {
       if (typeof window === 'undefined') return sanitizeAssistantContext(extraContext || {});
+      clearOldUploadStatuses();
       const ctx = sanitizeAssistantContext({
         path: window.location.pathname,
         url: window.location.href,
         title: document.title,
+        routeName: getReadableRouteName(),
         visibleText: getVisiblePageText(),
         buttons: getVisibleButtons(),
         links: getVisibleLinks(),
@@ -666,6 +738,10 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
         modals: getVisibleModals(),
         selectedRecords: getSelectedRecords(),
         uploadAreas: getUploadAreas(),
+        uploadStatus: getUploadStatusSnapshot(),
+        networkStatus: getNetworkStatusSnapshot(),
+        recentApiCalls: getRecentApiCallsSnapshot(8),
+        recentUiErrors: getRecentUiErrorsSnapshot(8),
         availableActions: getAvailableAssistantActions(),
         timestamp: new Date().toISOString(),
         ...extraContext,
@@ -680,6 +756,7 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
     },
     [
       getAvailableAssistantActions,
+      getReadableRouteName,
       getSelectedRecords,
       getUploadAreas,
       getVisibleButtons,
@@ -976,13 +1053,14 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
         const nextMessages = [...chat.messages, message];
         return {
           ...chat,
+          userId: chat.userId || currentUserId,
           updatedAt: message.createdAt,
           title: generateChatTitle(nextMessages),
           messages: nextMessages,
         };
       });
     },
-    [updateChatSessionById]
+    [currentUserId, updateChatSessionById]
   );
 
   const appendMessageToCurrentChat = React.useCallback(
@@ -1065,15 +1143,19 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
   }, []);
 
   React.useEffect(() => {
-    const loadedSessions = loadChatSessions();
+    const loadedSessions = loadChatSessions(chatSessionsStorageKey, currentUserId);
     let nextSessions = loadedSessions;
     if (nextSessions.length === 0) {
-      nextSessions = [createNewChatSession()];
+      nextSessions = [createNewChatSession(currentUserId)];
     }
 
     let preferredChatId = '';
     if (typeof window !== 'undefined') {
-      preferredChatId = window.localStorage.getItem(OPENCLAW_ACTIVE_CHAT_ID_KEY) || '';
+      preferredChatId =
+        window.localStorage.getItem(activeChatStorageKey) ||
+        (activeChatStorageKey !== OPENCLAW_ACTIVE_CHAT_ID_KEY
+          ? window.localStorage.getItem(OPENCLAW_ACTIVE_CHAT_ID_KEY) || ''
+          : '');
     }
 
     const existingPreferred = nextSessions.find((session) => session.id === preferredChatId);
@@ -1088,25 +1170,29 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
     setActiveChatId(resolvedChatId);
     persistSession(fallbackSession?.backendSessionId);
     setHasLoadedChatSessions(true);
-  }, [persistSession]);
+  }, [activeChatStorageKey, chatSessionsStorageKey, currentUserId, persistSession]);
 
   React.useEffect(() => {
     if (!hasLoadedChatSessions) return;
-    saveChatSessions(chatSessions);
-  }, [chatSessions, hasLoadedChatSessions]);
+    saveChatSessions(chatSessions, chatSessionsStorageKey);
+  }, [chatSessions, chatSessionsStorageKey, hasLoadedChatSessions]);
 
   React.useEffect(() => {
     if (!hasLoadedChatSessions || !activeChatId || typeof window === 'undefined') return;
     try {
-      window.localStorage.setItem(OPENCLAW_ACTIVE_CHAT_ID_KEY, activeChatId);
+      window.localStorage.setItem(activeChatStorageKey, activeChatId);
     } catch {
       /* ignore */
     }
-  }, [activeChatId, hasLoadedChatSessions]);
+  }, [activeChatId, activeChatStorageKey, hasLoadedChatSessions]);
 
   React.useEffect(() => {
     persistSession(activeBackendSessionId);
   }, [activeBackendSessionId, persistSession]);
+
+  React.useEffect(() => {
+    installAssistantErrorListeners();
+  }, []);
 
   const tryHandleLocalAssistantCommands = React.useCallback(
     async (message: string, fromVoice: boolean, chatId?: string): Promise<boolean> => {
@@ -1226,12 +1312,12 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
 
   const handleNewSession = React.useCallback(async () => {
     if (!openclawEnabled) return;
-    const newSession = createNewChatSession();
+    const newSession = createNewChatSession(currentUserId);
     setChatSessions((prev) => [newSession, ...prev]);
     setActiveChatId(newSession.id);
     setInput('');
     toast.success(t('toastSession'));
-  }, [t]);
+  }, [currentUserId, t]);
 
   const sendText = React.useCallback(
     async (raw: string) => {
@@ -1247,7 +1333,11 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
         const { reply, sessionId: next, navigateTo, action, actions } = await openclawSendChat({
           message,
           sessionId: chatSessions.find((chat) => chat.id === requestChatId)?.backendSessionId,
-          context: buildAssistantPageContext(openClawContext as unknown as Record<string, unknown>) as Record<string, unknown>,
+          userId: currentUserId,
+          context: buildAssistantPageContext({
+            ...(openClawContext as unknown as Record<string, unknown>),
+            userId: currentUserId,
+          }) as Record<string, unknown>,
         });
         const shown = polishAssistantReplyForDisplay(reply || t('emptyReply'));
         updateChatSessionById(requestChatId, (chat) => ({
@@ -1280,6 +1370,7 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
       applyNavigation,
       chatSessions,
       openClawContext,
+      currentUserId,
       speakAssistantIfEnabled,
       t,
       tryHandleLocalAssistantCommands,
@@ -1300,7 +1391,11 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
         const { reply, sessionId: next, navigateTo, action, actions } = await openclawSendVoice({
           transcript: text,
           sessionId: chatSessions.find((chat) => chat.id === requestChatId)?.backendSessionId,
-          context: buildAssistantPageContext(openClawContext as unknown as Record<string, unknown>) as Record<string, unknown>,
+          userId: currentUserId,
+          context: buildAssistantPageContext({
+            ...(openClawContext as unknown as Record<string, unknown>),
+            userId: currentUserId,
+          }) as Record<string, unknown>,
         });
         const shown = polishAssistantReplyForDisplay(reply || t('emptyReply'));
         updateChatSessionById(requestChatId, (chat) => ({
@@ -1330,6 +1425,7 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
       applyNavigation,
       chatSessions,
       openClawContext,
+      currentUserId,
       speakAssistantIfEnabled,
       t,
       tryHandleLocalAssistantCommands,
@@ -1427,6 +1523,13 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
       if (!file || !openclawEnabled) return;
       const requestChatId = activeChatId || activeChat?.id;
       if (!requestChatId) return;
+      const uploadId = trackUploadSelected({
+        uploadAreaId: 'upload_profile_image',
+        uploadAreaLabel: 'Assistant image upload',
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type || 'application/octet-stream',
+      });
       appendMessageToChat(
         requestChatId,
         {
@@ -1435,13 +1538,24 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
         }
       );
       setSending(true);
+      trackUploadStarted(uploadId, {
+        apiMethod: 'POST',
+        apiUrl: '/api/openclaw/image',
+      });
       try {
         const { reply, sessionId: next, navigateTo, action, actions } = await openclawUploadImage({
           file,
           sessionId: chatSessions.find((chat) => chat.id === requestChatId)?.backendSessionId,
           prompt: input.trim() || undefined,
-          context: buildAssistantPageContext(openClawContext as unknown as Record<string, unknown>) as Record<string, unknown>,
+          uploadId,
+          onUploadProgress: (pct) => trackUploadProgress(uploadId, pct),
+          userId: currentUserId,
+          context: buildAssistantPageContext({
+            ...(openClawContext as unknown as Record<string, unknown>),
+            userId: currentUserId,
+          }) as Record<string, unknown>,
         });
+        trackUploadSuccess(uploadId, { reply, navigateTo, sessionId: next });
         const shown = polishAssistantReplyForDisplay(reply || t('emptyReply'));
         updateChatSessionById(requestChatId, (chat) => ({
           ...chat,
@@ -1456,7 +1570,8 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
         } else if (action) {
           await executeAssistantAction(action.id, action.payload);
         }
-      } catch {
+      } catch (err) {
+        trackUploadFailed(uploadId, err);
         appendLine('assistant', t('imageFail'), undefined, requestChatId);
         speakAssistantIfEnabled(t('imageFail'));
         toast.error(t('toastImageFail'));
@@ -1473,6 +1588,7 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
       chatSessions,
       input,
       openClawContext,
+      currentUserId,
       speakAssistantIfEnabled,
       t,
       updateChatSessionById,
@@ -1497,6 +1613,17 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
       </div>
     );
   }
+
+  const recentUploads = getUploadStatusSnapshot();
+  const recentApiCalls = getRecentApiCallsSnapshot(5);
+  const recentUiErrors = getRecentUiErrorsSnapshot(5);
+  const uploadSummary = {
+    uploading: recentUploads.filter((u) => u.status === 'uploading').length,
+    success: recentUploads.filter((u) => u.status === 'success').length,
+    failed: recentUploads.filter((u) => u.status === 'failed').length,
+  };
+  const lastApi = recentApiCalls[0];
+  const lastUiError = recentUiErrors[0];
 
   const chatHistoryItems = [...chatSessions].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -1578,13 +1705,56 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
             </div>
           ))
         )}
+        {sending ? (
+          <div className="mr-auto inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-xs text-slate-600 shadow-sm">
+            <span className="inline-flex items-center gap-1" aria-label="Assistant typing">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-500 [animation-delay:0ms]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-500 [animation-delay:140ms]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-violet-500 [animation-delay:280ms]" />
+            </span>
+          </div>
+        ) : null}
       </div>
       <div className="shrink-0 border-t border-slate-200 p-3 space-y-2 bg-slate-50/80">
+        <details className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <summary className="cursor-pointer text-xs font-semibold text-slate-700">Debug context</summary>
+          <div className="mt-2 space-y-1.5 text-[11px] text-slate-600">
+            <p>
+              <span className="font-semibold text-slate-700">Page:</span> {location.pathname}
+            </p>
+            <p>
+              <span className="font-semibold text-slate-700">User:</span> {currentUserId}
+            </p>
+            <p>
+              <span className="font-semibold text-slate-700">Chat:</span> {activeChatId || 'none'}
+            </p>
+            <p>
+              <span className="font-semibold text-slate-700">Uploads:</span>{' '}
+              {uploadSummary.uploading} uploading, {uploadSummary.success} success, {uploadSummary.failed} failed
+            </p>
+            <p>
+              <span className="font-semibold text-slate-700">Last API:</span>{' '}
+              {lastApi ? `${lastApi.method} ${lastApi.path || lastApi.url} (${lastApi.responseStatus || '-'})` : 'No calls'}
+            </p>
+            <p>
+              <span className="font-semibold text-slate-700">Last Error:</span>{' '}
+              {lastUiError ? lastUiError.message : 'No UI errors'}
+            </p>
+          </div>
+        </details>
         <details className="rounded-xl border border-slate-200 bg-white px-2.5 py-2">
           <summary className="cursor-pointer text-xs font-semibold text-slate-700">Permissions and actions</summary>
           <div className="mt-2">
             <div className="flex flex-wrap gap-2 mb-2">
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickImage} />
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                data-ai-upload="upload_profile_image"
+                data-ai-upload-label="Assistant image upload"
+                className="hidden"
+                onChange={onPickImage}
+              />
               <button
                 type="button"
                 disabled={sending}
@@ -1749,10 +1919,18 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
               {t('newSession')}
             </button>
           </div> */}
-          <details className="rounded-xl border border-slate-200 bg-white px-2.5 py-2">
+          <details className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-              <div className="flex items-center gap-2">
-                <span className="flex-1 text-center text-xs font-semibold text-slate-700">Chat History</span>
+              <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-800">Chat History</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                      {chatHistoryItems.length}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 text-[10px] text-slate-500">Tap to switch chats</div>
+                </div>
                 <button
                   type="button"
                   disabled={sending}
@@ -1761,33 +1939,38 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
                     e.stopPropagation();
                     void handleNewSession();
                   }}
-                  className="inline-flex items-center justify-center rounded-full border border-violet-200 bg-violet-50 p-1.5 text-violet-700 hover:bg-violet-100 disabled:opacity-50"
-                  title="Start New Chat"
-                  aria-label="Start New Chat"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:from-violet-700 hover:to-fuchsia-700 disabled:opacity-50"
+                  title="New Chat"
+                  aria-label="New Chat"
                 >
                   <FaPlus className="h-3.5 w-3.5" />
+                  New
                 </button>
               </div>
+              <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-200 to-transparent" aria-hidden />
             </summary>
-            <div className="mt-2 flex gap-2 overflow-x-auto overflow-y-hidden pr-1 pb-1 [-webkit-overflow-scrolling:touch]">
+            <div className="px-3 pb-3 pt-2">
+              <div className="flex gap-2 overflow-x-auto overflow-y-hidden pr-1 pb-1 [-webkit-overflow-scrolling:touch]">
               {chatHistoryItems.map((chat) => (
                 <button
                   key={chat.id}
                   type="button"
                   onClick={() => selectChatSession(chat.id)}
-                  className={`shrink-0 w-[160px] rounded-xl border px-2.5 py-2 text-left transition-colors ${
+                  className={`group shrink-0 w-[156px] h-[46px] rounded-2xl border px-3 py-2 text-left transition-all focus:outline-none focus:ring-2 focus:ring-violet-400/35 active:scale-[0.99] ${
                     chat.id === activeChatId
-                      ? 'border-violet-300 bg-violet-50'
-                      : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/40'
+                      ? 'border-violet-300 bg-gradient-to-b from-violet-50 to-white  ring-violet-200 shadow-sm'
+                      : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/30 hover:shadow-sm'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <p className="truncate text-[11px] font-semibold text-slate-800">{chat.title || 'New Chat'}</p>
+                    <p className="truncate text-[11px] font-semibold text-slate-900 capitalize leading-snug" style={{ fontFamily: 'initial' }}>
+                      {chat.title || 'New Chat'}
+                    </p>
                     {chat.id === activeChatId ? (
                       <span className="mt-0.5 inline-flex h-2 w-2 shrink-0 rounded-full bg-violet-500" aria-hidden />
                     ) : null}
                   </div>
-                  <p className="mt-0.5 text-[10px] text-slate-500">
+                  <p className="mt-1 text-[10px] text-slate-500 leading-snug">
                     {new Date(chat.updatedAt).toLocaleDateString('en-IN', {
                       day: '2-digit',
                       month: 'short',
@@ -1796,6 +1979,7 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
                   </p>
                 </button>
               ))}
+            </div>
             </div>
           </details>
         </div>
@@ -1856,7 +2040,7 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
                 key={chat.id}
                 type="button"
                 onClick={() => selectChatSession(chat.id)}
-                className={`w-full rounded-xl border px-2.5 py-2 text-left transition-colors ${chat.id === activeChatId
+                className={`w-full rounded-xl h-[46px] border px-2.5 py-2 text-left transition-colors ${chat.id === activeChatId
                     ? 'border-violet-300 bg-violet-50'
                     : 'border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/40'
                   }`}

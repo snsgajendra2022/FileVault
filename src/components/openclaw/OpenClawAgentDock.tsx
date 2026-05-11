@@ -220,7 +220,7 @@ const OpenClawAgentDock: React.FC = () => {
         }}
         className={`flex items-center justify-center rounded-full shadow-lg shadow-violet-900/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 select-none ${
           isDragging ? 'cursor-grabbing scale-100' : 'cursor-grab hover:scale-105 active:scale-95'
-        } ${open ? 'ring-2 ring-violet-400 ring-offset-2 scale-95' : ''} ${
+        } ${open ? 'ring-2 ring-violet-400 ring-offset-2 scale-95 hidden'  : ''} ${
           !isDragging ? 'transition-[transform,box-shadow] duration-200 ease-out' : ''
         }`}
         title={open ? t('fabCloseTitle') : `${t('fabTitle')} — ${t('fabDragHint')}`}

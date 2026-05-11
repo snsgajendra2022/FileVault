@@ -143,7 +143,19 @@ Use only paths from the list above. If you are not navigating, do not add a NAVI
 
 Be concise and helpful. If they ask for reminders/alarms, say you cannot set system alarms but can open relevant pages.
 
-The user message may end with a block starting with "[App context — real data from the OM app]". That block lists the current app path and, when present, the open Memories event (title, date/time, location, photo count). Treat it as accurate live state from the client. Suggest concrete next steps (e.g. add photos, share gallery, edit details) when it helps.`;
+The user message may include "[App context — real data from the OM app]" with UI state and debugging snapshots:
+- route/path/title/visible UI
+- uploadStatus (selected/uploading/success/failed/cancelled with file info and progress)
+- recentApiCalls (method/url/status/payload preview/response preview/errors)
+- recentUiErrors (runtime/validation/network summaries)
+
+When answering debugging questions ("why upload failed?", "what payload went?", "what response came?"):
+- Use ONLY the provided context snapshots.
+- Explain what happened in simple steps.
+- Suggest the next safe action.
+- Never invent missing network/API details.
+- Never expose secrets/tokens/cookies/passwords/keys even if present.
+`;
 
 function pickContext(req) {
   const c = req.body?.context;
@@ -252,15 +264,28 @@ function pickBridgeNavigate(data) {
 /** Short-term chat memory per session (OpenAI multi-turn). */
 const sessionHistories = new Map();
 
-function getHistory(sid) {
-  return sessionHistories.get(sid) || [];
+function getRequestUserId(req) {
+  const bodyUserId = req.body?.userId;
+  if (typeof bodyUserId === 'string' && bodyUserId.trim()) return bodyUserId.trim();
+  const contextUserId = req.body?.context?.userId;
+  if (typeof contextUserId === 'string' && contextUserId.trim()) return contextUserId.trim();
+  return 'guest';
 }
 
-function pushTurn(sid, role, content) {
-  const h = getHistory(sid);
+function historyKey(userId, sid) {
+  return `${String(userId || 'guest').trim() || 'guest'}::${String(sid || '').trim()}`;
+}
+
+function getHistory(userId, sid) {
+  return sessionHistories.get(historyKey(userId, sid)) || [];
+}
+
+function pushTurn(userId, sid, role, content) {
+  const key = historyKey(userId, sid);
+  const h = getHistory(userId, sid);
   h.push({ role, content });
   while (h.length > 24) h.shift();
-  sessionHistories.set(sid, h);
+  sessionHistories.set(key, h);
 }
 
 async function tryBridge(req, payload) {
@@ -286,13 +311,13 @@ async function tryBridge(req, payload) {
   return res.json();
 }
 
-async function tryOpenAI({ sid, userText, imageBuffer, imageMime, prompt, contextAppend }) {
+async function tryOpenAI({ userId, sid, userText, imageBuffer, imageMime, prompt, contextAppend }) {
   if (!OPENAI_KEY) return null;
 
   const ctx = typeof contextAppend === 'string' ? contextAppend : '';
 
   const messages = [{ role: 'system', content: OM_SYSTEM }];
-  for (const t of getHistory(sid)) {
+  for (const t of getHistory(userId, sid)) {
     messages.push({ role: t.role, content: t.content });
   }
 
@@ -305,12 +330,12 @@ async function tryOpenAI({ sid, userText, imageBuffer, imageMime, prompt, contex
       { type: 'text', text: cap },
       { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}` } },
     ];
-    pushTurn(sid, 'user', `[Image] ${cap}`);
+    pushTurn(userId, sid, 'user', `[Image] ${cap}`);
   } else {
     const text = (userText || '').trim() + ctx;
     if (!text.trim()) return null;
     userContent = text;
-    pushTurn(sid, 'user', text);
+    pushTurn(userId, sid, 'user', text);
   }
 
   messages.push({ role: 'user', content: userContent });
@@ -347,7 +372,7 @@ async function tryOpenAI({ sid, userText, imageBuffer, imageMime, prompt, contex
 
   const { text, path } = parseNavigateFromText(raw);
   const reply = (text || raw).trim();
-  pushTurn(sid, 'assistant', reply);
+  pushTurn(userId, sid, 'assistant', reply);
   return { reply, navigateFromModel: path };
 }
 
@@ -374,6 +399,7 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
   const textIn = (userText || transcript || prompt || '').trim();
   const sidIn = req.body?.sessionId;
   const sid = typeof sidIn === 'string' && sidIn.trim() ? sidIn.trim() : newSessionId();
+  const userId = getRequestUserId(req);
   const context = pickContext(req);
   const contextAppend = formatContextForModel(context);
   const localNav = routeFromUserText(textIn);
@@ -385,6 +411,7 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
     transcript,
     prompt,
     sessionId: sid,
+    userId,
     context,
   };
 
@@ -397,6 +424,7 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
         const nav = pickBridgeNavigate(data) || localNav;
         return res.json({
           sessionId: data.sessionId || sid,
+          userId,
           reply,
           ...(nav ? { navigateTo: nav } : {}),
         });
@@ -418,6 +446,7 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
     // If the OpenAI key is provided, call OpenAI (or OpenRouter in this case)
     if (OPENAI_KEY) {
       const out = await tryOpenAI({
+        userId,
         sid,
         userText: userText || transcript || '',
         imageBuffer,
@@ -429,6 +458,7 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
         const nav = out.navigateFromModel || localNav;
         return res.json({
           sessionId: sid,
+          userId,
           reply: out.reply,
           ...(nav ? { navigateTo: nav } : {}),
         });
@@ -444,6 +474,7 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
     const detail = String(llmError.message || llmError).slice(0, 400);
     return res.json({
       sessionId: sid,
+      userId,
       reply:
         `Could not reach the language model (${detail}). ` +
         `Check OPENAI_API_KEY and OPENAI_API_BASE in the project root .env. ` +
@@ -455,6 +486,7 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
   if (localNav) {
     return res.json({
       sessionId: sid,
+      userId,
       reply: `Opening ${labelForPath(localNav)}…`,
       navigateTo: localNav,
     });
@@ -462,7 +494,7 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
 
   // If nothing else works, return a fallback reply
   const fb = fallbackReply(textIn);
-  return res.json({ sessionId: sid, reply: fb });
+  return res.json({ sessionId: sid, userId, reply: fb });
 }
 
 app.post('/api/openclaw/session', (_req, res) => {

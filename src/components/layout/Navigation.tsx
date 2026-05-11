@@ -101,6 +101,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
                 <NavLink
                 key={item.href}
                 to={item.href}
+                data-ai-action={`open-route-${item.href.replace(/\//g, '-').replace(/^-+/, '')}`}
                 className={({ isActive }) =>
                   `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
                     isActive
@@ -147,6 +148,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
                 <NavLink
                   key={item.href}
                   to={item.href}
+                  data-ai-action={`open-route-${item.href.replace(/\//g, '-').replace(/^-+/, '')}`}
                   className={({ isActive }) =>
                     `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
                       isActive
@@ -191,6 +193,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
                 <NavLink
                   key={item.href}
                   to={item.href}
+                  data-ai-action={`open-route-${item.href.replace(/[/?=&]/g, '-').replace(/^-+/, '')}`}
                   className={({ isActive }) =>
                     `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
                       isActive
