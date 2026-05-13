@@ -1,35 +1,113 @@
-Today’s work — 13 Apr 2026
+# Aaj Ka Kaam — 7 May 2026
 
-Photobook scoping: when a photobook is selected, pages and covers load and save only for that photobookId.
+---
 
-No fallback to GET /api/album-pages?userId&templateId or GET /api/covers?userId&templateId in that case, so another book’s legacy rows are not merged in.
+## 1. PublicImagesDisplayPage — Refresh pe Error Flash Fix
+- Page refresh karne par "Incomplete Link" error card turant nahi dikhta tha
+- `isCheckingParams` state add ki — sirf tab `true` hoti hai jab `sid` ya `albumToken` URL mein ho
+- Jab API resolve ho jaye tab `false` ho jati hai `.finally()` mein
+- Ab refresh par pehle loading spinner dikhta hai, phir content ya error
 
-PhotoThemeAlbumBuilderPage: useSearchParams for deep links /photo-themes/{categorySlug}/album?photobookId=…&templateId=….
+---
 
-Initial dbTemplateId and photobookId: navigation state (dbTemplateId, templateId, photobookId), then query params, then localStorage photobook_{categorySlug}.
+## 2. PhotoStudioAlbum — Advanced Image Preloading System
 
-If only photobookId is known, GET /api/photobooks/{id} fills templateId.
+**Naye files banaye:**
+- `src/utils/imagePreloader/ImagePreloadManager.ts` — sliding window cache, LRU eviction, retry logic
+- `src/utils/imagePreloader/useLightboxPreloader.ts` — React hook
+- `src/utils/imagePreloader/useImageLoader.ts` — single image hook
+- `src/components/lightbox/LightboxImage.tsx` — blur placeholder + fade-in
+- `src/components/lightbox/Lightbox.tsx` — keyboard nav, swipe, thumbnail strip, portal
 
-by-category recovery skips when photobookId is set but template is still missing, so a deep link is not replaced by the latest book in the category.
+**PhotoStudioAlbum.tsx mein changes:**
+- Purana manual preload code (~100 lines) hata diya
+- `openLightbox()` + `<Lightbox>` component se replace kiya
+- Grid thumbnails mein `loading="lazy"` add kiya — sirf visible images load hoti hain
 
-Load: if photobookId then only GET /api/photobooks/{id}/pages (empty allowed); else if dbTemplateId then GET /api/album-pages?userId&templateId.
+---
 
-Covers: photobook path only GET /api/photobooks/{id}/covers; else GET /api/covers with userId and templateId.
+## 3. Lightbox — Bugs Fix
 
-Save: only POST /api/photobooks/{id}/pages; removed POST /api/album-pages/bulk fallback. Best-effort PUT /api/photobooks/{id} unchanged.
+- **Sidebar ke upar overlap:** `createPortal(…, document.body)` se fix — layout ke bahar render hota hai
+- **Right side black area:** `px-14` padding hataya, nav buttons `absolute` ho gaye
+- **Blurred placeholder bahar dikhna:** `absolute inset-0` kar diya
+- **`crossOrigin = 'anonymous'` hataya** — browser HTTP cache bust ho raha tha
 
-PhotoThemeCategoryPage: with photobookId, only GET /api/photobooks/{id}/covers for saved covers; no /api/covers fallback when editing a book.
+---
 
-Without photobookId but with activeTemplateId, legacy GET /api/covers. activeTemplateIdRef added with photobookIdRef for stale request guards.
+## 4. Lightbox — Cache Fix (Same Image Dobara Load Nahi Hoga)
 
-PhotoStudioAlbum: added bulk images download as a ZIP file button.
+- `key={current.id}` hata diya — component remount nahi hoga ab
+- `useEffect` mein pehle `el.src = src` assign karo, phir `el.complete` check karo — instant cache hit
+- `maxCacheSize` 20 se badhake 100 kiya — session mein dekhi gayi images evict nahi hongi
 
-ZIP download: downloads images for the selected album(s) (top toolbar) or the currently open album (album detail view), fetches blobs via axios api client, zips with JSZip, and triggers a browser download.
+---
 
-Our Memories: pickTokenForMemoriesGuestLinkUrl uses localStorage token when present else event guest token for share URL, QR, publicUrl on MemoriesEventManagePage; API still uses event accessToken where required.
+## 5. Lightbox — Download Button Feedback
 
-addImagesToMemoriesEvent: optional token in JSON body from localStorage; optional bearerToken for Authorization on guest uploads.
+- Download button ab apna state khud manage karta hai
+- `idle` → `downloading` (spinner + progress bar) → `done` (green ✓, 2.5s) → `error` (red, retry)
+- Dusri image par navigate karne se state reset ho jati hai
 
-Earlier baseline (9 Apr): guest token and t on query and APIs; getMemoriesShareAccessTokenFromSearchParams; manage mints access token when missing; guest gallery URL normalization; backend.md Our Memories; glass hero, thumbnails, MemoriesLightbox, imageGroups, shareId, guest welcome, en and hi.
+---
 
-Replace this file next session with that day’s notes.
+## 6. StudioDashboard — UI Improvements
+
+- **Hero buttons:** "Add Client" = solid white, baaki = frosted glass with blur; hover par shimmer effect
+- **Recent Activity timestamps:** Smart format — `Just now` / `5 mins ago` / `Yesterday • 07:03 AM` / `06 May 2026 • 07:03 AM`
+- **Photo Distribution chart:** Album names ab poore dikhte hain (truncation hataya); custom legend mein `42 photos` pill badge
+
+---
+
+## 7. MemoriesEventsListPage — UI Improvements
+
+- Hero header: gradient background, brand label, decorative blobs
+- Event cards: bada cover image, photo count badge, bada font, calendar + location icons
+- **Search feature add kiya:** Event name se instant filter, result count, no-match state
+- Search mein highlight effect hataya (clean names dikhte hain)
+- Margins kam kiye: `max-w-4xl` → `max-w-6xl`
+
+---
+
+## 8. Responsive Design — 6 Pages Mobile/Tablet Friendly Banaye
+
+### PhotoThemesPage
+- Header stack on mobile, grid `sm:grid-cols-2`, spacing tight
+
+### PhotoThemeAlbumBuilderPage
+- Left sidebar mobile par hidden
+- Right sidebar full width on mobile with `max-h-[50vh]`
+- Workspace `flex-col md:flex-row`
+- Filmstrip thumbnails chhote on mobile
+
+### InvitationsPage
+- Header stack on mobile, tab bar chhota text/padding
+
+### PaymentManagement
+- **Table ki jagah mobile par cards** — har payment ek card mein with 3 action buttons
+- Details modal grid `grid-cols-1 sm:grid-cols-2`
+
+### StudioCheckout
+- Header stack on mobile, buttons wrap
+- Album grid gap tight, card padding chhota
+- Image picker: `grid-cols-2` on mobile (3 tha pehle)
+
+### MemoriesEventsListPage
+- Hero padding tight, content max-width bada
+
+---
+
+## 9. Chhote Fixes
+
+- `react-loading-skeleton` TypeScript fix — `tsconfig.json` mein path alias add kiya
+- `InviteExistingUserForm` — Validate button hata diya, form directly Send karta hai
+- react-icons type errors fix: `FaRedo` → `FaRedoAlt`, `FaSync` → `FaRedoAlt`, `FaExclamationCircle` → `FaExclamationTriangle`, `FaBookOpen` → `FaBook`
+
+---
+
+## Aaj Ka Summary
+
+Aaj mainly teen cheezein ki:
+1. **Performance** — image preloading, browser cache fix, lazy loading
+2. **UI/UX polish** — lightbox download feedback, timestamps, chart legend, MemoriesEvents redesign
+3. **Responsive design** — 6 pages ko mobile/tablet friendly banaya bina desktop todhe

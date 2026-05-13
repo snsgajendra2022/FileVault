@@ -240,12 +240,40 @@ const MemoriesEventManagePage: React.FC = () => {
   }, [ev?.id, ev?.sharedWithUserIds]);
 
   const shareUrl = React.useMemo(() => {
-    if (!ev || typeof window === 'undefined') return '';
-    const at = ev.accessToken?.trim();
-    if (!at) return '';
-    const linkToken = pickTokenForMemoriesGuestLinkUrl(at);
-    return buildMemoriesGuestGalleryUrl(window.location.origin, ev.slug, linkToken, shareGuestPermissions);
-  }, [ev, shareGuestPermissions]);
+    if (typeof window === 'undefined') return '';
+    if (!ev) return '';
+  
+    const slug = String(ev.slug || '').trim();
+  
+    const accessToken = String(
+      ev.accessToken ||
+      ''
+    ).trim();
+  
+    if (!slug || !accessToken) {
+      console.log('QR URL not ready:', {
+        slug,
+        accessToken,
+        shareGuestPermissions,
+        ev,
+      });
+      return '';
+    }
+  
+    const linkToken = pickTokenForMemoriesGuestLinkUrl(accessToken);
+  
+    return buildMemoriesGuestGalleryUrl(
+      window.location.origin,
+      slug,
+      linkToken,
+      shareGuestPermissions
+    );
+  }, [
+    ev?.slug,
+    ev?.accessToken,
+    shareGuestPermissions,
+  ]);
+  const QrSahreUrl= `${shareUrl}`
 
   const accessTokenMintInFlightRef = React.useRef(false);
   const accessTokenMintFailedEventIdRef = React.useRef<string | null>(null);
@@ -448,48 +476,6 @@ const MemoriesEventManagePage: React.FC = () => {
     eventId,
   ]);
 
-  const downloadQr = React.useCallback(async () => {
-    try {
-      const wrap = qrWrapRef.current;
-      const svg = wrap?.querySelector('svg');
-      if (!svg) throw new Error('qr-not-found');
-
-      // Serialize the SVG and render to canvas for PNG download.
-      const serializer = new XMLSerializer();
-      const svgText = serializer.serializeToString(svg);
-      const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
-
-      const img = new Image();
-      img.decoding = 'async';
-      img.src = url;
-      await img.decode();
-
-      const size = 1024;
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('canvas');
-
-      // White background so scanners work in dark UIs.
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, size, size);
-      ctx.drawImage(img, 0, 0, size, size);
-
-      URL.revokeObjectURL(url);
-
-      const pngUrl = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = pngUrl;
-      a.download = `our-memories-qr-${ev?.id ?? 'event'}.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } catch {
-      toast.error(t('shareFail'));
-    }
-  }, [ev?.id, t]);
 
   const privacy = (ev as { privacy?: string } | null | undefined)?.privacy ?? 'invite';
   const photoCount = ev?.images?.length ?? 0;
@@ -538,6 +524,49 @@ const MemoriesEventManagePage: React.FC = () => {
     obs.observe(sentinel);
     return () => obs.disconnect();
   }, [ev, galleryVisibleCount, ev?.images?.length]);
+
+  const downloadQr = React.useCallback(async () => {
+    try {
+      const wrap = qrWrapRef.current;
+      const svg = wrap?.querySelector('svg');
+      if (!svg) throw new Error('qr-not-found');
+
+      // Serialize the SVG and render to canvas for PNG download.
+      const serializer = new XMLSerializer();
+      const svgText = serializer.serializeToString(svg);
+      const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = url;
+      await img.decode();
+
+      const size = 1024;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('canvas');
+
+      // White background so scanners work in dark UIs.
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      ctx.drawImage(img, 0, 0, size, size);
+
+      URL.revokeObjectURL(url);
+
+      const pngUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = `our-memories-qr-${ev?.id ?? 'event'}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      toast.error(t('shareFail'));
+    }
+  }, [ev?.id, t]);
 
   if (!ev) {
     return (
@@ -941,9 +970,18 @@ const MemoriesEventManagePage: React.FC = () => {
               ref={qrWrapRef}
               className="flex justify-center rounded-2xl border border-slate-100 bg-gradient-to-b from-white to-slate-50/80 p-6 sm:p-8 shadow-inner"
             >
-              <div className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.06)]  ring-slate-100">
-                <QRCode value={shareUrl || ' '} size={200} level="M" />
-              </div>
+              {/* <div className="rounded-2xl bg-white p-4 shadow-[0_8px_30px_rgba(0,0,0,0.06)]  ring-slate-100">
+                <QRCode value={QrSahreUrl || ' '} size={200} level="M" />
+              </div> */}
+                {shareUrl ? (
+                    <>
+                      <QRCode value={QrSahreUrl} size={200} level="M" />
+                    </>
+                  ) : (
+                    <p className="text-center text-sm text-slate-500">
+                      Generating QR code...
+                    </p>
+                  )}
             </div>
             <p className="text-xs text-slate-500 mt-5 text-center leading-relaxed max-w-sm mx-auto">
               {t('qrHint')}
