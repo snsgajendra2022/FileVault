@@ -95,6 +95,20 @@ declare module 'react-icons/fa' {
   export const FaExpandArrowsAlt: ComponentType<IconProps>;
   export const FaFlag: ComponentType<IconProps>;
   export const FaGripVertical: ComponentType<IconProps>;
+  export const FaGripHorizontal: ComponentType<IconProps>;
+  export const FaShareAlt: ComponentType<IconProps>;
+  export const FaBookOpen: ComponentType<IconProps>;
+  export const FaRobot: ComponentType<IconProps>;
+  export const FaUndo: ComponentType<IconProps>;
+  export const FaUserCog: ComponentType<IconProps>;
+  export const FaSlidersH: ComponentType<IconProps>;
+  export const FaComments: ComponentType<IconProps>;
+  export const FaMicrophone: ComponentType<IconProps>;
+  export const FaPaperPlane: ComponentType<IconProps>;
+  export const FaRedo: ComponentType<IconProps>;
+  export const FaVolumeUp: ComponentType<IconProps>;
+  export const FaVolumeMute: ComponentType<IconProps>;
+  export const FaMagic: ComponentType<IconProps>;
 }
 
 declare module 'react-icons/fi' {

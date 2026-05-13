@@ -58,17 +58,17 @@ const InvitationsPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="px-6 py-6">
-          <div className="flex items-center justify-between">
+        <div className="px-3 sm:px-6 py-4 sm:py-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{t('invitationsPage.title')}</h1>
-              <p className="text-gray-600 mt-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('invitationsPage.title')}</h1>
+              <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">
                 {t('invitationsPage.subtitle')}
               </p>
             </div>
             <div className="flex items-center space-x-3">
-              <div className="bg-blue-100 rounded-full px-4 py-2">
-                <span className="text-blue-800 font-medium">
+              <div className="bg-blue-100 rounded-full px-3 sm:px-4 py-1.5 sm:py-2">
+                <span className="text-blue-800 font-medium text-sm sm:text-base">
                   {user?.firstName} {user?.lastName}
                 </span>
               </div>
@@ -79,21 +79,21 @@ const InvitationsPage: React.FC = () => {
 
       {/* Tab Navigation */}
       <div className="bg-white border-b border-gray-200">
-        <div className="px-6">
-          <div className="flex space-x-8 overflow-x-auto">
+        <div className="px-3 sm:px-6">
+          <div className="flex space-x-4 sm:space-x-8 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center px-3 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  className={`flex items-center px-2 sm:px-3 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <Icon className="h-4 w-4 mr-2" />
+                  <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                   {t(tab.nameKey)}
                 </button>
               );

@@ -69,6 +69,7 @@ export const studioNavigation: NavGroup = {
     { labelKey: 'nav.studio.membersTree', href: '/family-tree', icon: FaSitemap, enabled: true },
     { labelKey: 'nav.studio.createMembers', href: '/invitations', icon: FaUserPlus, enabled: true },
     // { labelKey: 'nav.studio.members', href: '/studio/clients', icon: FaUsers, enabled: true },
+    { labelKey: 'nav.studio.settings', href: '/portal-settings', icon: FaUsers, enabled: true },
     { labelKey: 'nav.studio.paymentManagement', href: '/studio/payment-management', icon: FaRupeeSign, enabled: true },
     { labelKey: 'nav.studio.services', href: '/services', icon: FaCloud, enabled: true },
   ],

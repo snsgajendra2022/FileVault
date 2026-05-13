@@ -12,7 +12,7 @@ import Skeleton, { SkeletonTheme } from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 
 // ─── Re-export SkeletonTheme so consumers can wrap if needed ─────────────────
-export { SkeletonTheme };
+export  { SkeletonTheme };
 
 // ─── Shared theme defaults ────────────────────────────────────────────────────
 export const SKELETON_BASE_COLOR = '#e2e8f0';   // slate-200

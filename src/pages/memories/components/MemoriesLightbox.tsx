@@ -275,14 +275,31 @@ export const MemoriesLightbox: React.FC<Props> = ({
         >
           {images.map((m, idx) => (
             <SwiperSlide key={m.id} className="!flex items-center justify-center bg-black/0">
-              <div className="relative w-full h-full flex items-center justify-center p-2 sm:p-4">
+          <div className="relative w-full h-full flex items-center justify-center p-2 sm:p-4">
+                {/* Blurred thumbnail — always visible as background while HD loads */}
+                <img
+                  src={m.thumbUrl}
+                  alt=""
+                  aria-hidden
+                  className={`absolute max-h-full max-w-full object-contain transition-opacity duration-300 ${
+                    hdLoaded[m.id] ? 'opacity-0' : 'opacity-80 blur-sm scale-105'
+                  }`}
+                />
+
+                {/* Loading indicator — shown while HD is not yet ready */}
                 {!hdLoaded[m.id] && (
-                  <img
-                    src={m.thumbUrl}
-                    alt=""
-                    className="absolute max-h-full max-w-full object-contain blur-sm scale-105 opacity-80"
-                  />
+                  <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="relative w-12 h-12">
+                        <div className="absolute inset-0 rounded-full border-2 border-white/20" />
+                        <div className="absolute inset-0 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      </div>
+                      <span className="text-[11px] font-semibold text-white/60 tracking-wide">Loading…</span>
+                    </div>
+                  </div>
                 )}
+
+                {/* HD image — fades in when loaded */}
                 <img
                   src={m.hdUrl}
                   alt=""
@@ -313,7 +330,7 @@ export const MemoriesLightbox: React.FC<Props> = ({
               Save
             </a> */}
 
-            <button
+            {/* <button
               type="button"
               disabled={readOnly}
               onClick={() => !readOnly && onLike(img.id)}
@@ -333,9 +350,9 @@ export const MemoriesLightbox: React.FC<Props> = ({
                 <FaHeart className={`h-5 w-5 ${isLiked?.(img.id) ? 'text-rose-300' : 'text-white/70'}`} />
               </span>
               {img.likes}
-            </button>
+            </button> */}
 
-            <button
+            {/* <button
               type="button"
               onClick={() => setCommentsOpen((v) => !v)}
               className="flex flex-col items-center gap-1 text-[10px] text-white/80 hover:text-white"
@@ -344,7 +361,7 @@ export const MemoriesLightbox: React.FC<Props> = ({
                  <span className="text-xs font-semibold">{comments.length}</span>
               </span>
               {'Comments'}
-            </button>
+            </button> */}
 
             {/* <button
               type="button"

@@ -20,7 +20,7 @@ const Layout = () => {
       </div>
 
       {/* Main content */}
-      <div className="lg:ml-64 min-h-screen flex flex-col">
+      <div className="lg:ml-[240px] min-h-screen flex flex-col">
         <Header setSidebarOpen={setSidebarOpen} />
 
         <main className="flex-1 p-2 lg:p-3">

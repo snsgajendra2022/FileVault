@@ -1,4 +1,3 @@
-import React from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -30,6 +29,8 @@ import api from '../../api/client/axiosInstance';
 import imageService from '../../api/services/imageService';
 import { useAuth } from '../../state/context/AuthContext';
 import { getStoredToken } from '../../utils/authUtils';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ModernAlbumImageLibrary } from 'src/components/PhotoBook/ModernAlbumImageLibrary';
 
 /** Same host as axios — required for `<img src>` on photobook thumbnails. */
 function getApiBaseForAssets(): string {
@@ -232,8 +233,8 @@ function DraggableCropImage({
   const pos = cropPos ?? { x: 50, y: 50 };
   const imgRef = React.useRef<HTMLImageElement>(null);
   const dragRef = React.useRef<{ startX: number; startY: number; startPos: CropPos } | null>(null);
-  const [dragging, setDragging] = React.useState(false);
-  const [livePos, setLivePos] = React.useState(pos);
+  const [dragging, setDragging] = useState(false);
+  const [livePos, setLivePos] = useState(pos);
   React.useEffect(() => { setLivePos(cropPos ?? { x: 50, y: 50 }); }, [cropPos]);
 
   const onPointerDown = React.useCallback((e: React.PointerEvent) => {
@@ -688,11 +689,10 @@ function AlbumSlotCard({
   return (
     <div
       ref={setRef}
-      className={`relative flex flex-col rounded-xl overflow-hidden transition-all border-2 flex-shrink-0 group/slot ${
-        url
+      className={`relative flex flex-col rounded-xl overflow-hidden transition-all border-2 flex-shrink-0 group/slot ${url
           ? 'border-amber-200/80 bg-white shadow-md hover:shadow-lg cursor-grab active:cursor-grabbing'
           : 'border-dashed border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-slate-100 cursor-pointer'
-      } ${isDragging ? 'opacity-60 z-50' : ''} ${isOver ? 'ring-2 ring-amber-400 ring-offset-2 bg-amber-50/50' : ''}`}
+        } ${isDragging ? 'opacity-60 z-50' : ''} ${isOver ? 'ring-2 ring-amber-400 ring-offset-2 bg-amber-50/50' : ''}`}
       style={{ width: 88, minWidth: 88, height: 88 }}
       onClick={() => !url && onOpenPicker()}
     >
@@ -778,7 +778,7 @@ function setStoredCoverLast(categorySlug: string, coverPage: EditablePageState, 
       `${COVER_LAST_STORAGE_KEY}_${categorySlug}`,
       JSON.stringify({ coverPage: pick(coverPage), lastPage: pick(lastPage) }),
     );
-  } catch (_) {}
+  } catch (_) { }
 }
 
 type ApiSlotImage = { imageId: number; imageUrl: string; slotIndex: number };
@@ -891,14 +891,42 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       openPreview?: 'flip' | 'page';
     };
   };
+ const [customLayouts, setCustomLayouts] = useState<
+            Array<{ id: string; shortLabel: string; slotCount: number; geometry: LayoutSlotRect[] }>
+          >([]);
+  const [showLayoutCreator, setShowLayoutCreator] = useState(false);
+  const [newLayoutName, setNewLayoutName] = useState('');
+  const [newLayoutSlotCount, setNewLayoutSlotCount] = useState(4);
+
+  const [layoutStudioSlots, setLayoutStudioSlots] = useState<LayoutSlotRect[]>([
+    { x: 4, y: 5, width: 58, height: 90 },
+    { x: 66, y: 5, width: 30, height: 27 },
+    { x: 66, y: 36, width: 30, height: 27 },
+    { x: 66, y: 67, width: 30, height: 28 },
+  ]);
+
+  const [activeLayoutSlot, setActiveLayoutSlot] = useState<number | null>(0);
+  const [layoutStudioBg, setLayoutStudioBg] = useState('linear-gradient(135deg,#ffffff,#f8fafc)');
+  const [layoutStudioBgImage, setLayoutStudioBgImage] = useState('');
+  const [layoutStudioRadius, setLayoutStudioRadius] = useState(14);
+  const [layoutStudioShadow, setLayoutStudioShadow] = useState(true);
+
 
   const { t } = useTranslation(undefined, { keyPrefix: 'photoThemeAlbumBuilderPage' });
+
   const layoutShort = React.useCallback(
     (id: string) => t(LAYOUT_SHORT_TKEY[id] || 'layoutSingle'),
     [t],
   );
 
   const STUDIO_ALBUM_KEY = `studioAlbum_${categorySlug}`;
+
+const customLayoutGeometry = useMemo(() => {
+  return customLayouts.reduce((acc, layout) => {
+    acc[layout.id] = layout.geometry;
+    return acc;
+  }, {} as Record<string, LayoutSlotRect[]>);
+}, [customLayouts]);
 
   // Persist studio album image IDs so they survive navigation to cover page and back
   const studioAlbumImageIds: number[] | null = React.useMemo(() => {
@@ -914,7 +942,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       if (raw) return JSON.parse(raw)?.imageIds ?? null;
     } catch { /* ignore */ }
     return null;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state?.albumImageIds, STUDIO_ALBUM_KEY]);
 
   const studioAlbumName: string | undefined = React.useMemo(() => {
@@ -924,7 +952,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       if (raw) return JSON.parse(raw)?.albumName;
     } catch { /* ignore */ }
     return undefined;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state?.albumName, STUDIO_ALBUM_KEY]);
 
   const PHOTOBOOK_KEY = `photobook_${categorySlug}`;
@@ -967,8 +995,12 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     return getStoredPhotobook()?.photobookId ?? null;
   };
 
-  const [dbTemplateId, setDbTemplateId] = React.useState<number | null>(getInitialTemplateId);
-  const [photobookId, setPhotobookId] = React.useState<number | null>(getInitialPhotobookId);
+  const [dbTemplateId, setDbTemplateId] = useState<number | null>(getInitialTemplateId);
+  const [photobookId, setPhotobookId] = useState<number | null>(getInitialPhotobookId);
+
+
+
+
 
   // When navigating (e.g. Edit from Photo Book), sync from location state so we load the correct album
   React.useEffect(() => {
@@ -1035,16 +1067,16 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       }
     };
     recover();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, categorySlug, photobookId, dbTemplateId]);
 
-  const [effectiveCover, setEffectiveCover] = React.useState<EditablePageState | undefined>(() => {
+  const [effectiveCover, setEffectiveCover] = useState<EditablePageState | undefined>(() => {
     const fromLoc = location.state?.coverPage;
     if (fromLoc) return fromLoc;
     const stored = categorySlug ? getStoredCoverLast(categorySlug) : null;
     return stored?.coverPage ?? undefined;
   });
-  const [effectiveLast, setEffectiveLast] = React.useState<EditablePageState | undefined>(() => {
+  const [effectiveLast, setEffectiveLast] = useState<EditablePageState | undefined>(() => {
     const fromLoc = location.state?.lastPage;
     if (fromLoc) return fromLoc;
     const stored = categorySlug ? getStoredCoverLast(categorySlug) : null;
@@ -1084,7 +1116,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   }, [template]);
 
   // User-controlled page count (min 6, max 18)
-  const [pageCount, setPageCount] = React.useState<number>(() =>
+  const [pageCount, setPageCount] = useState<number>(() =>
     Math.min(18, Math.max(6, basePages.length || 6)),
   );
 
@@ -1153,10 +1185,10 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     ];
   }, [albumPages]);
 
-  const [pageImages, setPageImages] = React.useState<Record<number, PageImageState>>({});
-  const [pageLayouts, setPageLayouts] = React.useState<Record<number, string>>({});
-  const [currentStep, setCurrentStep] = React.useState(0);
-  const [layoutQuickFilter, setLayoutQuickFilter] = React.useState<number | 'all'>('all');
+  const [pageImages, setPageImages] = useState<Record<number, PageImageState>>({});
+  const [pageLayouts, setPageLayouts] = useState<Record<number, string>>({});
+  const [currentStep, setCurrentStep] = useState(0);
+  const [layoutQuickFilter, setLayoutQuickFilter] = useState<number | 'all'>('all');
   const prevPhotobookIdRef = React.useRef(photobookId);
   React.useEffect(() => {
     if (prevPhotobookIdRef.current !== photobookId) {
@@ -1166,33 +1198,33 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       setCurrentStep(0);
     }
   }, [photobookId]);
-  const [showFlipBook, setShowFlipBook] = React.useState(false);
-  const [showSinglePageView, setShowSinglePageView] = React.useState(false);
-  const [singlePageIndex, setSinglePageIndex] = React.useState(0);
-  const [isGeneratingPdf, setIsGeneratingPdf] = React.useState(false);
-  const [isGeneratingFlipbook, setIsGeneratingFlipbook] = React.useState(false);
-  const [isGeneratingZip, setIsGeneratingZip] = React.useState(false);
-  const [isGeneratingBase64, setIsGeneratingBase64] = React.useState(false);
-  const [pdfProgress, setPdfProgress] = React.useState<{ current: number; total: number } | null>(null);
-  const [slideshowActive, setSlideshowActive] = React.useState(false);
-  const [slideshowSpeed, setSlideshowSpeed] = React.useState(4000);
-  const [isZoomed, setIsZoomed] = React.useState(false);
-  const [flipBookPage, setFlipBookPage] = React.useState(0);
+  const [showFlipBook, setShowFlipBook] = useState(false);
+  const [showSinglePageView, setShowSinglePageView] = useState(false);
+  const [singlePageIndex, setSinglePageIndex] = useState(0);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingFlipbook, setIsGeneratingFlipbook] = useState(false);
+  const [isGeneratingZip, setIsGeneratingZip] = useState(false);
+  const [isGeneratingBase64, setIsGeneratingBase64] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState<{ current: number; total: number } | null>(null);
+  const [slideshowActive, setSlideshowActive] = useState(false);
+  const [slideshowSpeed, setSlideshowSpeed] = useState(4000);
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [flipBookPage, setFlipBookPage] = useState(0);
   const flipBookRef = React.useRef<any>(null);
   /** After opening the modal, optionally jump to this page index (single-view → flip, or 0 on fresh open). */
   const flipOpenTargetRef = React.useRef<number | null>(null);
   const stepperRef = React.useRef<HTMLDivElement>(null);
   const slotDndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   type BookOrientation = 'landscape' | 'portrait';
-  const [bookOrientation, setBookOrientation] = React.useState<BookOrientation>(
+  const [bookOrientation, setBookOrientation] = useState<BookOrientation>(
     () => (typeof window !== 'undefined' && window.innerWidth > window.innerHeight ? 'landscape' : 'portrait')
   );
-  const [pageImagePickerFor, setPageImagePickerFor] = React.useState<{
+  const [pageImagePickerFor, setPageImagePickerFor] = useState<{
     pageIndex: number;
     layout: string;
     slotIndex?: number; // if set, replace this specific slot; otherwise fill next empty
   } | null>(null);
-  
+
   // Color theme options for Anniversary theme (translated labels)
   const anniversaryColorThemes = React.useMemo(
     () => [
@@ -1224,8 +1256,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     [t],
   );
 
-  const [selectedColorTheme, setSelectedColorTheme] = React.useState<string>('red-pink');
-  const [selectedWeddingBackground, setSelectedWeddingBackground] = React.useState<string>('ivory-classic');
+  const [selectedColorTheme, setSelectedColorTheme] = useState<string>('red-pink');
+  const [selectedWeddingBackground, setSelectedWeddingBackground] = useState<string>('ivory-classic');
 
   const handleImageChange = async (pageIndex: number, file: File | null) => {
     if (!file) return;
@@ -1248,15 +1280,15 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       },
     }));
   };
-  
+
   const selectedTheme = anniversaryColorThemes.find(t => t.id === selectedColorTheme) || anniversaryColorThemes[0];
   const selectedWeddingTheme = weddingBackgroundThemes.find(t => t.id === selectedWeddingBackground) || weddingBackgroundThemes[0];
 
   /* ── Save / Load album state ──────────────────────────────── */
-  const [isSaving, setIsSaving] = React.useState(false);
-  const [saveError, setSaveError] = React.useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const themeDefaultsAppliedRef = React.useRef(false);
   React.useEffect(() => {
@@ -1409,12 +1441,12 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           imageIds: finalIds.length > 0 ? finalIds : null,
           layout: layoutLabel,
           background: categorySlug === 'wedding' ? selectedWeddingBackground
-                    : categorySlug === 'anniversary' ? selectedColorTheme
-                    : null,
+            : categorySlug === 'anniversary' ? selectedColorTheme
+              : null,
           frameStyle: state?.frameStyle ?? null,
           colorTheme: categorySlug === 'anniversary' ? selectedColorTheme
-                    : categorySlug === 'wedding' ? selectedWeddingBackground
-                    : null,
+            : categorySlug === 'wedding' ? selectedWeddingBackground
+              : null,
           caption: null,
           cropPositions: cropJson,
           slotCaptions: captionsJson,
@@ -1672,7 +1704,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       }
     };
     load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photobookId, dbTemplateId, user?.id]);
 
   const getPageLayoutLabel = (pageIndex: number, _fallbackLayoutName?: string) => {
@@ -1713,8 +1745,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     const textState: EditablePageState | undefined = isCover
       ? (coverFromState ?? { headline: t('cover'), subheadline: '', description: '' } as EditablePageState)
       : isLast
-      ? (lastFromState ?? { headline: t('theEnd'), subheadline: '', description: '' } as EditablePageState)
-      : undefined;
+        ? (lastFromState ?? { headline: t('theEnd'), subheadline: '', description: '' } as EditablePageState)
+        : undefined;
 
     const urls = st.imageDataUrls ?? (st.imageDataUrl ? [st.imageDataUrl] : []);
     const coverOrLastUrl = (isCover && coverFromState?.imageDataUrl) || (isLast && lastFromState?.imageDataUrl) || '';
@@ -1736,8 +1768,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       : categorySlug === 'wedding'
         ? selectedWeddingTheme.gradient
         : categorySlug === 'anniversary'
-        ? `linear-gradient(135deg, ${selectedTheme.colors[0]}, ${selectedTheme.colors[2]}, ${selectedTheme.colors[4]})`
-        : 'linear-gradient(135deg, #fafafa, #f1f5f9)';
+          ? `linear-gradient(135deg, ${selectedTheme.colors[0]}, ${selectedTheme.colors[2]}, ${selectedTheme.colors[4]})`
+          : 'linear-gradient(135deg, #fafafa, #f1f5f9)';
     const needsDarkCoverBg =
       !coverTextOnly &&
       (isCover || isLast) &&
@@ -1763,13 +1795,13 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     const coverPhotoFx =
       (isCover || isLast) && !coverTextOnly && textState?.style
         ? {
-            blur: !!textState.style.blurBackground,
-            scale: textState.style.imageScale ?? 1,
-            vignette: !!textState.style.vignette,
-            dark: !!textState.style.darkModeCover,
-            animate: !!textState.style.subtleAnimation,
-            gradient: textState.style.gradient?.trim(),
-          }
+          blur: !!textState.style.blurBackground,
+          scale: textState.style.imageScale ?? 1,
+          vignette: !!textState.style.vignette,
+          dark: !!textState.style.darkModeCover,
+          animate: !!textState.style.subtleAnimation,
+          gradient: textState.style.gradient?.trim(),
+        }
         : null;
     const coverImgBlur = !!coverPhotoFx?.blur;
     const coverImgScale = coverPhotoFx?.scale ?? 1;
@@ -1801,27 +1833,27 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     const textSideOverlayNodes =
       textState?.style?.textSideOverlays?.length && (isCover || isLast)
         ? textState.style.textSideOverlays.map((o) => (
-            <div
-              key={o.id}
-              className="absolute z-[35] pointer-events-none max-w-[min(92%,20rem)] break-words"
-              style={{
-                left: `${o.x}%`,
-                top: `${o.y}%`,
-                transform: 'translate(-50%, -50%)',
-                textAlign: o.textAlign || 'center',
-                fontSize: o.fontSize ?? 13,
-                color: o.color ?? '#f8fafc',
-                fontWeight: o.fontWeight ?? 600,
-                fontStyle: o.fontStyle,
-                fontFamily: o.fontFamily,
-                letterSpacing: o.letterSpacing != null ? `${o.letterSpacing}px` : undefined,
-                lineHeight: o.lineHeight,
-                textShadow: o.textShadow ? '0 2px 10px rgba(0,0,0,0.75)' : undefined,
-              }}
-            >
-              {o.text}
-            </div>
-          ))
+          <div
+            key={o.id}
+            className="absolute z-[35] pointer-events-none max-w-[min(92%,20rem)] break-words"
+            style={{
+              left: `${o.x}%`,
+              top: `${o.y}%`,
+              transform: 'translate(-50%, -50%)',
+              textAlign: o.textAlign || 'center',
+              fontSize: o.fontSize ?? 13,
+              color: o.color ?? '#f8fafc',
+              fontWeight: o.fontWeight ?? 600,
+              fontStyle: o.fontStyle,
+              fontFamily: o.fontFamily,
+              letterSpacing: o.letterSpacing != null ? `${o.letterSpacing}px` : undefined,
+              lineHeight: o.lineHeight,
+              textShadow: o.textShadow ? '0 2px 10px rgba(0,0,0,0.75)' : undefined,
+            }}
+          >
+            {o.text}
+          </div>
+        ))
         : null;
 
     const crops = st.cropPositions ?? {};
@@ -1865,7 +1897,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
 
     let imageContent: React.ReactNode = null;
     if (showImageLayer) {
-      const geometry = LAYOUT_GEOMETRY[layoutLabel];
+      const geometry = LAYOUT_GEOMETRY[layoutLabel] || customLayoutGeometry[layoutLabel];
 
       // JSON-based layout engine when geometry is defined
       if (geometry && geometry.length > 0) {
@@ -1892,160 +1924,160 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       } else {
         // Fallback: existing hand-tuned arrangements
         switch (arrangement) {
-        case 'two-up':
-          imageContent = (
-            <div className="absolute inset-0 grid grid-cols-2 gap-2 p-2" style={{ gridTemplateRows: '1fr' }}>
-              {mkImg(0, 'rounded-md')}{mkImg(1, 'rounded-md')}
-            </div>
-          );
-          break;
-        case 'two-vertical':
-          imageContent = (
-            <div className="absolute inset-0 grid grid-cols-1 gap-2 p-2" style={{ gridTemplateRows: '1fr 1fr' }}>
-              {mkImg(0, 'rounded-md')}{mkImg(1, 'rounded-md')}
-            </div>
-          );
-          break;
-        case 'three-grid':
-          imageContent = (
-            <div className="absolute inset-0 grid gap-2 p-2" style={{ gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }}>
-              <div className="relative overflow-hidden rounded-md" style={{ gridRow: '1 / 3', minWidth: 0, minHeight: 0 }}>
-                {editOpts?.editable ? (
-                  <DraggableCropImage src={getSrc(0)} alt={t('pageImgAlt', { page: page.index + 1, slot: 1 })} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" coverBlur={coverImgBlur} coverScale={coverImgScale} />
-                ) : (
-                  <img src={getSrc(0)} alt="" draggable={false} className={`absolute inset-0 w-full h-full object-cover${coverImgBlur ? ' blur-sm' : ''}`} style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%`, ...(coverImgScale !== 1 ? { transform: `scale(${coverImgScale})`, transformOrigin: 'center center' } : {}) }} />
-                )}
+          case 'two-up':
+            imageContent = (
+              <div className="absolute inset-0 grid grid-cols-2 gap-2 p-2" style={{ gridTemplateRows: '1fr' }}>
+                {mkImg(0, 'rounded-md')}{mkImg(1, 'rounded-md')}
               </div>
-              {mkImg(1, 'rounded-md')}{mkImg(2, 'rounded-md')}
-            </div>
-          );
-          break;
-        case 'hero-two':
-          imageContent = (
-            <div className="absolute inset-0 grid gap-2 p-2" style={{ gridTemplateRows: '1.5fr 1fr' }}>
-              {mkImg(0, 'rounded-md')}
-              <div className="grid grid-cols-2 gap-2" style={{ minHeight: 0 }}>{mkImg(1, 'rounded-md')}{mkImg(2, 'rounded-md')}</div>
-            </div>
-          );
-          break;
-        case 'four-grid':
-          imageContent = (
-            <div className="absolute inset-0 grid gap-2 p-2" style={{ gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }}>
-              {[0,1,2,3].map(i => mkImg(i, 'rounded-md'))}
-            </div>
-          );
-          break;
-        case 'collage':
-          imageContent = (
-            <div className="absolute inset-0">
-              {[
-                { idx: 0, cls: 'absolute top-[4%] left-[4%] w-[52%] h-[58%] rotate-[-3deg] overflow-hidden rounded-md shadow-lg' },
-                { idx: 1, cls: 'absolute bottom-[4%] right-[4%] w-[52%] h-[58%] rotate-[3deg] overflow-hidden rounded-md shadow-lg' },
-                { idx: 2, cls: 'absolute inset-0 m-auto w-[54%] h-[54%] z-10 overflow-hidden rounded-md shadow-xl' },
-              ].map(({ idx, cls }) => (
-                <div key={idx} className={cls}>
+            );
+            break;
+          case 'two-vertical':
+            imageContent = (
+              <div className="absolute inset-0 grid grid-cols-1 gap-2 p-2" style={{ gridTemplateRows: '1fr 1fr' }}>
+                {mkImg(0, 'rounded-md')}{mkImg(1, 'rounded-md')}
+              </div>
+            );
+            break;
+          case 'three-grid':
+            imageContent = (
+              <div className="absolute inset-0 grid gap-2 p-2" style={{ gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }}>
+                <div className="relative overflow-hidden rounded-md" style={{ gridRow: '1 / 3', minWidth: 0, minHeight: 0 }}>
                   {editOpts?.editable ? (
-                    <DraggableCropImage src={getSrc(idx)} alt="" cropPos={crops[idx] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(idx, p)} className="w-full h-full" coverBlur={coverImgBlur} coverScale={coverImgScale} />
+                    <DraggableCropImage src={getSrc(0)} alt={t('pageImgAlt', { page: page.index + 1, slot: 1 })} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" coverBlur={coverImgBlur} coverScale={coverImgScale} />
                   ) : (
-                    <img src={getSrc(idx)} alt="" draggable={false} className={`absolute inset-0 w-full h-full object-cover${coverImgBlur ? ' blur-sm' : ''}`} style={{ objectPosition: `${(crops[idx]?.x ?? 50)}% ${(crops[idx]?.y ?? 50)}%`, ...(coverImgScale !== 1 ? { transform: `scale(${coverImgScale})`, transformOrigin: 'center center' } : {}) }} />
+                    <img src={getSrc(0)} alt="" draggable={false} className={`absolute inset-0 w-full h-full object-cover${coverImgBlur ? ' blur-sm' : ''}`} style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%`, ...(coverImgScale !== 1 ? { transform: `scale(${coverImgScale})`, transformOrigin: 'center center' } : {}) }} />
                   )}
                 </div>
-              ))}
-            </div>
-          );
-          break;
-        case 'cinematic':
-          imageContent = (
-            <div className="absolute inset-0 bg-black flex items-center justify-center p-3">
-              <div className="relative w-full rounded-md overflow-hidden" style={{ aspectRatio: '2.35/1', maxHeight: '70%' }}>
+                {mkImg(1, 'rounded-md')}{mkImg(2, 'rounded-md')}
+              </div>
+            );
+            break;
+          case 'hero-two':
+            imageContent = (
+              <div className="absolute inset-0 grid gap-2 p-2" style={{ gridTemplateRows: '1.5fr 1fr' }}>
+                {mkImg(0, 'rounded-md')}
+                <div className="grid grid-cols-2 gap-2" style={{ minHeight: 0 }}>{mkImg(1, 'rounded-md')}{mkImg(2, 'rounded-md')}</div>
+              </div>
+            );
+            break;
+          case 'four-grid':
+            imageContent = (
+              <div className="absolute inset-0 grid gap-2 p-2" style={{ gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' }}>
+                {[0, 1, 2, 3].map(i => mkImg(i, 'rounded-md'))}
+              </div>
+            );
+            break;
+          case 'collage':
+            imageContent = (
+              <div className="absolute inset-0">
+                {[
+                  { idx: 0, cls: 'absolute top-[4%] left-[4%] w-[52%] h-[58%] rotate-[-3deg] overflow-hidden rounded-md shadow-lg' },
+                  { idx: 1, cls: 'absolute bottom-[4%] right-[4%] w-[52%] h-[58%] rotate-[3deg] overflow-hidden rounded-md shadow-lg' },
+                  { idx: 2, cls: 'absolute inset-0 m-auto w-[54%] h-[54%] z-10 overflow-hidden rounded-md shadow-xl' },
+                ].map(({ idx, cls }) => (
+                  <div key={idx} className={cls}>
+                    {editOpts?.editable ? (
+                      <DraggableCropImage src={getSrc(idx)} alt="" cropPos={crops[idx] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(idx, p)} className="w-full h-full" coverBlur={coverImgBlur} coverScale={coverImgScale} />
+                    ) : (
+                      <img src={getSrc(idx)} alt="" draggable={false} className={`absolute inset-0 w-full h-full object-cover${coverImgBlur ? ' blur-sm' : ''}`} style={{ objectPosition: `${(crops[idx]?.x ?? 50)}% ${(crops[idx]?.y ?? 50)}%`, ...(coverImgScale !== 1 ? { transform: `scale(${coverImgScale})`, transformOrigin: 'center center' } : {}) }} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+            break;
+          case 'cinematic':
+            imageContent = (
+              <div className="absolute inset-0 bg-black flex items-center justify-center p-3">
+                <div className="relative w-full rounded-md overflow-hidden" style={{ aspectRatio: '2.35/1', maxHeight: '70%' }}>
+                  {editOpts?.editable ? (
+                    <DraggableCropImage src={getSrc(0)} alt={t('pageImgAlt', { page: page.index + 1, slot: 1 })} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" coverBlur={coverImgBlur} coverScale={coverImgScale} />
+                  ) : (
+                    <img src={getSrc(0)} alt="" draggable={false} className={`absolute inset-0 w-full h-full object-cover${coverImgBlur ? ' blur-sm' : ''}`} style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%`, ...(coverImgScale !== 1 ? { transform: `scale(${coverImgScale})`, transformOrigin: 'center center' } : {}) }} />
+                  )}
+                </div>
+              </div>
+            );
+            break;
+          case 'luxury-cover':
+            imageContent = (
+              <div className="absolute inset-0 flex gap-3 p-3">
+                <div className="w-[38%] flex flex-col gap-3">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="flex-1 min-h-0 rounded-lg overflow-hidden shadow-md">
+                      {mkImg(i, 'w-full h-full')}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex-1 min-w-0 rounded-lg overflow-hidden shadow-lg">
+                  {mkImg(3, 'w-full h-full')}
+                </div>
+              </div>
+            );
+            break;
+          case 'luxury-inner':
+            imageContent = (
+              <div className="absolute inset-0 grid gap-3 p-3" style={{ gridTemplateRows: '1.4fr 1fr' }}>
+                <div className="min-h-0 rounded-lg overflow-hidden shadow-md">
+                  {mkImg(0, 'w-full h-full')}
+                </div>
+                <div className="grid grid-cols-3 gap-3 min-h-0">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="min-h-0 rounded-lg overflow-hidden shadow-md">
+                      {mkImg(i, 'w-full h-full')}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+            break;
+          case 'hero-four':
+            imageContent = (
+              <div className="absolute inset-0 grid gap-3 p-3" style={{ gridTemplateRows: '1.2fr 1fr' }}>
+                <div className="min-h-0 rounded-lg overflow-hidden shadow-md">
+                  {mkImg(0, 'w-full h-full')}
+                </div>
+                <div className="grid grid-cols-4 gap-3 min-h-0">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="min-h-0 rounded-lg overflow-hidden shadow-md">
+                      {mkImg(i, 'w-full h-full')}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+            break;
+          case 'six-grid':
+            imageContent = (
+              <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 gap-2 p-2">
+                {[0, 1, 2, 3, 4, 5].map((i) => mkImg(i, 'rounded-md'))}
+              </div>
+            );
+            break;
+          default:
+            imageContent = (
+              <div className="absolute inset-0">
                 {editOpts?.editable ? (
-                  <DraggableCropImage src={getSrc(0)} alt={t('pageImgAlt', { page: page.index + 1, slot: 1 })} cropPos={crops[0] ?? { x: 50, y: 50 }} onCropChange={(p) => editOpts.onCropChange?.(0, p)} className="w-full h-full" coverBlur={coverImgBlur} coverScale={coverImgScale} />
+                  <DraggableCropImage
+                    src={getSrc(0)}
+                    alt={t('pageLabel', { n: page.index + 1 })}
+                    cropPos={crops[0] ?? { x: 50, y: 50 }}
+                    onCropChange={(p) => editOpts.onCropChange?.(0, p)}
+                    className="w-full h-full"
+                    coverBlur={coverImgBlur}
+                    coverScale={coverImgScale}
+                  />
                 ) : (
-                  <img src={getSrc(0)} alt="" draggable={false} className={`absolute inset-0 w-full h-full object-cover${coverImgBlur ? ' blur-sm' : ''}`} style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%`, ...(coverImgScale !== 1 ? { transform: `scale(${coverImgScale})`, transformOrigin: 'center center' } : {}) }} />
+                  <img
+                    src={getSrc(0)}
+                    alt={t('pageLabel', { n: page.index + 1 })}
+                    draggable={false}
+                    className={`w-full h-full object-cover${coverImgBlur ? ' blur-sm' : ''}`}
+                    style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%`, ...(coverImgScale !== 1 ? { transform: `scale(${coverImgScale})`, transformOrigin: 'center center' } : {}) }}
+                  />
                 )}
               </div>
-            </div>
-          );
-          break;
-        case 'luxury-cover':
-          imageContent = (
-            <div className="absolute inset-0 flex gap-3 p-3">
-              <div className="w-[38%] flex flex-col gap-3">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="flex-1 min-h-0 rounded-lg overflow-hidden shadow-md">
-                    {mkImg(i, 'w-full h-full')}
-                  </div>
-                ))}
-              </div>
-              <div className="flex-1 min-w-0 rounded-lg overflow-hidden shadow-lg">
-                {mkImg(3, 'w-full h-full')}
-              </div>
-            </div>
-          );
-          break;
-        case 'luxury-inner':
-          imageContent = (
-            <div className="absolute inset-0 grid gap-3 p-3" style={{ gridTemplateRows: '1.4fr 1fr' }}>
-              <div className="min-h-0 rounded-lg overflow-hidden shadow-md">
-                {mkImg(0, 'w-full h-full')}
-              </div>
-              <div className="grid grid-cols-3 gap-3 min-h-0">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="min-h-0 rounded-lg overflow-hidden shadow-md">
-                    {mkImg(i, 'w-full h-full')}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-          break;
-        case 'hero-four':
-          imageContent = (
-            <div className="absolute inset-0 grid gap-3 p-3" style={{ gridTemplateRows: '1.2fr 1fr' }}>
-              <div className="min-h-0 rounded-lg overflow-hidden shadow-md">
-                {mkImg(0, 'w-full h-full')}
-              </div>
-              <div className="grid grid-cols-4 gap-3 min-h-0">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="min-h-0 rounded-lg overflow-hidden shadow-md">
-                    {mkImg(i, 'w-full h-full')}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-          break;
-        case 'six-grid':
-          imageContent = (
-            <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 gap-2 p-2">
-              {[0, 1, 2, 3, 4, 5].map((i) => mkImg(i, 'rounded-md'))}
-            </div>
-          );
-          break;
-        default:
-          imageContent = (
-            <div className="absolute inset-0">
-              {editOpts?.editable ? (
-                <DraggableCropImage
-                  src={getSrc(0)}
-                  alt={t('pageLabel', { n: page.index + 1 })}
-                  cropPos={crops[0] ?? { x: 50, y: 50 }}
-                  onCropChange={(p) => editOpts.onCropChange?.(0, p)}
-                  className="w-full h-full"
-                  coverBlur={coverImgBlur}
-                  coverScale={coverImgScale}
-                />
-              ) : (
-                <img
-                  src={getSrc(0)}
-                  alt={t('pageLabel', { n: page.index + 1 })}
-                  draggable={false}
-                  className={`w-full h-full object-cover${coverImgBlur ? ' blur-sm' : ''}`}
-                  style={{ objectPosition: `${(crops[0]?.x ?? 50)}% ${(crops[0]?.y ?? 50)}%`, ...(coverImgScale !== 1 ? { transform: `scale(${coverImgScale})`, transformOrigin: 'center center' } : {}) }}
-                />
-              )}
-            </div>
-          );
+            );
         }
       }
     }
@@ -2068,38 +2100,36 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           />
         )}
         <div
-          className={`absolute inset-0 z-[10] overflow-hidden${
-            coverPhotoFx?.animate ? ' cover-fade-in' : ''
-          }${coverPhotoFx?.dark ? ' brightness-90' : ''}`}
+          className={`absolute inset-0 z-[10] overflow-hidden${coverPhotoFx?.animate ? ' cover-fade-in' : ''
+            }${coverPhotoFx?.dark ? ' brightness-90' : ''}`}
           style={
             coverPhotoFx?.vignette
               ? { boxShadow: 'inset 0 0 80px rgba(0,0,0,0.35)' }
               : undefined
           }
         >
-        {imageContent ?? (
-          coverTextOnly ? null : (isCover || isLast) && needsDarkCoverBg ? null : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-              <svg className="w-10 h-10 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-              <span className="text-xs text-white/25 font-medium tracking-wide">{t('addAPhoto')}</span>
-            </div>
-          )
-        )}
-        {coverPhotoFx?.gradient ? (
-          <div
-            className="absolute inset-0 z-[11] pointer-events-none"
-            style={{ background: coverPhotoFx.gradient }}
-            aria-hidden
-          />
-        ) : null}
+          {imageContent ?? (
+            coverTextOnly ? null : (isCover || isLast) && needsDarkCoverBg ? null : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                <svg className="w-10 h-10 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                <span className="text-xs text-white/25 font-medium tracking-wide">{t('addAPhoto')}</span>
+              </div>
+            )
+          )}
+          {coverPhotoFx?.gradient ? (
+            <div
+              className="absolute inset-0 z-[11] pointer-events-none"
+              style={{ background: coverPhotoFx.gradient }}
+              aria-hidden
+            />
+          ) : null}
         </div>
 
         {coverTextOnly && textState && (
           <div
-            className={`absolute inset-0 z-20 flex px-4 py-6 sm:px-8 ${
-              textState.style?.verticalAlign === 'top' ? 'items-start pt-8' :
-              textState.style?.verticalAlign === 'center' ? 'items-center' : 'items-end pb-10'
-            } justify-center`}
+            className={`absolute inset-0 z-20 flex px-4 py-6 sm:px-8 ${textState.style?.verticalAlign === 'top' ? 'items-start pt-8' :
+                textState.style?.verticalAlign === 'center' ? 'items-center' : 'items-end pb-10'
+              } justify-center`}
           >
             <div
               className="w-full max-w-[min(92%,26rem)] rounded-2xl border border-white/25 shadow-[0_28px_90px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] px-6 py-8 sm:px-8 sm:py-10"
@@ -2174,22 +2204,19 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
 
         {!coverTextOnly && !coverImageOnly && textState && (isCover || isLast) && (hasImg || hasOverlayCopy || showLogo || hasFloatingTextOverlays) && (
           <div
-            className={`absolute inset-0 z-20 flex px-6 py-8 ${
-              textState.style?.overlayOpacity != null ? '' : 'bg-gradient-to-t from-black/60 via-transparent to-transparent'
-            } ${
-              textState.style?.verticalAlign === 'top' ? 'items-start' :
-              textState.style?.verticalAlign === 'center' ? 'items-center' : 'items-end'
-            }`}
+            className={`absolute inset-0 z-20 flex px-6 py-8 ${textState.style?.overlayOpacity != null ? '' : 'bg-gradient-to-t from-black/60 via-transparent to-transparent'
+              } ${textState.style?.verticalAlign === 'top' ? 'items-start' :
+                textState.style?.verticalAlign === 'center' ? 'items-center' : 'items-end'
+              }`}
             style={
               textState.style?.overlayOpacity != null
                 ? { backgroundColor: `${textState.style.overlayColor || '#000000'}${Math.round((textState.style.overlayOpacity ?? 0.4) * 255).toString(16).padStart(2, '0')}` }
                 : undefined
             }
           >
-            <div className={`w-full ${
-              textState.style?.align === 'center' ? 'text-center' :
-              textState.style?.align === 'right' ? 'text-right' : 'text-left'
-            }`}>
+            <div className={`w-full ${textState.style?.align === 'center' ? 'text-center' :
+                textState.style?.align === 'right' ? 'text-right' : 'text-left'
+              }`}>
               {textState.headline && (
                 <div className="leading-tight" style={{
                   fontSize: size === 'pdf' ? Math.min(42, (textState.style?.fontSize ?? 22) * 1.4) : Math.min(36, (textState.style?.fontSize ?? 22) * 1.2),
@@ -2268,7 +2295,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
         )}
       </div>
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageImages, pageLayouts, coverFromState, lastFromState, categorySlug, selectedWeddingTheme, selectedTheme, t]);
 
   // Load an image as HTMLImageElement with CORS support
@@ -2334,274 +2361,274 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     for (let i = 0; i < albumPages.length; i++) {
       onProgress(i + 1, albumPages.length);
       const page = albumPages[i];
-        const st = pageImages[page.index] ?? {};
-        const layoutLabel = getPageLayoutLabel(page.index, page.layoutName);
-        const arrangement = getArrangementForLayoutId(layoutLabel);
-        const isCover = page.type === 'cover';
-        const isLast = page.type === 'last';
+      const st = pageImages[page.index] ?? {};
+      const layoutLabel = getPageLayoutLabel(page.index, page.layoutName);
+      const arrangement = getArrangementForLayoutId(layoutLabel);
+      const isCover = page.type === 'cover';
+      const isLast = page.type === 'last';
 
-        const canvas = document.createElement('canvas');
-        canvas.width = W;
-        canvas.height = H;
-        const ctx = canvas.getContext('2d')!;
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d')!;
 
-        // Background — white inner pages (same as flipbook), theme for cover/last
-        const useWhitePage = !isCover && !isLast;
-        if (useWhitePage) {
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, W, H);
-        } else {
-          const bgStr = categorySlug === 'wedding'
-            ? selectedWeddingTheme.gradient
-            : categorySlug === 'anniversary'
+      // Background — white inner pages (same as flipbook), theme for cover/last
+      const useWhitePage = !isCover && !isLast;
+      if (useWhitePage) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, W, H);
+      } else {
+        const bgStr = categorySlug === 'wedding'
+          ? selectedWeddingTheme.gradient
+          : categorySlug === 'anniversary'
             ? `linear-gradient(135deg, ${selectedTheme.colors[0]}, ${selectedTheme.colors[2]}, ${selectedTheme.colors[4]})`
             : 'linear-gradient(135deg, #fafafa, #f1f5f9)';
-          fillGradient(ctx, W, H, bgStr);
-        }
-
-        // Collect image sources — load up to 6 for six-grid / hero-four
-        const urls = st.imageDataUrls ?? (st.imageDataUrl ? [st.imageDataUrl] : []);
-        const getUrl = (idx: number) => urls[idx] ?? urls[0] ?? st.imageDataUrl ?? '';
-
-        const images: (HTMLImageElement | null)[] = [];
-        const urlSet = new Set<string>();
-        for (let s = 0; s < 6; s++) {
-          const u = getUrl(s);
-          if (u && !urlSet.has(u)) urlSet.add(u);
-          images[s] = u ? await loadImage(u) : null;
-        }
-
-        const pad = 24, gap = 18, rad = 12;
-        const crops = st.cropPositions ?? {};
-        const getImg = (idx: number) => images[idx] ?? images[0];
-
-        if (images[0]) {
-          switch (arrangement) {
-            case 'two-up': {
-              const colW = (W - pad * 2 - gap) / 2;
-              const h = H - pad * 2;
-              drawCover(ctx, getImg(0)!, pad, pad, colW, h, crops[0], rad);
-              drawCover(ctx, getImg(1)!, pad + colW + gap, pad, colW, h, crops[1], rad);
-              break;
-            }
-            case 'two-vertical': {
-              const rowH = (H - pad * 2 - gap) / 2;
-              const fullW = W - pad * 2;
-              drawCover(ctx, getImg(0)!, pad, pad, fullW, rowH, crops[0], rad);
-              drawCover(ctx, getImg(1)!, pad, pad + rowH + gap, fullW, rowH, crops[1], rad);
-              break;
-            }
-            case 'three-grid': {
-              const colW = (W - pad * 2 - gap) / 2;
-              const rowH = (H - pad * 2 - gap) / 2;
-              const fullH = H - pad * 2;
-              drawCover(ctx, getImg(0)!, pad, pad, colW, fullH, crops[0], rad);
-              drawCover(ctx, getImg(1)!, pad + colW + gap, pad, colW, rowH, crops[1], rad);
-              drawCover(ctx, getImg(2)!, pad + colW + gap, pad + rowH + gap, colW, rowH, crops[2], rad);
-              break;
-            }
-            case 'four-grid': {
-              const colW = (W - pad * 2 - gap) / 2;
-              const rowH = (H - pad * 2 - gap) / 2;
-              for (let r = 0; r < 2; r++) {
-                for (let c = 0; c < 2; c++) {
-                  const idx = r * 2 + c;
-                  drawCover(ctx, getImg(idx)!, pad + c * (colW + gap), pad + r * (rowH + gap), colW, rowH, crops[idx], rad);
-                }
-              }
-              break;
-            }
-            case 'hero-two': {
-              const heroH = Math.round((H - pad * 2 - gap) * 0.6);
-              const btmH = H - pad * 2 - gap - heroH;
-              const colW = (W - pad * 2 - gap) / 2;
-              drawCover(ctx, getImg(0)!, pad, pad, W - pad * 2, heroH, crops[0], rad);
-              drawCover(ctx, getImg(1)!, pad, pad + heroH + gap, colW, btmH, crops[1], rad);
-              drawCover(ctx, getImg(2)!, pad + colW + gap, pad + heroH + gap, colW, btmH, crops[2], rad);
-              break;
-            }
-            case 'cinematic': {
-              ctx.fillStyle = '#000000';
-              ctx.fillRect(0, 0, W, H);
-              const cinePad = 32;
-              const imgW = W - cinePad * 2;
-              const imgH = Math.round(imgW / 2.35);
-              const imgY = Math.round((H - imgH) / 2);
-              drawCover(ctx, getImg(0)!, cinePad, imgY, imgW, imgH, crops[0], rad);
-              break;
-            }
-            case 'collage': {
-              const cw = Math.round(W * 0.52), ch = Math.round(H * 0.56);
-              ctx.save(); ctx.translate(pad, pad + 10); ctx.rotate(-3 * Math.PI / 180);
-              drawCover(ctx, getImg(0)!, 0, 0, cw, ch, crops[0], rad); ctx.restore();
-              ctx.save(); ctx.translate(W - pad - cw, H - pad - ch - 10); ctx.rotate(3 * Math.PI / 180);
-              drawCover(ctx, getImg(1)!, 0, 0, cw, ch, crops[1], rad); ctx.restore();
-              const mw = Math.round(W * 0.56), mh = Math.round(H * 0.52);
-              drawCover(ctx, getImg(2)!, (W - mw) / 2, (H - mh) / 2, mw, mh, crops[2], rad);
-              break;
-            }
-            case 'luxury-cover': {
-              const leftW = Math.round((W - pad * 2 - gap) * 0.38);
-              const rightW = W - pad * 2 - gap - leftW;
-              const rowH = (H - pad * 2 - gap * 2) / 3;
-              drawCover(ctx, getImg(0)!, pad, pad, leftW, rowH, crops[0], rad);
-              drawCover(ctx, getImg(1)!, pad, pad + rowH + gap, leftW, rowH, crops[1], rad);
-              drawCover(ctx, getImg(2)!, pad, pad + (rowH + gap) * 2, leftW, rowH, crops[2], rad);
-              drawCover(ctx, getImg(3)!, pad + leftW + gap, pad, rightW, H - pad * 2, crops[3], rad);
-              break;
-            }
-            case 'luxury-inner': {
-              const heroH = Math.round((H - pad * 2 - gap) * 0.58);
-              const btmH = H - pad * 2 - gap - heroH;
-              const colW = (W - pad * 2 - gap * 2) / 3;
-              drawCover(ctx, getImg(0)!, pad, pad, W - pad * 2, heroH, crops[0], rad);
-              drawCover(ctx, getImg(1)!, pad, pad + heroH + gap, colW, btmH, crops[1], rad);
-              drawCover(ctx, getImg(2)!, pad + colW + gap, pad + heroH + gap, colW, btmH, crops[2], rad);
-              drawCover(ctx, getImg(3)!, pad + (colW + gap) * 2, pad + heroH + gap, colW, btmH, crops[3], rad);
-              break;
-            }
-            case 'hero-four': {
-              const heroH = Math.round((H - pad * 2 - gap) * 0.55);
-              const btmH = H - pad * 2 - gap - heroH;
-              const colW = (W - pad * 2 - gap * 3) / 4;
-              drawCover(ctx, getImg(0)!, pad, pad, W - pad * 2, heroH, crops[0], rad);
-              for (let c = 0; c < 4; c++) {
-                drawCover(ctx, getImg(c + 1)!, pad + c * (colW + gap), pad + heroH + gap, colW, btmH, crops[c + 1], rad);
-              }
-              break;
-            }
-            case 'six-grid': {
-              const colW = (W - pad * 2 - gap * 2) / 3;
-              const rowH = (H - pad * 2 - gap) / 2;
-              for (let r = 0; r < 2; r++) {
-                for (let c = 0; c < 3; c++) {
-                  const idx = r * 3 + c;
-                  drawCover(ctx, getImg(idx)!, pad + c * (colW + gap), pad + r * (rowH + gap), colW, rowH, crops[idx], rad);
-                }
-              }
-              break;
-            }
-            default:
-              drawCover(ctx, images[0]!, pad, pad, W - pad * 2, H - pad * 2, crops[0], rad);
-          }
-        } else {
-          ctx.fillStyle = 'rgba(255,255,255,0.1)';
-          ctx.font = '16px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(t('noPhoto'), W / 2, H / 2);
-        }
-
-        // Cover / last page text overlay
-        if (isCover || isLast) {
-          const ts = isCover
-            ? (coverFromState ?? { headline: t('cover'), subheadline: '' } as EditablePageState)
-            : (lastFromState ?? { headline: t('theEnd'), subheadline: '' } as EditablePageState);
-
-          // Gradient overlay
-          if (images[0]) {
-            const overlayOp = ts.style?.overlayOpacity;
-            if (overlayOp != null) {
-              ctx.fillStyle = `${ts.style?.overlayColor || '#000000'}${Math.round(overlayOp * 255).toString(16).padStart(2, '0')}`;
-              ctx.fillRect(0, 0, W, H);
-            } else {
-              const grad = ctx.createLinearGradient(0, H, 0, 0);
-              grad.addColorStop(0, 'rgba(0,0,0,0.6)');
-              grad.addColorStop(0.5, 'rgba(0,0,0,0)');
-              grad.addColorStop(1, 'rgba(0,0,0,0)');
-              ctx.fillStyle = grad;
-              ctx.fillRect(0, 0, W, H);
-            }
-          }
-
-          const align = ts.style?.align || 'center';
-          const vAlign = ts.style?.verticalAlign || 'bottom';
-          ctx.textAlign = align as CanvasTextAlign;
-          const tx = align === 'center' ? W / 2 : align === 'right' ? W - 40 : 40;
-          let ty = vAlign === 'top' ? 80 : vAlign === 'center' ? H / 2 - 20 : H - 100;
-
-          if (ts.headline) {
-            const fSize = Math.min(48, (ts.style?.fontSize ?? 22) * 1.6);
-            const fWeight = (ts.style?.fontWeight ?? 700) >= 600 ? 'bold' : 'normal';
-            const fFamily = ts.style?.fontFamily || 'sans-serif';
-            ctx.font = `${fWeight} ${fSize}px ${fFamily}`;
-            ctx.fillStyle = ts.style?.headlineColor ?? '#ffffff';
-            ctx.shadowColor = 'rgba(0,0,0,0.5)';
-            ctx.shadowBlur = 8;
-            ctx.shadowOffsetY = 2;
-            ctx.fillText(ts.headline, tx, ty);
-            ctx.shadowColor = 'transparent';
-            ty += fSize + 8;
-          }
-          if (ts.subheadline) {
-            const fSize = Math.min(28, ((ts.style?.fontSize ?? 22) - 2) * 1.2);
-            const fFamily = ts.style?.fontFamily || 'sans-serif';
-            ctx.font = `${fSize}px ${fFamily}`;
-            ctx.fillStyle = ts.style?.subheadlineColor ?? '#e5e7eb';
-            ctx.shadowColor = 'rgba(0,0,0,0.4)';
-            ctx.shadowBlur = 6;
-            ctx.fillText(ts.subheadline, tx, ty);
-            ctx.shadowColor = 'transparent';
-            ty += fSize + 6;
-          }
-          if (ts.description) {
-            ctx.font = '14px sans-serif';
-            ctx.fillStyle = 'rgba(255,255,255,0.7)';
-            ctx.fillText(ts.description, tx, ty);
-          }
-
-          // Logo
-          if (ts.style?.logoDataUrl) {
-            const logoImg = await loadImage(ts.style.logoDataUrl);
-            if (logoImg) {
-              const ls = ts.style.logoSize ?? 60;
-              const lp = ts.style.logoPosition || 'top-center';
-              const lx = lp.includes('left') ? 16 : lp.includes('right') ? W - ls - 16 : (W - ls) / 2;
-              const ly = lp.includes('top') ? 16 : lp.includes('bottom') ? H - ls - 16 : (H - ls) / 2;
-              ctx.drawImage(logoImg, lx, ly, ls, ls);
-            }
-          }
-        }
-
-        // Captions + page number for inner pages
-        if (!isCover && !isLast) {
-          const pageCaptions = st.slotCaptions ?? {};
-          const captionLines = Object.values(pageCaptions).filter((v): v is string => !!v && v.trim().length > 0);
-
-          if (captionLines.length > 0) {
-            const lineH = 20;
-            const captionBlockH = captionLines.length * lineH + 60;
-            const grad = ctx.createLinearGradient(0, H - captionBlockH, 0, H);
-            grad.addColorStop(0, 'rgba(0,0,0,0)');
-            grad.addColorStop(0.4, 'rgba(0,0,0,0.4)');
-            grad.addColorStop(1, 'rgba(0,0,0,0.7)');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, H - captionBlockH, W, captionBlockH);
-
-            ctx.font = '500 14px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#ffffff';
-            ctx.shadowColor = 'rgba(0,0,0,0.6)';
-            ctx.shadowBlur = 4;
-            ctx.shadowOffsetY = 1;
-            let cy = H - 30 - (captionLines.length - 1) * lineH;
-            for (const line of captionLines) {
-              ctx.fillText(line, W / 2, cy, W - 60);
-              cy += lineH;
-            }
-            ctx.shadowColor = 'transparent';
-          }
-
-          ctx.font = 'bold 11px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillStyle = 'rgba(255,255,255,0.4)';
-          ctx.fillText(`${page.index + 1}`, W / 2, H - 10);
-        }
-
-        dataUrls.push(canvas.toDataURL('image/jpeg', 0.92));
+        fillGradient(ctx, W, H, bgStr);
       }
 
+      // Collect image sources — load up to 6 for six-grid / hero-four
+      const urls = st.imageDataUrls ?? (st.imageDataUrl ? [st.imageDataUrl] : []);
+      const getUrl = (idx: number) => urls[idx] ?? urls[0] ?? st.imageDataUrl ?? '';
+
+      const images: (HTMLImageElement | null)[] = [];
+      const urlSet = new Set<string>();
+      for (let s = 0; s < 6; s++) {
+        const u = getUrl(s);
+        if (u && !urlSet.has(u)) urlSet.add(u);
+        images[s] = u ? await loadImage(u) : null;
+      }
+
+      const pad = 24, gap = 18, rad = 12;
+      const crops = st.cropPositions ?? {};
+      const getImg = (idx: number) => images[idx] ?? images[0];
+
+      if (images[0]) {
+        switch (arrangement) {
+          case 'two-up': {
+            const colW = (W - pad * 2 - gap) / 2;
+            const h = H - pad * 2;
+            drawCover(ctx, getImg(0)!, pad, pad, colW, h, crops[0], rad);
+            drawCover(ctx, getImg(1)!, pad + colW + gap, pad, colW, h, crops[1], rad);
+            break;
+          }
+          case 'two-vertical': {
+            const rowH = (H - pad * 2 - gap) / 2;
+            const fullW = W - pad * 2;
+            drawCover(ctx, getImg(0)!, pad, pad, fullW, rowH, crops[0], rad);
+            drawCover(ctx, getImg(1)!, pad, pad + rowH + gap, fullW, rowH, crops[1], rad);
+            break;
+          }
+          case 'three-grid': {
+            const colW = (W - pad * 2 - gap) / 2;
+            const rowH = (H - pad * 2 - gap) / 2;
+            const fullH = H - pad * 2;
+            drawCover(ctx, getImg(0)!, pad, pad, colW, fullH, crops[0], rad);
+            drawCover(ctx, getImg(1)!, pad + colW + gap, pad, colW, rowH, crops[1], rad);
+            drawCover(ctx, getImg(2)!, pad + colW + gap, pad + rowH + gap, colW, rowH, crops[2], rad);
+            break;
+          }
+          case 'four-grid': {
+            const colW = (W - pad * 2 - gap) / 2;
+            const rowH = (H - pad * 2 - gap) / 2;
+            for (let r = 0; r < 2; r++) {
+              for (let c = 0; c < 2; c++) {
+                const idx = r * 2 + c;
+                drawCover(ctx, getImg(idx)!, pad + c * (colW + gap), pad + r * (rowH + gap), colW, rowH, crops[idx], rad);
+              }
+            }
+            break;
+          }
+          case 'hero-two': {
+            const heroH = Math.round((H - pad * 2 - gap) * 0.6);
+            const btmH = H - pad * 2 - gap - heroH;
+            const colW = (W - pad * 2 - gap) / 2;
+            drawCover(ctx, getImg(0)!, pad, pad, W - pad * 2, heroH, crops[0], rad);
+            drawCover(ctx, getImg(1)!, pad, pad + heroH + gap, colW, btmH, crops[1], rad);
+            drawCover(ctx, getImg(2)!, pad + colW + gap, pad + heroH + gap, colW, btmH, crops[2], rad);
+            break;
+          }
+          case 'cinematic': {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, W, H);
+            const cinePad = 32;
+            const imgW = W - cinePad * 2;
+            const imgH = Math.round(imgW / 2.35);
+            const imgY = Math.round((H - imgH) / 2);
+            drawCover(ctx, getImg(0)!, cinePad, imgY, imgW, imgH, crops[0], rad);
+            break;
+          }
+          case 'collage': {
+            const cw = Math.round(W * 0.52), ch = Math.round(H * 0.56);
+            ctx.save(); ctx.translate(pad, pad + 10); ctx.rotate(-3 * Math.PI / 180);
+            drawCover(ctx, getImg(0)!, 0, 0, cw, ch, crops[0], rad); ctx.restore();
+            ctx.save(); ctx.translate(W - pad - cw, H - pad - ch - 10); ctx.rotate(3 * Math.PI / 180);
+            drawCover(ctx, getImg(1)!, 0, 0, cw, ch, crops[1], rad); ctx.restore();
+            const mw = Math.round(W * 0.56), mh = Math.round(H * 0.52);
+            drawCover(ctx, getImg(2)!, (W - mw) / 2, (H - mh) / 2, mw, mh, crops[2], rad);
+            break;
+          }
+          case 'luxury-cover': {
+            const leftW = Math.round((W - pad * 2 - gap) * 0.38);
+            const rightW = W - pad * 2 - gap - leftW;
+            const rowH = (H - pad * 2 - gap * 2) / 3;
+            drawCover(ctx, getImg(0)!, pad, pad, leftW, rowH, crops[0], rad);
+            drawCover(ctx, getImg(1)!, pad, pad + rowH + gap, leftW, rowH, crops[1], rad);
+            drawCover(ctx, getImg(2)!, pad, pad + (rowH + gap) * 2, leftW, rowH, crops[2], rad);
+            drawCover(ctx, getImg(3)!, pad + leftW + gap, pad, rightW, H - pad * 2, crops[3], rad);
+            break;
+          }
+          case 'luxury-inner': {
+            const heroH = Math.round((H - pad * 2 - gap) * 0.58);
+            const btmH = H - pad * 2 - gap - heroH;
+            const colW = (W - pad * 2 - gap * 2) / 3;
+            drawCover(ctx, getImg(0)!, pad, pad, W - pad * 2, heroH, crops[0], rad);
+            drawCover(ctx, getImg(1)!, pad, pad + heroH + gap, colW, btmH, crops[1], rad);
+            drawCover(ctx, getImg(2)!, pad + colW + gap, pad + heroH + gap, colW, btmH, crops[2], rad);
+            drawCover(ctx, getImg(3)!, pad + (colW + gap) * 2, pad + heroH + gap, colW, btmH, crops[3], rad);
+            break;
+          }
+          case 'hero-four': {
+            const heroH = Math.round((H - pad * 2 - gap) * 0.55);
+            const btmH = H - pad * 2 - gap - heroH;
+            const colW = (W - pad * 2 - gap * 3) / 4;
+            drawCover(ctx, getImg(0)!, pad, pad, W - pad * 2, heroH, crops[0], rad);
+            for (let c = 0; c < 4; c++) {
+              drawCover(ctx, getImg(c + 1)!, pad + c * (colW + gap), pad + heroH + gap, colW, btmH, crops[c + 1], rad);
+            }
+            break;
+          }
+          case 'six-grid': {
+            const colW = (W - pad * 2 - gap * 2) / 3;
+            const rowH = (H - pad * 2 - gap) / 2;
+            for (let r = 0; r < 2; r++) {
+              for (let c = 0; c < 3; c++) {
+                const idx = r * 3 + c;
+                drawCover(ctx, getImg(idx)!, pad + c * (colW + gap), pad + r * (rowH + gap), colW, rowH, crops[idx], rad);
+              }
+            }
+            break;
+          }
+          default:
+            drawCover(ctx, images[0]!, pad, pad, W - pad * 2, H - pad * 2, crops[0], rad);
+        }
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(t('noPhoto'), W / 2, H / 2);
+      }
+
+      // Cover / last page text overlay
+      if (isCover || isLast) {
+        const ts = isCover
+          ? (coverFromState ?? { headline: t('cover'), subheadline: '' } as EditablePageState)
+          : (lastFromState ?? { headline: t('theEnd'), subheadline: '' } as EditablePageState);
+
+        // Gradient overlay
+        if (images[0]) {
+          const overlayOp = ts.style?.overlayOpacity;
+          if (overlayOp != null) {
+            ctx.fillStyle = `${ts.style?.overlayColor || '#000000'}${Math.round(overlayOp * 255).toString(16).padStart(2, '0')}`;
+            ctx.fillRect(0, 0, W, H);
+          } else {
+            const grad = ctx.createLinearGradient(0, H, 0, 0);
+            grad.addColorStop(0, 'rgba(0,0,0,0.6)');
+            grad.addColorStop(0.5, 'rgba(0,0,0,0)');
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, W, H);
+          }
+        }
+
+        const align = ts.style?.align || 'center';
+        const vAlign = ts.style?.verticalAlign || 'bottom';
+        ctx.textAlign = align as CanvasTextAlign;
+        const tx = align === 'center' ? W / 2 : align === 'right' ? W - 40 : 40;
+        let ty = vAlign === 'top' ? 80 : vAlign === 'center' ? H / 2 - 20 : H - 100;
+
+        if (ts.headline) {
+          const fSize = Math.min(48, (ts.style?.fontSize ?? 22) * 1.6);
+          const fWeight = (ts.style?.fontWeight ?? 700) >= 600 ? 'bold' : 'normal';
+          const fFamily = ts.style?.fontFamily || 'sans-serif';
+          ctx.font = `${fWeight} ${fSize}px ${fFamily}`;
+          ctx.fillStyle = ts.style?.headlineColor ?? '#ffffff';
+          ctx.shadowColor = 'rgba(0,0,0,0.5)';
+          ctx.shadowBlur = 8;
+          ctx.shadowOffsetY = 2;
+          ctx.fillText(ts.headline, tx, ty);
+          ctx.shadowColor = 'transparent';
+          ty += fSize + 8;
+        }
+        if (ts.subheadline) {
+          const fSize = Math.min(28, ((ts.style?.fontSize ?? 22) - 2) * 1.2);
+          const fFamily = ts.style?.fontFamily || 'sans-serif';
+          ctx.font = `${fSize}px ${fFamily}`;
+          ctx.fillStyle = ts.style?.subheadlineColor ?? '#e5e7eb';
+          ctx.shadowColor = 'rgba(0,0,0,0.4)';
+          ctx.shadowBlur = 6;
+          ctx.fillText(ts.subheadline, tx, ty);
+          ctx.shadowColor = 'transparent';
+          ty += fSize + 6;
+        }
+        if (ts.description) {
+          ctx.font = '14px sans-serif';
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
+          ctx.fillText(ts.description, tx, ty);
+        }
+
+        // Logo
+        if (ts.style?.logoDataUrl) {
+          const logoImg = await loadImage(ts.style.logoDataUrl);
+          if (logoImg) {
+            const ls = ts.style.logoSize ?? 60;
+            const lp = ts.style.logoPosition || 'top-center';
+            const lx = lp.includes('left') ? 16 : lp.includes('right') ? W - ls - 16 : (W - ls) / 2;
+            const ly = lp.includes('top') ? 16 : lp.includes('bottom') ? H - ls - 16 : (H - ls) / 2;
+            ctx.drawImage(logoImg, lx, ly, ls, ls);
+          }
+        }
+      }
+
+      // Captions + page number for inner pages
+      if (!isCover && !isLast) {
+        const pageCaptions = st.slotCaptions ?? {};
+        const captionLines = Object.values(pageCaptions).filter((v): v is string => !!v && v.trim().length > 0);
+
+        if (captionLines.length > 0) {
+          const lineH = 20;
+          const captionBlockH = captionLines.length * lineH + 60;
+          const grad = ctx.createLinearGradient(0, H - captionBlockH, 0, H);
+          grad.addColorStop(0, 'rgba(0,0,0,0)');
+          grad.addColorStop(0.4, 'rgba(0,0,0,0.4)');
+          grad.addColorStop(1, 'rgba(0,0,0,0.7)');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, H - captionBlockH, W, captionBlockH);
+
+          ctx.font = '500 14px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = 'rgba(0,0,0,0.6)';
+          ctx.shadowBlur = 4;
+          ctx.shadowOffsetY = 1;
+          let cy = H - 30 - (captionLines.length - 1) * lineH;
+          for (const line of captionLines) {
+            ctx.fillText(line, W / 2, cy, W - 60);
+            cy += lineH;
+          }
+          ctx.shadowColor = 'transparent';
+        }
+
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.fillText(`${page.index + 1}`, W / 2, H - 10);
+      }
+
+      dataUrls.push(canvas.toDataURL('image/jpeg', 0.92));
+    }
+
     return dataUrls;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [albumPages, pageImages, coverFromState, lastFromState, categorySlug, selectedWeddingTheme, selectedTheme, loadImage, bookOrientation, t]);
 
   // PDF download — uses shared render, then compiles to PDF
@@ -2827,7 +2854,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     }
     const pathname = (location as { pathname?: string }).pathname ?? window.location.pathname;
     navigate(pathname, { replace: true, state: { ...location.state, openPreview: undefined } });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [albumPages.length, isLoading, location.state?.openPreview]);
 
   // After flip modal opens, apply start page (library uses PageFlip.flip(index) once PageFlip is ready).
@@ -2907,7 +2934,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showSinglePageView, showFlipBook, albumPages.length, isZoomed]);
 
   // Collect all photo URLs used in the album (for left sidebar library)
@@ -2927,10 +2954,10 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
     return urls;
   }, [albumPages, pageImages]);
 
-  const [librarySearch, setLibrarySearch] = React.useState('');
-  const [libraryFilter, setLibraryFilter] = React.useState<'all' | 'recent'>('all');
-  const [canvasZoom, setCanvasZoom] = React.useState(100);
-  const [pendingLibraryImage, setPendingLibraryImage] = React.useState<{ url: string; imageId?: number } | null>(null);
+  const [librarySearch, setLibrarySearch] = useState('');
+  const [libraryFilter, setLibraryFilter] = useState<'all' | 'recent'>('all');
+  const [canvasZoom, setCanvasZoom] = useState(100);
+  const [pendingLibraryImage, setPendingLibraryImage] = useState<{ url: string; imageId?: number } | null>(null);
 
   if (!template) {
     return (
@@ -2983,7 +3010,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       )}
 
       {studioAlbumImageIds && (
-        <div className="no-print mx-4 mt-2 rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200/60 px-4 py-2.5 flex items-center gap-3">
+        <div className="no-print mx-2 sm:mx-4 mt-2 rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200/60 px-3 sm:px-4 py-2 sm:py-2.5 flex items-center gap-2 sm:gap-3">
           <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
             <FaImages className="w-4 h-4 text-indigo-600" />
           </div>
@@ -2995,8 +3022,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       )}
 
       {/* 1. Top Navigation Bar */}
-      <header className="no-print sticky top-0 z-30 flex items-center justify-between gap-4 px-4 py-3 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
-        <div className="flex items-center gap-4 min-w-0">
+      <header className="no-print sticky top-0 z-30 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4 px-3 sm:px-4 py-2 sm:py-3 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <button
             type="button"
             onClick={() => navigate(`/photo-themes/${categorySlug}`, { state: { templateId: dbTemplateId, photobookId } })}
@@ -3006,7 +3033,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             <FaArrowLeft className="w-5 h-5" />
           </button>
           <div className="min-w-0">
-            <h1 className="text-base font-bold text-slate-900 truncate">
+            <h1 className="text-sm sm:text-base font-bold text-slate-900 truncate">
               {studioAlbumName || template?.name || t('myAlbum')}
             </h1>
             <p className="text-xs text-slate-500 truncate">
@@ -3015,7 +3042,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           </div>
         </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap shrink-0">
           <div className="hidden sm:flex items-center gap-1 rounded-lg bg-slate-100 p-1" title={t('undoRedoSoon')}>
             <button type="button" className="rounded-md px-2 py-1 text-[10px] font-semibold text-slate-400" disabled>{t('undo')}</button>
             <button type="button" className="rounded-md px-2 py-1 text-[10px] font-semibold text-slate-400" disabled>{t('redo')}</button>
@@ -3055,9 +3082,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       </header>
 
       {/* 2. Main workspace: Left sidebar | Center canvas | Right sidebar */}
-      <div className="album-pages-section flex-1 flex min-h-0 no-print">
+      <div className="album-pages-section flex-1 flex flex-col md:flex-row min-h-0 no-print">
         {/* Left Sidebar — Photo Library */}
-        <aside className="w-56 lg:w-64 shrink-0 border-r border-slate-200/80 bg-white flex flex-col overflow-hidden">
+        <aside className="hidden md:flex md:w-56 lg:w-64 shrink-0 border-r border-slate-200/80 bg-white flex-col overflow-hidden">
           <div className="p-3 border-b border-slate-100">
             <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
               <FaImages className="w-3.5 h-3.5 text-indigo-500" />
@@ -3079,9 +3106,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   key={f}
                   type="button"
                   onClick={() => setLibraryFilter(f)}
-                  className={`flex-1 rounded-lg py-1.5 text-[10px] font-semibold capitalize transition-colors ${
-                    libraryFilter === f ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                  }`}
+                  className={`flex-1 rounded-lg py-1.5 text-[10px] font-semibold capitalize transition-colors ${libraryFilter === f ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                    }`}
                 >
                   {f === 'all' ? t('filterAll') : t('filterRecent')}
                 </button>
@@ -3108,11 +3134,10 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                     onClick={() => {
                       setPendingLibraryImage({ url, imageId: imageId ?? undefined });
                     }}
-                    className={`relative aspect-square rounded-lg overflow-hidden border bg-slate-50 shadow-sm transition-all ${
-                      isActive
+                    className={`relative aspect-square rounded-lg overflow-hidden border bg-slate-50 shadow-sm transition-all ${isActive
                         ? 'border-indigo-500 ring-2 ring-indigo-400/60 scale-[1.02]'
                         : 'border-slate-200/80 hover:border-indigo-300 hover:shadow-md'
-                    }`}
+                      }`}
                   >
                     <img src={url} alt="" className="w-full h-full object-cover" />
                     {isActive && (
@@ -3153,6 +3178,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
           const slotCount = getSlotCountForLayoutId(layoutLabel);
           const urls = state.imageDataUrls ?? (state.imageDataUrl ? [state.imageDataUrl] : []);
           const captions = state.slotCaptions ?? {};
+         
 
           const setCaption = (slotIdx: number, text: string) => {
             setPageImages(prev => ({
@@ -3198,18 +3224,59 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             });
           };
 
+
+          const createCustomLayout = () => {
+            const name = newLayoutName.trim() || `Premium Layout ${layoutStudioSlots.length}`;
+            const id = `${name}-${Date.now()}`;
+
+            setCustomLayouts((prev) => [
+              ...prev,
+              {
+                id,
+                shortLabel: name,
+                slotCount: layoutStudioSlots.length,
+                geometry: layoutStudioSlots,
+              },
+            ]);
+
+            setPageLayouts((prev) => ({ ...prev, [page.index]: id }));
+            setPageImages((prev) => ({
+              ...prev,
+              [page.index]: {
+                ...(prev[page.index] ?? {}),
+                layout: id,
+              },
+            }));
+
+            setShowLayoutCreator(false);
+            setNewLayoutName('');
+          };
+
+          const allLayoutConfig = [
+            ...PAGE_LAYOUT_CONFIG,
+            ...customLayouts.map((l) => ({
+              id: l.id,
+              shortLabel: l.shortLabel,
+              slotCount: l.slotCount,
+              arrangement: 'single' as LayoutArrangement,
+            })),
+          ];
+
           const filteredLayoutConfig = layoutQuickFilter === 'all'
-            ? PAGE_LAYOUT_CONFIG
-            : PAGE_LAYOUT_CONFIG.filter((c) => c.slotCount === layoutQuickFilter);
+            ? allLayoutConfig
+            : allLayoutConfig.filter((c) => c.slotCount === layoutQuickFilter);
+            
+          // const filteredLayoutConfig = layoutQuickFilter === 'all'
+          //   ? PAGE_LAYOUT_CONFIG
+          //   : PAGE_LAYOUT_CONFIG.filter((c) => c.slotCount === layoutQuickFilter);
 
           return (
             <>
               {/* 3. Center — Album Canvas */}
-              <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-gradient-to-b from-slate-50/50 to-white p-4">
+              <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-gradient-to-b from-slate-50/50 to-white p-2 sm:p-4">
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className={`text-xs font-semibold uppercase tracking-wider rounded-lg px-3 py-1.5 ${
-                    isCover ? 'bg-amber-100 text-amber-900' : isLast ? 'bg-stone-100 text-stone-800' : 'bg-slate-100 text-slate-700'
-                  }`}>
+                  <span className={`text-xs font-semibold uppercase tracking-wider rounded-lg px-3 py-1.5 ${isCover ? 'bg-amber-100 text-amber-900' : isLast ? 'bg-stone-100 text-stone-800' : 'bg-slate-100 text-slate-700'
+                    }`}>
                     {isCover ? t('cover') : isLast ? t('back') : t('pageLabel', { n: page.index + 1 })}
                   </span>
                   <div className="flex items-center gap-2">
@@ -3218,27 +3285,24 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setCanvasZoom(70)}
-                        className={`rounded-md px-2 py-1 text-[10px] font-semibold ${
-                          canvasZoom <= 80 ? 'bg-white text-slate-800' : 'text-slate-500 hover:bg-white/70'
-                        }`}
+                        className={`rounded-md px-2 py-1 text-[10px] font-semibold ${canvasZoom <= 80 ? 'bg-white text-slate-800' : 'text-slate-500 hover:bg-white/70'
+                          }`}
                       >
                         S
                       </button>
                       <button
                         type="button"
                         onClick={() => setCanvasZoom(100)}
-                        className={`rounded-md px-2 py-1 text-[10px] font-semibold ${
-                          canvasZoom > 80 && canvasZoom < 120 ? 'bg-white text-slate-800' : 'text-slate-500 hover:bg-white/70'
-                        }`}
+                        className={`rounded-md px-2 py-1 text-[10px] font-semibold ${canvasZoom > 80 && canvasZoom < 120 ? 'bg-white text-slate-800' : 'text-slate-500 hover:bg-white/70'
+                          }`}
                       >
                         M
                       </button>
                       <button
                         type="button"
                         onClick={() => setCanvasZoom(130)}
-                        className={`rounded-md px-2 py-1 text-[10px] font-semibold ${
-                          canvasZoom >= 120 ? 'bg-white text-slate-800' : 'text-slate-500 hover:bg-white/70'
-                        }`}
+                        className={`rounded-md px-2 py-1 text-[10px] font-semibold ${canvasZoom >= 120 ? 'bg-white text-slate-800' : 'text-slate-500 hover:bg-white/70'
+                          }`}
                       >
                         L
                       </button>
@@ -3293,7 +3357,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                       className="relative w-full rounded-xl overflow-hidden bg-white border border-slate-200/80 shadow-lg"
                       style={{
                         aspectRatio: '4/3',
-                        maxHeight: 'calc(100vh - 280px)',
+                        maxHeight: 'calc(100vh - 320px)',
                         boxShadow: '0 0 0 1px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.08)',
                       }}
                     >
@@ -3310,10 +3374,355 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                     <FaChevronRight className="w-4 h-4" />
                   </button>
                 </div>
+                {showLayoutCreator && createPortal(
+                  <div className="fixed inset-0 z-[10001] bg-slate-950/80 backdrop-blur-xl p-3 sm:p-6 flex items-center justify-center">
+                    <div className="w-full max-w-6xl h-[92vh] rounded-[2rem] overflow-hidden bg-white shadow-2xl border border-white/20 flex flex-col">
+                      
+                      {/* Header */}
+                      <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-950 via-indigo-950 to-violet-950 text-white flex items-center justify-between">
+                        <div>
+                          <h3 className="text-xl font-black tracking-tight">Layout Studio</h3>
+                          <p className="text-xs text-indigo-100 mt-1">
+                            Create premium reusable photo book layouts with custom image positions.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowLayoutCreator(false)}
+                          className="w-10 h-10 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-xl font-bold"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[260px_1fr_300px] bg-slate-100">
+                        
+                        {/* Left presets */}
+                        <aside className="border-r border-slate-200 bg-white p-4 overflow-y-auto">
+                          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-3">
+                            Premium presets
+                          </p>
+
+                          {[
+                            {
+                              name: 'Magazine Hero',
+                              slots: 5,
+                              bg: 'linear-gradient(135deg,#0f172a,#312e81)',
+                              geometry: [
+                                { x: 3, y: 3, width: 60, height: 94 },
+                                { x: 66, y: 3, width: 31, height: 22 },
+                                { x: 66, y: 27, width: 31, height: 22 },
+                                { x: 66, y: 51, width: 31, height: 22 },
+                                { x: 66, y: 75, width: 31, height: 22 },
+                              ],
+                            },
+                            {
+                              name: 'Luxury Collage',
+                              slots: 6,
+                              bg: 'linear-gradient(135deg,#fff7ed,#fce7f3)',
+                              geometry: [
+                                { x: 4, y: 5, width: 42, height: 42 },
+                                { x: 52, y: 5, width: 44, height: 28 },
+                                { x: 52, y: 37, width: 20, height: 25 },
+                                { x: 76, y: 37, width: 20, height: 25 },
+                                { x: 4, y: 52, width: 42, height: 43 },
+                                { x: 52, y: 66, width: 44, height: 29 },
+                              ],
+                            },
+                            {
+                              name: 'Polaroid Story',
+                              slots: 4,
+                              bg: 'linear-gradient(135deg,#f8fafc,#e0f2fe)',
+                              geometry: [
+                                { x: 8, y: 10, width: 36, height: 36 },
+                                { x: 55, y: 8, width: 35, height: 35 },
+                                { x: 12, y: 55, width: 35, height: 35 },
+                                { x: 58, y: 54, width: 34, height: 34 },
+                              ],
+                            },
+                            {
+                              name: 'Full Bleed Mosaic',
+                              slots: 9,
+                              bg: 'linear-gradient(135deg,#111827,#020617)',
+                              geometry: [
+                                { x: 0, y: 0, width: 34, height: 34 },
+                                { x: 34, y: 0, width: 33, height: 34 },
+                                { x: 67, y: 0, width: 33, height: 34 },
+                                { x: 0, y: 34, width: 34, height: 33 },
+                                { x: 34, y: 34, width: 33, height: 33 },
+                                { x: 67, y: 34, width: 33, height: 33 },
+                                { x: 0, y: 67, width: 34, height: 33 },
+                                { x: 34, y: 67, width: 33, height: 33 },
+                                { x: 67, y: 67, width: 33, height: 33 },
+                              ],
+                            },
+                          ].map((preset) => (
+                            <button
+                              key={preset.name}
+                              type="button"
+                              onClick={() => {
+                                setNewLayoutName(preset.name);
+                                setNewLayoutSlotCount(preset.slots);
+                                setLayoutStudioBg(preset.bg);
+                                setLayoutStudioSlots(preset.geometry);
+                              }}
+                              className="w-full mb-3 rounded-2xl border border-slate-200 bg-white p-3 text-left hover:border-indigo-300 hover:shadow-xl transition-all"
+                            >
+                              <div
+                                className="aspect-[4/3] rounded-xl relative overflow-hidden mb-2"
+                                style={{ background: preset.bg }}
+                              >
+                                {preset.geometry.map((g, i) => (
+                                  <div
+                                    key={i}
+                                    className="absolute rounded-lg bg-white/80 border border-white/70 shadow-sm flex items-center justify-center text-[10px] font-black text-slate-700"
+                                    style={{
+                                      left: `${g.x}%`,
+                                      top: `${g.y}%`,
+                                      width: `${g.width}%`,
+                                      height: `${g.height}%`,
+                                    }}
+                                  >
+                                    {i + 1}
+                                  </div>
+                                ))}
+                              </div>
+
+                              <p className="text-xs font-black text-slate-900">{preset.name}</p>
+                              <p className="text-[10px] text-slate-500">{preset.slots} image slots</p>
+                            </button>
+                          ))}
+                        </aside>
+
+                        {/* Center live editor */}
+                        <main className="p-5 flex flex-col min-h-0">
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                              <p className="text-sm font-black text-slate-900">Live Layout Canvas</p>
+                              <p className="text-xs text-slate-500">Adjust position, size, radius and background.</p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const nextIndex = layoutStudioSlots.length;
+                                setLayoutStudioSlots((prev) => [
+                                  ...prev,
+                                  { x: 10 + (nextIndex * 5) % 50, y: 10 + (nextIndex * 7) % 50, width: 28, height: 28 },
+                                ]);
+                                setNewLayoutSlotCount((n) => n + 1);
+                                setActiveLayoutSlot(nextIndex);
+                              }}
+                              className="rounded-2xl bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200"
+                            >
+                              + Add Image Box
+                            </button>
+                          </div>
+
+                          <div className="flex-1 min-h-0 flex items-center justify-center">
+                            <div
+                              className="relative w-full max-w-3xl aspect-[4/3] rounded-[2rem] overflow-hidden shadow-2xl border border-white"
+                              style={{ background: layoutStudioBg }}
+                            >
+                              {layoutStudioBgImage && (
+                                <img
+                                  src={layoutStudioBgImage}
+                                  alt=""
+                                  className="absolute inset-0 w-full h-full object-cover opacity-50"
+                                />
+                              )}
+
+                              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.35),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(99,102,241,0.25),transparent_35%)]" />
+
+                              {layoutStudioSlots.map((slot, i) => {
+                                const active = activeLayoutSlot === i;
+                                const sampleUrl = urls[i] || urls[0];
+
+                                return (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => setActiveLayoutSlot(i)}
+                                    className={`absolute overflow-hidden transition-all ${
+                                      active
+                                        ? 'ring-4 ring-amber-400 ring-offset-2 ring-offset-white z-20'
+                                        : 'ring-1 ring-white/70 hover:ring-indigo-300'
+                                    }`}
+                                    style={{
+                                      left: `${slot.x}%`,
+                                      top: `${slot.y}%`,
+                                      width: `${slot.width}%`,
+                                      height: `${slot.height}%`,
+                                      borderRadius: `${layoutStudioRadius}px`,
+                                      boxShadow: layoutStudioShadow
+                                        ? '0 20px 45px rgba(15,23,42,0.32)'
+                                        : 'none',
+                                    }}
+                                  >
+                                    {sampleUrl ? (
+                                      <img src={sampleUrl} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full bg-white/80 flex items-center justify-center">
+                                        <span className="text-lg font-black text-slate-500">{i + 1}</span>
+                                      </div>
+                                    )}
+
+                                    <span className="absolute left-2 top-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-black text-white">
+                                      {i + 1}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </main>
+
+                        {/* Right controls */}
+                        <aside className="border-l border-slate-200 bg-white p-4 overflow-y-auto">
+                          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-3">
+                            Layout controls
+                          </p>
+
+                          <label className="block mb-3">
+                            <span className="text-xs font-bold text-slate-600">Template Name</span>
+                            <input
+                              type="text"
+                              value={newLayoutName}
+                              onChange={(e) => setNewLayoutName(e.target.value)}
+                              placeholder="My Premium Layout"
+                              className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            />
+                          </label>
+
+                          <label className="block mb-3">
+                            <span className="text-xs font-bold text-slate-600">Background</span>
+                            <select
+                              value={layoutStudioBg}
+                              onChange={(e) => setLayoutStudioBg(e.target.value)}
+                              className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm outline-none"
+                            >
+                              <option value="linear-gradient(135deg,#ffffff,#f8fafc)">Clean White</option>
+                              <option value="linear-gradient(135deg,#0f172a,#312e81)">Royal Dark</option>
+                              <option value="linear-gradient(135deg,#fff7ed,#fce7f3)">Wedding Soft</option>
+                              <option value="linear-gradient(135deg,#fdf2f8,#ede9fe)">Romantic Pink</option>
+                              <option value="linear-gradient(135deg,#ecfeff,#e0f2fe)">Sky Premium</option>
+                            </select>
+                          </label>
+
+                          <label className="block mb-3">
+                            <span className="text-xs font-bold text-slate-600">Background Image URL</span>
+                            <input
+                              type="text"
+                              value={layoutStudioBgImage}
+                              onChange={(e) => setLayoutStudioBgImage(e.target.value)}
+                              placeholder="Optional image URL"
+                              className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm outline-none"
+                            />
+                          </label>
+
+                          <div className="grid grid-cols-2 gap-2 mb-4">
+                            <label>
+                              <span className="text-xs font-bold text-slate-600">Radius</span>
+                              <input
+                                type="range"
+                                min={0}
+                                max={40}
+                                value={layoutStudioRadius}
+                                onChange={(e) => setLayoutStudioRadius(Number(e.target.value))}
+                                className="w-full accent-indigo-600"
+                              />
+                            </label>
+
+                            <label className="flex items-end gap-2 pb-1">
+                              <input
+                                type="checkbox"
+                                checked={layoutStudioShadow}
+                                onChange={(e) => setLayoutStudioShadow(e.target.checked)}
+                              />
+                              <span className="text-xs font-bold text-slate-600">Shadow</span>
+                            </label>
+                          </div>
+
+                          {activeLayoutSlot != null && layoutStudioSlots[activeLayoutSlot] && (
+                            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-3 space-y-3">
+                              <p className="text-xs font-black text-indigo-900">
+                                Image Box {activeLayoutSlot + 1}
+                              </p>
+
+                              {(['x', 'y', 'width', 'height'] as const).map((key) => (
+                                <label key={key} className="block">
+                                  <div className="flex justify-between text-[11px] font-bold text-slate-600">
+                                    <span>{key.toUpperCase()}</span>
+                                    <span>{Math.round(layoutStudioSlots[activeLayoutSlot][key])}%</span>
+                                  </div>
+
+                                  <input
+                                    type="range"
+                                    min={key === 'width' || key === 'height' ? 5 : 0}
+                                    max={key === 'width' || key === 'height' ? 100 : 95}
+                                    value={layoutStudioSlots[activeLayoutSlot][key]}
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value);
+                                      setLayoutStudioSlots((prev) =>
+                                        prev.map((s, idx) =>
+                                          idx === activeLayoutSlot ? { ...s, [key]: val } : s
+                                        )
+                                      );
+                                    }}
+                                    className="w-full accent-indigo-600"
+                                  />
+                                </label>
+                              ))}
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setLayoutStudioSlots((prev) => prev.filter((_, idx) => idx !== activeLayoutSlot));
+                                  setActiveLayoutSlot(null);
+                                  setNewLayoutSlotCount((n) => Math.max(1, n - 1));
+                                }}
+                                className="w-full rounded-xl bg-red-50 px-3 py-2 text-xs font-black text-red-600 hover:bg-red-100"
+                              >
+                                Remove Selected Box
+                              </button>
+                            </div>
+                          )}
+                        </aside>
+                      </div>
+
+                      {/* Footer */}
+                      <div className="px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-between">
+                        <div className="text-xs text-slate-500">
+                          {layoutStudioSlots.length} image boxes · reusable layout template
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowLayoutCreator(false)}
+                            className="rounded-2xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                          >
+                            Cancel
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={createCustomLayout}
+                            className="rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-indigo-200 hover:from-indigo-700 hover:to-violet-700"
+                          >
+                            Save Layout & Apply
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>,
+                  document.body
+                )}
               </main>
 
               {/* 4. Right Sidebar — Layout & Settings */}
-              <aside className="w-[22rem] shrink-0 border-l border-slate-200/80 bg-white flex flex-col overflow-y-auto">
+              <aside className="w-full md:w-[22rem] shrink-0 border-t md:border-t-0 md:border-l border-slate-200/80 bg-white flex flex-col overflow-y-auto max-h-[50vh] md:max-h-none">
                 <div className="p-3 border-b border-slate-100">
                   <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
                     <FaPalette className="w-3.5 h-3.5 text-indigo-500" />
@@ -3329,9 +3738,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                           key={n}
                           type="button"
                           onClick={() => setLayoutQuickFilter(n === 'all' ? 'all' : n)}
-                          className={`rounded-lg px-2 py-1 text-[10px] font-semibold transition-colors ${
-                            layoutQuickFilter === n ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
+                          className={`rounded-lg px-2 py-1 text-[10px] font-semibold transition-colors ${layoutQuickFilter === n ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
                         >
                           {n === 'all' ? t('all') : n}
                         </button>
@@ -3339,6 +3747,63 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                     </div>
                   </div>
                   <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        {t('pageLayout')}
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowLayoutCreator(true)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-indigo-700"
+                      >
+                        <FaPlus className="w-2.5 h-2.5" />
+                        Create Layout
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto">
+                      {filteredLayoutConfig.map((config) => {
+                        const active = layoutLabel === config.id;
+
+                        return (
+                          <button
+                            key={config.id}
+                            type="button"
+                            title={layoutShort(config.id)}
+                            onClick={() => {
+                              setPageLayouts((prev) => ({ ...prev, [page.index]: config.id }));
+                              setPageImages((prev) => ({
+                                ...prev,
+                                [page.index]: {
+                                  ...(prev[page.index] ?? {}),
+                                  layout: config.id,
+                                },
+                              }));
+                            }}
+                            className={`shrink-0 flex flex-col items-center gap-1 rounded-lg p-1.5 transition-all ${active
+                                ? 'bg-amber-50 ring-2 ring-amber-400/70 ring-offset-1 border border-amber-200/50'
+                                : 'bg-slate-50 hover:bg-slate-100 border border-slate-200/70'
+                              }`}
+                          >
+                            <div className="w-full aspect-[4/3] rounded overflow-hidden bg-white border border-slate-200/60">
+                              <LayoutOptionThumb
+                                layoutId={config.id}
+                                slotCount={config.slotCount}
+                                urls={urls}
+                                isActive={active}
+                              />
+                            </div>
+
+                            <span className="text-[8px] font-semibold leading-none text-slate-600 truncate w-full text-center">
+                              {config.shortLabel || layoutShort(config.id)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {/* <div>
                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{t('pageLayout')}</p>
                     <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto">
                       {filteredLayoutConfig.map((config) => {
@@ -3364,7 +3829,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                         );
                       })}
                     </div>
-                  </div>
+                  </div> */}
                   {categorySlug === 'anniversary' && (
                     <div>
                       <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{t('theme')}</p>
@@ -3662,7 +4127,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
       </div>
 
       {/* 5. Bottom Filmstrip — page thumbnails, add/delete page */}
-      <div className="no-print border-t border-slate-200/80 bg-white flex items-center gap-2 px-3 py-2 overflow-x-auto shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+      <div className="no-print border-t border-slate-200/80 bg-white flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 overflow-x-auto shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
         <div ref={stepperRef} className="flex items-center gap-2 overflow-x-auto scroll-smooth flex-1 min-w-0" style={{ scrollPaddingInline: '8px' }}>
           {albumPages.map((p, i) => {
             const pState = pageImages[p.index] ?? {};
@@ -3674,10 +4139,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 type="button"
                 data-active-step={active ? 'true' : undefined}
                 onClick={() => setCurrentStep(i)}
-                className={`flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
-                  active ? 'border-indigo-500 shadow-md ring-2 ring-indigo-500/30' : hasImg ? 'border-slate-200 hover:border-slate-300' : 'border-slate-200 opacity-80'
-                }`}
-                style={{ width: 48, height: 36 }}
+                className={`flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 ${active ? 'border-indigo-500 shadow-md ring-2 ring-indigo-500/30' : hasImg ? 'border-slate-200 hover:border-slate-300' : 'border-slate-200 opacity-80'
+                  }`}
+                style={{ width: 40, height: 30 }}
                 title={p.type === 'cover' ? t('cover') : p.type === 'last' ? t('back') : t('pageLabel', { n: p.index + 1 })}
               >
                 {hasImg && pState.imageDataUrl ? (
@@ -3760,22 +4224,20 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setBookOrientation('landscape')}
-                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${
-                      bookOrientation === 'landscape'
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${bookOrientation === 'landscape'
                         ? 'bg-white/15 text-white shadow-sm'
                         : 'text-white/40 hover:text-white/70'
-                    }`}
+                      }`}
                   >
                     {t('landscape')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setBookOrientation('portrait')}
-                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${
-                      bookOrientation === 'portrait'
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${bookOrientation === 'portrait'
                         ? 'bg-white/15 text-white shadow-sm'
                         : 'text-white/40 hover:text-white/70'
-                    }`}
+                      }`}
                   >
                     {t('portrait')}
                   </button>
@@ -3903,9 +4365,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   {flipBookAlbumPages.map((_, idx) => (
                     <div
                       key={idx}
-                      className={`w-1.5 h-1.5 rounded-full transition-all ${
-                        idx === flipBookPage ? 'bg-indigo-400 w-4' : idx < flipBookPage ? 'bg-white/30' : 'bg-white/10'
-                      }`}
+                      className={`w-1.5 h-1.5 rounded-full transition-all ${idx === flipBookPage ? 'bg-indigo-400 w-4' : idx < flipBookPage ? 'bg-white/30' : 'bg-white/10'
+                        }`}
                     />
                   ))}
                 </div>
@@ -3944,8 +4405,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 <div>
                   <span className="text-sm font-bold text-white tracking-wide">
                     {albumPages[singlePageIndex]?.type === 'cover' ? t('frontCover') :
-                     albumPages[singlePageIndex]?.type === 'last' ? t('backCover') :
-                     t('pageLabel', { n: singlePageIndex + 1 })}
+                      albumPages[singlePageIndex]?.type === 'last' ? t('backCover') :
+                        t('pageLabel', { n: singlePageIndex + 1 })}
                   </span>
                   <span className="ml-2 text-[10px] text-white/30">{t('pageNOfTotal', { n: singlePageIndex + 1, total: albumPages.length })}</span>
                 </div>
@@ -3956,9 +4417,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setSlideshowActive(p => !p)}
-                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all inline-flex items-center gap-1 ${
-                      slideshowActive ? 'bg-indigo-500/30 text-indigo-300' : 'text-white/40 hover:text-white/70'
-                    }`}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all inline-flex items-center gap-1 ${slideshowActive ? 'bg-indigo-500/30 text-indigo-300' : 'text-white/40 hover:text-white/70'
+                      }`}
                     title={slideshowActive ? t('slideshowPause') : t('slideshowStart')}
                   >
                     {slideshowActive ? (
@@ -3986,9 +4446,8 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsZoomed(p => !p)}
-                  className={`rounded-lg px-2 py-1.5 text-[10px] font-bold transition-all border border-white/[0.06] inline-flex items-center gap-1 ${
-                    isZoomed ? 'bg-white/15 text-white' : 'bg-white/[0.06] text-white/40 hover:text-white/70'
-                  }`}
+                  className={`rounded-lg px-2 py-1.5 text-[10px] font-bold transition-all border border-white/[0.06] inline-flex items-center gap-1 ${isZoomed ? 'bg-white/15 text-white' : 'bg-white/[0.06] text-white/40 hover:text-white/70'
+                    }`}
                   title={t('toggleZoom')}
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
@@ -3998,18 +4457,16 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setBookOrientation('landscape')}
-                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${
-                      bookOrientation === 'landscape' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
-                    }`}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${bookOrientation === 'landscape' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
+                      }`}
                   >
                     {t('landscape')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setBookOrientation('portrait')}
-                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${
-                      bookOrientation === 'portrait' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
-                    }`}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${bookOrientation === 'portrait' ? 'bg-white/15 text-white' : 'text-white/40 hover:text-white/70'
+                      }`}
                   >
                     {t('portrait')}
                   </button>
@@ -4123,13 +4580,12 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                       key={idx}
                       type="button"
                       onClick={() => { setSlideshowActive(false); setSinglePageIndex(idx); }}
-                      className={`flex-shrink-0 rounded-md overflow-hidden border-2 transition-all ${
-                        idx === singlePageIndex
+                      className={`flex-shrink-0 rounded-md overflow-hidden border-2 transition-all ${idx === singlePageIndex
                           ? 'border-indigo-400 shadow-lg shadow-indigo-500/30 scale-110'
                           : idx < singlePageIndex
-                          ? 'border-white/15 opacity-70 hover:opacity-100'
-                          : 'border-white/10 opacity-50 hover:opacity-100'
-                      }`}
+                            ? 'border-white/15 opacity-70 hover:opacity-100'
+                            : 'border-white/10 opacity-50 hover:opacity-100'
+                        }`}
                       style={thumbAspect}
                     >
                       {thumbSrc ? (
@@ -4258,18 +4714,18 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
                       {targetSlotIndex !== undefined
                         ? t('replaceSlot', { n: targetSlotIndex + 1 })
                         : isMulti
-                        ? t('selectPhotos', { count: totalSlots })
-                        : t('selectPhoto')}
+                          ? t('selectPhotos', { count: totalSlots })
+                          : t('selectPhoto')}
                     </h3>
                     <p className="text-[11px] text-slate-500 mt-0.5">
                       {targetSlotIndex !== undefined
                         ? t('chooseForSlot', { n: targetSlotIndex + 1 })
                         : isMulti
-                        ? t('chooseUpTo', {
+                          ? t('chooseUpTo', {
                             count: totalSlots,
                             fromAlbum: studioAlbumImageIds ? t('fromAlbum') : t('fromLibrary'),
                           })
-                        : t('clickToSelect', {
+                          : t('clickToSelect', {
                             fromAlbum: studioAlbumImageIds ? t('fromAlbumSuffix') : '',
                           })}
                     </p>
@@ -4322,10 +4778,9 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
             </div>,
             document.body
           );
-        })()}
+        })()}        
     </div>
   );
 };
 
 export default PhotoThemeAlbumBuilderPage;
-

@@ -903,7 +903,7 @@ const MemoriesPublicGalleryPage: React.FC = () => {
                     <span className="h-1.5 w-1.5 rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400" />
                     Our Memories
                   </span>
-                  <button
+                  {/* <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -916,7 +916,7 @@ const MemoriesPublicGalleryPage: React.FC = () => {
                       className={`h-3 w-3 ${isLiked(img.id) ? 'text-rose-300' : 'text-white/50'}`}
                     />
                     {img.likes}
-                  </button>
+                  </button> */}
                 </div>
               </button>
             ))}

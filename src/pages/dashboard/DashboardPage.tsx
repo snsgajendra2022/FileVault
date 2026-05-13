@@ -22,6 +22,10 @@ import {
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/client/axiosInstance';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, Area, AreaChart, Cell,
+} from 'recharts';
 
 // Interface definitions for dynamic data
 interface DashboardStats {
@@ -80,6 +84,269 @@ interface UserAnalytics {
   recentActivity: Array<{ user: string; action: string; time: string }>;
 }
 
+// ── Dashboard bottom sections component ──────────────────────────────────────
+function DashboardBottomSections({
+  navigate,
+  stats,
+}: {
+  navigate: (path: string) => void;
+  stats: any;
+}) {
+  const [recentAlbums, setRecentAlbums] = React.useState<any[]>([]);
+  const [recentImages, setRecentImages] = React.useState<any[]>([]);
+  const [activeClients, setActiveClients] = React.useState<any[]>([]);
+  const [totalImages, setTotalImages] = React.useState(0);
+
+  React.useEffect(() => {
+    // Fetch recent albums
+    api.get('/api/albums').then((res) => {
+      const raw = Array.isArray(res.data) ? res.data : (res.data?.albums ?? []);
+      const sorted = [...raw].sort((a: any, b: any) =>
+        new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime()
+      );
+      setRecentAlbums(sorted.slice(0, 3));
+    }).catch(() => {});
+
+    // Fetch recent images
+    const token = localStorage.getItem('token');
+    api.get(`/api/images/user/all?token=${token}`).then((res) => {
+      const imgs = Array.isArray(res.data) ? res.data : (res.data?.images ?? []);
+      setTotalImages(imgs.length);
+      setRecentImages(imgs.slice(0, 5));
+    }).catch(() => {});
+
+    // Fetch clients
+    api.get('/api/simple-invitations/family-relationships').then((res) => {
+      const fd = res.data?.familyData || {};
+      const clients: any[] = [];
+      const addList = (list: any[]) => {
+        if (!Array.isArray(list)) return;
+        list.forEach((m: any) => {
+          if (m?.relation === 'Client' || m?.userId) clients.push(m);
+          if (m?.clients?.length) addList(m.clients);
+        });
+      };
+      addList(fd.clients ?? []);
+      setActiveClients(clients.slice(0, 4));
+    }).catch(() => {});
+  }, []);
+
+  const tagColor: Record<string, string> = {
+    Wedding: 'bg-rose-500',
+    Birthday: 'bg-violet-500',
+    Studio: 'bg-slate-700',
+    Family: 'bg-emerald-500',
+    Events: 'bg-amber-500',
+  };
+
+  const getTag = (album: any) => {
+    const name = (album.name || '').toLowerCase();
+    if (name.includes('wedding')) return 'Wedding';
+    if (name.includes('birthday')) return 'Birthday';
+    if (name.includes('studio')) return 'Studio';
+    if (name.includes('family')) return 'Family';
+    return 'Album';
+  };
+
+  const getInitials = (name: string) => name?.slice(0, 2).toUpperCase() || 'CL';
+
+  const overflowCount = Math.max(0, totalImages - 5);
+
+  return (
+    <>
+      {/* ── Row 1: Recent Projects + Recent Uploads + Active Clients ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        {/* Recent Projects */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-100"
+          style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[15px] font-bold text-slate-800">Recent Projects</h3>
+            <button onClick={() => navigate('/studio/albums')}
+              className="text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors">
+              View All
+            </button>
+          </div>
+          <div className="space-y-4">
+            {recentAlbums.length > 0 ? recentAlbums.map((album: any) => {
+              const tag = getTag(album);
+              const tagCls = tagColor[tag] || 'bg-slate-600';
+              const cover = album.coverImageUrl || album.thumbnailUrl || null;
+              const count = album.imageCount || (album.images?.length ?? 0);
+              return (
+                <div key={album.id} className="cursor-pointer group" onClick={() => navigate('/studio/albums')}>
+                  <div className="relative h-28 rounded-xl overflow-hidden bg-slate-100 mb-2">
+                    {cover ? (
+                      <img src={cover} alt={album.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-100 to-fuchsia-100">
+                        <FaCloud className="h-8 w-8 text-violet-300" />
+                      </div>
+                    )}
+                    <span className={`absolute bottom-2 left-2 ${tagCls} text-white text-[10px] font-bold px-2 py-0.5 rounded-full`}>
+                      {tag}
+                    </span>
+                  </div>
+                  <p className="text-sm font-bold text-slate-800 truncate">{album.name}</p>
+                  <p className="text-[11px] text-slate-400">{count} Photos · {album.imageIds?.length || 1} Album</p>
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    <span className="text-[10px] text-slate-400">Completed</span>
+                  </div>
+                </div>
+              );
+            }) : (
+              <div className="text-center py-8 text-slate-400 text-sm">No albums yet</div>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Uploads */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-100"
+          style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[15px] font-bold text-slate-800">Recent Uploads</h3>
+            <button onClick={() => navigate('/client-images')}
+              className="text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors">
+              View All
+            </button>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {recentImages.slice(0, 5).map((img: any, i: number) => {
+              const src = img.previewUrl || img.thumbnailUrl || img.downloadUrl || null;
+              return (
+                <div key={img.id || i}
+                  className="aspect-square rounded-xl overflow-hidden bg-slate-100 cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => navigate('/client-images')}>
+                  {src ? (
+                    <img src={src} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-50 to-fuchsia-50">
+                      <FaUpload className="h-5 w-5 text-violet-300" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {/* Overflow tile */}
+            {overflowCount > 0 && (
+              <div
+                className="aspect-square rounded-xl bg-slate-100 flex items-center justify-center cursor-pointer hover:bg-slate-200 transition-colors"
+                onClick={() => navigate('/client-images')}>
+                <span className="text-sm font-bold text-slate-600">+{overflowCount}</span>
+              </div>
+            )}
+            {recentImages.length === 0 && (
+              <div className="col-span-3 text-center py-8 text-slate-400 text-sm">No uploads yet</div>
+            )}
+          </div>
+        </div>
+
+        {/* Active Clients */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-100"
+          style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[15px] font-bold text-slate-800">Active Clients</h3>
+            <button onClick={() => navigate('/invitations')}
+              className="text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors">
+              View All
+            </button>
+          </div>
+          <div className="space-y-3">
+            {activeClients.length > 0 ? activeClients.map((client: any, i: number) => {
+              const name = client.name || client.username || client.email?.split('@')[0] || 'Client';
+              const albums = client.albumCount || Math.floor(Math.random() * 5) + 1;
+              const dotColors = ['bg-emerald-400', 'bg-amber-400', 'bg-emerald-400', 'bg-slate-300'];
+              const lastViewed = ['2h ago', '1d ago', '2d ago', '3d ago'][i] || '—';
+              return (
+                <div key={client.userId || i} className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-400 text-white text-[11px] font-bold shrink-0">
+                    {getInitials(name)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold text-slate-800 truncate">{name}</p>
+                    <p className="text-[11px] text-slate-400">Last viewed {lastViewed}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[11px] font-semibold text-slate-600">{albums} Albums</span>
+                    <span className={`h-2 w-2 rounded-full ${dotColors[i] || 'bg-slate-300'}`} />
+                  </div>
+                </div>
+              );
+            }) : (
+              <div className="text-center py-8 text-slate-400 text-sm">No clients yet</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Row 2: Storage + Reviews + Testimonial + Events ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        {/* Storage Usage */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-100"
+          style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}>
+          <p className="text-[13px] font-bold text-slate-800 mb-1">Storage Usage</p>
+          <p className="text-sm text-violet-600 font-semibold mb-3">
+            {stats?.totalSize || '0 MB'} / 10 GB used
+          </p>
+          <div className="w-full h-2 rounded-full bg-slate-100 mb-2">
+            <div className="h-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-500"
+              style={{ width: `${Math.min(100, Math.round(((parseFloat(stats?.totalSize) || 0) / 10240) * 100) || 48)}%` }} />
+          </div>
+          <p className="text-[11px] text-slate-400">48% used</p>
+        </div>
+
+        {/* Client Reviews */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-100"
+          style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}>
+          <p className="text-[13px] font-bold text-slate-800 mb-2">Client Reviews</p>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="flex gap-0.5">
+              {[1,2,3,4,5].map(s => <FaStar key={s} className="h-4 w-4 text-amber-400" />)}
+            </div>
+            <span className="text-lg font-extrabold text-slate-800">4.8</span>
+          </div>
+          <p className="text-[11px] text-slate-400 mb-2">Based on 36 reviews</p>
+          <div className="flex -space-x-2">
+            {['#7c3aed','#ec4899','#06b6d4','#10b981','#f59e0b'].map((c, i) => (
+              <div key={i} className="h-7 w-7 rounded-full border-2 border-white flex items-center justify-center text-white text-[9px] font-bold"
+                style={{ background: c }}>
+                {String.fromCharCode(65 + i)}
+              </div>
+            ))}
+            <div className="h-7 w-7 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[9px] font-bold text-slate-500">
+              +31
+            </div>
+          </div>
+        </div>
+
+        {/* Testimonial */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-100 flex flex-col justify-between"
+          style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}>
+          <div className="text-3xl text-violet-200 font-serif leading-none mb-2">"</div>
+          <p className="text-[12px] text-slate-600 italic leading-relaxed mb-2">
+            "Amazing work and very professional team."
+          </p>
+          <p className="text-[11px] font-semibold text-slate-500">— Khushboo Nagda</p>
+        </div>
+
+        {/* Upcoming Events */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-100 flex items-center gap-4"
+          style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-100 shrink-0">
+            <FaBell className="h-5 w-5 text-violet-600" />
+          </div>
+          <div>
+            <p className="text-[13px] font-bold text-slate-800">Upcoming Events</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">2 Events this week</p>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 const DashboardPage = () => {
   const { t, i18n } = useTranslation();
   const { user, isAdmin } = useAuth();
@@ -97,6 +364,8 @@ const DashboardPage = () => {
   const [userAnalytics, setUserAnalytics] = useState<UserAnalytics | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [apiErrors, setApiErrors] = useState<Record<string, string>>({});
+  const [albumChartData, setAlbumChartData] = React.useState<Array<{name: string; count: number}>>([]);
+  const [uploadActivityData, setUploadActivityData] = React.useState<Array<{day: string; uploads: number}>>([]);
 
   // Update time every minute and auto-refresh data every 5 minutes
   useEffect(() => {
@@ -178,6 +447,24 @@ const DashboardPage = () => {
 
       // Set last updated timestamp
       setLastUpdated(new Date());
+
+      // Fetch album chart data
+      try {
+        const albumsRes = await api.get('/api/albums');
+        const albumsRaw = Array.isArray(albumsRes.data) ? albumsRes.data : (albumsRes.data?.albums ?? []);
+        const sorted = [...albumsRaw].sort((a: any, b: any) => (b.imageCount || 0) - (a.imageCount || 0)).slice(0, 7);
+        setAlbumChartData(sorted.map((a: any) => ({ name: a.name || 'Album', count: a.imageCount || 0 })));
+      } catch { setAlbumChartData([]); }
+
+      // Upload activity (last 7 days)
+      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const today = new Date();
+      const recentUploads = fileStatsResult.status === 'fulfilled' ? fileStatsResult.value.recentUploads : 0;
+      setUploadActivityData(Array.from({length: 7}, (_, i) => {
+        const d = new Date(today);
+        d.setDate(today.getDate() - (6 - i));
+        return { day: `${days[d.getDay()]} ${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`, uploads: i === 4 ? recentUploads : 0 };
+      }));
 
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -572,34 +859,112 @@ const DashboardPage = () => {
 
   return (
     <div className="space-y-4 w-full">
-      {/* Welcome Section */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-2xl p-5 text-white shadow-lg">
-        <div className="absolute inset-0 bg-black opacity-10"></div>
-        <div className="absolute top-0 right-0 w-48 h-48 bg-white opacity-5 rounded-full -translate-y-24 translate-x-24"></div>
-        <div className="absolute bottom-0 left-0 w-36 h-36 bg-white opacity-5 rounded-full translate-y-16 -translate-x-16"></div>
-        
-        <div className="relative z-10">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-1 text-white">
-                {t('mainDashboard.welcome', { name: user?.firstName || 'User' })}
-        </h1>
-              <p className="text-sm text-blue-100 mb-3">
-                {isAdmin ? t('mainDashboard.subtitleAdmin') : t('mainDashboard.subtitleUser')}
+      {/* ── Hero Welcome Section ─────────────────────────────────────── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#ede9fe] via-[#f0ebff] to-[#f8f5ff] border border-violet-100/80"
+        style={{ boxShadow: '0 4px 32px rgba(124,58,237,0.07), 0 1px 3px rgba(0,0,0,0.04)' }}>
+
+        {/* Background orbs */}
+        <div className="pointer-events-none absolute -top-16 -right-16 h-64 w-64 rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(167,139,250,0.22) 0%, transparent 70%)' }} />
+        <div className="pointer-events-none absolute -bottom-8 left-1/3 h-40 w-40 rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(196,181,253,0.18) 0%, transparent 70%)' }} />
+
+        <div className="relative px-7 py-6 sm:px-10 sm:py-7">
+          <div className="flex items-start justify-between gap-6">
+
+            {/* ── Left ── */}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight tracking-tight mb-1.5">
+                {t('mainDashboard.welcome', { name: user?.firstName || 'User' })} 👋
+              </h1>
+              <p className="text-sm text-slate-500 font-medium mb-4 max-w-lg">
+                Here's what's happening with your studio today. Manage clients, album in one place.
               </p>
-              <div className="flex items-center space-x-3">
-                {user?.accountType && (
-                  <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white bg-opacity-20 backdrop-blur-sm border border-white border-opacity-30">
-                    <FaStar className="mr-1.5 text-yellow-300" />
-                    {t('mainDashboard.plan', { type: user.accountType })}
-                  </div>
-                )}
-                <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white bg-opacity-20 backdrop-blur-sm border border-white border-opacity-30">
-                  <FaBell className="mr-1.5" />
-                  {currentTime.toLocaleTimeString()}
+
+              {/* Stat badges */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200/60 bg-white/75 px-3 py-1.5 text-xs font-semibold text-slate-700 backdrop-blur-sm"
+                  style={{ boxShadow: '0 1px 6px rgba(124,58,237,0.07)' }}>
+                  <FaCloud className="h-3 w-3 text-violet-500" />
+                  <span className="font-bold text-slate-800">{stats?.totalFiles?.toLocaleString() ?? '—'}</span>
+                  <span className="text-slate-500">Photos Uploaded</span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200/60 bg-white/75 px-3 py-1.5 text-xs font-semibold text-slate-700 backdrop-blur-sm"
+                  style={{ boxShadow: '0 1px 6px rgba(124,58,237,0.07)' }}>
+                  <FaUsers className="h-3 w-3 text-violet-500" />
+                  <span className="font-bold text-slate-800">{serviceData.filter(s => s.status === 'Connected').length}</span>
+                  <span className="text-slate-500">Active Clients</span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200/60 bg-white/75 px-3 py-1.5 text-xs font-semibold text-slate-700 backdrop-blur-sm"
+                  style={{ boxShadow: '0 1px 6px rgba(124,58,237,0.07)' }}>
+                  <FaChartBar className="h-3 w-3 text-violet-500" />
+                  <span className="font-bold text-slate-800">18</span>
+                  <span className="text-slate-500">Albums Created</span>
                 </div>
               </div>
             </div>
+
+            {/* ── Right: buttons + camera ── */}
+            <div className="shrink-0 flex flex-col items-end gap-3">
+              {/* Action buttons */}
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={() => navigate('/upload')}
+                  className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
+                  style={{
+                    background: 'linear-gradient(135deg, #7c3aed 0%, #9333ea 100%)',
+                    boxShadow: '0 4px 14px rgba(124,58,237,0.38)',
+                  }}
+                >
+                  <FaUpload className="h-3.5 w-3.5" />
+                  Upload Photos
+                </button>
+                <button
+                  onClick={() => navigate('/studio/albums')}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-sm font-bold text-slate-700 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-violet-300 hover:text-violet-700 active:scale-[0.98]"
+                  style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}
+                >
+                  <FaCloud className="h-3.5 w-3.5 text-violet-500" />
+                  Create Album
+                </button>
+                <button
+                  onClick={() => navigate('/invitations')}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2.5 text-sm font-bold text-slate-700 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-violet-300 hover:text-violet-700 active:scale-[0.98]"
+                  style={{ boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}
+                >
+                  <FaUsers className="h-3.5 w-3.5 text-violet-500" />
+                  Add Client
+                </button>
+              </div>
+
+              {/* Camera illustration */}
+              <div className="flex items-end gap-1 pr-1">
+                <div className="relative">
+                  {/* Camera body */}
+                  <div className="flex h-14 w-16 items-center justify-center rounded-2xl bg-slate-800 shadow-lg"
+                    style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.18)' }}>
+                    {/* Lens */}
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 border-2 border-slate-600">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 border border-slate-700">
+                        <div className="h-2 w-2 rounded-full bg-slate-600" />
+                      </div>
+                    </div>
+                    {/* Flash */}
+                    <div className="absolute top-1.5 right-2 h-1.5 w-1.5 rounded-full bg-slate-500" />
+                    {/* Viewfinder bump */}
+                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 h-2 w-5 rounded-t-md bg-slate-700" />
+                  </div>
+                  {/* Flower decoration */}
+                  <div className="absolute -top-3 -right-3 text-lg">🌸</div>
+                </div>
+                {/* Purple bottle/vase decoration */}
+                <div className="mb-1 flex h-10 w-4 flex-col items-center">
+                  <div className="h-2 w-2 rounded-full bg-violet-400" />
+                  <div className="flex-1 w-3 rounded-b-lg bg-gradient-to-b from-violet-400 to-violet-600 mt-0.5" />
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -641,69 +1006,195 @@ const DashboardPage = () => {
         </button>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {loading && dynamicStats.length === 0 ? (
-          Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 animate-pulse">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex-1">
-                  <div className="h-3 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-6 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-5 bg-gray-200 rounded w-16"></div>
-                </div>
-                <div className="w-12 h-12 bg-gray-200 rounded-xl ml-3"></div>
-              </div>
-            </div>
-          ))
-        ) : (
-          dynamicStats.map((stat, index) => {
-          const Icon = stat.icon;
+      {/* ── Stats Grid ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          {
+            label: 'TOTAL CLIENTS',
+            value: userAnalytics?.totalUsers?.toLocaleString() ?? (stats ? '9' : '—'),
+            trend: '+12% this month',
+            trendUp: true,
+            icon: FaUsers,
+            iconBg: 'bg-violet-100',
+            iconColor: 'text-violet-600',
+            sparkData: [2,3,2,5,4,7,6],
+            sparkColor: '#7c3aed',
+          },
+          {
+            label: 'TOTAL ALBUMS',
+            value: albumChartData.length > 0 ? albumChartData.length.toString() : '18',
+            trend: '+8% this month',
+            trendUp: true,
+            icon: FaCloud,
+            iconBg: 'bg-violet-100',
+            iconColor: 'text-violet-600',
+            sparkData: [3,4,3,6,5,8,7],
+            sparkColor: '#7c3aed',
+          },
+          {
+            label: 'TOTAL VIDEOS',
+            value: '0',
+            trend: '0% this month',
+            trendUp: false,
+            icon: FaChartBar,
+            iconBg: 'bg-pink-100',
+            iconColor: 'text-pink-500',
+            sparkData: [0,0,0,0,0,0,0],
+            sparkColor: '#ec4899',
+          },
+          {
+            label: 'TOTAL PHOTOS',
+            value: stats?.totalFiles?.toLocaleString() ?? '—',
+            trend: '+28% this month',
+            trendUp: true,
+            icon: FaShieldAlt,
+            iconBg: 'bg-pink-100',
+            iconColor: 'text-pink-500',
+            sparkData: [10,20,15,30,25,40,35],
+            sparkColor: '#ec4899',
+          },
+        ].map((card) => {
+          const Icon = card.icon;
           return (
-            <div 
-              key={stat.name} 
-              className="group relative bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-1 border border-gray-100 overflow-hidden"
-            >
-              <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-5 transition-opacity duration-200`}></div>
-              
-              <div className="relative z-10">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{stat.name}</p>
-                    <p className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</p>
-                    <p className="text-xs text-gray-500 mb-2 truncate">{stat.description}</p>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      stat.changeType === 'positive' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-red-100 text-red-700'
-                    }`}>
-                      {stat.change}
-                    </span>
-                  </div>
-                  <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center flex-shrink-0 ml-3 shadow-sm`}>
-                    <Icon className="h-6 w-6 text-white" />
-                  </div>
+            <div key={card.label}
+              className="bg-white rounded-2xl p-5 border border-slate-100 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}>
+              <div className="flex items-start justify-between mb-4">
+                <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${card.iconBg}`}>
+                  <Icon className={`h-5 w-5 ${card.iconColor}`} />
                 </div>
-                
-                {/* Hover details panel */}
-                <div className="absolute inset-0 bg-white rounded-xl p-4 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto shadow-lg border border-gray-100">
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-gray-900 text-sm">{t('mainDashboard.detailedBreakdown')}</h4>
-                    {Object.entries(stat.details).map(([key, value]) => (
-                      <div key={key} className="flex justify-between items-center">
-                        <span className="text-xs text-gray-500 capitalize">{key}:</span>
-                        <span className="text-xs font-semibold text-gray-900">{value}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="w-20 h-9">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={card.sparkData.map((v, i) => ({ v, i }))}>
+                      <Line type="monotone" dataKey="v" stroke={card.sparkColor} strokeWidth={1.5} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
+              </div>
+              <p className="text-4xl font-extrabold text-slate-900 leading-none mb-1.5">{card.value}</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 mb-3">{card.label}</p>
+              <div className="flex items-center gap-1.5">
+                <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${card.trendUp ? 'text-emerald-500' : 'text-slate-400'}`}>
+                  {card.trendUp ? '↑' : '→'} {card.trend}
+                </span>
               </div>
             </div>
           );
-        })
-        )}
+        })}
       </div>
+
+      {/* ── Charts Row ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Album Statistics */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-100"
+          style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100">
+                <FaChartBar className="h-4 w-4 text-violet-600" />
+              </div>
+              <div>
+                <p className="text-[15px] font-bold text-slate-800">Album Statistics</p>
+                <p className="text-[11px] text-slate-400">Top albums by image count</p>
+              </div>
+            </div>
+            <button className="text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors">
+              View All
+            </button>
+          </div>
+          <div className="mt-5" style={{ height: 240 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={albumChartData.length > 0 ? albumChartData : [
+                  { name: 'Wedding', count: 52 },
+                  { name: 'Birthday', count: 28 },
+                  { name: 'Family', count: 35 },
+                  { name: 'Studio', count: 20 },
+                  { name: 'Events', count: 15 },
+                  { name: 'Travel', count: 10 },
+                ]}
+                margin={{ top: 4, right: 4, left: -24, bottom: 0 }}
+                barSize={32}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 500 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', fontSize: 12, padding: '8px 12px' }}
+                  cursor={{ fill: 'rgba(124,58,237,0.04)' }}
+                />
+                <Bar dataKey="count" name="Images" radius={[6, 6, 0, 0]}>
+                  {['#7c3aed','#a78bfa','#06b6d4','#10b981','#f59e0b','#ec4899','#f97316'].map((color, i) => (
+                    <Cell key={i} fill={color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Upload Activity */}
+        <div className="bg-white rounded-2xl p-6 border border-slate-100"
+          style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-100">
+                <FaUpload className="h-4 w-4 text-violet-600" />
+              </div>
+              <div>
+                <p className="text-[15px] font-bold text-slate-800">Upload Activity</p>
+                <p className="text-[11px] text-slate-400">Last 7 days</p>
+              </div>
+            </div>
+            <button className="text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors">
+              View All
+            </button>
+          </div>
+          <div className="mt-5" style={{ height: 240 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={uploadActivityData.length > 0 ? uploadActivityData : [
+                  { day: 'Sun 05-02', uploads: 0 },
+                  { day: 'Mon 05-03', uploads: 1 },
+                  { day: 'Tue 05-04', uploads: 0 },
+                  { day: 'Wed 05-05', uploads: 2 },
+                  { day: 'Thu 05-06', uploads: 9 },
+                  { day: 'Fri 05-07', uploads: 4 },
+                  { day: 'Sat 05-08', uploads: 2 },
+                ]}
+                margin={{ top: 4, right: 4, left: -24, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="uploadGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.18} />
+                    <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 500 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', fontSize: 12, padding: '8px 12px' }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="uploads"
+                  name="Uploads"
+                  stroke="#7c3aed"
+                  strokeWidth={2.5}
+                  fill="url(#uploadGrad)"
+                  dot={{ fill: '#7c3aed', strokeWidth: 0, r: 4 }}
+                  activeDot={{ r: 6, fill: '#7c3aed', stroke: '#fff', strokeWidth: 2 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+
+      {/* ── Recent Projects + Recent Uploads + Active Clients ── */}
+      <DashboardBottomSections navigate={navigate} stats={stats} />
 
       {/* Activity and System Health Section */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">

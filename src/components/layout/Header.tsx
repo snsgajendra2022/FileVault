@@ -27,13 +27,13 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
   // console.log('Header - Is admin:', isAdmin);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-black/60 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-slate-100 bg-white/95 backdrop-blur-sm">
       <div className="mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
         {/* Left side - Mobile menu button only */}
         <div className="flex items-center">
           <button
             type="button"
-            className="lg:hidden group relative p-2.5 rounded-xl text-slate-200 hover:text-white hover:bg-white/10 transition-colors"
+            className="lg:hidden group relative p-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
             onClick={() => setSidebarOpen(true)}
           >
             <FaBars className="h-5 w-5" />
@@ -43,8 +43,8 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
         {/* Right side - User controls */}
         <div className="flex items-center space-x-3 sm:space-x-4">
           {/* Language (next to notifications) */}
-          <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-2 py-1.5 backdrop-blur-sm hover:bg-white/[0.07] transition-colors">
-            <FaGlobe className="h-4 w-4 text-slate-300 shrink-0 hidden sm:block" aria-hidden />
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 hover:bg-slate-100 transition-colors">
+            <FaGlobe className="h-4 w-4 text-slate-500 shrink-0 hidden sm:block" aria-hidden />
             <label htmlFor="header-language" className="sr-only">
               {t('header.language')}
             </label>
@@ -54,7 +54,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
               onChange={(e) => {
                 void i18n.changeLanguage(e.target.value);
               }}
-              className="text-sm font-semibold text-slate-200 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-400 rounded-md max-w-[7.5rem] sm:max-w-none py-0.5 pr-6 pl-1"
+              className="text-sm font-semibold text-slate-700 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-400 rounded-md max-w-[7.5rem] sm:max-w-none py-0.5 pr-6 pl-1"
               aria-label={t('header.language')}
             >
               <option value="en">{t('header.english')}</option>
@@ -66,7 +66,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
           <div className="relative">
             <button
               type="button"
-              className="group relative p-2.5 rounded-xl text-slate-200 hover:text-white hover:bg-white/10 transition-colors"
+              className="group relative p-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
               onClick={() => setNotificationsOpen(!notificationsOpen)}
             >
               <FaBell className="h-5 w-5" />
@@ -74,12 +74,12 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
             </button>
 
             {notificationsOpen && (
-              <div className="absolute right-0 mt-3 w-80 rounded-2xl shadow-2xl border border-white/10 bg-black/70 backdrop-blur-xl z-50">
+              <div className="absolute right-0 mt-3 w-80 rounded-2xl shadow-lg border border-slate-100 bg-white z-50">
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-2">
                       <FaBell className="h-5 w-5 text-violet-300" />
-                      <h3 className="font-bold text-white text-lg">{t('header.notifications')}</h3>
+                      <h3 className="font-bold text-slate-800 text-lg">{t('header.notifications')}</h3>
                     </div>
                     <button
                       onClick={() => setNotificationsOpen(false)}
@@ -89,21 +89,20 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                     </button>
                   </div>
                   <div className="space-y-3 max-h-48 overflow-y-auto">
-                    <div className="p-4 rounded-xl border border-white/10 bg-white/5">
+                    <div className="p-4 rounded-xl border border-slate-100 bg-slate-50">
                       <div className="flex items-start space-x-3">
-                        {/* <FaStar className="h-4 w-4 text-blue-600 mt-0.5" /> */}
                         <div>
-                          <p className="text-sm font-semibold text-white">{t('header.welcomeTitle')}</p>
-                          <p className="text-xs text-slate-400 mt-1">{t('header.welcomeTime')}</p>
+                          <p className="text-sm font-semibold text-slate-800">{t('header.welcomeTitle')}</p>
+                          <p className="text-xs text-slate-500 mt-1">{t('header.welcomeTime')}</p>
                         </div>
                       </div>
                     </div>
-                    <div className="p-4 rounded-xl border border-white/10 bg-white/5">
+                    <div className="p-4 rounded-xl border border-slate-100 bg-slate-50">
                       <div className="flex items-start space-x-3">
-                        <FaCrown className="h-4 w-4 text-emerald-300 mt-0.5" />
+                        <FaCrown className="h-4 w-4 text-violet-500 mt-0.5" />
                         <div>
-                          <p className="text-sm font-semibold text-white">{t('header.verifiedTitle')}</p>
-                          <p className="text-xs text-slate-400 mt-1">{t('header.verifiedTime')}</p>
+                          <p className="text-sm font-semibold text-slate-800">{t('header.verifiedTitle')}</p>
+                          <p className="text-xs text-slate-500 mt-1">{t('header.verifiedTime')}</p>
                         </div>
                       </div>
                     </div>
@@ -117,7 +116,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
           <div className="relative">
             <button
               type="button"
-              className="group flex items-center space-x-3 p-2.5 rounded-xl text-slate-200 hover:text-white hover:bg-white/10 transition-colors"
+              className="group flex items-center space-x-3 p-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
               onClick={() => setUserMenuOpen(!userMenuOpen)}
             >
               <div className="relative">
@@ -131,21 +130,20 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
               </div>
               <div className="hidden md:block text-left">
                 <div className="flex items-center space-x-2">
-                  <p className="text-sm font-bold text-white">
+                  <p className="text-sm font-bold text-slate-800">
                     {user?.firstName} {user?.lastName}
                   </p>
-                  {isAdmin && <FaCrown className="h-3 w-3 text-violet-300" />}
+                  {isAdmin && <FaCrown className="h-3 w-3 text-violet-500" />}
                 </div>
-                <p className="text-xs text-slate-400">{user?.email}</p>
+                <p className="text-xs text-slate-500">{user?.email}</p>
                 <div className="flex items-center space-x-1">
-                  {/* <FaStar className="w-3 h-3 text-blue-500" /> */}
-                  <p className="text-xs text-violet-300 font-semibold">{user?.accountType}</p>
+                  <p className="text-xs text-violet-600 font-semibold">{user?.accountType}</p>
                 </div>
               </div>
             </button>
 
             {userMenuOpen && (
-              <div className="absolute right-0 mt-3 w-[31rem] rounded-2xl shadow-2xl border border-white/10 bg-black/70 backdrop-blur-xl z-50">
+              <div className="absolute right-0 mt-3 w-[31rem] rounded-2xl shadow-lg border border-slate-100 bg-white z-50">
                 <div className="p-6">
                   <div className="flex items-center space-x-4 p-4 rounded-xl mb-4 border border-white/10 bg-white/5">
                     <div className="relative">

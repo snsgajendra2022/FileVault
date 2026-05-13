@@ -959,31 +959,31 @@ const StudioCheckout: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-3 sm:p-6 space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
             <FaImages className="mr-3 text-[#2731db]" />
             {t('studioCheckoutPage.title')}
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">
             {t('studioCheckoutPage.subtitle')}
           </p>
         </div>
-        <div className="flex items-center space-x-4">
-          <div className="text-right">
-            <p className="text-sm text-gray-500">{t('studioCheckoutPage.pricePerPhoto')}</p>
-            <p className="text-2xl font-bold text-[#2731db]">
+        <div className="flex items-center gap-3 sm:space-x-4">
+          <div className="text-left sm:text-right">
+            <p className="text-xs sm:text-sm text-gray-500">{t('studioCheckoutPage.pricePerPhoto')}</p>
+            <p className="text-xl sm:text-2xl font-bold text-[#2731db]">
               ₹{perPhotoPrice > 0 ? perPhotoPrice : PRICE_PER_IMAGE}
             </p>
           </div>
           <button
             onClick={() => setShowUpiSettings(!showUpiSettings)}
-            className="flex items-center px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
+            className="flex items-center px-3 sm:px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm"
             title={t('studioCheckoutPage.manageUpiSettings')}
           >
-            <FaCog className="mr-2" />
+            <FaCog className="mr-1.5 sm:mr-2" />
             {t('studioCheckoutPage.upiSettings')}
           </button>
         </div>
@@ -1131,33 +1131,33 @@ const StudioCheckout: React.FC = () => {
             </div>
           )} */}
 
-          <div className="flex items-center space-x-3 flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2 sm:space-x-3">
             <button
               onClick={() => setShowShareModal(true)}
               disabled={allSelectedImages.length === 0}
-              className="flex items-center px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center px-3 sm:px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <FaShare className="mr-2" />
+              <FaShare className="mr-1.5 sm:mr-2" />
               {t('studioCheckoutPage.shareLink')}
             </button>
             <button
               onClick={handleGenerateQr}
               disabled={allSelectedImages.length === 0}
-              className="flex items-center px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center px-3 sm:px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <FaQrcode className="mr-2" />
+              <FaQrcode className="mr-1.5 sm:mr-2" />
               {t('studioCheckoutPage.generateQr')}
             </button>
             <button
               onClick={handleMarkAsPaid}
               disabled={!showQr || !totalAmount}
-              className={`flex items-center px-4 py-2 rounded-lg text-sm font-semibold ${
+              className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold ${
                 showQr && totalAmount
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-gray-200 text-gray-500 cursor-not-allowed'
               }`}
             >
-              <FaCheckCircle className="mr-2" />
+              <FaCheckCircle className="mr-1.5 sm:mr-2" />
               {t('studioCheckoutPage.markAsPaid')}
             </button>
           </div>
@@ -1230,10 +1230,10 @@ const StudioCheckout: React.FC = () => {
       />
 
       {/* Albums Grid – same layout as PhotoStudioAlbum */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">{t('studioCheckoutPage.selectAlbumsImages')}</h2>
-          <p className="text-sm text-gray-500">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">{t('studioCheckoutPage.selectAlbumsImages')}</h2>
+          <p className="text-xs sm:text-sm text-gray-500">
             {t('studioCheckoutPage.selectAlbumThenChoose')}
           </p>
         </div>
@@ -1246,7 +1246,7 @@ const StudioCheckout: React.FC = () => {
           </div>
         ) : (
           <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 items-start">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-6 items-start">
             {albums.map((album) => {
               const isSelected = selectedAlbums.has(album.id);
               const isExpanded = expandedAlbums.has(album.id);
@@ -1293,9 +1293,9 @@ const StudioCheckout: React.FC = () => {
                         </button>
                       </div>
                     </div>
-                    <div className="p-4 bg-white">
-                      <h3 className="font-semibold text-gray-900 truncate capitalize">{album.name}</h3>
-                      <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
+                    <div className="p-3 sm:p-4 bg-white">
+                      <h3 className="font-semibold text-gray-900 truncate capitalize text-sm sm:text-base">{album.name}</h3>
+                      <p className="text-xs sm:text-sm text-gray-500 mt-0.5 flex items-center gap-1">
                         <FaImages className="h-3.5 w-3 shrink-0" />
                         {albumImages.length} {albumImages.length === 1 ? t('studioCheckoutPage.image') : t('studioCheckoutPage.images')}
                         {albumImageIds.size > 0 && (
@@ -1307,7 +1307,7 @@ const StudioCheckout: React.FC = () => {
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); if (!isDisabled) toggleAlbumExpand(album.id); }}
-                        className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-800 hover:bg-gray-50 hover:border-[#2731db]/30 transition-colors"
+                        className="mt-2 sm:mt-3 w-full flex items-center justify-center gap-2 py-2.5 sm:py-3 rounded-xl border-2 border-gray-200 text-xs sm:text-sm font-semibold text-gray-800 hover:bg-gray-50 hover:border-[#2731db]/30 transition-colors"
                       >
                         {isExpanded ? t('studioCheckoutPage.hideImages') : t('studioCheckoutPage.chooseImages')}
                         <FaChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
@@ -1332,8 +1332,8 @@ const StudioCheckout: React.FC = () => {
             const albumImagesPending = !albumImagesResolved && (!album.images || album.images.length === 0);
             return (
               <div className="border-t border-gray-200 bg-gray-50 flex flex-col flex-shrink-0 w-full mt-4 h-full rounded-b-2xl overflow-hidden max-h-[min(55vh,420px)]">
-                <div className="flex-shrink-0 flex items-center justify-between gap-2 px-4 py-3 bg-white border-b border-gray-100">
-                  <h4 className="text-sm font-semibold text-gray-900">
+                <div className="flex-shrink-0 flex flex-wrap items-center justify-between gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-white border-b border-gray-100">
+                  <h4 className="text-xs sm:text-sm font-semibold text-gray-900">
                     {t('studioCheckoutPage.selectImagesHeading', { name: album.name })}
                     {isSelected && albumImageIds.size > 0 && (
                       <span className="ml-2 text-[#2731db] font-medium">{t('studioCheckoutPage.countSelectedOf', { selected: albumImageIds.size, total: albumImages.length })}</span>
@@ -1356,7 +1356,7 @@ const StudioCheckout: React.FC = () => {
                 </div>
                 <div className="flex-1 min-h-0 overflow-y-auto p-4">
                   {albumImages.length > 0 ? (
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
                       {albumImages.map((image) => {
                         const isImageSelected = albumImageIds.has(image.id);
                         const imageUrl = getImageUrl(image);

@@ -1536,12 +1536,12 @@ const PhotoStudioAlbum: React.FC = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-6">
       {/* Header – hidden when viewing a single album */}
       {viewingAlbumId === null && (
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
             <FaFolder className="mr-3 text-[#2731db]" />
             {t('photoStudioAlbumPage.photoAlbums')}
           </h1>
@@ -1549,11 +1549,11 @@ const PhotoStudioAlbum: React.FC = () => {
             {t('photoStudioAlbumPage.subtitle')}
           </p>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2 sm:space-x-3">
           <button
             onClick={() => downloadImagesAsZip(shareLinkSelectedImages, selectedAlbumsName || 'albums')}
             disabled={selectedAlbums.size === 0 || isDownloadingZip}
-            className="px-4 py-2 rounded-lg bg-white border border-gray-200 text-gray-800 hover:bg-gray-50 transition-colors flex items-center disabled:opacity-60 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-white border border-gray-200 text-gray-800 hover:bg-gray-50 transition-colors flex items-center disabled:opacity-60 disabled:cursor-not-allowed text-sm"
             title={t('photoStudioAlbumPage.downloadZipTitle')}
           >
             {isDownloadingZip ? (
@@ -1574,7 +1574,7 @@ const PhotoStudioAlbum: React.FC = () => {
               setShowTemplateModal(true);
             }}
             disabled={selectedAlbums.size === 0 || isTransferringToPhotoBook}
-            className="px-4 py-2 rounded-lg bg-[#111827] text-white hover:bg-slate-800 transition-colors flex items-center disabled:opacity-60"
+            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-[#111827] text-white hover:bg-slate-800 transition-colors flex items-center disabled:opacity-60 text-sm"
             title={t('photoStudioAlbumPage.transferTitle')}
           >
             <FaFolderOpen className="mr-2" />
@@ -1583,7 +1583,7 @@ const PhotoStudioAlbum: React.FC = () => {
           <button
             onClick={() => setShowShareLinkModal(true)}
             disabled={selectedAlbums.size === 0}
-            className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center disabled:opacity-60 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center disabled:opacity-60 disabled:cursor-not-allowed text-sm"
             title={t('photoStudioAlbumPage.shareLinkTitle')}
           >
             <FaShare className="mr-2" />
@@ -1591,7 +1591,7 @@ const PhotoStudioAlbum: React.FC = () => {
           </button>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors flex items-center"
+            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors flex items-center text-sm"
           >
             <FaPlus className="mr-2" />
             {t('photoStudioAlbumPage.createAlbum')}
@@ -1676,21 +1676,21 @@ const PhotoStudioAlbum: React.FC = () => {
           const images = albumImages.get(album.id) || extractAlbumImages(album);
           return (
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                 <button
                   type="button"
                   onClick={() => { setViewingAlbumId(null); setSelectedPhotoIds(new Set()); }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium"
+                  className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium"
                 >
                   <FaChevronLeft className="h-4 w-4" />
                   {t('photoStudioAlbumPage.backToAlbums')}
                 </button>
-                <h2 className="text-xl font-semibold text-gray-900 truncate flex-1">{album.name}</h2>
-                <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-xl font-semibold text-gray-900 truncate flex-1 min-w-0">{album.name}</h2>
+                <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
                     onClick={() => { setSelectedImages(new Set()); setShowAddImagesModal(album.id); }}
-                    className="px-4 py-2 rounded-xl bg-[#2731db] text-white hover:bg-blue-700 text-sm font-medium"
+                    className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-[#2731db] text-white hover:bg-blue-700 text-xs sm:text-sm font-medium"
                   >
                     <FaPlus className="mr-1 inline" />
                     {t('photoStudioAlbumPage.uploadImages')}
@@ -1699,7 +1699,7 @@ const PhotoStudioAlbum: React.FC = () => {
                     type="button"
                     onClick={() => { setPendingAlbumIds([album.id]); setShowTemplateModal(true); }}
                     disabled={isTransferringToPhotoBook}
-                    className="px-4 py-2 rounded-xl bg-[#111827] text-white hover:bg-slate-800 text-sm font-medium disabled:opacity-60"
+                    className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-[#111827] text-white hover:bg-slate-800 text-xs sm:text-sm font-medium disabled:opacity-60"
                   >
                     <FaFolderOpen className="mr-1 inline" />
                     {t('photoStudioAlbumPage.photoBook')}
@@ -1708,8 +1708,8 @@ const PhotoStudioAlbum: React.FC = () => {
               </div>
 
               {/* Share management panel (one link shared to many recipients) */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 flex-wrap">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Shared link</h3>
                     <p className="text-sm text-gray-600 mt-1">
@@ -2009,7 +2009,7 @@ const PhotoStudioAlbum: React.FC = () => {
                         </button>
                       </div>
                     </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4">
                     {(sharedImagesOnly ? images.filter((img) => sharedImageIds.has(img.id)) : images).map((image, index) => {
                       const imageUrl = getImageUrl(image);
                       const thumbUrl = getThumbnailUrl(image);
@@ -2115,15 +2115,15 @@ const PhotoStudioAlbum: React.FC = () => {
 
               {/* Sticky action bar – appears when photos are selected */}
               {selectedPhotoIds.size > 0 && (
-                <div className="sticky bottom-4 z-40 mx-auto max-w-xl">
-                  <div className="bg-white border border-[#2731db] rounded-2xl shadow-xl px-5 py-3 flex items-center justify-between gap-4">
+                <div className="sticky bottom-2 sm:bottom-4 z-40 mx-2 sm:mx-auto sm:max-w-xl">
+                  <div className="bg-white border border-[#2731db] rounded-2xl shadow-xl px-3 sm:px-5 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                     <div>
                       <p className="text-sm font-semibold text-gray-900">
                         {selectedPhotoIds.size} photo{selectedPhotoIds.size !== 1 ? 's' : ''} selected
                       </p>
-                      <p className="text-xs text-gray-500">Share or download selected photos</p>
+                      <p className="text-xs text-gray-500 hidden sm:block">Share or download selected photos</p>
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <div className="flex items-center gap-2 flex-wrap justify-end sm:justify-end">
                       <button
                         type="button"
                         onClick={clearPhotoSelection}
@@ -2209,10 +2209,10 @@ const PhotoStudioAlbum: React.FC = () => {
       ) : (
         /* Album Grid – card-based main view */
         <>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <p className="text-sm text-gray-500">{t('photoStudioAlbumPage.totalAlbums')}</p>
-              <p className="text-2xl font-bold text-gray-900">{albumsTotal}</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{albumsTotal}</p>
               <div className="flex items-center gap-2 ml-2">
                 <select
                   value={albumSort}
@@ -2250,7 +2250,7 @@ const PhotoStudioAlbum: React.FC = () => {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
                   {filteredAndSortedAlbums.map((album) => {
                     const coverUrl = getCoverImageUrl(album);
                     const isMenuOpen = menuOpenAlbumId === album.id;
@@ -2331,12 +2331,12 @@ const PhotoStudioAlbum: React.FC = () => {
                             </div>
                           </div>
                           <div className="p-4">
-                            <h3 className="font-semibold text-gray-900 truncate capitalize">{album.name}</h3>
-                            <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
-                              <FaImages className="h-3.5 w-3 shrink-0" />
-                              {count} {count === 1 ? t('photoStudioAlbumPage.photo') : t('photoStudioAlbumPage.photos')}
-                            </p>
-                          </div>
+                          <h3 className="font-semibold text-gray-900 truncate capitalize">{album.name}</h3>
+                          <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
+                            <FaImages className="h-3.5 w-3 shrink-0" />
+                            {count} {count === 1 ? t('photoStudioAlbumPage.photo') : t('photoStudioAlbumPage.photos')}
+                          </p>
+                        </div>
                         </button>
                         {/* Backdrop to close menu when open (for mobile tap-outside) */}
                         {isMenuOpen && <div className="fixed inset-0 z-30" onClick={() => setMenuOpenAlbumId(null)} aria-hidden />}
@@ -2358,8 +2358,8 @@ const PhotoStudioAlbum: React.FC = () => {
 
       {/* Edit Album Modal */}
       {showEditModal !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold text-gray-900 flex items-center">
                 <FaEdit className="mr-2 text-[#2731db]" />
@@ -2486,10 +2486,10 @@ const PhotoStudioAlbum: React.FC = () => {
 
       {/* Create Album Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-w-md w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">{t('photoStudioAlbumPage.createNewAlbum')}</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{t('photoStudioAlbumPage.createNewAlbum')}</h2>
               <button
                 onClick={() => {
                   setShowCreateModal(false);
@@ -2607,8 +2607,8 @@ const PhotoStudioAlbum: React.FC = () => {
 
       {/* Add Images to Album Modal */}
       {showAddImagesModal !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">
                 {t('photoStudioAlbumPage.addImagesToAlbum')}

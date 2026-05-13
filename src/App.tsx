@@ -25,6 +25,7 @@ import DashboardPage from './pages/dashboard/DashboardPage';
 // user pages
 import ProfilePage from './pages/user/ProfilePage';
 import SettingsPage from './pages/user/SettingsPage';
+import PortalSettingsPage from './pages/user/PortalSettingsPage';
 import AnalyticsPage from './pages/user/AnalyticsPage';
 import ServicesPage from './pages/user/ServicesPage';
 import ServiceConfigPage from './pages/user/ServiceConfigPage';
@@ -97,6 +98,8 @@ import PhoneBookListPage from './pages/PhoneBook/PhoneBookListPage';
 import PhoneBookCreatePage from './pages/PhoneBook/PhoneBookCreatePage';
 import PhoneBookDetailPage from './pages/PhoneBook/PhoneBookDetailPage';
 import PhoneBookEditPage from './pages/PhoneBook/PhoneBookEditPage';
+import OpenClawAssistantPage from './pages/OpenClawAssistantPage';
+import OpenClawAgentDock from './components/openclaw/OpenClawAgentDock';
 
 // misc pages
 import NotFoundPage from './pages/misc/NotFoundPage';
@@ -212,6 +215,7 @@ const AppRoutes = () => {
         <Route path="usage" element={<UsagePage />} />
         <Route path="billing" element={<BillingPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="portal-settings" element={<PortalSettingsPage />} />
         <Route path="upload" element={<UploadPage />} />
         <Route path="upload-family-images" element={<UploadFamilyImagesPage />} />
         <Route path="images" element={<ImagesPage />} />
@@ -225,6 +229,7 @@ const AppRoutes = () => {
         <Route path="services/config/:serviceId" element={<ServiceConfigPage />} />
         {/* PhotoStudio Pro Routes */}
         <Route path="studio/dashboard" element={<StudioDashboard />} />
+        <Route path="studio/openclaw" element={<OpenClawAssistantPage />} />
         <Route path="studio/clients" element={<ClientManagement />} />
         <Route path="studio/gallery" element={<PhotoGallery />} />
         <Route path="studio/barcodes" element={<BarcodeSystem />} />
@@ -291,6 +296,7 @@ function App() {
         <AuthProvider>
           <Router>
             <AppRoutes />
+            <OpenClawAgentDock />
             <Toaster 
               position="top-right"
               toastOptions={{
