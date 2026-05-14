@@ -6,6 +6,7 @@ import {
   regularNavigation,
   studioNavigation,
   adminNavigation,
+  usersNavigation,
 } from './navConfig';
 import {
   getRoleFromAccountType,
@@ -47,7 +48,7 @@ interface NavigationProps {
 
 const Navigation = ({ isOpen, onClose }: NavigationProps) => {
   const { t } = useTranslation();
-  const { user, isAdmin, logout } = useAuth() as any;
+  const { user, isAdmin,isUsers, isStudio, logout } = useAuth() as any;
   const location = useLocation();
   const route = useNavigate();
   // Get user role from account type
@@ -76,7 +77,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
   // Runtime menu visibility flags
   // Priority order: window.__MENU_FLAGS__ > localStorage('MENU_FLAGS') > defaults
   const menuFlags = React.useMemo(() => {
-    const defaults = { regular: true, studio: true, admin: isAdmin } as {
+    const defaults = { regular: true, studio: true, users: true, admin: isAdmin } as {
       regular: boolean; studio: boolean; admin: boolean;
     };
     try {
@@ -93,6 +94,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
   }, [isAdmin]);
 
   const studioItems = studioNavigation.items.filter((i) => i.enabled !== false);
+  const usersItems = usersNavigation.items.filter((i) => i.enabled !== false);
   const adminItems  = adminNavigation.items.filter((i) => i.enabled !== false);
 
   const isAdminActive = (href: string) =>
@@ -151,119 +153,53 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
           </button>
         </div>
 
-        {/* Navigation — scrolls when menu items exceed viewport (min-h-0 required for flex scroll) */}
-        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden overscroll-y-contain px-3 py-6 [-webkit-overflow-scrolling:touch]">
-          {/* Regular Navigation - Show for non-admin users (controlled by flags) */}
-          {!isAdmin && menuFlags.regular  && (
-            <>
-              {filteredRegularNav.active === true && filteredRegularNav.items.filter(i=>i.enabled!==false).map((item) => (
-                <NavLink
-                key={item.href}
-                to={item.href}
-                data-ai-action={`open-route-${item.href.replace(/\//g, '-').replace(/^-+/, '')}`}
-                className={({ isActive }) =>
-                  `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
-                    isActive
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-xl border-r-4 border-blue-400'
-                    : 'text-gray-700 hover:text-gray-900 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 border-r-4 border-transparent hover:border-gray-200'
-                  }`
-                }
-                >
-                {({ isActive }) => (
-                  <>
-                    {/* Active indicator */}
-                    {isActive && (
-                      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
-                    )}
-                    
-                    <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-gray-900'}`}>
-                      <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
-                    </div>
-                    <span className="font-semibold">{t(item.labelKey)}</span>
-                    
-                    {/* Hover glow effect */}
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400 to-purple-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-                  </>
-                )}
-              </NavLink>
-                ))}
-              
-              {/* Photo Book Section */}
-              {/* {menuFlags.studio === true && studioNavigationItems.active === true
-               &&  
-              <div className=" pb-3">
-                <div className="flex items-center px-4 py-2 bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl border border-pink-200">
-                  <FaCamera className="h-4 w-4 text-pink-600 mr-2" />
-                  <h3 className="text-xs font-bold text-pink-700 uppercase tracking-wider">
-                    Photo Book Pro
-                  </h3>
-                </div>
-              </div>
-              } */}
-              
-              {menuFlags.studio === true && filteredStudioNav.active === true
-               && 
-               filteredStudioNav.items.filter(i=>i.enabled!==false).map((item) => (
-                <NavLink
-                  key={item.href}
-                  to={item.href}
-                  data-ai-action={`open-route-${item.href.replace(/\//g, '-').replace(/^-+/, '')}`}
-                  className={({ isActive }) =>
-                    `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
-                      isActive
-                        ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-xl border-r-4 border-pink-400'
-                        : 'text-gray-700 hover:text-gray-900 hover:bg-gradient-to-r hover:from-pink-50 hover:to-purple-50 border-r-4 border-transparent hover:border-pink-200'
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      {/* Active indicator */}
-                      {isActive && (
-                        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
-                      )}
-                      
-                      <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-pink-700'}`}>
-                        <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
-                      </div>
-                      <span className="font-semibold">{t(item.labelKey)}</span>
-                      
-                      {/* Hover glow effect */}
-                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-pink-400 to-purple-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-                    </>
-                  )}
-                </NavLink>
-              ))}
-            </>
-          )}
-        {/* ── User profile ───────────────────────────────────────────── */}
-        <div className="shrink-0 flex items-center gap-3 px-5 py-3.5 border-b border-slate-100 bg-slate-50/50">
-          <div className="relative shrink-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full
-              bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white text-[12px] font-bold shadow-sm">
-              {initials}
-            </div>
-            <span className="absolute -bottom-px -right-px h-2.5 w-2.5 rounded-full bg-emerald-400 border-2 border-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold text-slate-800 truncate leading-tight">{displayName}</p>
-            <span className={`inline-block mt-0.5 rounded-full px-2 py-px text-[10px] font-bold ${badgeCls}`}>
-              {badgeLabel}
-            </span>
-          </div>
-          <FaChevronRight className="h-3 w-3 text-slate-300 shrink-0" />
-        </div>
-      </nav>
         {/* ── Navigation ─────────────────────────────────────────────── */}
         <nav
           className="overflow-y-auto px-3 pt-4 pb-2 scrollbar-thin scrollbar-thumb-slate-100"
           style={{ flex: '1 1 0', minHeight: 0 }}
         >
-          {!isAdmin && menuFlags.studio && studioNavigation.active &&
+          {!isAdmin && !isUsers && menuFlags.studio && studioNavigation.active &&
             STUDIO_GROUPS.map((group) => {
               const items = group.keys
                 .map((k) => studioItems.find((i) => i.labelKey === k))
                 .filter(Boolean) as typeof studioItems;
+              if (!items.length) return null;
+
+              return (
+                <div key={group.label} className="mb-5 last:mb-0">
+                  <p className="mb-1.5 px-3 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                    {group.label}
+                  </p>
+                  <div className="space-y-0.5">
+                    {items.map((item) => {
+                      const Icon = item.icon;
+                      const active = location.pathname === item.href || location.pathname + location.search === item.href;
+                      return (
+                        <NavLink
+                          key={item.href}
+                          to={item.href}
+                          onClick={onClose}
+                          className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium
+                            transition-colors duration-150 select-none
+                            ${active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}
+                        >
+                          <Icon className={`h-[15px] w-[15px] shrink-0 transition-colors duration-150
+                            ${active ? 'text-violet-600' : 'text-slate-400 group-hover:text-slate-500'}`} />
+                          <span className="truncate leading-none">{t(item.labelKey)}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          }
+
+          {!isAdmin && !isStudio && menuFlags.users && usersNavigation.active &&
+            STUDIO_GROUPS.map((group) => {
+              const items = group.keys
+                .map((k) => usersItems.find((i) => i.labelKey === k))
+                .filter(Boolean) as typeof usersItems;
               if (!items.length) return null;
 
               return (
@@ -378,7 +314,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
                 text-[13px] font-medium text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors duration-150"
             >
               <FaSignOutAlt className="h-[15px] w-[15px] shrink-0 text-slate-400 group-hover:text-red-500" />
-              <span>Logout</span>
+              <span>{t('nav.regular.signOut')}</span>
             </button>
           )}
         </div>

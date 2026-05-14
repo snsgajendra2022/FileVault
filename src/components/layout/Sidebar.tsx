@@ -6,6 +6,7 @@ import {
   regularNavigation,
   studioNavigation,
   adminNavigation,
+  usersNavigation,
 } from './navConfig';
 import {
   getRoleFromAccountType,
@@ -15,8 +16,8 @@ import { FaCog, FaCrown, FaSignOutAlt, FaHeart } from 'react-icons/fa';
 
 
 const STUDIO_GROUPS = [
-  { label: 'Main',     keys: ['nav.studio.dashboard','nav.studio.myImages','nav.studio.album','nav.studio.uploadFamily'] },
-  { label: 'Memories', keys: ['nav.studio.ourMemories','nav.studio.photoBooks','nav.studio.photoThemes','nav.studio.sharedAlbums'] },
+  { label: 'Main',     keys: ['nav.studio.dashboard',,'nav.studio.uploadFamily','nav.studio.myImages','nav.studio.album'] },
+  { label: 'Memories', keys: ['nav.studio.ourMemories','nav.studio.photoBooks','nav.studio.photoThemes'] },
   { label: 'People',   keys: ['nav.studio.createMembers','nav.studio.membersTree','nav.studio.phoneBook'] },
   { label: 'Account',  keys: ['nav.studio.selectPay','nav.studio.paymentManagement','nav.studio.services'] },
 ];
@@ -50,7 +51,7 @@ function NavItem({ item, isActive }: {
 }
 
 const Sidebar = () => {
-  const { user, isAdmin, logout } = useAuth() as any;
+  const { user, isAdmin,isUsers, isStudio, logout } = useAuth() as any;
   const location = useLocation();
   const { t }:any = useTranslation();
   const navigationItems = regularNavigation;
@@ -79,7 +80,7 @@ const Sidebar = () => {
   // Runtime menu visibility flags
   // Priority order: window.__MENU_FLAGS__ > localStorage('MENU_FLAGS') > defaults
   const menuFlags = React.useMemo(() => {
-    const defaults = { regular: true, studio: true, admin: isAdmin } as { regular: boolean; studio: boolean; admin: boolean };
+    const defaults = { regular: true, studio: true, users: true, admin: isAdmin } as { regular: boolean; studio: boolean; users: boolean; admin: boolean };
     try {
       // @ts-ignore
       const winFlags = typeof window !== 'undefined' ? (window.__MENU_FLAGS__ as any) : undefined;
@@ -91,6 +92,7 @@ const Sidebar = () => {
   }, [isAdmin]);
 
   const studioItems = studioNavigation.items.filter((i) => i.enabled !== false);
+  const usersItems = usersNavigation.items.filter((i) => i.enabled !== false);
   const adminItems  = adminNavigation.items.filter((i) => i.enabled !== false);
 
   const isAdminActive = (href: string) =>
@@ -125,76 +127,9 @@ const Sidebar = () => {
           </div>
         </div>
 
-        {/* Enhanced Navigation */}
-        {/* <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-             {!isAdmin && menuFlags.regular  && (
-            <>
-              {filteredRegularNav.active === true && filteredRegularNav.items.filter(i=>i.enabled!==false).map((item) => (
-                <NavLink
-                key={item.href}
-                to={item.href}
-                data-ai-action={`open-route-${item.href.replace(/\//g, '-').replace(/^-+/, '')}`}
-                className={({ isActive }) =>
-                  `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
-                    isActive
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-xl border-r-4 border-blue-400'
-                    : 'text-gray-700 hover:text-gray-900 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 border-r-4 border-transparent hover:border-gray-200'
-                  }`
-                }
-                >
-                {({ isActive }) => (
-                  <>
-                    {isActive && (
-                      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
-                    )}
-                    
-                    <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-gray-900'}`}>
-                      <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
-                    </div>
-                    <span className="font-semibold">{t(item.labelKey)}</span>
-                    
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400 to-purple-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-                  </>
-                )}
-              </NavLink>
-                ))}
-              {menuFlags.studio === true && filteredStudioNav.active === true
-               && 
-               filteredStudioNav.items.filter(i=>i.enabled!==false).map((item) => (
-                <NavLink
-                  key={item.href}
-                  to={item.href}
-                  data-ai-action={`open-route-${item.href.replace(/\//g, '-').replace(/^-+/, '')}`}
-                  className={({ isActive }) =>
-                    `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
-                      isActive
-                        ? 'bg-gradient-to-r from-[#2731db] to-[#2731db] text-white shadow-xl border-r-4 border-[#2731db]'
-                        : 'text-gray-700 hover:text-gray-900 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 border-r-4 border-transparent hover:border-[#2731db]'
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      {isActive && (
-                        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
-                      )}
-                      
-                      <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-[#2731db]'}`}>
-                        <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
-                      </div>
-                      <span className="font-semibold">{t(item.labelKey)}</span>
-                      
-                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-pink-400 to-purple-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-                    </>
-                  )}
-                </NavLink>
-              ))}
-            </>
-          )}
-        </nav> */}
         {/* ── Navigation ── */}
         <nav className="px-4 pt-5 pb-3">
-          {!isAdmin && menuFlags.studio && studioNavigation.active &&
+          {!isAdmin && !isUsers && menuFlags.studio && studioNavigation.active &&
             STUDIO_GROUPS.map((group) => {
               const items = group.keys.map((k) => studioItems.find((i) => i.labelKey === k)).filter(Boolean) as typeof studioItems;
               if (!items.length) return null;
@@ -217,6 +152,24 @@ const Sidebar = () => {
             })
           }
 
+          {!isAdmin && !isStudio && menuFlags.users && usersNavigation.active &&
+            STUDIO_GROUPS.map((group) => {
+              const items = group.keys.map((k) => usersItems.find((i) => i.labelKey === k)).filter(Boolean) as typeof usersItems;
+              if (!items.length) return null;
+              return (
+                <div key={group.label} className="mb-6 last:mb-0">
+                  <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+                    {group.label}
+                  </p>
+                  <div className="space-y-1">
+                    {items.map((item) => (
+                      <NavItem key={item.href} item={item} isActive={location.pathname === item.href || location.pathname + location.search === item.href} />
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          }
           {isAdmin && menuFlags.admin && adminNavigation.active && (
             <div>
               <>
@@ -289,7 +242,7 @@ const Sidebar = () => {
                 hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 transition-colors duration-150"
             >
               <FaSignOutAlt className="h-4 w-4 shrink-0 text-slate-400 group-hover:text-red-500 dark:group-hover:text-red-400" />
-              <span>Logout</span>
+              <span>{t('nav.regular.signOut')}</span>
             </button>
           )}
         </div>

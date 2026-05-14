@@ -22,7 +22,7 @@ import { FaCamera } from 'react-icons/fa';
 if (loading) {
   return (
     <DashboardLoading 
-      title="Loading Dashboard"
+      title="Loading..."
       subtitle="Preparing your photo book..."
       icon={FaCamera}
     />

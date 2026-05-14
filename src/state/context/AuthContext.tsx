@@ -15,6 +15,8 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isUsers: boolean;
+  isStudio: boolean;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   requestLoginOtp: (payload: { email?: string; phone?: string }) => Promise<{ message?: string }>;
@@ -41,14 +43,16 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [ user ,setUser] = useState<User | null |any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const queryClient = useQueryClient();
-
+   const users = {
+     accountType: 'STUDIO'
+    }
   // Check if user is admin
-  const isAdmin = user?.accountType === 'ADMIN';
-
-  // Check if user is authenticated
+  const isAdmin = users?.accountType === 'ADMIN';
+  const isStudio = users?.accountType === 'STUDIO';
+  const isUsers = users?.accountType === 'USERS';
   const isAuthenticated = !!user;
 
   useEffect(() => {
@@ -277,6 +281,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     isAuthenticated,
     isAdmin,
+    isStudio,
+    isUsers,
     isLoading,
     login,
     requestLoginOtp,

@@ -104,8 +104,8 @@
     "nextPromptAttachImage": "Open image picker",
     "nextChipDashboard": "Memories home",
     "nextPromptDashboard": "Open memories dashboard",
-    "nextChipPhoneBook": "Phone book",
-    "nextPromptPhoneBook": "Open phone book",
+    "nextChipPhoneBook": "Guest Contacts",
+    "nextPromptPhoneBook": "Open Guest Contacts",
     "drawerClose": "Close",
     "drawerSubtitle": "Chat & voice",
     "drawerHint": "Quick prompts below — or type and use Voice.",
@@ -116,43 +116,44 @@
       "events": "List work today",
       "eventsPrompt": "What should I check on the Our Memories events list today?",
       "summarize": "Daily summary",
-      "summarizePrompt": "Give a short checklist for a photographer using this portal: albums, memories events, phone book."
+      "summarizePrompt": "Give a short checklist for a photographer using this portal: albums, memories events, guest contacts."
     }
   },
   "nav": {
     "regular": {
       "dashboard": "Dashboard",
       "upload": "Upload",
-      "services": "Services",
+      "services": "Account Services",
       "plans": "Plans",
       "usage": "Usage",
       "invitations": "Invitations",
       "familyTree": "Family Tree",
       "dummyTree": "Dummy Tree",
       "settings": "Settings",
-      "profile": "Profile"
+      "profile": "Profile",
+      "signOut": "Sign Out"
     },
     "studio": {
-      "dashboard": "Dashboard",
-      "uploadFamily": "Upload",
-      "myImages": "My Images",
+      "dashboard": "Overview",
+      "uploadFamily": "Upload Media",
+      "myImages": "Image Gallery",
       "images": "Images",
       "photoThemes": "Photo Themes",
       "photoBooks": "Photo Books",
-      "ourMemories": "Events",
+      "ourMemories": "Event Highlights",
       "ourMemoriesShared": "Shared with me",
-      "album": "Album",
+      "album": "Image Album",
       "sharedAlbums": "Shared Albums",
     "sharedPhotoLinks": "Shared Photo Links",
       "selectPay": "Select & Pay",
-      "membersTree": "Members Tree",
-      "createMembers": "Create Members",
+      "membersTree": "Guest Relationships",
+      "createMembers": "Invite New Guest",
       "settings": "Settings",
       "members": "Members",
-      "phoneBook": "Phone Book",
+      "phoneBook": "Guest Contacts",
       "openclaw": "Assistant",
       "paymentManagement": "Payment Management",
-      "services": "Services"
+      "services": "Account Services"
     },
     "admin": {
       "adminDashboard": "Admin Dashboard",
@@ -223,8 +224,8 @@
     "previewHdBadge": "HD"
   },
   "dashboard": {
-    "loadingTitle": "Loading Dashboard",
-    "loadingSubtitle": "Preparing your studio...",
+    "loadingTitle": "Loading...",
+    "loadingSubtitle": "Preparing your content...",
     "welcome": "Welcome back, {{name}}",
     "welcomeSummary": "Here's what's happening with your studio today. Manage clients, albums, and photos in one place.",
     "photosUploaded": "Photos Uploaded",
@@ -1215,8 +1216,8 @@
   "invitationsPage": {
     "title": "Invitation System",
     "subtitle": "Invite members to view and share images, or use the global invitation system.",
-    "tabCreate": "Create Client Invitation",
-    "tabHistory": "Client Invitation History",
+    "tabCreate": "Create Guest Invitation",
+    "tabHistory": "Guest Invitation History",
     "tabGlobal": "Global Invitation System",
     "toastSent": "Invitation sent successfully!"
   },

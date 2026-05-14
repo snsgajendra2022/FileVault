@@ -18,7 +18,7 @@ interface DashboardLoadingProps {
 }
 
 const DashboardLoading: React.FC<DashboardLoadingProps> = ({
-  title = 'Loading Dashboard',
+  title = 'Loading...',
   subtitle = 'Preparing your content...',
   icon: Icon = FaCamera,
   features,

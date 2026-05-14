@@ -4,7 +4,7 @@
  */
 export const openclawEnabled = process.env.REACT_APP_OPENCLAW_ENABLED === 'true';
 
-/** e.g. http://localhost:9093 — OpenClaw routes hit this host; other API calls still use REACT_APP_API_URL. */
+/** e.g. http://192.168.1.58:9093 — OpenClaw routes hit this host; other API calls still use REACT_APP_API_URL. */
 export const openclawDevBaseUrl = (process.env.REACT_APP_OPENCLAW_DEV_URL || '').trim() || undefined;
 
 function withLeadingSlash(p: string): string {

@@ -456,7 +456,7 @@ If the JSON body includes **`navigateTo`** (string path starting with `/`, on th
 
 ### Local development (this repo)
 
-`npm start` runs **Create React App** and **`server/openclaw-dev-server.js`** together (via `concurrently`). Set **`REACT_APP_OPENCLAW_DEV_URL=http://localhost:9093`** (and **`OPENCLAW_DEV_PORT=9093`** if you change the port) so the SPA sends OpenClaw requests to this Node helper while **`REACT_APP_API_URL`** stays your main backend for the rest of the app. Remove **`REACT_APP_OPENCLAW_DEV_URL`** for production builds so OpenClaw calls go to **`REACT_APP_API_URL`** only.
+`npm start` runs **Create React App** and **`server/openclaw-dev-server.js`** together (via `concurrently`). Set **`REACT_APP_OPENCLAW_DEV_URL=http://192.168.1.58:9093`** (and **`OPENCLAW_DEV_PORT=9093`** if you change the port) so the SPA sends OpenClaw requests to this Node helper while **`REACT_APP_API_URL`** stays your main backend for the rest of the app. Remove **`REACT_APP_OPENCLAW_DEV_URL`** for production builds so OpenClaw calls go to **`REACT_APP_API_URL`** only.
 
 The **OpenClaw CLI** is listed in **`package.json`** as dependency **`openclaw`** (use a real release such as **`2026.4.9`**; **`0.0.1`** on npm is an unrelated empty placeholder with no binary). Run it from the repo with **`npm run openclaw:onboard`** or **`npm run openclaw -- <args>`**; the CLI currently requires **Node.js ≥ 22.12** (upgrade if `openclaw` exits asking for a newer Node).
 
@@ -467,7 +467,7 @@ The browser **cannot** run the OpenClaw Gateway; something **server-side** must 
 **A — `OPENCLAW_BRIDGE_URL` (recommended for OpenClaw / your Java API)**  
 Set in **`.env`** next to the dev server (or your production Node layer):
 
-- **`OPENCLAW_BRIDGE_URL`** — full URL to **your** HTTP endpoint, e.g. `http://127.0.0.1:8080/internal/openclaw-bridge`. **Do not** set this to `http://localhost:9093` (that is the CRA companion dev server itself, not the bridge).
+- **`OPENCLAW_BRIDGE_URL`** — full URL to **your** HTTP endpoint, e.g. `http://127.0.0.1:8080/internal/openclaw-bridge`. **Do not** set this to `http://192.168.1.58:9093` (that is the CRA companion dev server itself, not the bridge).
 - Optional **`OPENCLAW_BRIDGE_TOKEN`** — the dev server sends it as `Authorization: Bearer …` on every bridge POST (the SPA’s `Authorization` header overrides when present). After **`openclaw onboard`**, read the gateway token with **`openclaw config get gateway.auth.token`** ([OpenClaw config](https://docs.openclaw.ai/gateway/configuration)); use that string here **only if** your bridge validates the same secret. Otherwise leave empty.
 
 **POST body** (JSON) from `server/openclaw-dev-server.js`:

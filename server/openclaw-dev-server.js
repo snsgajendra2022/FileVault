@@ -54,13 +54,13 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 
 // x-ai/grok-4.1-fast
 // z-ai/glm-5
 
-const BRIDGE_URL = (process.env.OPENCLAW_BRIDGE_URL || 'http://localhost:9093').trim();
+const BRIDGE_URL = (process.env.OPENCLAW_BRIDGE_URL || 'http://192.168.1.58:9093').trim();
 const BRIDGE_TOKEN = (process.env.OPENCLAW_BRIDGE_TOKEN || '').trim();
 const OPENAI_KEY = (process.env.OPENAI_API_KEY || '').trim();
 const OPENAI_MODEL = (process.env.OPENAI_MODEL || 'baidu/cobuddy:free').trim();
 const OPENAI_API_BASE = (process.env.OPENAI_API_BASE || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
 
-// const BRIDGE_URL = ('http://localhost:9093').trim();
+// const BRIDGE_URL = ('http://192.168.1.58:9093').trim();
 // const BRIDGE_TOKEN = ('').trim();
 // const OPENAI_KEY = ('').trim();
 // const OPENAI_MODEL = ('baidu/cobuddy:free').trim();

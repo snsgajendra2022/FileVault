@@ -45,11 +45,11 @@ The modern `DashboardLoading` component has been successfully integrated into th
 - **Configuration**:
   ```tsx
   <DashboardLoading 
-    title="Loading Clients"
+    title="Loading Guest"
     subtitle="Retrieving client information..."
     icon={FaUsers}
     features={[
-      { icon: FaUsers, label: 'Clients' },
+      { icon: FaUsers, label: 'Guests' },
       { icon: FaFolder, label: 'Albums' },
       { icon: FaImages, label: 'Photos' }
     ]}
