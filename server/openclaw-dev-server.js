@@ -381,7 +381,7 @@ function fallbackReply(userText) {
   if (r) return r;
   return (
     'I can open app pages when you say things like “open events”, “my album”, or “phone book”. ' +
-    'For full AI answers, set OPENAI_API_KEY in `.env` (this server) or point OPENCLAW_BRIDGE_URL at your backend that talks to OpenClaw. See backend.md.'
+    'For full AI answers, set  in `.env` (this server) or point  at your backend that talks to OM. See backend.md.'
   );
 }
 
@@ -431,13 +431,9 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
       }
     }
   } catch (e) {
-    console.warn('[openclaw-dev] OPENCLAW_BRIDGE_URL failed:', e.message);
+    console.warn('[om-dev] failed:', e.message);
     if (String(e.message).includes('404') || String(e.message).includes('Cannot POST')) {
-      console.warn(
-        '[openclaw-dev] Hint: Bridge must be an HTTP URL that accepts POST JSON at that path (see backend.md). ' +
-        'The OpenClaw Gateway port (e.g. :18789) uses WebSocket, not this POST bridge. ' +
-        'To use OpenRouter/OpenAI from this server only, leave OPENCLAW_BRIDGE_URL empty.'
-      );
+      console.warn();
     }
   }
 
@@ -477,7 +473,7 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
       userId,
       reply:
         `Could not reach the language model (${detail}). ` +
-        `Check OPENAI_API_KEY and OPENAI_API_BASE in the project root .env. ` +
+        `Check  and  in the project root .env. ` +
         `OpenRouter: use https://openrouter.ai/api/v1 and a valid key from openrouter.ai/keys (401 “User not found” usually means a bad or revoked key).`,
     });
   }
@@ -541,6 +537,6 @@ app.listen(PORT, () => {
   const mode = BRIDGE_URL ? 'bridge' : OPENAI_KEY ? 'openai' : 'local-fallback';
   console.log(`[openclaw-dev] http://localhost:${PORT}  mode=${mode}`);
   if (mode === 'local-fallback') {
-    console.log('[openclaw-dev] Add OPENAI_API_KEY or OPENCLAW_BRIDGE_URL in .env for a real assistant.');
+    console.log('[openclaw-dev] Add  or OPENCLAW_BRIDGE_URL in .env for a real assistant.');
   }
 });

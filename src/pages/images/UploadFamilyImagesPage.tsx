@@ -1517,7 +1517,7 @@ const UploadFamilyImagesPage = () => {
         <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
           {t('uploadFamilyPage.subtitle')}
         </p>
-        {userProfile && (
+        {/* {userProfile && (
           <div className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 max-w-4xl mx-auto border border-blue-100">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="text-center">
@@ -1542,19 +1542,21 @@ const UploadFamilyImagesPage = () => {
                 <p className="text-sm text-gray-600">{userProfile.allowedFileTypes?.toUpperCase() || t('uploadFamilyPage.none')}</p>
               </div>
               <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-sm">{queueState.isOnline ? t('uploadFamilyPage.online') : t('uploadFamilyPage.offline')}</span>
+              <div
+                  className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg 
+                    ${queueState.isOnline ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-amber-500 to-orange-600'}`}
+                > <span className="text-white font-bold text-sm">{queueState.isOnline ? t('uploadFamilyPage.online') : t('uploadFamilyPage.offline')}</span>
                 </div>
                 <h3 className="font-semibold text-gray-800">{t('uploadFamilyPage.network')}</h3>
                 <p className="text-sm text-gray-600">{queueState.isOnline ? t('uploadFamilyPage.uploadsActive') : t('uploadFamilyPage.pausedOffline')}</p>
               </div>
             </div>
           </div>
-        )}
+        )} */}
       </div>
 
       {/* Album selection */}
-      <div className={`max-w-full mx-auto rounded-2xl p-6 border border-blue-100 transition-opacity ${canUpload() ? 'bg-gradient-to-r from-blue-50 to-purple-50' : 'bg-gray-100 opacity-75 pointer-events-none'}`}>
+      {/* <div className={`max-w-full mx-auto rounded-2xl p-6 border border-blue-100 transition-opacity ${canUpload() ? 'bg-gradient-to-r from-blue-50 to-purple-50' : 'bg-gray-100 opacity-75 pointer-events-none'}`}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
             <FaFolder className="mr-3 font-medium text-[#2731db]" />
@@ -1606,7 +1608,7 @@ const UploadFamilyImagesPage = () => {
             )}
           </div>
         )}
-      </div>
+      </div> */}
 
       {/* Our Memories event selection (attach uploaded images to event) */}
       {/* <div className={`max-w-full mx-auto rounded-2xl p-6 border border-violet-100 transition-opacity ${canUpload() ? 'bg-gradient-to-r from-violet-50 to-fuchsia-50' : 'bg-gray-100 opacity-75 pointer-events-none'}`}>
@@ -1760,18 +1762,21 @@ const UploadFamilyImagesPage = () => {
             <p className="mt-6 text-2xl font-bold text-gray-800">
               {isDragActive ? t('uploadFamilyPage.dropFilesHere') : t('uploadFamilyPage.dragDropHere')}
             </p>
+          
             <p className="mt-3 text-lg text-gray-600">{t('uploadFamilyPage.clickToSelect')}</p>
             <p className="mt-2 text-sm text-gray-500">{t('uploadFamilyPage.videoTrimHint', { max: MAX_UPLOAD_QUEUE })}</p>
             <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm">
-              {userProfile?.allowedFileTypes && (
-                <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
-                  <span className="w-3 h-3 bg-green-400 rounded-full mr-3 animate-pulse" />
-                  <span className="font-medium text-gray-700">{userProfile.allowedFileTypes.toUpperCase()}</span>
-                </span>
-              )}
               <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
                 <span className="w-3 h-3 bg-blue-400 rounded-full mr-3 animate-pulse" />
                 <span className="font-medium text-gray-700">{t('uploadFamilyPage.allowedTypesBadge')}</span>
+              </span>
+              <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
+              <span
+                className={`w-4 h-4 rounded-full mr-2 ${queueState.isOnline ? 'bg-green-500' : 'bg-yellow-500'}`}
+              ></span>
+              <span className={`font-bold text-sm ${queueState.isOnline ? 'text-green-500' : 'text-yellow-500'}`}>
+                {queueState.isOnline ? t('uploadFamilyPage.online') : t('uploadFamilyPage.offline')}
+              </span>
               </span>
               <input
                 ref={zipInputRef}
@@ -1988,65 +1993,138 @@ const UploadFamilyImagesPage = () => {
       )}
 
       {/* Summary */}
-      {queueState.items.length > 0 && (
-        <div className="bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 rounded-3xl shadow-2xl border border-blue-100/50 p-10">
-          <div className="flex items-center space-x-4 mb-8">
-            <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <FaCloudUploadAlt className="h-6 w-6 text-white" />
+      {queueState.items.length > 0 && (() => {
+  const total      = queueState.items.length;
+  const uploading  = queueState.items.filter(i => i.status === 'uploading').length;
+  const completed  = queueState.items.filter(i => i.status === 'completed').length;
+  const failed     = queueState.items.filter(i => i.status === 'failed').length;
+  const overallPct = total ? Math.round((completed / total) * 100) : 0;
+
+  const stats = [
+    { label: t('uploadFamilyPage.total'),      value: total,           accent: 'from-slate-700 to-slate-900',    track: 'stroke-slate-200',   bar: 'stroke-slate-800',    soft: 'bg-slate-50',    text: 'text-slate-800',   dot: 'bg-slate-700' },
+    { label: t('uploadFamilyPage.processing'), value: processingCount, accent: 'from-amber-500 to-orange-600',   track: 'stroke-amber-100',   bar: 'stroke-amber-500',    soft: 'bg-amber-50',    text: 'text-amber-700',   dot: 'bg-amber-500' },
+    { label: t('uploadFamilyPage.uploading'),  value: uploading,       accent: 'from-sky-500 to-blue-600',       track: 'stroke-sky-100',     bar: 'stroke-sky-500',      soft: 'bg-sky-50',      text: 'text-sky-700',     dot: 'bg-sky-500' },
+    { label: t('uploadFamilyPage.completed'),  value: completed,       accent: 'from-emerald-500 to-teal-600',   track: 'stroke-emerald-100', bar: 'stroke-emerald-500',  soft: 'bg-emerald-50',  text: 'text-emerald-700', dot: 'bg-emerald-500' },
+    { label: t('uploadFamilyPage.failed'),     value: failed,          accent: 'from-rose-500 to-red-600',       track: 'stroke-rose-100',    bar: 'stroke-rose-500',     soft: 'bg-rose-50',     text: 'text-rose-700',    dot: 'bg-rose-500' },
+  ];
+
+  const R = 26;
+  const C = 2 * Math.PI * R;
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 md:p-10 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_40px_-12px_rgba(15,23,42,0.08)]">
+      {/* subtle grid bg */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.35]"
+        style={{
+          backgroundImage:
+            'linear-gradient(to right, rgb(241 245 249) 1px, transparent 1px), linear-gradient(to bottom, rgb(241 245 249) 1px, transparent 1px)',
+          backgroundSize: '32px 32px',
+          maskImage: 'radial-gradient(ellipse at top, black 30%, transparent 75%)',
+        }}
+      />
+      <div className="pointer-events-none absolute -top-32 right-0 h-80 w-80 rounded-full bg-indigo-200/30 blur-3xl" />
+
+      {/* header */}
+      <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-5 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 blur-lg opacity-40" />
+            <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 flex items-center justify-center ring-1 ring-white shadow-lg">
+              <FaCloudUploadAlt className="h-5 w-5 text-white" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-800">{t('uploadFamilyPage.uploadSummary')}</h3>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
-              <div className="text-center">
-                <div className="w-14 h-14 bg-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-lg tabular-nums">{queueState.items.length}</span>
-                </div>
-                <p className="text-sm font-semibold text-gray-800">{t('uploadFamilyPage.total')}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{t('uploadFamilyPage.maxFilesHint', { max: MAX_UPLOAD_QUEUE })}</p>
-              </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-semibold text-slate-900 tracking-tight">
+                {t('uploadFamilyPage.uploadSummary')}
+              </h3>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-600">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                </span>
+                Live
+              </span>
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
-              <div className="text-center">
-                <div className="w-14 h-14 bg-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-lg">{processingCount}</span>
-                </div>
-                <p className="text-sm font-semibold text-gray-800">{t('uploadFamilyPage.processing')}</p>
-              </div>
-            </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
-              <div className="text-center">
-                <div className="w-14 h-14 bg-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-lg">
-                    {queueState.items.filter((i) => i.status === 'uploading').length}
-                  </span>
-                </div>
-                <p className="text-sm font-semibold text-gray-800">{t('uploadFamilyPage.uploading')}</p>
-              </div>
-            </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
-              <div className="text-center">
-                <div className="w-14 h-14 bg-green-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-lg">
-                    {queueState.items.filter((i) => i.status === 'completed').length}
-                  </span>
-                </div>
-                <p className="text-sm font-semibold text-gray-800">{t('uploadFamilyPage.completed')}</p>
-              </div>
-            </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50">
-              <div className="text-center">
-                <div className="w-14 h-14 bg-red-500 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-lg">
-                    {queueState.items.filter((i) => i.status === 'failed').length}
-                  </span>
-                </div>
-                <p className="text-sm font-semibold text-gray-800">{t('uploadFamilyPage.failed')}</p>
-              </div>
-            </div>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {completed} of {total} files complete · {overallPct}%
+            </p>
           </div>
         </div>
-      )}
+
+        {/* overall progress */}
+        <div className="md:w-72">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] uppercase tracking-wider font-medium text-slate-500">Overall</span>
+            <span className="text-sm font-semibold text-slate-900 tabular-nums">{overallPct}%</span>
+          </div>
+          <div className="relative h-2 rounded-full bg-slate-100 overflow-hidden">
+            <div
+              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 transition-[width] duration-700 ease-out"
+              style={{ width: `${overallPct}%` }}
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.6),transparent)] bg-[length:200%_100%] animate-[shimmer_2s_linear_infinite]" />
+          </div>
+        </div>
+      </div>
+
+      {/* stat grid */}
+      <div className="relative grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+        {stats.map((s, i) => {
+          const pct = total ? Math.round((Number(s.value) / total) * 100) : 0;
+          const offset = C - (pct / 100) * C;
+          return (
+            <div
+              key={i}
+              className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_32px_-12px_rgba(15,23,42,0.15)]"
+            >
+              <div className={`absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r ${s.accent} opacity-90`} />
+
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+                    <p className="text-[10.5px] uppercase tracking-wider font-medium text-slate-500 truncate">
+                      {s.label}
+                    </p>
+                  </div>
+                  <span className={`bg-gradient-to-br ${s.accent} bg-clip-text text-3xl md:text-[2rem] font-bold text-transparent tabular-nums leading-none`}>
+                    {s.value}
+                  </span>
+                  <p className="mt-2 text-[11px] text-slate-500 tabular-nums">
+                    <span className={`font-semibold ${s.text}`}>{pct}%</span> of total
+                  </p>
+                </div>
+
+                {/* progress ring */}
+                <div className="relative flex-shrink-0">
+                  <svg width="60" height="60" viewBox="0 0 60 60" className="-rotate-90">
+                    <circle cx="30" cy="30" r={R} strokeWidth="5" fill="none" className={s.track} />
+                    <circle
+                      cx="30" cy="30" r={R} strokeWidth="5" fill="none" strokeLinecap="round"
+                      className={`${s.bar} transition-[stroke-dashoffset] duration-700 ease-out`}
+                      strokeDasharray={C}
+                      strokeDashoffset={offset}
+                    />
+                  </svg>
+                  <div className={`absolute inset-0 flex items-center justify-center text-[10px] font-semibold ${s.text} tabular-nums`}>
+                    {pct}%
+                  </div>
+                </div>
+              </div>
+
+              <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-slate-100/70 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+            </div>
+          );
+        })}
+      </div>
+
+      <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }`}</style>
+    </div>
+  );
+})()}
+
 
       {/* Upload options modal */}
       {showUploadOptions && selectedFileForOptions && (
