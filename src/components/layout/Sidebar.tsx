@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../state/context/AuthContext';
 import {
@@ -37,12 +37,13 @@ function NavItem({ item, isActive }: {
   return (
     <NavLink
       to={item.href}
+      title={t(item.labelKey)}
       className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium
         transition-colors duration-150 select-none
-        ${isActive ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}
+        ${isActive ? 'bg-violet-50 text-violet-700 dark:bg-violet-950/60 dark:text-violet-200' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/80 dark:hover:text-slate-100'}`}
     >
       <Icon className={`h-4 w-4 shrink-0 transition-colors duration-150
-        ${isActive ? 'text-violet-600' : 'text-slate-400 group-hover:text-slate-500'}`} />
+        ${isActive ? 'text-violet-600 dark:text-violet-300' : 'text-slate-400 group-hover:text-slate-500 dark:group-hover:text-slate-300'}`} />
       <span className="truncate">{t(item.labelKey)}</span>
     </NavLink>
   );
@@ -55,7 +56,7 @@ const Sidebar = () => {
   const navigationItems = regularNavigation;
   const studioNavigationItems = studioNavigation;
   const adminNavigationItems = adminNavigation;
-
+  const route = useNavigate();
   // Get user role from account type
   const userRole = React.useMemo(() => getRoleFromAccountType(user?.accountType), [user?.accountType]);
 
@@ -104,20 +105,20 @@ const Sidebar = () => {
 
   return (
     <div className="hidden lg:block lg:fixed lg:inset-y-0 lg:z-50 w-[240px]">
-      <div className="h-full bg-white border-r border-slate-100 overflow-y-auto
-        scrollbar-thin scrollbar-thumb-slate-100 scrollbar-track-transparent">
+      <div className="h-full bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 overflow-y-auto
+        scrollbar-thin scrollbar-thumb-slate-100 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent transition-colors duration-200">
 
         {/* ── Brand ── */}
-        <div className="px-5 pt-5 pb-4 border-b border-slate-100">
+        <div className="px-5 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 shadow-sm shrink-0">
               <FaHeart className="h-4 w-4 text-white" />
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400 leading-none mb-0.5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 leading-none mb-0.5">
                 Memories Platform
               </p>
-              <p className="text-[15px] font-bold text-slate-800 leading-tight">
+              <p className="text-[15px] font-bold text-slate-800 dark:text-slate-100 leading-tight">
                 {isAdmin ? 'Admin Panel' : 'Our Memories'}
               </p>
             </div>
@@ -199,7 +200,7 @@ const Sidebar = () => {
               if (!items.length) return null;
               return (
                 <div key={group.label} className="mb-6 last:mb-0">
-                  <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                  <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
                     {group.label}
                   </p>
                   <div className="space-y-1">
@@ -269,25 +270,25 @@ const Sidebar = () => {
         </nav>
 
         {/* ── Bottom ── */}
-        <div className="border-t border-slate-100 px-4 py-3 space-y-1">
+        <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-3 space-y-1">
           <button
             type="button"
+            onClick={()=>route('portal-settings')}
             className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5
-              text-sm font-medium text-slate-500
-              hover:bg-slate-50 hover:text-slate-800 transition-colors duration-150"
+              text-[13px] font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-100 transition-colors duration-150"
           >
-            <FaCog className="h-4 w-4 shrink-0 text-slate-400 group-hover:text-slate-500" />
-            <span>Help Center</span>
+            <FaCog className="h-[15px] w-[15px] shrink-0 text-slate-400 group-hover:text-slate-500 dark:group-hover:text-slate-300" />
+            <span>Settings</span>
           </button>
           {typeof logout === 'function' && (
             <button
               type="button"
               onClick={logout}
               className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5
-                text-sm font-medium text-slate-500
-                hover:bg-red-50 hover:text-red-600 transition-colors duration-150"
+                text-sm font-medium text-slate-500 dark:text-slate-400
+                hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 transition-colors duration-150"
             >
-              <FaSignOutAlt className="h-4 w-4 shrink-0 text-slate-400 group-hover:text-red-500" />
+              <FaSignOutAlt className="h-4 w-4 shrink-0 text-slate-400 group-hover:text-red-500 dark:group-hover:text-red-400" />
               <span>Logout</span>
             </button>
           )}

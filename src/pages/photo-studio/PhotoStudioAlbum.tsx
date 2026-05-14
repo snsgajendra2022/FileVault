@@ -5,7 +5,6 @@ import {
   FaFolderOpen, 
   FaImages, 
   FaExclamationTriangle, 
-  FaChevronRight,
   FaChevronLeft,
   FaPlus,
   FaCheck,
@@ -14,7 +13,6 @@ import {
   FaEdit,
   FaShare,
   FaUserFriends,
-  FaCopy,
   FaTrash,
   FaDownload,
   FaSpinner
@@ -84,6 +82,28 @@ interface UserImage {
   [key: string]: any;
 }
 
+// Album responses include their images; keep these helpers module-level so hook deps stay stable.
+function extractAlbumImages(album: Album): AlbumImage[] {
+  return Array.isArray(album.images) ? album.images : [];
+}
+
+function getThumbnailUrl(image: AlbumImage): string | null {
+  if (image.thumbnailUrl) return image.thumbnailUrl;
+  if (image.previewUrl) return image.previewUrl;
+  if (image.downloadUrl) return image.downloadUrl;
+  return null;
+}
+
+function getImageUrl(image: AlbumImage): string | null {
+  if (image.previewUrl) return image.previewUrl;
+  if (image.downloadUrl) return image.downloadUrl;
+  return null;
+}
+
+function getImageFilename(image: AlbumImage, fallback = 'Unknown'): string {
+  return image.originalFilename || image.filename || fallback;
+}
+
 // Normalize infinite-query cache so pages/pageParams are always arrays (prevents getNextPageParam .length crash)
 function normalizeInfiniteCache(old: unknown): { pages: unknown[]; pageParams: number[] } {
   if (old == null || typeof old !== 'object') return { pages: [], pageParams: [0] };
@@ -148,7 +168,6 @@ const PhotoStudioAlbum: React.FC = () => {
   const { user, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [expandedAlbums, setExpandedAlbums] = useState<Set<number>>(new Set());
   const [selectedAlbums, setSelectedAlbums] = useState<Set<number>>(new Set());
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddImagesModal, setShowAddImagesModal] = useState<number | null>(null);
@@ -227,7 +246,7 @@ const PhotoStudioAlbum: React.FC = () => {
   const [shareLinkNewMobiles, setShareLinkNewMobiles] = useState('');
   const [shareLinkMessage, setShareLinkMessage] = useState('');
   const [shareLinkChannels, setShareLinkChannels] = useState<{ email: boolean; sms: boolean }>({ email: false, sms: false });
-  const [shareLinkUrlType, setShareLinkUrlType] = useState<'checkout' | 'selection' | 'images_display'>('selection');
+  const [shareLinkUrlType] = useState<'checkout' | 'selection' | 'images_display'>('selection');
   const [shareLinkSending, setShareLinkSending] = useState(false);
   const [shareLinkContactSearch, setShareLinkContactSearch] = useState('');
   const [shareLinkAlreadySent, setShareLinkAlreadySent] = useState<{ email?: string; mobile?: string; alreadySent: boolean } | null>(null);
@@ -309,7 +328,6 @@ const PhotoStudioAlbum: React.FC = () => {
 
   const {
     data: userImagesData,
-    error,
     isFetchingNextPage: isFetchingMoreUserImages,
     hasNextPage: hasMoreUserImages,
     fetchNextPage: fetchMoreUserImages,
@@ -788,35 +806,6 @@ const PhotoStudioAlbum: React.FC = () => {
     });
   }, []);
 
-  // Extract images from album data
-  // Note: API doesn't support GET /api/albums/{id}/images
-  // Images should be included in the album response from GET /api/albums
-  const extractAlbumImages = (album: Album): AlbumImage[] => {
-    if (album.images && Array.isArray(album.images)) {
-      return album.images;
-    }
-    return [];
-  };
-
-  const getThumbnailUrl = (image: AlbumImage): string | null => {
-    if (image.thumbnailUrl) return image.thumbnailUrl;
-    if (image.previewUrl) return image.previewUrl;
-    if (image.downloadUrl) return image.downloadUrl;
-    return null;
-  };
-
-  // Get image URL (prefer s3PublicUrl, fallback to b2PublicUrl, then googleDriveViewUrl)
-  const getImageUrl = (image: AlbumImage): string | null => {
-    if (image.previewUrl) return image.previewUrl;
-    if (image.downloadUrl) return image.downloadUrl;
-    return null;
-  };
-
-  // Get image filename
-  const getImageFilename = (image: AlbumImage): string => {
-    return image.originalFilename || image.filename || t('photoStudioAlbumPage.unknown');
-  };
-
   const downloadImagesAsZip = useCallback(
     async (images: AlbumImage[], zipNameBase: string) => {
       if (isDownloadingZip) return;
@@ -851,7 +840,7 @@ const PhotoStudioAlbum: React.FC = () => {
     const first = images[0];
     if (!first) return null;
     return getThumbnailUrl(first) || getImageUrl(first);
-  }, [albumImages, coverImageErrors, extractAlbumImages, getThumbnailUrl, getImageUrl]);
+  }, [albumImages, coverImageErrors]);
 
   // Share link: images from selected albums (for building public URLs)
   const shareLinkSelectedImages = useMemo((): AlbumImage[] => {
@@ -1024,7 +1013,6 @@ const PhotoStudioAlbum: React.FC = () => {
     }
     let cancelled = false;
     const shareAlbumId = selectedShareAlbumId;
-    const token = selectedShareAlbum.token;
 
     (async () => {
       // Resolve current image ids for marking selections.
@@ -1064,24 +1052,6 @@ const PhotoStudioAlbum: React.FC = () => {
     const ids = shareLinkSelectedImages.map((img) => img.id).join(',');
     return `${baseUrl}/public/images-display?token=${encodeURIComponent(tokenForUrl)}&imageIds=${ids}`;
   }, [shareLinkSelectedImages, tokenForUrl, baseUrl, shareLinkAlbumToken, shareLinkAlbumTokenLoading]);
-
-  const copyToClipboard = useCallback((text: string) => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      return navigator.clipboard.writeText(text);
-    }
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.setAttribute('readonly', '');
-    textarea.style.position = 'fixed';
-    textarea.style.top = '-9999px';
-    document.body.appendChild(textarea);
-    textarea.select();
-    try {
-      document.execCommand('copy');
-    } finally {
-      document.body.removeChild(textarea);
-    }
-  }, []);
 
   // Fetch invited contacts for Share link modal
   const { data: shareLinkContactsData } = useQuery({
@@ -1469,7 +1439,7 @@ const PhotoStudioAlbum: React.FC = () => {
     } finally {
       setIsTransferringToPhotoBook(false);
     }
-  }, [albums, albumImages, extractAlbumImages, getImageFilename, isTransferringToPhotoBook, navigate, t]);
+  }, [albums, albumImages, isTransferringToPhotoBook, navigate, t]);
 
   /** Single selection only: selecting an album replaces any previous selection. */
   const toggleAlbumSelection = useCallback((albumId: number) => {
@@ -1480,28 +1450,6 @@ const PhotoStudioAlbum: React.FC = () => {
     // Clear per-photo selection when switching albums
     setSelectedPhotoIds(new Set());
   }, []);
-
-  const toggleAlbum = (albumId: number) => {
-    setExpandedAlbums((prev) => {
-      const next = new Set(prev);
-      if (next.has(albumId)) {
-        next.delete(albumId);
-      } else {
-        next.add(albumId);
-        // Extract images from album data when expanding
-        const album = albums.find(a => a.id === albumId);
-        if (album) {
-          const images = extractAlbumImages(album);
-          setAlbumImages((prev) => {
-            const next = new Map(prev);
-            next.set(albumId, images);
-            return next;
-          });
-        }
-      }
-      return next;
-    });
-  };
 
   if (authLoading) {
     return (

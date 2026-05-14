@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../state/context/AuthContext';
 import {
@@ -49,7 +49,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
   const { t } = useTranslation();
   const { user, isAdmin, logout } = useAuth() as any;
   const location = useLocation();
-
+  const route = useNavigate();
   // Get user role from account type
   const userRole = React.useMemo(() => getRoleFromAccountType(user?.accountType), [user?.accountType]);
 
@@ -363,11 +363,12 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
         <div className="shrink-0 border-t border-slate-100 px-3 py-2.5 space-y-0.5">
           <button
             type="button"
+            onClick={()=>route('portal-settings')}
             className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5
               text-[13px] font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors duration-150"
           >
             <FaCog className="h-[15px] w-[15px] shrink-0 text-slate-400 group-hover:text-slate-500" />
-            <span>Help Center</span>
+            <span>Settings</span>
           </button>
           {typeof logout === 'function' && (
             <button

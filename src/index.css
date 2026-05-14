@@ -29,9 +29,12 @@
     --gray-800: #1f2937;
     --gray-900: #111827;
     --gray-950: #030712;
+    --header-background: linear-gradient(135deg, #EEF4FF 0%, #E7F0FF 35%, #F5F9FF 100%);
+    /* --header-background: linear-gradient(135deg, rgb(188 207 241) 0%, rgb(108 156 236) 35%, rgb(245, 249, 255) 100%); */
+    --header-border: 1px solid #E9EAF0;
+    --header-box-shadow: '0 10px 40px rgba(15,23,42,0.08)';
   }
 }
-
 @layer components {
   .glass-effect {
     @apply bg-white/80 backdrop-blur-xl border border-white/20 shadow-xl;
@@ -140,7 +143,7 @@ code {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 2px;
 }
 
 ::-webkit-scrollbar-track {

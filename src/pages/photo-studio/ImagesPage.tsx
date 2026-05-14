@@ -17,8 +17,6 @@ import {
   FaCloud,
   FaUsers,
   FaUser,
-  FaShare,
-  FaCheck,
   FaChevronLeft,
   FaChevronRight,
 } from 'react-icons/fa';
@@ -29,10 +27,21 @@ import { useTranslation } from 'react-i18next';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import { FamilyRelationship } from '../../types/user';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation } from 'swiper/modules';
-import 'swiper/css';
-import 'swiper/css/navigation';
+import {
+  Search,
+  Grid3x3,
+  Upload,
+  Share2,
+  Users,
+  ChevronRight,
+  Image as ImageIcon,
+  Cloud,
+  FileType,
+  CheckCircle2,
+  X,
+  LayoutGrid,
+} from 'lucide-react';
+import './imagesPageTheme.css';
 const SCROLL_RESTORE_KEY = 'photo-studio-images-scroll';
 const ASPECT_RATIO = 4 / 3;
 const IMAGE_ROOT_MARGIN = '100px';
@@ -88,9 +97,19 @@ function formatDate(dateString: string): string {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
   });
+}
+// hour: '2-digit',
+// minute: '2-digit',
+
+/** Local calendar day key for grouping (YYYY-MM-DD). */
+function uploadDayKey(dateString: string): string {
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return 'invalid';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function getFileTypeIcon(fileType: string, filename?: string): string {
@@ -153,14 +172,22 @@ function getFileTypeColor(fileType: string, filename?: string): string {
   }
 }
 
-function isImageType(fileType: string): boolean {
-  return /^(png|jpg|jpeg|gif|webp)$/i.test(fileType);
+function isImageType(fileType: string, filename?: string): boolean {
+  if (/^(png|jpg|jpeg|gif|webp)$/i.test(fileType)) return true;
+  if (String(fileType).toLowerCase() === 'unknown' && filename) {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    return ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext);
+  }
+  return false;
 }
 
 function isVideoType(fileType: string, filename?: string): boolean {
-  if (fileType === 'unknown') return true;
   const ext = (filename || '').split('.').pop()?.toLowerCase() || '';
-  return ['mov', 'mp4', 'avi', 'mkv', 'webm', 'm4v'].includes(ext);
+  const videoExt = ['mov', 'mp4', 'avi', 'mkv', 'webm', 'm4v'];
+  if (videoExt.includes(ext)) return true;
+  if (/^(mp4|mov|webm|avi|mkv|m4v)$/i.test(fileType)) return true;
+  if (String(fileType).toLowerCase() === 'unknown') return videoExt.includes(ext);
+  return false;
 }
 
 function getEnabledServicesCount(enabledServices: { [key: string]: string }): number {
@@ -214,7 +241,7 @@ const ImageCard = memo(function ImageCard({
   const [loadState, setLoadState] = useState<ImageLoadState>('idle');
   const [hovered, setHovered] = useState(false);
   const imgRef = useRef<HTMLImageElement | null>(null);
-  const showImage = isImageType(image.fileType);
+  const showImage = isImageType(image.fileType, image.filename);
   const showVideo = isVideoType(image.fileType, image.filename);
 
   // When visible and image or video type, start loading
@@ -246,22 +273,25 @@ const ImageCard = memo(function ImageCard({
       data-index={index}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all duration-300"
-      style={{ transform: hovered ? 'translateY(-4px)' : 'translateY(0)', transition: 'transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease' }}
+      className={`group relative overflow-hidden rounded-2xl border bg-[var(--card)] transition-all duration-300 il-shadow-soft hover:-translate-y-0.5 hover:il-shadow-elegant ${
+        isSelected
+          ? 'border-[color:var(--primary)] ring-2 ring-[color:var(--ring)] il-shadow-elegant'
+          : 'border-[color:color-mix(in_oklab,var(--border),transparent_35%)] hover:border-[color:color-mix(in_oklab,var(--primary),transparent_60%)]'
+      }`}
     >
       {/* Preview area */}
       <div
-        className="relative w-full bg-gray-100 overflow-hidden"
+        className="relative w-full overflow-hidden bg-[color:var(--muted)]"
         style={{ paddingBottom: `${(1 / ASPECT_RATIO) * 100}%` }}
       >
         <div className="absolute inset-0">
           {showSkeleton && <SkeletonPlaceholder />}
-          {showImg && image.fileType !== 'unknown' && (
+          {showImg && (
             <img
               ref={imgRef}
               src={isVisible ? image.thumbnailUrl || image.previewUrl : undefined}
               alt={image.filename}
-              className="w-full h-full object-cover transition-all duration-500"
+              className="h-full w-full object-cover transition-all duration-500"
               style={{
                 opacity: loadState === 'loaded' ? 1 : 0,
                 filter: hovered ? 'blur(0px) brightness(1)' : 'blur(4px) brightness(0.92)',
@@ -274,6 +304,7 @@ const ImageCard = memo(function ImageCard({
               decoding="async"
             />
           )}
+
           {showVideo && (
             <video
               src={isVisible ? image.previewUrl : undefined}
@@ -287,6 +318,7 @@ const ImageCard = memo(function ImageCard({
               preload="metadata"
             />
           )}
+
           {showError && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 p-4">
               <p className="text-xs text-gray-500 text-center mb-2">Failed to load preview</p>
@@ -299,6 +331,7 @@ const ImageCard = memo(function ImageCard({
               </button>
             </div>
           )}
+
           {showIcon && !showError && (
             <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
               <div
@@ -309,40 +342,31 @@ const ImageCard = memo(function ImageCard({
             </div>
           )}
 
-          {/* Overlay gradient on hover */}
           <div
             className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none"
             style={{ opacity: hovered ? 1 : 0, transition: 'opacity 0.4s ease' }}
           />
 
-          {/* File type badge */}
-          <div className="absolute top-2 left-2">
-            <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-bold bg-black/70 text-white backdrop-blur-sm tracking-wide">
-              {showVideo ? 'VIDEO' : image.fileType.toUpperCase()}
-            </span>
-          </div>
-
-          {/* Top-right: checkbox + services */}
-          <div className="absolute top-2 right-2 flex items-center gap-1">
+          <div className="absolute right-2 top-2 flex items-center gap-1">
             {onToggleSelect && (
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); onToggleSelect(image); }}
-                className={`flex-shrink-0 w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
-                  isSelected ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white/90 border-gray-300 hover:border-indigo-500'
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleSelect(image);
+                }}
+                className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-all duration-200 ${
+                  isSelected
+                    ? 'border-white bg-[color:var(--primary)] text-[color:var(--primary-foreground)] shadow-md'
+                    : 'border-white/70 bg-black/25 opacity-0 backdrop-blur-sm hover:border-white group-hover:opacity-100'
                 }`}
                 aria-label={isSelected ? 'Deselect' : 'Select for share'}
               >
-                {isSelected && <FaCheck className="w-3 h-3" />}
+                {isSelected ? <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={2.5} /> : null}
               </button>
             )}
-            <span className="inline-flex items-center px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/90 text-white backdrop-blur-sm">
-              <FaCloud className="h-2.5 w-2.5 mr-1" />
-              {getEnabledServicesCount(image.enabledServices)}
-            </span>
           </div>
 
-          {/* Quick action buttons on hover */}
           <div
             className="absolute bottom-2 left-2 right-2 flex gap-1.5 pointer-events-none"
             style={{ opacity: hovered ? 1 : 0, transform: hovered ? 'translateY(0)' : 'translateY(8px)', transition: 'opacity 0.3s ease, transform 0.3s ease', pointerEvents: hovered ? 'auto' : 'none' }}
@@ -378,26 +402,13 @@ const ImageCard = memo(function ImageCard({
       </div>
 
       {/* Info footer */}
-      <div className="px-3 py-2.5">
+      <div className="border-t border-[color:color-mix(in_oklab,var(--border),transparent_55%)] bg-[var(--card)] px-3 py-2.5">
         <h3
-          className="text-xs font-semibold text-gray-800 truncate leading-tight"
+          className="truncate text-xs font-semibold leading-tight text-[color:var(--foreground)]"
           title={image.filename}
         >
           {image.filename}
         </h3>
-        <p className="text-[10px] text-gray-400 mt-0.5">{formatDate(image.uploadTime)}</p>
-        {Object.keys(image.enabledServices).length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {Object.keys(image.enabledServices).map((service) => (
-              <span
-                key={service}
-                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100"
-              >
-                {service}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -436,6 +447,9 @@ const ClientImagesPage = () => {
   const [selectedUser, setSelectedUser] = useState<FamilyRelationship | null>(null);
   const [viewMode, setViewMode] = useState<'my' | 'invited'>('my');
   const [selectedImageIds, setSelectedImageIds] = useState<Set<string>>(new Set());
+  const [gallerySearch, setGallerySearch] = useState('');
+  const [gallerySearchOpen, setGallerySearchOpen] = useState(false);
+  const [gridCompact, setGridCompact] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareContactIds, setShareContactIds] = useState<Set<string>>(new Set());
   const [shareNewEmails, setShareNewEmails] = useState('');
@@ -458,7 +472,8 @@ const ClientImagesPage = () => {
 
   const {
     data: userImagesData,
-    isLoading,
+    isPending,
+    isError,
     error,
     refetch,
     isFetchingNextPage,
@@ -505,6 +520,35 @@ const ClientImagesPage = () => {
     () => userImagesData?.pages?.flatMap((p) => (p as UserImagesResponse).images ?? []) ?? [],
     [userImagesData]
   );
+
+  const filteredImagesWithIndex = useMemo(() => {
+    const q = gallerySearch.trim().toLowerCase();
+    return images
+      .map((image, index) => ({ image, index }))
+      .filter(({ image }) => !q || image.filename.toLowerCase().includes(q));
+  }, [images, gallerySearch]);
+
+  /** Newest-first, grouped by local calendar day for gallery sections. */
+  const galleryImagesByDay = useMemo(() => {
+    const sorted = [...filteredImagesWithIndex].sort(
+      (a, b) => new Date(b.image.uploadTime).getTime() - new Date(a.image.uploadTime).getTime()
+    );
+    type Row = (typeof filteredImagesWithIndex)[number];
+    const groups: { dayKey: string; items: Row[] }[] = [];
+    for (const row of sorted) {
+      const key = uploadDayKey(row.image.uploadTime);
+      const prev = groups[groups.length - 1];
+      if (prev && prev.dayKey === key) {
+        prev.items.push(row);
+      } else {
+        groups.push({
+          dayKey: key,
+          items: [row],
+        });
+      }
+    }
+    return groups;
+  }, [filteredImagesWithIndex]);
 
   const getImageKey = useCallback((image: UserImage) => {
     if (image.id != null && image.id !== '') return String(image.id);
@@ -915,7 +959,7 @@ const ClientImagesPage = () => {
 
   // Progressive image loading in lightbox: show thumbnail immediately, preload previewUrl, then fade in preview when ready
   useEffect(() => {
-    if (!selectedImage || !isImageType(selectedImage.fileType)) return;
+    if (!selectedImage || !isImageType(selectedImage.fileType, selectedImage.filename)) return;
     const thumb = selectedImage.thumbnailUrl || selectedImage.previewUrl;
     const preview = selectedImage.previewUrl;
     setLightboxImageLoaded(false);
@@ -1152,19 +1196,64 @@ const ClientImagesPage = () => {
     };
   }, []);
 
-  if (isLoading) {
+  const loadErrorMessage =
+    error instanceof Error ? error.message : error ? String(error) : '';
+
+  if (isError && !userImagesData) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <div className="images-library-scope relative min-h-screen bg-[var(--gradient-surface)] font-clients text-[color:var(--foreground)]">
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-[color:var(--primary)]/20 blur-3xl" />
+          <div className="absolute top-1/3 -left-40 h-96 w-96 rounded-full bg-[var(--primary-glow)]/15 blur-3xl" />
+        </div>
+        <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col items-center justify-center px-4 py-16 sm:px-6">
+          <div className="w-full max-w-md rounded-2xl border border-[color:color-mix(in_oklab,var(--border),transparent_30%)] bg-[var(--card)]/90 p-8 text-center il-shadow-soft backdrop-blur-sm">
+            <h2 className="text-lg font-semibold text-[color:var(--foreground)]">{t('imagesPage.loadErrorTitle')}</h2>
+            <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">{t('imagesPage.loadErrorBody')}</p>
+            {loadErrorMessage && (
+              <p className="mt-3 rounded-lg bg-[color:var(--muted)] px-3 py-2 font-mono text-xs text-[color:var(--muted-foreground)]">
+                {loadErrorMessage}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="mt-6 inline-flex items-center justify-center rounded-xl il-primary-gradient px-5 py-2.5 text-sm font-semibold text-[color:var(--primary-foreground)] il-shadow-elegant transition hover:opacity-95"
+            >
+              {t('imagesPage.retryAction')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPending && !userImagesData && !isError) {
+    return (
+      <div className="images-library-scope relative min-h-screen bg-[var(--gradient-surface)] font-clients">
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-[color:var(--primary)]/20 blur-3xl" />
+        </div>
+        <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6">
+          <div className="mb-8 h-10 w-48 animate-pulse rounded-xl bg-[color:var(--muted)]" />
+          <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="h-24 animate-pulse rounded-2xl bg-[color:color-mix(in_oklab,var(--card),var(--muted)_40%)]"
+              />
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {[...Array(8)].map((_, i) => (
               <div
                 key={i}
-                className="rounded-xl overflow-hidden border border-gray-100"
-                style={{ paddingBottom: `${(1 / ASPECT_RATIO) * 100}%` }}
+                className="overflow-hidden rounded-2xl border border-[color:color-mix(in_oklab,var(--border),transparent_40%)]"
               >
-                <div className="absolute inset-0 bg-gray-200 rounded-xl" />
+                <div
+                  className="animate-pulse bg-[color:var(--muted)]"
+                  style={{ paddingBottom: `${(1 / ASPECT_RATIO) * 100}%` }}
+                />
               </div>
             ))}
           </div>
@@ -1173,318 +1262,403 @@ const ClientImagesPage = () => {
     );
   }
 
-  // if (error) {
-  //   return (
-  //     <div className="p-6">
-  //       <div className="text-center py-12">
-  //         <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Images</h2>
-  //         <p className="text-gray-600 mb-4">Failed to load your images. Please try again.</p>
-  //         <button
-  //           type="button"
-  //           onClick={() => refetch()}
-  //           className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-  //         >
-  //           Retry
-  //         </button>
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h1 className="text-2xl font-bold text-gray-900">
-            {viewMode === 'my'
-              ? t('imagesPage.myImages')
-              : t('imagesPage.theirFiles', {
-                  name: [selectedUser?.inviterFirstName, selectedUser?.inviterLastName]
-                    .filter(Boolean)
-                    .join(' ')
-                    .trim() || '—',
-                })}
-          </h1>
-          <div className="flex items-center gap-2">
-            {viewMode === 'my' && selectedImageIds.size > 0 && (
-              <>
-                <span className="text-sm text-gray-500">
-                  {t('imagesPage.selected', { n: selectedImageIds.size })}
-                </span>
+    <div className="images-library-scope relative min-h-screen bg-[var(--gradient-surface)] font-clients text-[color:var(--foreground)]">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-[color:var(--primary)]/20 blur-3xl" />
+        <div className="absolute top-1/3 -left-40 h-96 w-96 rounded-full bg-[var(--primary-glow)]/15 blur-3xl" />
+      </div>
+
+      <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
+        <header className="mb-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:color-mix(in_oklab,var(--border),transparent_40%)] bg-[var(--card)]/70 px-3 py-1 text-xs font-medium text-[color:var(--muted-foreground)] backdrop-blur-sm">
+                <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--primary)]" />
+                {t('imagesPage.libraryKicker')}
+              </span>
+              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[color:var(--foreground)] sm:text-4xl">
+                {viewMode === 'my'
+                  ? t('imagesPage.myImages')
+                  : t('imagesPage.theirFiles', {
+                      name: [selectedUser?.inviterFirstName, selectedUser?.inviterLastName]
+                        .filter(Boolean)
+                        .join(' ')
+                        .trim() || '—',
+                    })}
+              </h1>
+              <p className="mt-1.5 max-w-xl text-sm text-[color:var(--muted-foreground)]">
+                {viewMode === 'my' ? t('imagesPage.librarySubtitleMy') : t('imagesPage.librarySubtitleTheir')}
+              </p>
+              {(gallerySearchOpen || gallerySearch.length > 0) && (
+                <div className="mt-4 max-w-md">
+                  <input
+                    type="search"
+                    value={gallerySearch}
+                    onChange={(e) => setGallerySearch(e.target.value)}
+                    placeholder={t('imagesPage.galleryHeading')}
+                    className="w-full rounded-xl border border-[color:var(--input)] bg-[var(--background)] px-3.5 py-2.5 text-sm text-[color:var(--foreground)] placeholder:text-[color:var(--muted-foreground)] focus:border-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setGallerySearchOpen((o) => !o)}
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_40%)] bg-[var(--card)]/70 backdrop-blur-sm transition hover:bg-[var(--card)] ${
+                  gallerySearchOpen || gallerySearch ? 'text-[color:var(--primary)]' : 'text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]'
+                }`}
+                aria-label="Search"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setGridCompact((c) => !c)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_40%)] bg-[var(--card)]/70 text-[color:var(--muted-foreground)] backdrop-blur-sm transition hover:bg-[var(--card)] hover:text-[color:var(--foreground)]"
+                aria-label={gridCompact ? 'Comfortable grid' : 'Dense grid'}
+              >
+                {gridCompact ? <LayoutGrid className="h-4 w-4" /> : <Grid3x3 className="h-4 w-4" />}
+              </button>
+              {viewMode === 'invited' && (
+                <button
+                  type="button"
+                  onClick={handleBackToMyFiles}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_40%)] bg-[var(--card)]/70 px-3 text-sm font-medium text-[color:var(--foreground)] backdrop-blur-sm transition hover:bg-[var(--card)]"
+                >
+                  <FaUser className="h-4 w-4" />
+                  {t('imagesPage.backToMyFiles')}
+                </button>
+              )}
+              {viewMode === 'my' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = '/upload';
+                  }}
+                  className="inline-flex h-10 items-center gap-2 rounded-xl il-primary-gradient px-4 text-sm font-semibold text-[color:var(--primary-foreground)] il-shadow-elegant transition hover:opacity-95"
+                >
+                  <Upload className="h-4 w-4" />
+                  {t('imagesPage.upload')}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {viewMode === 'my' && selectedImageIds.size > 0 && (
+            <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-[color:color-mix(in_oklab,var(--primary),transparent_80%)] bg-[color:color-mix(in_oklab,var(--primary),transparent_95%)] p-3 pl-4 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-medium text-[color:var(--foreground)]">
+                {t('imagesPage.selected', { n: selectedImageIds.size })}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setShowShareModal(true)}
-                  className="inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-sm font-semibold"
+                  className="inline-flex items-center gap-1.5 rounded-lg il-primary-gradient px-3 py-2 text-xs font-semibold text-[color:var(--primary-foreground)] il-shadow-soft"
                 >
-                  <FaShare className="h-4 w-4 mr-2" />
+                  <Share2 className="h-3.5 w-3.5" />
                   {t('imagesPage.shareLink')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedImageIds(new Set())}
-                  className="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
+                  className="rounded-lg border border-[color:color-mix(in_oklab,var(--border),transparent_25%)] bg-[var(--card)] px-3 py-2 text-xs font-medium text-[color:var(--foreground)] transition hover:bg-[var(--muted)]"
                 >
                   {t('imagesPage.clearSelection')}
                 </button>
-              </>
-            )}
-            {viewMode === 'invited' && (
+              </div>
+            </div>
+          )}
+        </header>
+
+        {viewMode === 'my' && familyRelationships.length > 0 && (
+          <section className="mb-8 rounded-2xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--card)]/70 p-4 il-shadow-soft backdrop-blur-sm">
+            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-foreground)]">
+              {t('imagesPage.fileSource')}
+            </p>
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={handleBackToMyFiles}
-                className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                  viewMode === 'my' && !selectedUser
+                    ? 'il-primary-gradient text-[color:var(--primary-foreground)] il-shadow-soft'
+                    : 'border border-[color:color-mix(in_oklab,var(--border),transparent_30%)] bg-[var(--background)] text-[color:var(--foreground)] hover:bg-[var(--muted)]'
+                }`}
               >
-                <FaUser className="h-4 w-4 mr-2" />
-                {t('imagesPage.backToMyFiles')}
+                {t('imagesPage.myImages')}
               </button>
-            )}
-          </div>
-        </div>
-      </div>
+              {familyRelationships.map((member) => (
+                <button
+                  key={member.inviterId}
+                  type="button"
+                  onClick={() => handleUserSelect(member)}
+                  className={`inline-flex max-w-[220px] items-center truncate rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                    selectedUser?.inviterId === member.inviterId
+                      ? 'border-[color:var(--primary)] bg-[color:color-mix(in_oklab,var(--primary),transparent_92%)] text-[color:var(--primary)]'
+                      : 'border-[color:color-mix(in_oklab,var(--border),transparent_30%)] bg-[var(--background)] text-[color:var(--muted-foreground)] hover:border-[color:color-mix(in_oklab,var(--primary),transparent_50%)]'
+                  }`}
+                >
+                  {[member.inviterFirstName, member.inviterLastName].filter(Boolean).join(' ')}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-[color:var(--muted-foreground)]">
+              {t('imagesPage.familySectionHint')}
+            </p>
+          </section>
+        )}
 
-      {/* Family members (my view) */}
-      {viewMode === 'my' && (
-        <div className="mb-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <FaUsers className="h-5 w-5 mr-2 text-blue-600" />
-              {t('imagesPage.familyMembers')}
-            </h3>
+        <section className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            {
+              Icon: ImageIcon,
+              label: t('imagesPage.totalFiles'),
+              value: String(userImagesData?.pages?.[0]?.totalImages ?? images.length),
+              tint: 'text-violet-600',
+              bg: 'bg-violet-500/10',
+            },
+            {
+              Icon: Cloud,
+              label: t('imagesPage.cloudLinks'),
+              value: String(images.reduce((acc, img) => acc + getEnabledServicesCount(img.enabledServices), 0)),
+              tint: 'text-sky-600',
+              bg: 'bg-sky-500/10',
+            },
+            {
+              Icon: FileType,
+              label: t('imagesPage.fileTypes'),
+              value: String(new Set(images.map((img) => img.fileType)).size),
+              tint: 'text-amber-600',
+              bg: 'bg-amber-500/10',
+            },
+            {
+              Icon: CheckCircle2,
+              label: t('imagesPage.available'),
+              value: String(images.filter((img) => Object.keys(img.enabledServices).length > 0).length),
+              tint: 'text-emerald-600',
+              bg: 'bg-emerald-500/10',
+            },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="group relative overflow-hidden rounded-2xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--card)]/70 p-4 il-shadow-soft backdrop-blur-sm transition hover:-translate-y-0.5 hover:il-shadow-elegant"
+            >
+              <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${s.bg}`}>
+                <s.Icon className={`h-[18px] w-[18px] ${s.tint}`} strokeWidth={2} />
+              </div>
+              <p className="text-xs font-medium text-[color:var(--muted-foreground)]">{s.label}</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-[color:var(--foreground)]">
+                {s.value}
+              </p>
+            </div>
+          ))}
+        </section>
+
+        {/* {viewMode === 'my' && (
+          <section className="mb-8">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[color:color-mix(in_oklab,var(--primary),transparent_90%)] text-[color:var(--primary)]">
+                  <Users className="h-4 w-4" />
+                </div>
+                <h2 className="truncate text-base font-semibold text-[color:var(--foreground)]">
+                  {t('imagesPage.familyMembers')}
+                </h2>
+              </div>
+            </div>
             {familyRelationships.length === 0 ? (
-              <div className="text-center py-6">
-                <FaUsers className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                <p className="text-gray-500">{t('imagesPage.noFamily')}</p>
-                <p className="text-sm text-gray-400">{t('imagesPage.noFamilyHint')}</p>
+              <div className="rounded-2xl border border-dashed border-[color:color-mix(in_oklab,var(--border),transparent_25%)] bg-[var(--card)]/50 py-10 text-center">
+                <FaUsers className="mx-auto mb-2 h-12 w-12 text-[color:var(--muted-foreground)] opacity-40" />
+                <p className="text-sm text-[color:var(--muted-foreground)]">{t('imagesPage.noFamily')}</p>
+                <p className="mt-1 text-xs text-[color:var(--muted-foreground)] opacity-80">{t('imagesPage.noFamilyHint')}</p>
               </div>
             ) : (
-              <div className="relative">
-                <Swiper
-                  modules={[Navigation]}
-                  navigation={{
-                    prevEl: '.family-swiper-prev',
-                    nextEl: '.family-swiper-next',
-                  }}
-                  spaceBetween={14}
-                  slidesPerView={1.2}
-                  speed={600}
-                  grabCursor
-                  style={{ alignItems: 'stretch' }}
-                  breakpoints={{
-                    768: { slidesPerView: 2.2, spaceBetween: 16 },
-                    1024: { slidesPerView: 3.2, spaceBetween: 18 },
-                  }}
-                  className="family-members-swiper px-1 md:px-2 py-1"
-                >
-                  {familyRelationships.map((member) => (
-                    <SwiperSlide key={member.inviterId} style={{ height: 'auto', alignSelf: 'stretch' }}>
-                      <div
-                        role="button"
-                        tabIndex={0}
+              <>
+                <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3">
+                  {familyRelationships.map((member) => {
+                    const initials = [member.inviterFirstName?.trim()?.[0], member.inviterLastName?.trim()?.[0]]
+                      .filter(Boolean)
+                      .join('')
+                      .toUpperCase() || '?';
+                    return (
+                      <button
+                        key={member.inviterId}
+                        type="button"
                         onClick={() => handleUserSelect(member)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleUserSelect(member)}
-                        style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-                        className="p-4 rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-blue-50/40 shadow-sm hover:shadow-lg hover:border-blue-300 hover:scale-[1.02] transition-all duration-300 ease-out cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className="group flex min-w-[260px] flex-col rounded-2xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--card)]/70 p-4 text-left il-shadow-soft backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-[color:color-mix(in_oklab,var(--primary),transparent_60%)] hover:il-shadow-elegant sm:min-w-0"
                       >
-                        {/* Avatar + name */}
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
-                            style={{ background: 'linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)', boxShadow: '0 4px 12px rgba(99,102,241,0.35)' }}>
-                            <FaUser className="h-5 w-5 text-white" />
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-sm font-semibold text-white shadow-md">
+                            {initials}
                           </div>
-                          <div className="min-w-0">
-                            <h4 className="font-semibold text-gray-900 leading-tight truncate text-sm">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-[color:var(--foreground)]">
                               {member.inviterFirstName} {member.inviterLastName}
-                            </h4>
-                            <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-indigo-100 text-indigo-700">
-                              {member.relationshipType}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Notes – grows to fill space */}
-                        <div className="flex-1">
-                          {member.relationshipNotes && (
-                            <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
-                              <span className="font-medium text-gray-600">{t('common.notes')}:</span>{' '}
-                              {member.relationshipNotes}
                             </p>
-                          )}
+                            <p className="text-xs text-[color:var(--muted-foreground)]">{member.relationshipType}</p>
+                          </div>
+                          <ChevronRight className="h-4 w-4 flex-shrink-0 text-[color:var(--muted-foreground)] transition group-hover:translate-x-0.5 group-hover:text-[color:var(--primary)]" />
                         </div>
-
-                        {/* Permission tags – always at bottom */}
-                        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-gray-100">
+                        {member.relationshipNotes && (
+                          <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-[color:var(--muted-foreground)]">
+                            <span className="font-medium text-[color:var(--foreground)]">{t('common.notes')}:</span>{' '}
+                            {member.relationshipNotes}
+                          </p>
+                        )}
+                        <div className="mt-4 flex flex-wrap gap-1.5 border-t border-[color:color-mix(in_oklab,var(--border),transparent_50%)] pt-3">
                           {member.canViewImages && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-700">
+                            <span className="rounded-md bg-[var(--secondary)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--secondary-foreground)]">
                               {t('imagesPage.view')}
                             </span>
                           )}
                           {member.canUploadImages && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-700">
+                            <span className="rounded-md bg-[var(--secondary)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--secondary-foreground)]">
                               {t('imagesPage.upload')}
                             </span>
                           )}
                           {member.canDeleteImages && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-100 text-red-700">
+                            <span className="rounded-md bg-[var(--secondary)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--secondary-foreground)]">
                               {t('imagesPage.delete')}
                             </span>
                           )}
                           {member.canManageAlbums && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-100 text-purple-700">
+                            <span className="rounded-md bg-[var(--secondary)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--secondary-foreground)]">
                               {t('imagesPage.albums')}
                             </span>
                           )}
-                          {!member.canViewImages && !member.canUploadImages && !member.canDeleteImages && !member.canManageAlbums && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-500">
-                              No permissions
-                            </span>
-                          )}
+                          {!member.canViewImages &&
+                            !member.canUploadImages &&
+                            !member.canDeleteImages &&
+                            !member.canManageAlbums && (
+                              <span className="rounded-md bg-[var(--secondary)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--muted-foreground)]">
+                                No permissions
+                              </span>
+                            )}
                         </div>
-                      </div>
-                    </SwiperSlide>
-                  ))}
-                </Swiper>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-2 text-center text-[11px] text-[color:var(--muted-foreground)] sm:text-left">
+                  {t('imagesPage.familySwipeHint')}
+                </p>
+              </>
+            )}
+          </section>
+        )} */}
 
-                <button
-                  type="button"
-                  aria-label="Previous"
-                  className="family-swiper-prev absolute left-0 md:-left-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white text-blue-600 border border-blue-100 shadow-sm hover:shadow-md hover:bg-blue-50 transition-all flex items-center justify-center"
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  aria-label="Next"
-                  className="family-swiper-next absolute right-0 md:-right-2 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-white text-blue-600 border border-blue-100 shadow-sm hover:shadow-md hover:bg-blue-50 transition-all flex items-center justify-center"
-                >
-                  ›
-                </button>
-              </div>
+      <section>
+        {images.length === 0 ? (
+          <div className="rounded-2xl border-2 border-dashed border-[color:color-mix(in_oklab,var(--border),transparent_25%)] bg-[var(--card)]/50 px-4 py-16 text-center sm:py-20">
+            <Upload className="mx-auto h-14 w-14 text-[color:var(--muted-foreground)] opacity-45" />
+            <h3 className="mt-4 text-lg font-semibold text-[color:var(--foreground)]">
+              {viewMode === 'my' ? t('imagesPage.noFilesMy') : t('imagesPage.noFilesShared')}
+            </h3>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-[color:var(--muted-foreground)]">
+              {viewMode === 'my'
+                ? t('imagesPage.uploadHint')
+                : t('imagesPage.noFilesTheir', {
+                    name: [selectedUser?.inviterFirstName, selectedUser?.inviterLastName]
+                      .filter(Boolean)
+                      .join(' ')
+                      .trim() || '—',
+                  })}
+            </p>
+            {viewMode === 'my' && (
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.href = '/upload';
+                }}
+                className="mt-6 inline-flex items-center rounded-xl il-primary-gradient px-5 py-2.5 text-sm font-semibold text-[color:var(--primary-foreground)] il-shadow-elegant transition hover:opacity-95"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {t('imagesPage.uploadFile')}
+              </button>
             )}
           </div>
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FaUpload className="h-5 w-5 text-blue-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">{t('imagesPage.totalFiles')}</p>
-              <p className="text-lg font-semibold text-gray-900">
-                {userImagesData?.pages?.[0]?.totalImages ?? images.length}
-              </p>
-            </div>
-          </div>
-        </div>
-        {/* <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <FaCloud className="h-5 w-5 text-green-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Cloud Services</p>
-              <p className="text-lg font-semibold text-gray-900">
-                {images.reduce((acc, img) => acc + getEnabledServicesCount(img.enabledServices), 0)}
-              </p>
-            </div>
-          </div>
-        </div> */}
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <FaEye className="h-5 w-5 text-purple-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">{t('imagesPage.fileTypes')}</p>
-              <p className="text-lg font-semibold text-gray-900">
-                {new Set(images.map((img) => img.fileType)).size}
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <FiDownload className="h-5 w-5 text-yellow-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">{t('imagesPage.available')}</p>
-              <p className="text-lg font-semibold text-gray-900">
-                {images.filter((img) => Object.keys(img.enabledServices).length > 0).length}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Images grid or empty state */}
-      {images.length === 0 ? (
-        <div className="text-center py-16 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50/50">
-          <FaUpload className="h-14 w-14 text-gray-400 mx-auto" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900">
-            {viewMode === 'my' ? t('imagesPage.noFilesMy') : t('imagesPage.noFilesShared')}
-          </h3>
-          <p className="mt-2 text-sm text-gray-500 max-w-sm mx-auto">
-            {viewMode === 'my'
-              ? t('imagesPage.uploadHint')
-              : t('imagesPage.noFilesTheir', {
-                  name: [selectedUser?.inviterFirstName, selectedUser?.inviterLastName]
-                    .filter(Boolean)
-                    .join(' ')
-                    .trim() || '—',
-                })}
-          </p>
-          {viewMode === 'my' && (
+        ) : filteredImagesWithIndex.length === 0 ? (
+          <div className="rounded-2xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--card)]/70 py-14 text-center il-shadow-soft backdrop-blur-sm">
+            <Search className="mx-auto mb-3 h-10 w-10 text-[color:var(--muted-foreground)] opacity-45" />
+            <p className="text-sm text-[color:var(--muted-foreground)]">{t('imagesPage.noSearchMatches')}</p>
             <button
               type="button"
-              onClick={() => (window.location.href = '/upload')}
-              className="mt-6 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+              onClick={() => {
+                setGallerySearch('');
+                setGallerySearchOpen(false);
+              }}
+              className="mt-4 inline-flex items-center rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_25%)] bg-[var(--background)] px-4 py-2 text-sm font-medium text-[color:var(--foreground)] transition hover:bg-[var(--muted)]"
             >
-              <FaUpload className="mr-2 h-4 w-4" />
-              {t('imagesPage.uploadFile')}
+              {t('imagesPage.clearSearch')}
             </button>
-          )}
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {images.map((image, index) => (
-              <div key={`${image.previewUrl}-${index}`}>
-                <ImageCard
-                  image={image}
-                  index={index}
-                  isVisible={visibleIndices.has(index)}
-                  onView={handleView}
-                  onDownload={handleDownload}
-                  onDelete={handleDelete}
-                  viewMode={viewMode}
-                  deletePending={deleteImageMutation.isPending}
-                  cardRef={setCardRef(index)}
-                  isSelected={viewMode === 'my' ? selectedImageIds.has(getImageKey(image)) : undefined}
-                  onToggleSelect={viewMode === 'my' ? handleToggleSelect : undefined}
-                />
-              </div>
-            ))}
           </div>
-          <div ref={loadMoreSentinelRef} className="h-4" aria-hidden />
-          {isFetchingNextPage && (
-            <div className="mt-4 flex justify-center py-4">
-              <LoadingSpinner size="md" text={t('imagesPage.loadingMore')} />
+        ) : (
+          <>
+            <div className="mb-4 flex flex-col gap-1 border-b border-[color:color-mix(in_oklab,var(--border),transparent_45%)] pb-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-[color:var(--foreground)]">{t('imagesPage.galleryHeading')}</h2>
+                <p className="text-xs text-[color:var(--muted-foreground)]">
+                  {t('imagesPage.itemsShowing', { n: filteredImagesWithIndex.length })}
+                </p>
+              </div>
             </div>
-          )}
-        </>
-      )}
+            <div className="space-y-10">
+              {galleryImagesByDay.map((group) => (
+                <div key={group.dayKey}>
+                  <p className="mb-3 mt-0.5 text-[16px] text-[color:var(--muted-foreground)]">
+                    {formatDate(group.items[0].image.uploadTime)}
+                  </p>
+                  <div
+                    className={`grid gap-3 ${
+                      gridCompact
+                        ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6'
+                        : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
+                    }`}
+                  >
+                    {group.items.map(({ image, index }) => (
+                      <div key={`${getImageKey(image)}-${index}`}>
+                        <ImageCard
+                          image={image}
+                          index={index}
+                          isVisible={visibleIndices.has(index)}
+                          onView={handleView}
+                          onDownload={handleDownload}
+                          onDelete={handleDelete}
+                          viewMode={viewMode}
+                          deletePending={deleteImageMutation.isPending}
+                          cardRef={setCardRef(index)}
+                          isSelected={viewMode === 'my' ? selectedImageIds.has(getImageKey(image)) : undefined}
+                          onToggleSelect={viewMode === 'my' ? handleToggleSelect : undefined}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div ref={loadMoreSentinelRef} className="h-4" aria-hidden />
+            {isFetchingNextPage && (
+              <div className="mt-4 flex justify-center py-4">
+                <LoadingSpinner size="md" text={t('imagesPage.loadingMore')} />
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      </div>
 
       {/* Share modal – send public selection URL to contacts / email / SMS */}
       {showShareModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">{t('imagesPage.shareLink')}</h3>
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-[color:color-mix(in_oklab,var(--foreground),transparent_55%)] p-4 backdrop-blur-sm sm:items-center"
+          role="presentation"
+        >
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-[color:color-mix(in_oklab,var(--border),transparent_25%)] bg-[var(--card)] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[color:color-mix(in_oklab,var(--border),transparent_45%)] px-5 py-4">
+              <h3 className="text-base font-semibold text-[color:var(--foreground)]">{t('imagesPage.shareLink')}</h3>
               <button
                 type="button"
                 onClick={() => {
@@ -1492,32 +1666,37 @@ const ClientImagesPage = () => {
                   setShareContactSearch('');
                   setShareAlreadySent(null);
                 }}
-                className="p-1 rounded hover:bg-gray-100 text-gray-600"
+                className="rounded-lg p-2 text-[color:var(--muted-foreground)] transition hover:bg-[var(--muted)]"
               >
-                <FaTimes className="w-5 h-5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-4 space-y-4">
+            <div className="space-y-4 p-5">
               {selectedImages.length > 0 && (
-                <p className="text-sm text-gray-600">
-                  Sharing link for <strong>{selectedImages.length}</strong> image{selectedImages.length !== 1 ? 's' : ''}.
+                <p className="text-sm text-[color:var(--muted-foreground)]">
+                  Sharing link for <strong className="text-[color:var(--foreground)]">{selectedImages.length}</strong>{' '}
+                  image{selectedImages.length !== 1 ? 's' : ''}.
                 </p>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Existing contacts</label>
+                <label className="mb-1.5 block text-xs font-medium text-[color:var(--foreground)]">
+                  Existing contacts
+                </label>
                 <input
                   type="text"
                   value={shareContactSearch}
                   onChange={(e) => setShareContactSearch(e.target.value)}
                   placeholder="Search by name, email, mobile..."
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2"
+                  className="mb-2 w-full rounded-xl border border-[color:var(--input)] bg-[var(--background)] px-3.5 py-2.5 text-sm text-[color:var(--foreground)] placeholder:text-[color:var(--muted-foreground)] focus:border-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]"
                 />
-                <div className="border border-gray-200 rounded-lg p-2 max-h-32 overflow-y-auto space-y-1">
+                <div className="max-h-32 space-y-1 overflow-y-auto rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--background)] p-2">
                   {shareContacts.length === 0 ? (
-                    <p className="text-sm text-gray-500">No contacts yet. Add email or mobile below.</p>
+                    <p className="text-sm text-[color:var(--muted-foreground)]">
+                      No contacts yet. Add email or mobile below.
+                    </p>
                   ) : (
                     shareContacts.map((c) => (
-                      <label key={c.id} className="flex items-center gap-2 cursor-pointer">
+                      <label key={c.id} className="flex cursor-pointer items-center gap-2">
                         <input
                           type="checkbox"
                           checked={shareContactIds.has(c.id)}
@@ -1527,11 +1706,13 @@ const ClientImagesPage = () => {
                             else next.delete(c.id);
                             setShareContactIds(next);
                           }}
-                          className="rounded border-gray-300"
+                          className="rounded border-[color:var(--input)]"
                         />
-                        <span className="text-sm">{c.displayName || c.email || c.mobile || c.id}</span>
+                        <span className="text-sm text-[color:var(--foreground)]">
+                          {c.displayName || c.email || c.mobile || c.id}
+                        </span>
                         {(c.email || c.mobile) && (
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-[color:var(--muted-foreground)]">
                             ({[c.email, c.mobile].filter(Boolean).join(', ')})
                           </span>
                         )}
@@ -1542,7 +1723,7 @@ const ClientImagesPage = () => {
               </div>
               {showEmail && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="mb-1.5 block text-xs font-medium text-[color:var(--foreground)]">
                     New recipients – email (comma separated)
                   </label>
                   <input
@@ -1554,20 +1735,20 @@ const ClientImagesPage = () => {
                     }}
                     onBlur={() => checkRecipient(shareNewEmails, shareNewMobiles)}
                     placeholder="e.g. a@example.com, b@example.com"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    className="w-full rounded-xl border border-[color:var(--input)] bg-[var(--background)] px-3.5 py-2.5 text-sm text-[color:var(--foreground)] placeholder:text-[color:var(--muted-foreground)] focus:border-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]"
                   />
                 </div>
               )}
               {showPhone && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="mb-1.5 block text-xs font-medium text-[color:var(--foreground)]">
                     New recipients – mobile (comma separated)
                   </label>
                   <div className="flex gap-2">
                     <select
                       value={shareNewMobileCountryCode}
                       onChange={(e) => setShareNewMobileCountryCode(e.target.value)}
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-24 shrink-0"
+                      className="w-24 shrink-0 rounded-xl border border-[color:var(--input)] bg-[var(--background)] px-3 py-2.5 text-sm text-[color:var(--foreground)] focus:border-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]"
                     >
                       <option value="+91">+91</option>
                       <option value="+1">+1</option>
@@ -1589,52 +1770,52 @@ const ClientImagesPage = () => {
                       }}
                       onBlur={() => checkRecipient(shareNewEmails, shareNewMobiles)}
                       placeholder="e.g. 9876543210, 9123456789"
-                      className="flex-1 min-w-0 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      className="min-w-0 flex-1 rounded-xl border border-[color:var(--input)] bg-[var(--background)] px-3.5 py-2.5 text-sm text-[color:var(--foreground)] placeholder:text-[color:var(--muted-foreground)] focus:border-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]"
                     />
                   </div>
                 </div>
               )}
               {shareAlreadySent?.alreadySent && (
-                <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
                   Already sent to this {shareAlreadySent.email ? 'email' : 'mobile'}. You can resend if needed.
                 </p>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Optional message</label>
+                <label className="mb-1.5 block text-xs font-medium text-[color:var(--foreground)]">Optional message</label>
                 <textarea
                   value={shareMessage}
                   onChange={(e) => setShareMessage(e.target.value)}
                   placeholder="Add a short message to include in the email/SMS"
                   rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  className="w-full resize-none rounded-xl border border-[color:var(--input)] bg-[var(--background)] px-3.5 py-2.5 text-sm text-[color:var(--foreground)] placeholder:text-[color:var(--muted-foreground)] focus:border-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]"
                 />
               </div>
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-4">
                 {showEmail && (
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className="flex cursor-pointer items-center gap-2">
                     <input
                       type="checkbox"
                       checked={shareChannels.email}
                       onChange={(e) => setShareChannels((c) => ({ ...c, email: e.target.checked }))}
-                      className="rounded border-gray-300"
+                      className="rounded border-[color:var(--input)]"
                     />
-                    <span className="text-sm">Send via Email</span>
+                    <span className="text-sm text-[color:var(--foreground)]">Send via Email</span>
                   </label>
                 )}
                 {showPhone && (
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className="flex cursor-pointer items-center gap-2">
                     <input
                       type="checkbox"
                       checked={shareChannels.sms}
                       onChange={(e) => setShareChannels((c) => ({ ...c, sms: e.target.checked }))}
-                      className="rounded border-gray-300"
+                      className="rounded border-[color:var(--input)]"
                     />
-                    <span className="text-sm">Send via SMS</span>
+                    <span className="text-sm text-[color:var(--foreground)]">Send via SMS</span>
                   </label>
                 )}
               </div>
             </div>
-            <div className="flex justify-end gap-2 p-4 border-t border-gray-200">
+            <div className="flex justify-end gap-2 border-t border-[color:color-mix(in_oklab,var(--border),transparent_45%)] bg-[color:color-mix(in_oklab,var(--secondary),transparent_60%)] px-5 py-3.5">
               <button
                 type="button"
                 onClick={() => {
@@ -1642,7 +1823,7 @@ const ClientImagesPage = () => {
                   setShareContactSearch('');
                   setShareAlreadySent(null);
                 }}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
+                className="rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_25%)] bg-[var(--card)] px-4 py-2 text-sm font-medium text-[color:var(--foreground)] transition hover:bg-[var(--muted)]"
               >
                 Cancel
               </button>
@@ -1650,7 +1831,7 @@ const ClientImagesPage = () => {
                 type="button"
                 onClick={handleShareSend}
                 disabled={shareSending || !publicShareUrl}
-                className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 text-sm font-semibold"
+                className="rounded-xl il-primary-gradient px-4 py-2 text-sm font-semibold text-[color:var(--primary-foreground)] il-shadow-elegant transition hover:opacity-95 disabled:opacity-50"
               >
                 {shareSending ? 'Sending…' : 'Send'}
               </button>
@@ -1755,7 +1936,7 @@ const ClientImagesPage = () => {
                 </button>
               </>
             )}
-            {isImageType(selectedImage.fileType) ? (
+            {isImageType(selectedImage.fileType, selectedImage.filename) ? (
               (() => {
                 const thumbUrl = selectedImage.thumbnailUrl || selectedImage.previewUrl;
                 const previewUrl = selectedImage.previewUrl;
@@ -1774,7 +1955,7 @@ const ClientImagesPage = () => {
                 return (
                   <div
                     ref={lightboxZoomContainerRef}
-                    className="relative flex justify-center items-center w-full h-full overflow-hidden select-none touch-none"
+                    className="relative flex h-full w-full select-none items-center justify-center overflow-hidden touch-none"
                     style={{
                       cursor: lightboxIsPanning ? 'grabbing' : isZoomed ? 'grab' : 'default',
                       touchAction: 'none',
@@ -1788,89 +1969,55 @@ const ClientImagesPage = () => {
                     role="presentation"
                   >
                     <div
-                      className="absolute flex justify-center items-center w-full h-full"
+                      className="absolute flex h-full w-full items-center justify-center"
                       style={{
                         willChange: 'transform',
                         transform: `translate(50%, 50%) translate(${lightboxPan.x}px, ${lightboxPan.y}px) scale(${lightboxZoom}) translate(-50%, -50%)`,
                         transition: lightboxIsPanning ? 'none' : 'transform 0.15s ease-out',
                       }}
                     >
-                      {selectedImage.fileType !== 'unknown' && (
-                        <>
-                          {/* Thumbnail as loading background - always visible until preview loads */}
-                          {/* <img
-                            src={thumbUrl}
-                            alt={selectedImage.filename}
-                            height={200}
-                            className={`absolute w-full h-full object-contain transition-opacity duration-300 ${
-                              showingPreviewOverlay ? 'opacity-0' : 'opacity-100'
-                            }`}
-                            // onLoad={() => setLightboxImageLoaded(true)}
-                            draggable={false}
-                            style={{
-                              transform: 'rotate(-90deg)',
-                            }}
-                            
-                          /> */}
-                          {/* ${
-                           showingPreviewOverlay ? 'opacity-0' : 'opacity-100'
-                          } */}
-                          <img
+                      <>
+                        <img
                           src={thumbUrl}
                           alt={selectedImage.filename}
-                          className={`absolute object-contain transition-opacity duration-300 ${
+                          className={`absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-300 ${
                             showingPreviewOverlay ? 'opacity-0' : 'opacity-100'
-                           }`}
-                          style={{top: '20%', transform: 'rotate(-90deg)',height: '50%',width: 'auto',}}
+                          }`}
                           draggable={false}
                         />
-                          {/* Loading overlay on top of thumbnail - thumbnail stays visible as background */}
-                          {isLoadingPreview && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30">
-                              <LoadingSpinner size="lg" />
-                              <span className="mt-2 text-sm text-white">Loading...</span>
-                            </div>
-                          )}
-                        </>
-                      )}
-   
-                      {hasDistinctPreview && selectedImage.fileType !== 'unknown' && (
-                        
+                        {/* {isLoadingPreview && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30">
+                            <LoadingSpinner size="lg" />
+                            <span className="mt-2 text-sm text-white">Loading...</span>
+                          </div>
+                        )} */}
+                      </>
+
+                      {hasDistinctPreview && (
                         <img
                           src={previewUrl}
                           alt={selectedImage.filename}
-                          className={`absolute w-full h-full object-contain transition-opacity duration-300 ${
+                          className={`absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-300 ${
                             lightboxPreviewVisible ? 'opacity-100' : 'opacity-0'
                           }`}
-                          style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                           draggable={false}
                         />
                       )}
                     </div>
                     {isZoomed && (
-                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
-                        <p className="text-xs text-white/70 bg-black/50 px-3 py-1.5 rounded">
+                      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2">
+                        <p className="rounded bg-black/50 px-3 py-1.5 text-xs text-white/70">
                           Scroll to zoom · Drag to pan · Double-click to reset
                         </p>
                         <button
                           type="button"
                           onClick={handleLightboxResetZoom}
-                          className="text-xs font-medium text-white/90 bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded transition-colors"
+                          className="rounded bg-white/20 px-3 py-1.5 text-xs font-medium text-white/90 transition-colors hover:bg-white/30"
                           aria-label="Reset zoom"
                         >
                           Reset zoom
                         </button>
                       </div>
-                    )}
-                    {selectedImage.fileType === 'unknown' && (
-                      <video
-                        src={selectedImage.previewUrl}
-                        className="w-full h-full object-contain"
-                        controls
-                        muted
-                        playsInline
-                        preload="auto"
-                      />
                     )}
                   </div>
                 );
@@ -1901,3 +2048,20 @@ const ClientImagesPage = () => {
 };
 
 export default ClientImagesPage;
+  // if (error) {
+  //   return (
+  //     <div className="p-6">
+  //       <div className="text-center py-12">
+  //         <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Images</h2>
+  //         <p className="text-gray-600 mb-4">Failed to load your images. Please try again.</p>
+  //         <button
+  //           type="button"
+  //           onClick={() => refetch()}
+  //           className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+  //         >
+  //           Retry
+  //         </button>
+  //       </div>
+  //     </div>
+  //   );
+  // }
