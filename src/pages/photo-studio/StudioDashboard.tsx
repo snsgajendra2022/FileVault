@@ -399,109 +399,114 @@ function StudioActivityAndClients({
       </div>
 
       {/* ── Recent Clients ── */}
-      <div className="bg-white rounded-2xl border overflow-hidden"
-        style={{ borderColor: THEME.border, boxShadow: '0 6px 24px rgba(15,23,42,0.06)' }}>
+      <div className="bg-white rounded-[20px] border overflow-hidden"
+        style={{ borderColor: '#E5E7EB', boxShadow: '0 2px 12px rgba(15,23,42,0.06)' }}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b"
-          style={{ borderColor: THEME.border }}>
+          style={{ borderColor: '#F3F4F6' }}>
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl"
-              style={{ background: '#EFF6FF', border: '1px solid #E2E8F0' }}>
+              style={{ background: '#EFF6FF', border: '1px solid #DBEAFE' }}>
               <Users className="h-4 w-4 text-[#2563EB]" />
             </div>
             <div>
-              <p className="text-[14px] font-bold" style={{ color: THEME.textPrimary }}>{t('dashboard.recentClients')}</p>
+              <p className="text-[14px] font-semibold" style={{ color: THEME.textPrimary }}>{t('dashboard.recentClients')}</p>
               <p className="text-[11px]" style={{ color: THEME.textMuted }}>Connected members</p>
             </div>
           </div>
           <Link to="/invitations"
-            className="inline-flex items-center gap-1 text-[11px] font-bold transition-colors"
+            className="inline-flex items-center gap-1 text-[12px] font-medium transition-colors"
             style={{ color: THEME.primary }}>
             View All <ArrowUpRight className="h-3 w-3" />
           </Link>
         </div>
 
         {/* Client list */}
-        <div className="px-4 py-3 space-y-1">
+        <div className="px-4 py-2">
           {recentClients.length === 0 ? (
-            <div className="py-12 text-center text-sm" style={{ color: THEME.textMuted }}>
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl mx-auto mb-3"
-                style={{ background: '#EFF6FF', border: '1px solid #E2E8F0' }}>
-                <Users className="h-7 w-7 text-[THEME.primaryLight]" />
+            <div className="py-10 text-center text-sm" style={{ color: THEME.textMuted }}>
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-3"
+                style={{ background: '#EFF6FF', border: '1px solid #DBEAFE' }}>
+                <Users className="h-6 w-6 text-[#2563EB]" />
               </div>
-              <p className="font-semibold" style={{ color: THEME.textSecondary }}>No clients yet</p>
-              <p className="text-[12px] mt-1">Invite your first client to get started</p>
+              <p className="font-semibold text-[13px]" style={{ color: THEME.textSecondary }}>No clients yet</p>
+              <p className="text-[12px] mt-0.5">Invite your first client to get started</p>
               <Link to="/invitations"
-                className="inline-flex items-center gap-1.5 mt-3 rounded-xl px-4 py-2 text-xs font-bold text-white"
+                className="inline-flex items-center gap-1.5 mt-3 rounded-xl px-4 py-2 text-xs font-semibold text-white"
                 style={{ background: `linear-gradient(135deg, ${THEME.primary} 0%, ${THEME.primaryLight} 100%)` }}>
                 <FaPlus className="h-3 w-3" /> Invite Client
               </Link>
             </div>
           ) : recentClients.map((client, i) => {
             const online = i % 3 !== 1;
-            const grad = avatarGrads[i % avatarGrads.length];
             const sessionLabels = ['2h ago', 'Yesterday', '2d ago', '3d ago', '1w ago'];
+            const avatarColors = ['#2563EB', '#3B82F6', '#0EA5E9', '#0891B2', '#1D4ED8'];
             return (
-              <motion.div
-                key={client.id}
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.07, duration: 0.25 }}
-                className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-slate-50 transition-colors group cursor-pointer"
-              >
-                {/* Avatar */}
-                <div className="relative shrink-0">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full text-white text-[13px] font-bold shadow-sm"
-                    style={{ background: grad }}>
-                    {client.name.charAt(0).toUpperCase()}
+              <div key={client.id}>
+                <motion.div
+                  initial={{ opacity: 0, x: 6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.06, duration: 0.22 }}
+                  className="flex items-center gap-3 py-3 group cursor-pointer"
+                >
+                  {/* Avatar */}
+                  <div className="relative shrink-0">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full text-white text-[12px] font-bold"
+                      style={{ background: avatarColors[i % avatarColors.length] }}>
+                      {client.name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${online ? 'bg-emerald-400' : 'bg-slate-300'}`} />
                   </div>
-                  <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${online ? 'bg-emerald-400' : 'bg-slate-300'}`} />
-                </div>
 
-                {/* Info */}
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-bold truncate" style={{ color: THEME.textPrimary }}>{client.name}</p>
-                  <p className="text-[11px] truncate" style={{ color: THEME.textMuted }}>{client.email || '—'}</p>
-                </div>
+                  {/* Info */}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold truncate" style={{ color: THEME.textPrimary }}>{client.name}</p>
+                    <p className="text-[11px] truncate" style={{ color: THEME.textMuted }}>{client.email || '—'}</p>
+                  </div>
 
-                {/* Right side */}
-                <div className="shrink-0 flex flex-col items-end gap-1">
-                  <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold"
-                    style={online
-                      ? { background: '#EFF6FF', color: THEME.primary, border: '1px solid #E2E8F0' }
-                      : { background: '#EFF6FF', color: THEME.textSecondary, border: '1px solid #E9EAF0' }
-                    }>
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: online ? '#10B981' : THEME.textMuted }} />
-                    {online ? 'Active' : 'Away'}
-                  </span>
-                  <span className="text-[10px]" style={{ color: THEME.textMuted }}>{sessionLabels[i] || '—'}</span>
-                </div>
+                  {/* Right side */}
+                  <div className="shrink-0 flex flex-col items-end gap-1">
+                    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                      style={online
+                        ? { background: '#ECFDF5', color: '#059669', border: '1px solid #D1FAE5' }
+                        : { background: '#F9FAFB', color: '#6B7280', border: '1px solid #E5E7EB' }
+                      }>
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: online ? '#10B981' : '#9CA3AF' }} />
+                      {online ? 'Active' : 'Away'}
+                    </span>
+                    <span className="text-[10px]" style={{ color: THEME.textMuted }}>{sessionLabels[i] || '—'}</span>
+                  </div>
 
-                {/* Hover actions */}
-                <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
-                  <Link to="/studio/clients"
-                    className="h-8 w-8 flex items-center justify-center rounded-xl bg-white transition-colors"
-                    style={{ border: '1px solid #F1F2F6', color: THEME.textSecondary, boxShadow: '0 6px 24px rgba(15,23,42,0.06)' }}>
-                    <FaEye className="h-3.5 w-3.5" />
-                  </Link>
-                  <button type="button"
-                    className="h-8 w-8 flex items-center justify-center rounded-xl bg-white transition-colors"
-                    style={{ border: '1px solid #F1F2F6', color: THEME.textSecondary, boxShadow: '0 6px 24px rgba(15,23,42,0.06)' }}>
-                    <FaShare className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </motion.div>
+                  {/* Hover actions */}
+                  <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
+                    <Link to="/studio/clients"
+                      className="h-7 w-7 flex items-center justify-center rounded-lg bg-white transition-colors hover:bg-blue-50"
+                      style={{ border: '1px solid #E5E7EB', color: THEME.textMuted }}>
+                      <FaEye className="h-3 w-3" />
+                    </Link>
+                    <button type="button"
+                      className="h-7 w-7 flex items-center justify-center rounded-lg bg-white transition-colors hover:bg-blue-50"
+                      style={{ border: '1px solid #E5E7EB', color: THEME.textMuted }}>
+                      <FaShare className="h-3 w-3" />
+                    </button>
+                  </div>
+                </motion.div>
+                {/* Thin divider between rows (not after last) */}
+                {i < recentClients.length - 1 && (
+                  <div className="h-px" style={{ background: '#F3F4F6' }} />
+                )}
+              </div>
             );
           })}
         </div>
 
         {/* Footer CTA */}
         {recentClients.length > 0 && (
-          <div className="px-5 pb-4 pt-2 border-t" style={{ borderColor: THEME.border }}>
+          <div className="px-4 pb-4 pt-3">
             <Link to="/invitations"
-              className="flex items-center justify-center gap-2 w-full rounded-xl py-2.5 text-[12px] font-bold transition-colors"
-              style={{ color: THEME.primary, border: '1px solid #E2E8F0', background: '#EFF6FF' }}>
+              className="flex items-center justify-center gap-2 w-full rounded-xl py-2.5 text-[12px] font-semibold transition-colors hover:bg-blue-50"
+              style={{ color: THEME.primary, border: '1px solid #DBEAFE', background: '#EFF6FF' }}>
               <Sparkles className="h-3.5 w-3.5" />
               Invite New Client
             </Link>
@@ -739,7 +744,7 @@ const StudioDashboard: React.FC = () => {
 
   return (
     <div className="studio-dashboard premium-dashboard" style={{ background: '#F8FAFC', color: THEME.textPrimary }}>
-      <main className="dashboard-main">
+      <main className="relative w-full px-4 py-6 sm:px-6 sm:py-8">
         {/* 1. Welcome Hero */}
         <section className="relative overflow-hidden rounded-2xl mb-6"
           style={{
@@ -1042,62 +1047,60 @@ const StudioDashboard: React.FC = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              whileHover={{ y: -6, transition: { duration: 0.25, ease: 'easeOut' } }}
+              whileHover={{ y: -5, transition: { duration: 0.22, ease: 'easeOut' } }}
             >
               <Link to="/studio/clients" className="block h-full group">
-                <div className="relative h-full min-h-[280px] rounded-3xl overflow-hidden p-7 flex flex-col justify-between"
+                <div className="relative h-full min-h-[280px] rounded-[20px] overflow-hidden p-6 flex flex-col justify-between"
                   style={{
-                    background: 'linear-gradient(135deg, #EEF4FF 0%, #E7F0FF 35%, #F5F9FF 100%)',
-                    border: '1px solid #E9EAF0',
-                    boxShadow: '0 10px 40px rgba(15,23,42,0.08)',
+                    background: 'linear-gradient(135deg, #2563EB 0%, #3B82F6 100%)',
+                    boxShadow: '0 12px 40px rgba(37,99,235,0.30)',
                   }}>
 
-                  {/* Glow orbs */}
-                  <div className="pointer-events-none absolute -top-12 -right-12 h-48 w-48 rounded-full"
-                    style={{ background: 'radial-gradient(circle, rgba(37,99,235,0.12) 0%, transparent 70%)' }} />
-                  <div className="pointer-events-none absolute -bottom-8 -left-8 h-36 w-36 rounded-full"
-                    style={{ background: 'radial-gradient(circle, rgba(37,99,235,0.08) 0%, transparent 70%)' }} />
+                  {/* Subtle mesh overlay */}
+                  <div className="pointer-events-none absolute inset-0"
+                    style={{ background: 'radial-gradient(ellipse 90% 70% at 80% 20%, rgba(255,255,255,0.10) 0%, transparent 65%)' }} />
+                  <div className="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full"
+                    style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 70%)' }} />
 
                   {/* Top: icon + badge */}
                   <div className="flex items-start justify-between relative z-10">
                     <motion.div
-                      whileHover={{ rotate: 8, scale: 1.1 }}
-                      transition={{ duration: 0.2 }}
-                      className="flex h-14 w-14 items-center justify-center rounded-2xl"
+                      whileHover={{ rotate: 6, scale: 1.08 }}
+                      transition={{ duration: 0.18 }}
+                      className="flex h-13 w-13 items-center justify-center rounded-2xl"
                       style={{
-                        background: 'rgba(255,255,255,0.78)',
-                        border: '1px solid #E2E8F0',
-                        boxShadow: '0 10px 26px rgba(37,99,235,0.12)',
-                        backdropFilter: 'none',
+                        width: '52px', height: '52px',
+                        background: 'rgba(255,255,255,0.18)',
+                        border: '1px solid rgba(255,255,255,0.30)',
+                        boxShadow: '0 4px 14px rgba(0,0,0,0.10)',
                       }}>
-                      <Users className="h-7 w-7 text-[#2563EB]" />
+                      <Users className="h-6 w-6 text-white" />
                     </motion.div>
-                    <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold"
-                      style={{ background: 'rgba(255,255,255,0.72)', border: '1px solid #E9EAF0', color: THEME.textSecondary, backdropFilter: 'none' }}>
-                      <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: THEME.primary }} />
+                    <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold text-white"
+                      style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.25)' }}>
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse" />
                       Live
                     </span>
                   </div>
 
                   {/* Bottom: text + stats + arrow */}
                   <div className="relative z-10">
-                    <p className="text-[22px] font-extrabold leading-tight tracking-tight mb-1"
-                      style={{ color: THEME.textPrimary }}>
+                    <p className="text-[21px] font-bold text-white leading-tight tracking-tight mb-1">
                       {t('dashboard.manageClients')}
                     </p>
-                    <p className="text-[12px] leading-relaxed mb-5" style={{ color: THEME.textSecondary }}>
+                    <p className="text-[12px] text-blue-100 leading-relaxed mb-5">
                       {t('dashboard.manageClientsDesc')}
                     </p>
 
                     {/* Stats pills */}
                     <div className="flex items-center gap-2 mb-5">
-                      <span className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold"
-                        style={{ background: 'rgba(255,255,255,0.78)', border: '1px solid #E2E8F0', color: THEME.primary, backdropFilter: 'none' }}>
-                        <Users className="h-3 w-3 text-[#2563EB]" />
+                      <span className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold text-white"
+                        style={{ background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.22)' }}>
+                        <Users className="h-3 w-3" />
                         {(typeof stats.totalMember === 'number' ? stats.totalMember : 0)} Clients
                       </span>
-                      <span className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-bold"
-                        style={{ background: 'rgba(255,255,255,0.68)', border: '1px solid #E9EAF0', color: '#10B981', backdropFilter: 'none' }}>
+                      <span className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold text-emerald-200"
+                        style={{ background: 'rgba(52,211,153,0.16)', border: '1px solid rgba(52,211,153,0.28)' }}>
                         <CheckCircle2 className="h-3 w-3" />
                         Active
                       </span>
@@ -1105,18 +1108,16 @@ const StudioDashboard: React.FC = () => {
 
                     {/* CTA row */}
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-medium" style={{ color: THEME.primary }}>View all clients →</span>
+                      <span className="text-[11px] font-medium text-blue-100">View all clients →</span>
                       <motion.div
-                        whileHover={{ x: 3, y: -3 }}
-                        transition={{ duration: 0.15 }}
-                        className="flex h-10 w-10 items-center justify-center rounded-2xl"
+                        whileHover={{ x: 2, y: -2 }}
+                        transition={{ duration: 0.14 }}
+                        className="flex h-9 w-9 items-center justify-center rounded-xl"
                         style={{
-                          background: 'rgba(255,255,255,0.78)',
-                          border: '1px solid #E2E8F0',
-                          boxShadow: '0 10px 26px rgba(37,99,235,0.12)',
-                          backdropFilter: 'none',
+                          background: 'rgba(255,255,255,0.20)',
+                          border: '1px solid rgba(255,255,255,0.30)',
                         }}>
-                        <ArrowUpRight className="h-5 w-5 text-[#2563EB]" />
+                        <ArrowUpRight className="h-4 w-4 text-white" />
                       </motion.div>
                     </div>
                   </div>
@@ -1132,37 +1133,29 @@ const StudioDashboard: React.FC = () => {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1, duration: 0.35 }}
-                whileHover={{ x: 4, transition: { duration: 0.2 } }}
+                whileHover={{ x: 3, transition: { duration: 0.18 } }}
               >
                 <Link to="/client-images" className="block group">
-                  <div className="relative rounded-2xl overflow-hidden p-5 flex items-center gap-5 bg-white"
-                    style={{
-                      border: '1px solid #F1F2F6',
-                      boxShadow: '0 6px 24px rgba(15,23,42,0.06)',
-                    }}>
-                    <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
+                  <div className="relative rounded-[16px] overflow-hidden p-4 flex items-center gap-4 bg-white"
+                    style={{ border: '1px solid #E5E7EB', boxShadow: '0 2px 10px rgba(15,23,42,0.05)' }}>
+                    <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[16px]"
                       style={{ background: 'linear-gradient(180deg,#2563EB,#3B82F6)' }} />
-                    <div className="relative shrink-0">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl"
-                        style={{ background: '#EFF6FF', boxShadow: '0 10px 26px rgba(37,99,235,0.12)', border: '1px solid #E2E8F0' }}>
-                        <Images className="h-7 w-7 text-[#2563EB]" />
-                      </div>
-                      <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        style={{ boxShadow: '0 0 0 3px rgba(37,99,235,0.08)' }} />
+                    <div className="shrink-0 flex h-11 w-11 items-center justify-center rounded-xl"
+                      style={{ background: '#EFF6FF', border: '1px solid #DBEAFE' }}>
+                      <Images className="h-5 w-5 text-[#2563EB]" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[15px] font-extrabold text-[THEME.textPrimary] leading-tight">{t('dashboard.photoGallery')}</p>
-                      <p className="text-[12px] text-[THEME.textSecondary] mt-0.5 truncate">{t('dashboard.photoGalleryDesc')}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-[13px] font-bold" style={{ color: THEME.primary }}>{photosCount.toLocaleString()}</span>
-                        <span className="text-[11px] text-[THEME.textMuted]">photos stored</span>
+                      <p className="text-[14px] font-semibold leading-tight" style={{ color: THEME.textPrimary }}>{t('dashboard.photoGallery')}</p>
+                      <p className="text-[11px] mt-0.5 truncate" style={{ color: THEME.textMuted }}>{t('dashboard.photoGalleryDesc')}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[12px] font-bold" style={{ color: THEME.primary }}>{photosCount.toLocaleString()}</span>
+                        <span className="text-[11px]" style={{ color: THEME.textMuted }}>photos</span>
                       </div>
                     </div>
-                    <motion.div whileHover={{ x: 2, y: -2 }}
-                      className="shrink-0 flex h-9 w-9 items-center justify-center rounded-xl"
-                      style={{ background: '#EFF6FF', border: '1px solid #E2E8F0' }}>
-                      <ArrowUpRight className="h-4 w-4 text-[#2563EB]" />
-                    </motion.div>
+                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full group-hover:bg-blue-50 transition-colors"
+                      style={{ background: '#F5F7FB', border: '1px solid #E5E7EB' }}>
+                      <ArrowUpRight className="h-3.5 w-3.5 text-[#2563EB]" />
+                    </div>
                   </div>
                 </Link>
               </motion.div>
@@ -1172,37 +1165,29 @@ const StudioDashboard: React.FC = () => {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.18, duration: 0.35 }}
-                whileHover={{ x: 4, transition: { duration: 0.2 } }}
+                whileHover={{ x: 3, transition: { duration: 0.18 } }}
               >
                 <Link to="/studio/albums" className="block group">
-                  <div className="relative rounded-2xl overflow-hidden p-5 flex items-center gap-5 bg-white"
-                    style={{
-                      border: '1px solid #F1F2F6',
-                      boxShadow: '0 6px 24px rgba(15,23,42,0.06)',
-                    }}>
-                    <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
+                  <div className="relative rounded-[16px] overflow-hidden p-4 flex items-center gap-4 bg-white"
+                    style={{ border: '1px solid #E5E7EB', boxShadow: '0 2px 10px rgba(15,23,42,0.05)' }}>
+                    <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[16px]"
                       style={{ background: 'linear-gradient(180deg,#2563EB,#3B82F6)' }} />
-                    <div className="relative shrink-0">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl"
-                        style={{ background: '#EFF6FF', boxShadow: '0 10px 26px rgba(37,99,235,0.12)', border: '1px solid #E2E8F0' }}>
-                        <FaFolder className="h-6 w-6 text-[#2563EB]" />
-                      </div>
-                      <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        style={{ boxShadow: '0 0 0 3px rgba(37,99,235,0.08)' }} />
-                    </div>
+                    <div className="shrink-0 flex h-11 w-11 items-center justify-center rounded-xl"
+                      style={{ background: '#EFF6FF', border: '1px solid #DBEAFE' }}>
+                          <FaFolder className="h-[18px] w-[18px] text-[#2563EB]" />       
+             </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[15px] font-extrabold text-[THEME.textPrimary] leading-tight">{t('dashboard.albums')}</p>
-                      <p className="text-[12px] text-[THEME.textSecondary] mt-0.5 truncate">{t('dashboard.albumsDesc')}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-[13px] font-bold text-[THEME.primary]">{(stats.totalAlbums ?? albums.length ?? 0)}</span>
-                        <span className="text-[11px] text-[THEME.textMuted]">albums created</span>
+                      <p className="text-[14px] font-semibold leading-tight" style={{ color: THEME.textPrimary }}>{t('dashboard.albums')}</p>
+                      <p className="text-[11px] mt-0.5 truncate" style={{ color: THEME.textMuted }}>{t('dashboard.albumsDesc')}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[12px] font-bold" style={{ color: THEME.primary }}>{(stats.totalAlbums ?? albums.length ?? 0)}</span>
+                        <span className="text-[11px]" style={{ color: THEME.textMuted }}>albums</span>
                       </div>
                     </div>
-                    <motion.div whileHover={{ x: 2, y: -2 }}
-                      className="shrink-0 flex h-9 w-9 items-center justify-center rounded-xl"
-                      style={{ background: '#EFF6FF', border: '1px solid #E2E8F0' }}>
-                      <ArrowUpRight className="h-4 w-4 text-[#2563EB]" />
-                    </motion.div>
+                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full group-hover:bg-blue-50 transition-colors"
+                      style={{ background: '#F5F7FB', border: '1px solid #E5E7EB' }}>
+                      <ArrowUpRight className="h-3.5 w-3.5 text-[#2563EB]" />
+                    </div>
                   </div>
                 </Link>
               </motion.div>
@@ -1212,37 +1197,29 @@ const StudioDashboard: React.FC = () => {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.26, duration: 0.35 }}
-                whileHover={{ x: 4, transition: { duration: 0.2 } }}
+                whileHover={{ x: 3, transition: { duration: 0.18 } }}
               >
                 <Link to="/upload" className="block group">
-                  <div className="relative rounded-2xl overflow-hidden p-5 flex items-center gap-5 bg-white"
-                    style={{
-                      border: '1px solid #F1F2F6',
-                      boxShadow: '0 6px 24px rgba(15,23,42,0.06)',
-                    }}>
-                    <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
-                      style={{ background: '#3B82F6' }} />
-                    <div className="relative shrink-0">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl"
-                        style={{ background: '#FFFFFF', boxShadow: '0 10px 26px rgba(15,23,42,0.08)', border: '1px solid #DBEAFE' }}>
-                        <FaPlus className="h-6 w-6 text-[#2563EB]" />
-                      </div>
-                      <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        style={{ boxShadow: '0 0 0 3px rgba(245,158,11,0.12)' }} />
+                  <div className="relative rounded-[16px] overflow-hidden p-4 flex items-center gap-4 bg-white"
+                    style={{ border: '1px solid #E5E7EB', boxShadow: '0 2px 10px rgba(15,23,42,0.05)' }}>
+                    <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[16px]"
+                      style={{ background: 'linear-gradient(180deg,#2563EB,#3B82F6)' }} />
+                    <div className="shrink-0 flex h-11 w-11 items-center justify-center rounded-xl"
+                      style={{ background: '#EFF6FF', border: '1px solid #DBEAFE' }}>
+                      <FaPlus className="h-4 w-4 text-[#2563EB]" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[15px] font-extrabold text-[THEME.textPrimary] leading-tight">{t('dashboard.uploadPhotos')}</p>
-                      <p className="text-[12px] text-[THEME.textSecondary] mt-0.5 truncate">{t('dashboard.uploadPhotosDesc')}</p>
-                      <div className="flex items-center gap-1.5 mt-2">
-                        <CheckCircle2 className="h-3 w-3 text-[#2563EB]" />
-                        <span className="text-[12px] font-bold" style={{ color: THEME.warning }}>Ready to upload</span>
+                      <p className="text-[14px] font-semibold leading-tight" style={{ color: THEME.textPrimary }}>{t('dashboard.uploadPhotos')}</p>
+                      <p className="text-[11px] mt-0.5 truncate" style={{ color: THEME.textMuted }}>{t('dashboard.uploadPhotosDesc')}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                        <span className="text-[11px] font-medium text-emerald-600">Ready to upload</span>
                       </div>
                     </div>
-                    <motion.div whileHover={{ x: 2, y: -2 }}
-                      className="shrink-0 flex h-9 w-9 items-center justify-center rounded-xl"
-                      style={{ background: '#EFF6FF', border: '1px solid #E9EAF0' }}>
-                      <ArrowUpRight className="h-4 w-4 text-[#2563EB]" />
-                    </motion.div>
+                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full group-hover:bg-blue-50 transition-colors"
+                      style={{ background: '#F5F7FB', border: '1px solid #E5E7EB' }}>
+                      <ArrowUpRight className="h-3.5 w-3.5 text-[#2563EB]" />
+                    </div>
                   </div>
                 </Link>
               </motion.div>

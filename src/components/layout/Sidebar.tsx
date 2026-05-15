@@ -41,10 +41,10 @@ function NavItem({ item, isActive }: {
       title={t(item.labelKey)}
       className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium
         transition-colors duration-150 select-none
-        ${isActive ? 'bg-violet-50 text-violet-700 dark:bg-violet-950/60 dark:text-violet-200' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800/80 dark:hover:text-slate-100'}`}
+        ${isActive ? 'bg-[#EFF6FF] text-[#3B82F6] font-bolder'  : 'text-slate-700 hover:bg-slate-50 hover:text-slate-800'}`}
     >
       <Icon className={`h-4 w-4 shrink-0 transition-colors duration-150
-        ${isActive ? 'text-violet-600 dark:text-violet-300' : 'text-slate-400 group-hover:text-slate-500 dark:group-hover:text-slate-300'}`} />
+        ${isActive ? 'text-[#3B82F6] font-bolder' : 'text-slate-400 group-hover:text-slate-500'}`} />
       <span className="truncate">{t(item.labelKey)}</span>
     </NavLink>
   );

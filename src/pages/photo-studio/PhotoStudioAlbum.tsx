@@ -1487,65 +1487,122 @@ const PhotoStudioAlbum: React.FC = () => {
     <div className="p-3 sm:p-6 space-y-6">
       {/* Header – hidden when viewing a single album */}
       {viewingAlbumId === null && (
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
-            <FaFolder className="mr-3 text-[#2731db]" />
+       <div
+  className="relative mb-6 overflow-hidden rounded-2xl border border-[#D9E7FF] px-5 py-5 sm:px-7 sm:py-6 shadow-[0_8px_30px_rgba(37,99,235,0.06)]"
+  style={{
+    background:
+      'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)',
+  }}
+>
+  {/* Ambient glows */}
+  <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-blue-400/15 blur-3xl" />
+  <div className="pointer-events-none absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-indigo-400/10 blur-3xl" />
+
+  <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+    {/* LEFT — Title block */}
+    <div className="flex items-start gap-4">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white shadow-[0_4px_14px_rgba(37,99,235,0.18)] ring-1 ring-[#D9E7FF]">
+        <FaFolder className="text-xl text-[#2731db]" />
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl lg:text-[26px] font-bold tracking-tight text-slate-900">
             {t('photoStudioAlbumPage.photoAlbums')}
           </h1>
-          <p className="text-gray-600 mt-2">
-            {t('photoStudioAlbumPage.subtitle')}
-          </p>
+          <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-[#D9E7FF] bg-white/70 px-2.5 py-0.5 text-[11px] font-medium text-[#2731db] backdrop-blur">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#2731db]" />
+            {albumsTotal} {t('photoStudioAlbumPage.albums') || 'albums'}
+          </span>
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:space-x-3">
-          <button
-            onClick={() => downloadImagesAsZip(shareLinkSelectedImages, selectedAlbumsName || 'albums')}
-            disabled={selectedAlbums.size === 0 || isDownloadingZip}
-            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-white border border-gray-200 text-gray-800 hover:bg-gray-50 transition-colors flex items-center disabled:opacity-60 disabled:cursor-not-allowed text-sm"
-            title={t('photoStudioAlbumPage.downloadZipTitle')}
-          >
-            {isDownloadingZip ? (
-              <FaSpinner className="mr-2 animate-spin" />
-            ) : (
-              <FaDownload className="mr-2" />
-            )}
-            {t('photoStudioAlbumPage.downloadZip')}
-          </button>
-          <button
-            onClick={() => {
-              const ids = Array.from(selectedAlbums);
-              if (ids.length === 0) {
-                toast.error(t('photoStudioAlbumPage.toastSelectAlbum'));
-                return;
-              }
-              setPendingAlbumIds(ids);
-              setShowTemplateModal(true);
-            }}
-            disabled={selectedAlbums.size === 0 || isTransferringToPhotoBook}
-            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-[#111827] text-white hover:bg-slate-800 transition-colors flex items-center disabled:opacity-60 text-sm"
-            title={t('photoStudioAlbumPage.transferTitle')}
-          >
-            <FaFolderOpen className="mr-2" />
-            {t('photoStudioAlbumPage.transferToPhotoBook')} {selectedAlbums.size > 0 ? `(${selectedAlbums.size})` : ''}
-          </button>
-          <button
-            onClick={() => setShowShareLinkModal(true)}
-            disabled={selectedAlbums.size === 0}
-            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center disabled:opacity-60 disabled:cursor-not-allowed text-sm"
-            title={t('photoStudioAlbumPage.shareLinkTitle')}
-          >
-            <FaShare className="mr-2" />
-            {t('photoStudioAlbumPage.shareLink')} {selectedAlbums.size > 0 ? `(${selectedAlbums.size})` : ''}
-          </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors flex items-center text-sm"
-          >
-            <FaPlus className="mr-2" />
-            {t('photoStudioAlbumPage.createAlbum')}
-          </button>
-        </div>
+        <p className="mt-1.5 text-sm leading-6 text-slate-500 max-w-xl">
+          {t('photoStudioAlbumPage.subtitle')}
+        </p>
+
+        {/* Selection indicator */}
+        {selectedAlbums.size > 0 && (
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#2731db]/10 px-3 py-1 text-xs font-medium text-[#2731db]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#2731db] animate-pulse" />
+            {selectedAlbums.size} {t('photoStudioAlbumPage.selected') || 'selected'}
+          </div>
+        )}
       </div>
+    </div>
+
+    {/* RIGHT — Action toolbar */}
+    <div className="flex flex-wrap items-center gap-2">
+      {/* Secondary group on a single white surface */}
+      <div className="flex items-center gap-1 rounded-xl border border-[#D9E7FF] bg-white/80 p-1 shadow-sm backdrop-blur">
+        <button
+          onClick={() =>
+            downloadImagesAsZip(shareLinkSelectedImages, selectedAlbumsName || 'albums')
+          }
+          disabled={selectedAlbums.size === 0 || isDownloadingZip}
+          className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          title={t('photoStudioAlbumPage.downloadZipTitle')}
+        >
+          {isDownloadingZip ? (
+            <FaSpinner className="animate-spin text-slate-500" />
+          ) : (
+            <FaDownload className="text-slate-500" />
+          )}
+          <span className="hidden sm:inline">{t('photoStudioAlbumPage.downloadZip')}</span>
+        </button>
+
+        <span className="h-5 w-px bg-slate-200" />
+
+        <button
+          onClick={() => setShowShareLinkModal(true)}
+          disabled={selectedAlbums.size === 0}
+          className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          title={t('photoStudioAlbumPage.shareLinkTitle')}
+        >
+          <FaShare className="text-slate-500" />
+          <span className="hidden sm:inline">{t('photoStudioAlbumPage.shareLink')}</span>
+          {selectedAlbums.size > 0 && (
+            <span className="ml-0.5 rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-700">
+              {selectedAlbums.size}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Transfer — dark pill */}
+      <button
+        onClick={() => {
+          const ids = Array.from(selectedAlbums);
+          if (ids.length === 0) {
+            toast.error(t('photoStudioAlbumPage.toastSelectAlbum'));
+            return;
+          }
+          setPendingAlbumIds(ids);
+          setShowTemplateModal(true);
+        }}
+        disabled={selectedAlbums.size === 0 || isTransferringToPhotoBook}
+        className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-[0_4px_14px_rgba(15,23,42,0.18)] hover:bg-slate-800 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition"
+        title={t('photoStudioAlbumPage.transferTitle')}
+      >
+        <FaFolderOpen />
+        <span className="hidden sm:inline">{t('photoStudioAlbumPage.transferToPhotoBook')}</span>
+        {selectedAlbums.size > 0 && (
+          <span className="rounded-md bg-white/15 px-1.5 py-0.5 text-[11px] font-semibold">
+            {selectedAlbums.size}
+          </span>
+        )}
+      </button>
+
+      {/* Primary CTA — brand */}
+      <button
+        onClick={() => setShowCreateModal(true)}
+        className="group relative inline-flex items-center gap-2 overflow-hidden rounded-xl bg-[#2731db] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(39,49,219,0.28)] hover:shadow-[0_10px_24px_rgba(39,49,219,0.36)] hover:bg-[#1f29c4] active:scale-[0.98] transition"
+      >
+        <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-700" />
+        <FaPlus className="relative" />
+        <span className="relative">{t('photoStudioAlbumPage.createAlbum')}</span>
+      </button>
+    </div>
+  </div>
+</div>
+
       )}
 
       {/* Share link modal – send public URL to contacts / email / SMS (same as StudioCheckout) */}
@@ -2157,32 +2214,84 @@ const PhotoStudioAlbum: React.FC = () => {
       ) : (
         /* Album Grid – card-based main view */
         <>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <p className="text-sm text-gray-500">{t('photoStudioAlbumPage.totalAlbums')}</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{albumsTotal}</p>
-              <div className="flex items-center gap-2 ml-2">
-                <select
-                  value={albumSort}
-                  onChange={(e) => setAlbumSort(e.target.value as 'name' | 'date')}
-                  className="border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-[#2731db] focus:border-[#2731db]"
-                >
-                  <option value="date">{t('photoStudioAlbumPage.sortByDate')}</option>
-                  <option value="name">{t('photoStudioAlbumPage.sortByName')}</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 max-w-xs w-full sm:max-w-sm">
-              <FaSearch className="text-gray-400 shrink-0" />
-              <input
-                type="text"
-                placeholder={t('photoStudioAlbumPage.searchAlbumsPlaceholder')}
-                value={albumSearch}
-                onChange={(e) => setAlbumSearch(e.target.value)}
-                className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2731db] text-sm"
-              />
-            </div>
-          </div>
+         <div
+  className="rounded-2xl border border-[#D9E7FF] px-4 py-3 sm:px-5 sm:py-4 shadow-[0_4px_20px_rgba(37,99,235,0.05)]"
+  style={{
+    background:
+      'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)',
+  }}
+>
+  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    {/* LEFT — count + sort */}
+    <div className="flex flex-wrap items-center gap-3">
+      {/* Count pill */}
+      <div className="flex items-center gap-2.5 rounded-xl border border-[#D9E7FF] bg-white/80 backdrop-blur-sm px-3.5 py-2 shadow-sm">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#2731db]/10">
+          <FaFolder className="text-[#2731db] text-xs" />
+        </span>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-xl sm:text-2xl font-bold text-slate-900 tabular-nums leading-none">
+            {albumsTotal}
+          </span>
+          <span className="text-xs font-medium text-slate-500">
+            {t('photoStudioAlbumPage.totalAlbums')}
+          </span>
+        </div>
+      </div>
+
+      {/* Sort */}
+      <div className="relative">
+        <select
+          value={albumSort}
+          onChange={(e) => setAlbumSort(e.target.value as 'name' | 'date')}
+          className="appearance-none cursor-pointer rounded-xl border border-[#D9E7FF] bg-white/80 backdrop-blur-sm pl-9 pr-9 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-[#2731db]/40 hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#2731db]/20 focus:border-[#2731db]"
+        >
+          <option value="date">{t('photoStudioAlbumPage.sortByDate')}</option>
+          <option value="name">{t('photoStudioAlbumPage.sortByName')}</option>
+        </select>
+        {/* Leading icon */}
+        <svg
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M6 12h12M10 18h4" />
+        </svg>
+        {/* Chevron */}
+        <svg
+          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+        </svg>
+      </div>
+    </div>
+
+    {/* RIGHT — search */}
+    <div className="group relative w-full sm:w-80">
+      <FaSearch className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm transition-colors group-focus-within:text-[#2731db]" />
+      <input
+        type="text"
+        placeholder={t('photoStudioAlbumPage.searchAlbumsPlaceholder')}
+        value={albumSearch}
+        onChange={(e) => setAlbumSearch(e.target.value)}
+        className="w-full rounded-xl border border-[#D9E7FF] bg-white/80 backdrop-blur-sm pl-10 pr-10 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 shadow-sm transition-all hover:border-[#2731db]/40 hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#2731db]/20 focus:border-[#2731db] focus:bg-white"
+      />
+      {albumSearch && (
+        <button
+          type="button"
+          onClick={() => setAlbumSearch('')}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+          aria-label="Clear search"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+    </div>
+  </div>
+</div>
+
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             {filteredAndSortedAlbums.length === 0 ? (
               <div className="text-center py-20 text-gray-500">

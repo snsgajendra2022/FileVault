@@ -1269,192 +1269,173 @@ const ClientImagesPage = () => {
         <div className="absolute top-1/3 -left-40 h-96 w-96 rounded-full bg-[var(--primary-glow)]/15 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
-        <header className="mb-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="min-w-0 flex-1">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[color:color-mix(in_oklab,var(--border),transparent_40%)] bg-[var(--card)]/70 px-3 py-1 text-xs font-medium text-[color:var(--muted-foreground)] backdrop-blur-sm">
-                <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--primary)]" />
-                {t('imagesPage.libraryKicker')}
-              </span>
-              <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[color:var(--foreground)] sm:text-4xl">
-                {viewMode === 'my'
-                  ? t('imagesPage.myImages')
-                  : t('imagesPage.theirFiles', {
-                      name: [selectedUser?.inviterFirstName, selectedUser?.inviterLastName]
-                        .filter(Boolean)
-                        .join(' ')
-                        .trim() || '—',
-                    })}
-              </h1>
-              <p className="mt-1.5 max-w-xl text-sm text-[color:var(--muted-foreground)]">
-                {viewMode === 'my' ? t('imagesPage.librarySubtitleMy') : t('imagesPage.librarySubtitleTheir')}
-              </p>
-              {(gallerySearchOpen || gallerySearch.length > 0) && (
-                <div className="mt-4 max-w-md">
-                  <input
-                    type="search"
-                    value={gallerySearch}
-                    onChange={(e) => setGallerySearch(e.target.value)}
-                    placeholder={t('imagesPage.galleryHeading')}
-                    className="w-full rounded-xl border border-[color:var(--input)] bg-[var(--background)] px-3.5 py-2.5 text-sm text-[color:var(--foreground)] placeholder:text-[color:var(--muted-foreground)] focus:border-[color:var(--primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]"
-                  />
-                </div>
-              )}
-            </div>
-            <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setGallerySearchOpen((o) => !o)}
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_40%)] bg-[var(--card)]/70 backdrop-blur-sm transition hover:bg-[var(--card)] ${
-                  gallerySearchOpen || gallerySearch ? 'text-[color:var(--primary)]' : 'text-[color:var(--muted-foreground)] hover:text-[color:var(--foreground)]'
-                }`}
-                aria-label="Search"
-              >
-                <Search className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setGridCompact((c) => !c)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_40%)] bg-[var(--card)]/70 text-[color:var(--muted-foreground)] backdrop-blur-sm transition hover:bg-[var(--card)] hover:text-[color:var(--foreground)]"
-                aria-label={gridCompact ? 'Comfortable grid' : 'Dense grid'}
-              >
-                {gridCompact ? <LayoutGrid className="h-4 w-4" /> : <Grid3x3 className="h-4 w-4" />}
-              </button>
-              {viewMode === 'invited' && (
-                <button
-                  type="button"
-                  onClick={handleBackToMyFiles}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_40%)] bg-[var(--card)]/70 px-3 text-sm font-medium text-[color:var(--foreground)] backdrop-blur-sm transition hover:bg-[var(--card)]"
-                >
-                  <FaUser className="h-4 w-4" />
-                  {t('imagesPage.backToMyFiles')}
-                </button>
-              )}
-              {viewMode === 'my' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.location.href = '/upload';
-                  }}
-                  className="inline-flex h-10 items-center gap-2 rounded-xl il-primary-gradient px-4 text-sm font-semibold text-[color:var(--primary-foreground)] il-shadow-elegant transition hover:opacity-95"
-                >
-                  <Upload className="h-4 w-4" />
-                  {t('imagesPage.upload')}
-                </button>
-              )}
-            </div>
+       <div className="relative w-full px-4 py-6 sm:px-6 sm:py-8">
+
+        {/* header section start */}
+   <header
+  className="relative mb-6 overflow-hidden rounded-3xl border border-[#D9E7FF] px-8 py-7 shadow-[0_10px_40px_rgba(37,99,235,0.06)]"
+  style={{
+    background:
+      'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)',
+  }}
+>
+  <div className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full bg-blue-300/10 blur-3xl" />
+  <div className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-blue-400/5 blur-3xl" />
+
+  <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+    {/* LEFT */}
+    <div className="flex-1 min-w-0">
+      <div className="inline-flex items-center gap-2 rounded-full border border-[#D9E7FF] bg-white/70 px-3 py-1 backdrop-blur-xl">
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2563EB] opacity-60" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
+        </span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2563EB]">
+          Photo Library
+        </span>
+      </div>
+
+      <h1 className="mt-4 text-[2.25rem] font-semibold leading-[1.1] tracking-tight text-[#0F172A]">
+        {viewMode === 'my'
+          ? 'My Images'
+          : t('imagesPage.theirFiles', {
+              name:
+                [selectedUser?.inviterFirstName, selectedUser?.inviterLastName]
+                  .filter(Boolean)
+                  .join(' ')
+                  .trim() || '—',
+            })}
+      </h1>
+
+      <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+        Browse, organize, and manage every file in your library.
+      </p>
+
+      {/* Stat row — flatter, more enterprise */}
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <div className="inline-flex items-center gap-3 rounded-2xl border border-[#D9E7FF] bg-white/80 px-4 py-2.5 backdrop-blur-xl">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2563EB] to-[#3B82F6] shadow-[0_6px_16px_rgba(37,99,235,0.25)]">
+            <ImageIcon className="h-4 w-4 text-white" strokeWidth={2.4} />
           </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-2xl font-semibold tabular-nums text-[#0F172A]">
+              {userImagesData?.pages?.[0]?.totalImages ?? images.length}
+            </span>
+            <span className="text-xs font-medium text-slate-500">files</span>
+          </div>
+        </div>
 
-          {viewMode === 'my' && selectedImageIds.size > 0 && (
-            <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-[color:color-mix(in_oklab,var(--primary),transparent_80%)] bg-[color:color-mix(in_oklab,var(--primary),transparent_95%)] p-3 pl-4 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm font-medium text-[color:var(--foreground)]">
-                {t('imagesPage.selected', { n: selectedImageIds.size })}
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowShareModal(true)}
-                  className="inline-flex items-center gap-1.5 rounded-lg il-primary-gradient px-3 py-2 text-xs font-semibold text-[color:var(--primary-foreground)] il-shadow-soft"
-                >
-                  <Share2 className="h-3.5 w-3.5" />
-                  {t('imagesPage.shareLink')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedImageIds(new Set())}
-                  className="rounded-lg border border-[color:color-mix(in_oklab,var(--border),transparent_25%)] bg-[var(--card)] px-3 py-2 text-xs font-medium text-[color:var(--foreground)] transition hover:bg-[var(--muted)]"
-                >
-                  {t('imagesPage.clearSelection')}
-                </button>
-              </div>
-            </div>
-          )}
-        </header>
+        <div className="inline-flex items-center gap-2 rounded-2xl border border-[#D9E7FF] bg-white/80 px-4 py-2.5 backdrop-blur-xl">
+          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          <span className="text-xs font-medium text-slate-600">All synced</span>
+        </div>
+      </div>
+    </div>
 
-        {viewMode === 'my' && familyRelationships.length > 0 && (
-          <section className="mb-8 rounded-2xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--card)]/70 p-4 il-shadow-soft backdrop-blur-sm">
-            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-[color:var(--muted-foreground)]">
-              {t('imagesPage.fileSource')}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleBackToMyFiles}
-                className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                  viewMode === 'my' && !selectedUser
-                    ? 'il-primary-gradient text-[color:var(--primary-foreground)] il-shadow-soft'
-                    : 'border border-[color:color-mix(in_oklab,var(--border),transparent_30%)] bg-[var(--background)] text-[color:var(--foreground)] hover:bg-[var(--muted)]'
-                }`}
-              >
-                {t('imagesPage.myImages')}
-              </button>
-              {familyRelationships.map((member) => (
-                <button
-                  key={member.inviterId}
-                  type="button"
-                  onClick={() => handleUserSelect(member)}
-                  className={`inline-flex max-w-[220px] items-center truncate rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                    selectedUser?.inviterId === member.inviterId
-                      ? 'border-[color:var(--primary)] bg-[color:color-mix(in_oklab,var(--primary),transparent_92%)] text-[color:var(--primary)]'
-                      : 'border-[color:color-mix(in_oklab,var(--border),transparent_30%)] bg-[var(--background)] text-[color:var(--muted-foreground)] hover:border-[color:color-mix(in_oklab,var(--primary),transparent_50%)]'
-                  }`}
-                >
-                  {[member.inviterFirstName, member.inviterLastName].filter(Boolean).join(' ')}
-                </button>
-              ))}
-            </div>
-            <p className="mt-2 text-[11px] leading-relaxed text-[color:var(--muted-foreground)]">
-              {t('imagesPage.familySectionHint')}
-            </p>
-          </section>
-        )}
+    {/* RIGHT ACTIONS */}
+    <div className="flex shrink-0 items-center gap-2 rounded-2xl border border-[#D9E7FF] bg-white/60 p-1.5 backdrop-blur-xl">
+      <button
+        type="button"
+        onClick={() => setGallerySearchOpen((o) => !o)}
+        className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+          gallerySearchOpen || gallerySearch
+            ? 'bg-[#2563EB] text-white shadow-sm'
+            : 'text-slate-500 hover:bg-white hover:text-[#0F172A]'
+        }`}
+        aria-label="Search"
+      >
+        <Search className="h-4 w-4" />
+      </button>
 
-        <section className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            {
-              Icon: ImageIcon,
-              label: t('imagesPage.totalFiles'),
-              value: String(userImagesData?.pages?.[0]?.totalImages ?? images.length),
-              tint: 'text-violet-600',
-              bg: 'bg-violet-500/10',
-            },
-            {
-              Icon: Cloud,
-              label: t('imagesPage.cloudLinks'),
-              value: String(images.reduce((acc, img) => acc + getEnabledServicesCount(img.enabledServices), 0)),
-              tint: 'text-sky-600',
-              bg: 'bg-sky-500/10',
-            },
-            {
-              Icon: FileType,
-              label: t('imagesPage.fileTypes'),
-              value: String(new Set(images.map((img) => img.fileType)).size),
-              tint: 'text-amber-600',
-              bg: 'bg-amber-500/10',
-            },
-            {
-              Icon: CheckCircle2,
-              label: t('imagesPage.available'),
-              value: String(images.filter((img) => Object.keys(img.enabledServices).length > 0).length),
-              tint: 'text-emerald-600',
-              bg: 'bg-emerald-500/10',
-            },
-          ].map((s) => (
-            <div
-              key={s.label}
-              className="group relative overflow-hidden rounded-2xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--card)]/70 p-4 il-shadow-soft backdrop-blur-sm transition hover:-translate-y-0.5 hover:il-shadow-elegant"
-            >
-              <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${s.bg}`}>
-                <s.Icon className={`h-[18px] w-[18px] ${s.tint}`} strokeWidth={2} />
-              </div>
-              <p className="text-xs font-medium text-[color:var(--muted-foreground)]">{s.label}</p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight text-[color:var(--foreground)]">
-                {s.value}
-              </p>
-            </div>
-          ))}
-        </section>
+      <button
+        type="button"
+        onClick={() => setGridCompact((c) => !c)}
+        className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-white hover:text-[#0F172A]"
+        aria-label="Toggle layout"
+      >
+        {gridCompact ? <LayoutGrid className="h-4 w-4" /> : <Grid3x3 className="h-4 w-4" />}
+      </button>
+
+      <div className="mx-1 h-6 w-px bg-[#D9E7FF]" />
+
+      <button
+        type="button"
+        onClick={() => { window.location.href = '/upload'; }}
+        className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#3B82F6] px-4 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(37,99,235,0.25)] transition-all hover:shadow-[0_10px_28px_rgba(37,99,235,0.32)]"
+      >
+        <Upload className="h-4 w-4" />
+        Upload
+      </button>
+    </div>
+  </div>
+</header>
+
+{viewMode === 'my' && familyRelationships.length > 0 && (
+  <section className="mb-8 overflow-hidden rounded-3xl border border-[#D9E7FF] bg-white/80 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+    <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2563EB]">
+          Image Sources
+        </p>
+        <h3 className="mt-1.5 text-base font-semibold tracking-tight text-[#0F172A]">
+          Show files from
+        </h3>
+      </div>
+      <span className="text-xs font-medium text-slate-500">
+        {familyRelationships.length + 1} sources available
+      </span>
+    </div>
+
+    <div className="flex flex-wrap gap-2">
+      <button
+        type="button"
+        onClick={handleBackToMyFiles}
+        className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all ${
+          viewMode === 'my' && !selectedUser
+            ? 'bg-[#0F172A] text-white shadow-sm'
+            : 'border border-[#D9E7FF] bg-white text-slate-600 hover:border-[#2563EB]/40 hover:text-[#0F172A]'
+        }`}
+      >
+        <span className={`h-1.5 w-1.5 rounded-full ${
+          viewMode === 'my' && !selectedUser ? 'bg-emerald-400' : 'bg-slate-300'
+        }`} />
+        {t('imagesPage.myImages')}
+      </button>
+
+      {familyRelationships.map((member) => {
+        const active = selectedUser?.inviterId === member.inviterId;
+        const name = [member.inviterFirstName, member.inviterLastName].filter(Boolean).join(' ');
+        const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+        return (
+          <button
+            key={member.inviterId}
+            type="button"
+            onClick={() => handleUserSelect(member)}
+            className={`inline-flex max-w-[260px] items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all ${
+              active
+                ? 'bg-[#0F172A] text-white shadow-sm'
+                : 'border border-[#D9E7FF] bg-white text-slate-600 hover:border-[#2563EB]/40 hover:text-[#0F172A]'
+            }`}
+          >
+            <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold ${
+              active ? 'bg-white/15 text-white' : 'bg-[#EFF6FF] text-[#2563EB]'
+            }`}>
+              {initials || '·'}
+            </span>
+            <span className="truncate">{name}</span>
+          </button>
+        );
+      })}
+    </div>
+
+    <p className="mt-5 border-t border-[#D9E7FF] pt-4 text-xs leading-5 text-slate-500">
+      {t('imagesPage.familySectionHint')}
+    </p>
+  </section>
+)}
+
+
+      
 
         {/* {viewMode === 'my' && (
           <section className="mb-8">
