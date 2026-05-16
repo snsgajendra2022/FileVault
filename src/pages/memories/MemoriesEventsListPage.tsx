@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { ArrowRight } from 'lucide-react';
 import {
   FaPlus,
   FaChevronRight,
@@ -175,44 +176,72 @@ const MemoriesEventsListPage: React.FC = () => {
         }}
       />
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
-    <section className="relative overflow-hidden rounded-2xl mb-6 md:mb-[2.5rem]"
-          style={{
-          background: "var(--header-background)",
-          border: "var(--header-border)",
-          boxShadow: "var(--header-box-shadow)"
-        }} >
-        <header  
-        className={`relative overflow-hidden
-        px-4 py-4 sm:px-8 sm:py-8`}>
-        <div className="pointer-events-none absolute -top-20 -right-20 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-blue-400/20 blur-3xl" />
+<section
+  className="relative overflow-hidden rounded-2xl mb-4 md:mb-6 border border-white/60"
+  style={{
+    background: "var(--header-background)",
+    boxShadow:
+      "0 1px 0 0 rgba(255,255,255,0.6) inset, 0 8px 24px -16px rgba(30,64,175,0.18)",
+  }}
+>
+  {/* Soft corner glows */}
+  <div className="pointer-events-none absolute -top-16 -right-12 h-48 w-48 rounded-full bg-blue-300/25 blur-3xl" />
+  <div className="pointer-events-none absolute -bottom-16 -left-12 h-44 w-44 rounded-full bg-indigo-300/15 blur-3xl" />
 
-        <div className="relative max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 mb-4 backdrop-blur-sm border border-white/20">
-              <Sparkles className="h-4 w-4 text-white/90" />
-              <span className="text-xs font-semibold text-white/80">{t('memories')}</span>
-            </div>
+  {/* Subtle dotted pattern */}
+  <div
+    className="pointer-events-none absolute inset-0 opacity-[0.10]"
+    style={{
+      backgroundImage:
+        "radial-gradient(circle at 1px 1px, rgba(30,58,138,0.4) 1px, transparent 0)",
+      backgroundSize: "20px 20px",
+      maskImage:
+        "radial-gradient(ellipse at center, black 30%, transparent 80%)",
+      WebkitMaskImage:
+        "radial-gradient(ellipse at center, black 30%, transparent 80%)",
+    }}
+  />
 
-            <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight tracking-tight">
-              {t('yourEvents')}
-            </h1>
-            <p className="mt-2 text-base sm:text-lg text-blue-100/90 font-medium">
-              {t('captureOrganizeShare')}
-            </p>
-          </div>
-
-          <button
-            onClick={() => navigate('/memories/events/new')}
-            className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-white text-blue-700 px-6 py-3.5 text-base font-bold shadow-lg hover:bg-blue-50 transition-all duration-200 hover:scale-105 active:scale-95"
-          >
-            <Plus className="h-5 w-5" />
-            {t('createFirst')}
-          </button>
+  <header className="relative px-5 py-5 sm:px-7 sm:py-6">
+    <div className="relative max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Left — copy */}
+      <div className="min-w-0">
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-0.5 mb-2 backdrop-blur-md border border-blue-200/70">
+          <Sparkles className="h-3 w-3 text-blue-600" />
+          <span className="text-[10px] font-semibold tracking-[0.16em] uppercase text-blue-700">
+            {t('memories')}
+          </span>
         </div>
-        </header>
-      </section>
-      <div className="max-w-6xl mx-auto px-4 -mt-8 relative z-10 sm:px-8">
+
+        <h1 className="text-xl sm:text-2xl font-semibold leading-tight tracking-tight text-slate-900">
+          {t('yourEvents')}
+        </h1>
+
+        <p className="mt-1 text-sm text-slate-600">
+          {t('captureOrganizeShare')}
+        </p>
+      </div>
+
+      {/* Right — CTA */}
+      <button
+        onClick={() => navigate('/memories/events/new')}
+        className="group shrink-0 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white whitespace-nowrap
+          bg-gradient-to-r from-blue-600 to-indigo-500
+          shadow-[0_6px_16px_-8px_rgba(37,99,235,0.55)]
+          hover:shadow-[0_10px_20px_-8px_rgba(37,99,235,0.7)]
+          hover:-translate-y-0.5 active:translate-y-0
+          transition-all duration-200"
+      >
+        <Plus className="h-4 w-4 transition-transform duration-200 group-hover:rotate-90" strokeWidth={2.5} />
+        <span>{t('createFirst')}</span>
+      </button>
+    </div>
+  </header>
+</section>
+
+
+
+      <div className="max-w-6xl mx-auto px-4 -mt-8 relative z-10 sm:px-8 pt-6">
         <div className="relative bottom-[16]">
           <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
           <input
@@ -241,6 +270,8 @@ const MemoriesEventsListPage: React.FC = () => {
         )}
       </div>
 
+
+{/* sfsdg */}
       <main className="max-w-6xl mx-auto px-4 py-12 sm:px-8">
         {isLoading ? (
           <div className="rounded-2xl border border-slate-200 bg-white px-8 py-20 text-center">
@@ -296,107 +327,116 @@ const MemoriesEventsListPage: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div className="grid gap-6">
-            {filteredEvents.map((event:any) => {
-              const privacy = (event.privacy ?? 'invite') as MemoriesPrivacy;
-              const config = privacyConfig[privacy];
-              const PrivacyIcon = config.icon;
-              const photoCount = Array.isArray(event.images) ? event.images.length : 0;
-              const formattedDate = formatDate(event.dateTime);
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+  {filteredEvents.map((event: any) => {
+    const privacy = (event.privacy ?? 'invite') as MemoriesPrivacy;
+    const config = privacyConfig[privacy];
+    const PrivacyIcon = config.icon;
+    const photoCount = Array.isArray(event.images) ? event.images.length : 0;
+    const formattedDate = formatDate(event.dateTime);
 
-              return (
-                <div
-                  key={event.id}
-                  className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:border-blue-300/60 hover:shadow-[0_16px_40px_-8px_rgba(37,99,235,0.15)] cursor-pointer"
-                  onClick={() => navigate(`/memories/events/${event.id}`)}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-stretch">
-                    <div className="relative block h-56 sm:h-auto sm:w-72 shrink-0 overflow-hidden">
-                      {event.coverImageUrl ? (
-                        <img
-                          src={event.coverImageUrl}
-                          alt={event.name}
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-blue-600 to-indigo-600">
-                          <Images className="h-12 w-12 text-white/80" />
-                          <span className="text-sm font-semibold text-white/70">{t('noCoverImage')}</span>
-                        </div>
-                      )}
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:to-white/5" />
-                      <div className="absolute bottom-4 left-4 inline-flex items-center gap-2 rounded-lg bg-black/50 px-3 py-1.5 backdrop-blur-md">
-                        <Images className="h-4 w-4 text-white/80" />
-                        <span className="text-sm font-bold text-white">{photoCount} photos</span>
-                      </div>
-                    </div>
+    return (
+      <div
+        key={event.id}
+        onClick={() => navigate(`/memories/events/${event.id}`)}
+        className="group relative flex flex-col overflow-hidden rounded-[24px] border border-slate-200/70 bg-white/80 backdrop-blur-xl shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-20px_rgba(79,70,229,0.35)] hover:border-indigo-300/60 cursor-pointer"
+      >
+        {/* Cover */}
+        <div className="relative h-48 overflow-hidden">
+          {event.coverImageUrl ? (
+            <img
+              src={event.coverImageUrl}
+              alt={event.name}
+              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+            />
+          ) : (
+            <div className="relative flex h-full w-full items-center justify-center bg-gradient-to-br from-indigo-500 via-blue-600 to-purple-600">
+              <div className="absolute inset-0 opacity-40"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.35) 0, transparent 40%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.25) 0, transparent 40%)",
+                }}
+              />
+              <Images className="relative h-12 w-12 text-white/90" />
+            </div>
+          )}
 
-                    <div className="flex flex-1 flex-col min-w-0">
-                      <div className="flex flex-1 flex-col justify-between gap-4 p-6 sm:p-7">
-                        <div className="flex flex-col gap-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 flex-1">
-                              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 leading-snug group-hover:text-blue-700 transition-colors line-clamp-2">
-                                {event.name}
-                              </h2>
-                              {event.summary && (
-                                <p className="mt-2 text-base text-slate-600 leading-relaxed line-clamp-2">
-                                  {event.summary}
-                                </p>
-                              )}
-                            </div>
-                            <div className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-bold ${config.color}`}>
-                              <PrivacyIcon className={`h-4 w-4 ${config.iconColor}`} />
-                              {config.label}
-                            </div>
-                          </div>
+          {/* Gradient overlay */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
 
-                          <div className="flex flex-wrap items-center gap-4">
-                            {formattedDate && (
-                              <div className="inline-flex items-center gap-2 text-sm font-medium text-slate-600">
-                                <Calendar className="h-4 w-4 text-blue-500" />
-                                {formattedDate}
-                              </div>
-                            )}
-                            {event.location && (
-                              <div className="inline-flex items-center gap-2 text-sm text-slate-600 min-w-0">
-                                <MapPin className="h-4 w-4 text-blue-500 shrink-0" />
-                                <span className="truncate">{event.location}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 pt-4 border-t border-slate-100">
-                          <span className="text-sm font-semibold text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            View gallery
-                          </span>
-                          <ChevronRight className="h-4 w-4 text-blue-600 opacity-0 group-hover:opacity-100 transition-all duration-200 group-hover:translate-x-1" />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 border-t border-slate-100 bg-slate-50/70 px-6 py-4 sm:px-7">
-                        <button
-                          onClick={(e) => navigate(`/memories/events/${event.id}/edit`)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50 transition-all"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                          Edit
-                        </button>
-                        <button
-                          onClick={(e) => navigate(`/memories/events/${event.id}/photobook`)}
-                          className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 shadow-sm hover:bg-blue-100 hover:border-blue-300 transition-all"
-                        >
-                          <BookOpen className="h-4 w-4" />
-                          Photobook
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          {/* Top row: privacy + photos */}
+          <div className="absolute inset-x-3 top-3 flex items-center justify-between">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/85 backdrop-blur-md px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-sm border border-white/60">
+              <PrivacyIcon className={`h-3 w-3 ${config.iconColor}`} />
+              {config.label}
+            </div>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-black/45 backdrop-blur-md px-2.5 py-1 text-[11px] font-semibold text-white">
+              <Images className="h-3 w-3" />
+              {photoCount}
+            </div>
           </div>
+
+          {/* Bottom: title overlay */}
+          <div className="absolute inset-x-4 bottom-3">
+            <h3 className="text-lg font-semibold text-white leading-tight line-clamp-2 drop-shadow">
+              {event.name}
+            </h3>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex flex-1 flex-col p-5">
+          {event.summary && (
+            <p className="text-sm text-slate-600 leading-relaxed line-clamp-2">
+              {event.summary}
+            </p>
+          )}
+
+          {/* Meta */}
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500">
+            {formattedDate && (
+              <div className="inline-flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-indigo-500" />
+                <span className="font-medium text-slate-700">{formattedDate}</span>
+              </div>
+            )}
+            {event.location && (
+              <div className="inline-flex items-center gap-1.5 min-w-0">
+                <MapPin className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                <span className="truncate font-medium text-slate-700">{event.location}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="my-4 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+
+          {/* Actions */}
+          <div className="mt-auto flex items-center gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); navigate(`/memories/events/${event.id}/edit`); }}
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50 transition-all"
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+              Edit
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); navigate(`/memories/events/${event.id}/photobook`); }}
+              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-[0_4px_12px_-2px_rgba(79,70,229,0.5)] hover:shadow-[0_8px_18px_-4px_rgba(79,70,229,0.7)] hover:-translate-y-0.5 transition-all"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              Photobook
+            </button>
+            <div className="ml-auto inline-flex items-center text-indigo-600 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-0.5">
+              <ChevronRight className="h-4 w-4" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  })}
+</div>
+
         )}
       </main>
     </div>
