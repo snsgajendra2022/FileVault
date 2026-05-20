@@ -97,7 +97,7 @@ const ServicesPage = () => {
         const userServicesResponse = await api.get('/api/services/user');
         const userServicesData = userServicesResponse.data;
         const statuses: UserService[] = [];
-        
+
         for (const service of userServicesData.subscriptions || []) {
           try {
             const statusResponse = await api.get(`/api/services/${service.serviceType}/status`);
@@ -114,7 +114,7 @@ const ServicesPage = () => {
             });
           }
         }
-        
+
         // Create a summary object
         const summary = {
           totalSubscriptions: statuses.length,
@@ -123,7 +123,7 @@ const ServicesPage = () => {
           connectedServices: statuses.filter(s => s.connectionStatus === 'CONNECTED').length,
           failedConnections: statuses.filter(s => s.connectionStatus === 'ERROR').length
         };
-        
+
         return {
           subscriptions: statuses,
           summary
@@ -164,36 +164,36 @@ const ServicesPage = () => {
       setFormData({});
       setIsConfiguring(false);
       refetch();
-      
+
       // Only for Google Drive service
       // if (data.serviceType === 'GOOGLE_DRIVE') {
-        try {
-          // Enable the service first
-          await handleToggleService(data.serviceType, true);
-          
-          // Wait a bit for the service to be enabled, then test connection
-          setTimeout(async () => {
-            try {
-              const testData:any = await handleTestConnection(data.serviceType);
-              
-              // If test returns authorizationUrl, open it for OAuth
-              if (testData.success && testData.authorizationUrl) {
-                toast.success(i18n.t('servicesPage.toastOpeningGoogleDrive'));
-                window.open(testData.authorizationUrl, '_blank');
-              } else if (testData.success) {
-                toast.success(i18n.t('servicesPage.toastGoogleDriveTestOk'));
-              } else {
-                toast.error(i18n.t('servicesPage.toastGoogleDriveTestFail'));
-              }
-            } catch (error) {
-              console.error('Error testing Google Drive connection:', error);
-              toast.error(i18n.t('servicesPage.toastGoogleDriveTestError'));
+      try {
+        // Enable the service first
+        await handleToggleService(data.serviceType, true);
+
+        // Wait a bit for the service to be enabled, then test connection
+        setTimeout(async () => {
+          try {
+            const testData: any = await handleTestConnection(data.serviceType);
+
+            // If test returns authorizationUrl, open it for OAuth
+            if (testData.success && testData.authorizationUrl) {
+              toast.success(i18n.t('servicesPage.toastOpeningGoogleDrive'));
+              window.open(testData.authorizationUrl, '_blank');
+            } else if (testData.success) {
+              toast.success(i18n.t('servicesPage.toastGoogleDriveTestOk'));
+            } else {
+              toast.error(i18n.t('servicesPage.toastGoogleDriveTestFail'));
             }
-          }, 1000);
-        } catch (error) {
-          console.error('Error enabling Google Drive service:', error);
-          toast.error(i18n.t('servicesPage.toastEnableGoogleDriveFail'));
-        }
+          } catch (error) {
+            console.error('Error testing Google Drive connection:', error);
+            toast.error(i18n.t('servicesPage.toastGoogleDriveTestError'));
+          }
+        }, 1000);
+      } catch (error) {
+        console.error('Error enabling Google Drive service:', error);
+        toast.error(i18n.t('servicesPage.toastEnableGoogleDriveFail'));
+      }
       // }
     },
     onError: (error, variables) => {
@@ -264,7 +264,7 @@ const ServicesPage = () => {
       'B2_SERVICE': 'backblaze-b2',
       'AZURE_BLOB': 'azure-blob'
     };
-    
+
     const serviceId = serviceIdMap[serviceType] || serviceType.toLowerCase();
     navigate(`/services/config/${serviceId}`);
   };
@@ -273,7 +273,7 @@ const ServicesPage = () => {
     setSelectedUserService(userService);
     setShowDetailsModal(true);
   };
- //connect to service test connection
+  //connect to service test connection
   const handleTestConnection = async (serviceType: string) => {
     return new Promise((resolve, reject) => {
       testConnectionMutation.mutate(serviceType, {
@@ -286,7 +286,7 @@ const ServicesPage = () => {
       });
     });
   };
- //connect to service enable and disable
+  //connect to service enable and disable
   const handleToggleService = async (serviceType: string, enabled: boolean) => {
     return new Promise((resolve, reject) => {
       toggleServiceMutation.mutate(
@@ -356,16 +356,16 @@ const ServicesPage = () => {
 
   const getServiceColor = (serviceType: string) => {
     // switch (serviceType) {
-      // case 'S3_BUCKET':
-      //   return 'bg-gradient-to-r from-orange-500 to-orange-600';
-      // case 'B2_SERVICE':
-      //   return 'bg-gradient-to-r from-blue-500 to-blue-600';
-      // case 'GOOGLE_DRIVE':
-      //   return 'bg-gradient-to-r from-green-500 to-green-600';
-      // case 'AZURE_BLOB':
-      //   return 'bg-gradient-to-r from-blue-600 to-blue-700';
-      // default:
-        return 'bg-gradient-to-r  from-indigo-600 to-purple-600';
+    // case 'S3_BUCKET':
+    //   return 'bg-gradient-to-r from-orange-500 to-orange-600';
+    // case 'B2_SERVICE':
+    //   return 'bg-gradient-to-r from-blue-500 to-blue-600';
+    // case 'GOOGLE_DRIVE':
+    //   return 'bg-gradient-to-r from-green-500 to-green-600';
+    // case 'AZURE_BLOB':
+    //   return 'bg-gradient-to-r from-blue-600 to-blue-700';
+    // default:
+    return 'bg-gradient-to-r  from-indigo-600 to-purple-600';
     // }
   };
 
@@ -441,7 +441,7 @@ const ServicesPage = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/30 rounded-2xl p-8 border border-green-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
@@ -453,7 +453,7 @@ const ServicesPage = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-gradient-to-br from-white via-yellow-50/30 to-orange-50/30 rounded-2xl p-8 border border-yellow-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
@@ -465,7 +465,7 @@ const ServicesPage = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/30 rounded-2xl p-8 border border-blue-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
@@ -496,28 +496,28 @@ const ServicesPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mb-10">
         {userServices?.subscriptions.map((userService) => {
           const serviceConfig = getServiceConfig(userService.serviceType);
-          
+
           return (
             <div key={userService.id} className="bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 rounded-3xl shadow-2xl border border-blue-100/50 overflow-hidden hover:shadow-3xl transition-all duration-300 transform hover:scale-105">
               {/* Service Header */}
-              <div className={`${getServiceColor(userService.serviceType)} p-8 text-white shadow-lg`}>
+              <div className="p-8 shadow-lg" style={{ background: 'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)' }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     {serviceConfig?.iconUrl ? (
-                      <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                      <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
                         <span className="text-2xl">☁️</span>
                       </div>
                     ) : (
-                      <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                      <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
                         <span className="text-2xl">☁️</span>
                       </div>
                     )}
                     <div>
-                      <h3 className="font-bold text-xl">{userService.serviceDisplayName}</h3>
-                      <p className="text-sm opacity-90">{t('servicesPage.activeService')}</p>
+                      <h3 className="font-bold text-xl text-blue-900">{userService.serviceDisplayName}</h3>
+                      <p className="text-sm text-blue-700">{t('servicesPage.activeService')}</p>
                     </div>
                   </div>
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
                     {getStatusIcon(userService.connectionStatus)}
                   </div>
                 </div>
@@ -561,7 +561,7 @@ const ServicesPage = () => {
                       <FaEye className="h-4 w-4 mr-2" />
                       {t('servicesPage.details')}
                     </button>
-                    
+
                     <button
                       onClick={() => handleTestConnection(userService.serviceType)}
                       disabled={testConnectionMutation.isPending}
@@ -577,20 +577,19 @@ const ServicesPage = () => {
                       )}
                     </button>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => handleToggleService(userService.serviceType, !userService.isEnabled)}
                       disabled={toggleServiceMutation.isPending}
-                      className={`px-4 py-3 rounded-xl font-semibold transition-all duration-300 text-sm shadow-md transform hover:scale-105 ${
-                        userService.isEnabled
-                          ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700'
-                          : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
-                      }`}
+                      className={`px-4 py-3 rounded-xl font-semibold transition-all duration-300 text-sm shadow-md transform hover:scale-105 ${userService.isEnabled
+                        ? 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700'
+                        : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700'
+                        }`}
                     >
                       {userService.isEnabled ? t('servicesPage.disable') : t('servicesPage.enable')}
                     </button>
-                    
+
                     <button
                       onClick={() => handleDeleteService(userService.serviceType)}
                       disabled={deleteServiceMutation.isPending}
@@ -617,24 +616,24 @@ const ServicesPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {availableServices?.map((service) => {
             const isConfigured = userServices?.subscriptions.some(s => s.serviceType === service.serviceType);
-            
+
             return (
               <div key={service.serviceType} className="bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 rounded-3xl shadow-2xl border border-blue-100/50 overflow-hidden hover:shadow-3xl transition-all duration-300 transform hover:scale-105">
                 {/* Service Header */}
-                <div className={`${getServiceColor(service.serviceType)} p-8 text-white shadow-lg`}>
+                <div className="p-8 shadow-lg" style={{ background: 'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)' }}>
                   <div className="flex items-center space-x-4">
                     {service.iconUrl ? (
-                      <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                      <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
                         <span className="text-2xl">☁️</span>
                       </div>
                     ) : (
-                      <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                      <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
                         <span className="text-2xl">☁️</span>
                       </div>
                     )}
                     <div>
-                      <h3 className="font-bold text-xl">{service.serviceDisplayName}</h3>
-                      <p className="text-sm opacity-90">{t('servicesPage.cloudStorage')}</p>
+                      <h3 className="font-bold text-xl text-blue-900">{service.serviceDisplayName}</h3>
+                      <p className="text-sm text-blue-700">{t('servicesPage.cloudStorage')}</p>
                     </div>
                   </div>
                 </div>
@@ -646,11 +645,10 @@ const ServicesPage = () => {
                   </p>
 
                   {/* Status */}
-                  <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold border-2 mb-6 shadow-sm ${
-                    isConfigured 
-                      ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-green-300' 
-                      : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border-gray-300'
-                  }`}>
+                  <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold border-2 mb-6 shadow-sm ${isConfigured
+                    ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border-green-300'
+                    : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border-gray-300'
+                    }`}>
                     {isConfigured ? (
                       <>
                         <FaCheck className="h-4 w-4 mr-2" />
@@ -670,14 +668,15 @@ const ServicesPage = () => {
                       <div className="space-y-3">
                         <button
                           onClick={() => handleConfigureWithSteps(service.serviceType)}
-                          className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 flex items-center justify-center shadow-lg transform hover:scale-105"
+                          className="w-full text-blue-900 px-6 py-4 rounded-xl font-semibold hover:opacity-90 transition-all duration-300 flex items-center justify-center shadow-lg transform hover:scale-105"
+                          style={{ background: 'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)' }}
                         >
                           <FaPlus className="h-5 w-5 mr-3" />
                           {t('servicesPage.configureWithSteps')}
                         </button>
                         <button
                           onClick={() => handleConfigureService(service)}
-                          className="w-full bg-gradient-to-r from-gray-500 to-gray-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-gray-600 hover:to-gray-700 transition-all duration-300 flex items-center justify-center shadow-md transform hover:scale-105"
+                          className="w-full bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 flex items-center justify-center shadow-md transform hover:scale-105"
                         >
                           <FaCog className="h-4 w-4 mr-2" />
                           {t('servicesPage.quickConfigure')}
@@ -692,7 +691,7 @@ const ServicesPage = () => {
                         {t('servicesPage.alreadyConfigured')}
                       </button>
                     )}
-                    
+
                     {service.documentationUrl && (
                       <a
                         href={service.documentationUrl}
@@ -845,7 +844,7 @@ const ServicesPage = () => {
                   </div>
                 </div>
               )}
-              
+
               <div className="space-y-6">
                 {/* Required Fields */}
                 {selectedService.requiredFields.length > 0 && (
@@ -949,7 +948,7 @@ const ServicesPage = () => {
                           ) : (
                             <input
                               type={field.type}
-                               value={formData[field.name]  || ''}
+                              value={formData[field.name] || ''}
                               onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                               placeholder={

@@ -247,14 +247,14 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-8 py-6">
+        <div className="px-8 py-6" style={{ background: 'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)' }}>
           <div className="flex items-center">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mr-4">
-              <FaEnvelope className="h-6 w-6 text-white" />
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-4">
+              <FaEnvelope className="h-6 w-6 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">{t(`${CF}.headerTitle`)}</h2>
-              <p className="text-blue-100">{t(`${CF}.headerSubtitleClient`)}</p>
+              <h2 className="text-2xl font-bold text-blue-900">{t(`${CF}.headerTitle`)}</h2>
+              <p className="text-blue-700">{t(`${CF}.headerSubtitleClient`)}</p>
             </div>
           </div>
         </div>
@@ -470,7 +470,8 @@ const CreateClientInvitationForm: React.FC<CreateInvitationFormProps> = ({ onInv
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 focus:ring-4 focus:ring-blue-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center px-6 py-4 text-blue-900 font-semibold rounded-xl hover:opacity-90 focus:ring-4 focus:ring-blue-300 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)' }}
             >
               {loading ? (
                 <>
