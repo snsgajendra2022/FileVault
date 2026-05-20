@@ -16,10 +16,10 @@ import { FaCog, FaCrown, FaSignOutAlt, FaHeart } from 'react-icons/fa';
 
 
 const STUDIO_GROUPS = [
-  { label: 'Main',     keys: ['nav.studio.dashboard',,'nav.studio.uploadFamily','nav.studio.myImages','nav.studio.album'] },
+  { label: 'Main',     keys: ['nav.studio.dashboard','nav.studio.uploadFamily','nav.studio.myImages','nav.studio.filterImages','nav.studio.album'] },
   { label: 'Memories', keys: ['nav.studio.ourMemories','nav.studio.photoBooks','nav.studio.photoThemes'] },
   { label: 'People',   keys: ['nav.studio.createMembers','nav.studio.membersTree','nav.studio.phoneBook'] },
-  { label: 'Account',  keys: ['nav.studio.selectPay','nav.studio.paymentManagement','nav.studio.services'] },
+  { label: 'Account',  keys: ['nav.studio.selectPay','nav.studio.paymentManagement','nav.studio.services','nav.studio.whatsapp'] },
 ];
 
 function getInitials(firstName?: string, lastName?: string, username?: string): string {

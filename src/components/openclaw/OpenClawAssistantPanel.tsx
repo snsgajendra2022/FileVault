@@ -50,7 +50,6 @@ import {
   trackUploadSuccess,
   type AssistantUploadItem,
 } from '../../utils/openclawAssistantMonitor';
-import { OpenClawChatbot } from 'openclaw';
 const SESSION_KEY = 'openclaw_session_id';
 const ALWAYS_SPEAK_KEY = 'openclaw_always_speak';
 const OPENCLAW_CHAT_SESSIONS_KEY = 'openclaw_chat_sessions';

@@ -18,7 +18,7 @@ import { FaTimes, FaCrown, FaCog, FaSignOutAlt, FaHeart, FaChevronRight } from '
 const STUDIO_GROUPS = [
   {
     label: 'Main',
-    keys: ['nav.studio.dashboard', 'nav.studio.myImages', 'nav.studio.album', 'nav.studio.uploadFamily'],
+    keys: ['nav.studio.dashboard', 'nav.studio.myImages', 'nav.studio.filterImages', 'nav.studio.album', 'nav.studio.uploadFamily'],
   },
   {
     label: 'Memories',
@@ -30,7 +30,7 @@ const STUDIO_GROUPS = [
   },
   {
     label: 'Account',
-    keys: ['nav.studio.selectPay', 'nav.studio.paymentManagement', 'nav.studio.services'],
+    keys: ['nav.studio.selectPay', 'nav.studio.paymentManagement', 'nav.studio.services', 'nav.studio.whatsapp'],
   },
 ];
 

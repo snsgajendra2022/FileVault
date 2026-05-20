@@ -8,7 +8,7 @@ todaywork.md
 
 # testing
 /coverage
-
+/openclaw
 .env
 # production
 /build

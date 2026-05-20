@@ -1,0 +1,3 @@
+  // "start": "concurrently -n openclaw,web -c magenta,cyan \"node server/openclaw-dev-server.js\" \"craco start\"",
+  // "start:web": "craco start",
+  // "openclaw-server": "node server/openclaw-dev-server.js",

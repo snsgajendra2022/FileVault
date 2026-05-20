@@ -109,6 +109,15 @@ declare module 'react-icons/fa' {
   export const FaVolumeUp: ComponentType<IconProps>;
   export const FaVolumeMute: ComponentType<IconProps>;
   export const FaMagic: ComponentType<IconProps>;
+  export const FaMagic: ComponentType<IconProps>;
+  export const FaWhatsapp: ComponentType<IconProps>;
+  export const FaLink: ComponentType<IconProps>;
+  export const FaUnlink: ComponentType<IconProps>;
+  export const FaSyncAlt: ComponentType<IconProps>;
+  export const FaTimesCircle: ComponentType<IconProps>;
+  export const FaInbox: ComponentType<IconProps>;
+  export const FaCheckDouble: ComponentType<IconProps>;
+  export const FaExclamationCircle: ComponentType<IconProps>;
 }
 
 declare module 'react-icons/fi' {

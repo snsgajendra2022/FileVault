@@ -99,6 +99,8 @@ import PhoneBookCreatePage from './pages/PhoneBook/PhoneBookCreatePage';
 import PhoneBookDetailPage from './pages/PhoneBook/PhoneBookDetailPage';
 import PhoneBookEditPage from './pages/PhoneBook/PhoneBookEditPage';
 import OpenClawAssistantPage from './pages/OpenClawAssistantPage';
+import WhatsAppConfigPage from './pages/WhatsAppConfigPage';
+import FilterImagesPage from './pages/filter-images/FilterImagesPage';
 import OpenClawAgentDock from './components/openclaw/OpenClawAgentDock';
 
 // misc pages
@@ -247,6 +249,7 @@ const AppRoutes = () => {
         {/* Photo Themes */}
         <Route path="photo-themes" element={<PhotoThemesPage />} />
         <Route path="photo-book" element={<PhotoBook />} />
+        <Route path="studio/whatsapp" element={<WhatsAppConfigPage />} />
         <Route path="memories/dashboard" element={<MemoriesDashboardPage />} />
         <Route path="memories/events" element={<MemoriesEventsListPage />} />
         <Route path="memories/events/new" element={<MemoriesCreateEventPage />} />
@@ -271,6 +274,16 @@ const AppRoutes = () => {
           isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/studio/dashboard" replace />
         } />
       </Route>
+
+      {/* FaceSync — full-screen UI (face filter / identity gallery) */}
+      <Route
+        path="/filter-images/*"
+        element={
+          <ProtectedRoute>
+            <FilterImagesPage />
+          </ProtectedRoute>
+        }
+      />
       
       {/* Catch all other routes and show 404 page */}
       <Route path="*" element={<NotFoundPage />} />

@@ -21,6 +21,7 @@ import {
   FaHeart,
   FaFlag,
   FaCog,
+  FaWhatsapp,
 } from 'react-icons/fa';
 
 /** Single source for sidebar + mobile nav (labelKey → en.json / hi.json `nav.*`) */
@@ -57,6 +58,7 @@ export const studioNavigation: NavGroup = {
     { labelKey: 'nav.studio.dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
     { labelKey: 'nav.studio.uploadFamily', href: '/upload-family-images', icon: FaUpload, enabled: true },
     { labelKey: 'nav.studio.myImages', href: '/client-images', icon: FaImages, enabled: true },
+    { labelKey: 'nav.studio.filterImages', href: '/filter-images', icon: FaUsers, enabled: true },
     { labelKey: 'nav.studio.album', href: '/studio/albums', icon: FaFolder, enabled: true },
     { labelKey: 'nav.studio.ourMemories', href: '/memories/events', icon: FaHeart, enabled: true },
     // { labelKey: 'nav.studio.photoBooks', href: '/photo-book', icon: FaBook, enabled: true },
@@ -70,6 +72,7 @@ export const studioNavigation: NavGroup = {
     { labelKey: 'nav.studio.membersTree', href: '/family-tree', icon: FaSitemap, enabled: true },
     { labelKey: 'nav.studio.settings', href: '/portal-settings', icon: FaUsers, enabled: true },
     { labelKey: 'nav.studio.services', href: '/services', icon: FaCloud, enabled: true },
+    { labelKey: 'nav.studio.whatsapp', href: '/studio/whatsapp', icon: FaWhatsapp, enabled: true },
   ],
 };
 export const usersNavigation: NavGroup = {
@@ -78,6 +81,7 @@ export const usersNavigation: NavGroup = {
     { labelKey: 'nav.studio.dashboard', href: '/studio/dashboard', icon: FaCamera, enabled: true },
     { labelKey: 'nav.studio.uploadFamily', href: '/upload-family-images', icon: FaUpload, enabled: true },
     { labelKey: 'nav.studio.myImages', href: '/client-images', icon: FaImages, enabled: true },
+    { labelKey: 'nav.studio.filterImages', href: '/filter-images', icon: FaUsers, enabled: true },
     { labelKey: 'nav.studio.album', href: '/studio/albums', icon: FaFolder, enabled: true },
     { labelKey: 'nav.studio.ourMemories', href: '/memories/events', icon: FaHeart, enabled: true },
     { labelKey: 'nav.studio.createMembers', href: '/invitations', icon: FaUserPlus, enabled: true },

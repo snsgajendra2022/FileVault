@@ -4,6 +4,11 @@ A comprehensive React frontend for the ImageSecurity API system, providing user 
 
 ## 🚀 Features
 
+ "start": "concurrently -n openclaw,web -c magenta,cyan \"node server/openclaw-dev-server.js\" \"craco start\"",
+"start:web": "craco start",
+"openclaw-server": "node server/openclaw-dev-server.js",
+
+
 ### Core Features
 - **User Authentication & Management**
   - User registration with multi-step form
