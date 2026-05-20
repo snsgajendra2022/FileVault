@@ -38,7 +38,7 @@ import PlanDetailsPage from './pages/billing/PlanDetailsPage';
 import CheckoutPage from './pages/billing/CheckoutPage';
 
 // images pages
-import ImagesPage from './pages/images/ImagesPage';
+import ImagesPage from './pages/photo-studio/ImagesPage';
 import UploadPage from './pages/images/UploadPage';
 import UploadFamilyImagesPage from './pages/images/UploadFamilyImagesPage';
 import ViewImagePage from './pages/images/ViewImagePage';
@@ -134,9 +134,9 @@ const PublicShareRoute = ({ children }: { children: React.ReactNode }) => {
 
 const ProtectedRoute = ({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) => {
   const { isAuthenticated, isAdmin, isLoading } = useAuth();
-  
+
   // console.log('ProtectedRoute:', { isLoading, isAuthenticated, isAdmin, adminOnly });
-  
+
   // Show loading state while checking authentication
   if (isLoading) {
     return (
@@ -148,21 +148,21 @@ const ProtectedRoute = ({ children, adminOnly = false }: { children: React.React
       </div>
     );
   }
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/memories" />;
   }
-  
+
   if (adminOnly && !isAdmin) {
     return <Navigate to="/studio/dashboard" />;
   }
-  
+
   return <>{children}</>;
 };
 
 const AppRoutes = () => {
   const { isAuthenticated, isLoading, isAdmin } = useAuth();
-  
+
   return (
     <Routes>
       {/* Public image view route */}
@@ -173,13 +173,13 @@ const AppRoutes = () => {
       <Route path="/memories" element={<MemoriesLandingPage />} />
       <Route path="/memories/e/:eventSlug" element={<MemoriesPublicGalleryPage />} />
       <Route path="/login" element={
-        !isLoading && isAuthenticated ? 
-          (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />) : 
+        !isLoading && isAuthenticated ?
+          (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />) :
           <LoginPage />
       } />
       <Route path="/register" element={
-        !isLoading && isAuthenticated ? 
-          (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />) : 
+        !isLoading && isAuthenticated ?
+          (isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />) :
           <RegisterPage />
       } />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -187,7 +187,7 @@ const AppRoutes = () => {
       <Route path="/public/checkout" element={<PublicShareRoute><PublicCheckoutPage /></PublicShareRoute>} />
       {/* Public invitation acceptance route */}
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
-      
+
       {/* Public PhotoStudio routes - do not open without complete share URL (sid, q, or token) */}
       <Route path="/public/selection" element={<PublicShareRoute><PublicSelectionPage /></PublicShareRoute>} />
       <Route path="/public/images-display" element={<PublicShareRoute><PublicImagesDisplayPage /></PublicShareRoute>} />
@@ -196,7 +196,7 @@ const AppRoutes = () => {
       <Route path="/studio" element={<StudioLanding />} />
       <Route path="/studio/auth" element={<StudioAuthPage />} />
       <Route path="/client/:clientId" element={<ClientPortal />} />
-      
+
       <Route path="/" element={
         <ProtectedRoute>
           <Layout />
@@ -243,7 +243,7 @@ const AppRoutes = () => {
         <Route path="client-tree" element={<ClientTreePage />} />
         <Route path="family-tree" element={<FamilyTreePage />} />
         <Route path="Sheet" element={<SheetPage />} />
-        <Route path="create-client" element={<CreateClientInvitationForm onInvitationCreated={() => {}} />} />
+        <Route path="create-client" element={<CreateClientInvitationForm onInvitationCreated={() => { }} />} />
         {/* Photo Themes */}
         <Route path="photo-themes" element={<PhotoThemesPage />} />
         <Route path="photo-book" element={<PhotoBook />} />
@@ -271,7 +271,7 @@ const AppRoutes = () => {
           isAdmin ? <Navigate to="/admin" replace /> : <Navigate to="/studio/dashboard" replace />
         } />
       </Route>
-      
+
       {/* Catch all other routes and show 404 page */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
@@ -293,22 +293,22 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <SkeletonTheme baseColor={SKELETON_BASE_COLOR} highlightColor={SKELETON_HIGHLIGHT}>
-        <AuthProvider>
-          <Router>
-            <AppRoutes />
-            <OpenClawAgentDock />
-            <Toaster 
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: '#363636',
-                  color: '#fff',
-                },
-              }}
-            />
-          </Router>
-        </AuthProvider>
+          <AuthProvider>
+            <Router>
+              <AppRoutes />
+              <OpenClawAgentDock />
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: '#363636',
+                    color: '#fff',
+                  },
+                }}
+              />
+            </Router>
+          </AuthProvider>
         </SkeletonTheme>
       </QueryClientProvider>
     </ErrorBoundary>

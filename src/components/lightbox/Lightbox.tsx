@@ -74,7 +74,7 @@ const Lightbox: React.FC<LightboxProps> = ({
   useEffect(() => {
     if (!isOpen || items.length === 0) return;
     const urls = items.map((i) => i.src).filter(Boolean) as string[];
-    manager.preloadForIndex(currentIndex, urls).catch(() => {});
+    manager.preloadForIndex(currentIndex, urls).catch(() => { });
   }, [currentIndex, items, isOpen]);
 
   const goTo = useCallback((index: number) => {
@@ -139,10 +139,10 @@ const Lightbox: React.FC<LightboxProps> = ({
 
   // ── Download button appearance ──────────────────────────────────────────
   const dlConfig = {
-    idle:        { icon: <FaDownload className="h-3.5 w-3.5" />,                          label: 'Download',    cls: 'bg-white/20 hover:bg-white/30' },
-    downloading: { icon: <FaSpinner  className="h-3.5 w-3.5 animate-spin" />,             label: 'Downloading…', cls: 'bg-white/20 cursor-not-allowed' },
-    done:        { icon: <FaCheck    className="h-3.5 w-3.5" />,                           label: 'Downloaded',  cls: 'bg-green-500/80 hover:bg-green-500' },
-    error:       { icon: <FaExclamationTriangle className="h-3.5 w-3.5" />,                 label: 'Failed — retry', cls: 'bg-red-500/80 hover:bg-red-500' },
+    idle: { icon: <FaDownload className="h-3.5 w-3.5" />, label: 'Download', cls: 'bg-white/20 hover:bg-white/30' },
+    downloading: { icon: <FaSpinner className="h-3.5 w-3.5 animate-spin" />, label: 'Downloading…', cls: 'bg-white/20 cursor-not-allowed' },
+    done: { icon: <FaCheck className="h-3.5 w-3.5" />, label: 'Downloaded', cls: 'bg-green-500/80 hover:bg-green-500' },
+    error: { icon: <FaExclamationTriangle className="h-3.5 w-3.5" />, label: 'Failed — retry', cls: 'bg-red-500/80 hover:bg-red-500' },
   }[dlState];
 
   return createPortal(
@@ -226,14 +226,14 @@ const Lightbox: React.FC<LightboxProps> = ({
       {dlState === 'downloading' && (
         <div className="absolute bottom-[72px] left-0 right-0 h-0.5 bg-white/10 z-40 overflow-hidden">
           <div className="h-full bg-white/70 animate-[progress_1.8s_ease-in-out_infinite]"
-               style={{ width: '60%', animation: 'lightbox-progress 1.8s ease-in-out infinite' }} />
+            style={{ width: '60%', animation: 'lightbox-progress 1.8s ease-in-out infinite' }} />
         </div>
       )}
 
       {/* ── Thumbnail strip ── */}
       {total > 1 && (
         <div className="flex-shrink-0 flex gap-2 overflow-x-auto px-4 py-3 bg-black/50"
-             style={{ scrollbarWidth: 'none' }}>
+          style={{ scrollbarWidth: 'none' }}>
           {items.map((item, idx) => {
             const thumb = item.thumbnailSrc || item.src;
             const isActive = idx === currentIndex;
@@ -242,9 +242,8 @@ const Lightbox: React.FC<LightboxProps> = ({
                 key={item.id}
                 type="button"
                 onClick={() => goTo(idx)}
-                className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
-                  isActive ? 'border-white opacity-100 scale-105' : 'border-transparent opacity-50 hover:opacity-80'
-                }`}
+                className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${isActive ? 'border-white opacity-100 scale-105' : 'border-transparent opacity-50 hover:opacity-80'
+                  }`}
                 aria-label={`Go to image ${idx + 1}`}
               >
                 {thumb

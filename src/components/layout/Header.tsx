@@ -59,14 +59,14 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
 
         {/* Right side - User controls */}
         <div className="flex items-center space-x-3 sm:space-x-4">
-          <button
+          {/* <button
             type="button"
             onClick={() => setColorMode(toggleStoredTheme())}
             className="p-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-amber-300 dark:hover:text-amber-200 dark:hover:bg-slate-800 transition-colors"
             aria-label={colorMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {colorMode === 'dark' ? <IoSunny className="h-5 w-5" /> : <IoMoon className="h-5 w-5" />}
-          </button>
+          </button> */}
           {/* Language (next to notifications) */}
           <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-2 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <FaGlobe className="h-4 w-4 text-slate-500 shrink-0 hidden sm:block" aria-hidden />
@@ -191,7 +191,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <button
                       onClick={() => {
@@ -203,7 +203,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                       <FaUser className="mr-3 h-4 w-4 text-violet-500 dark:text-violet-400 group-hover:scale-110 transition-transform duration-300" />
                       <span className="font-semibold">{t('header.profile')}</span>
                     </button>
-                    
+
                     {/* <button
                       onClick={() => {
                         navigate('/settings');
@@ -214,9 +214,9 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                       <FaCog className="mr-3 h-4 w-4 text-purple-600 group-hover:scale-110 transition-transform duration-300" />
                       <span className="font-semibold">Settings</span>
                     </button> */}
-                    
+
                     <hr className="my-3 border-slate-200 dark:border-slate-700" />
-                    
+
                     <button
                       onClick={handleLogout}
                       className="group flex items-center w-full px-4 py-3 text-sm text-rose-600 dark:text-rose-300 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-600/90 rounded-xl transition-colors border border-transparent hover:border-rose-600"

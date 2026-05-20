@@ -273,16 +273,18 @@ const ImageCard = memo(function ImageCard({
       data-index={index}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`group relative overflow-hidden rounded-2xl border bg-[var(--card)] transition-all duration-300 il-shadow-soft hover:-translate-y-0.5 hover:il-shadow-elegant ${
-        isSelected
-          ? 'border-[color:var(--primary)] ring-2 ring-[color:var(--ring)] il-shadow-elegant'
-          : 'border-[color:color-mix(in_oklab,var(--border),transparent_35%)] hover:border-[color:color-mix(in_oklab,var(--primary),transparent_60%)]'
-      }`}
+      className={`group relative overflow-hidden rounded-2xl border bg-[var(--card)] il-shadow-soft ${isSelected
+        ? 'border-blue-500'
+        : 'border-[color:color-mix(in_oklab,var(--border),transparent_35%)] hover:border-[color:color-mix(in_oklab,var(--primary),transparent_60%)]'
+        }`}
     >
       {/* Preview area */}
       <div
         className="relative w-full overflow-hidden bg-[color:var(--muted)]"
         style={{ paddingBottom: `${(1 / ASPECT_RATIO) * 100}%` }}
+        onClick={() => onView(image)}
+
+
       >
         <div className="absolute inset-0">
           {showSkeleton && <SkeletonPlaceholder />}
@@ -294,9 +296,7 @@ const ImageCard = memo(function ImageCard({
               className="h-full w-full object-cover transition-all duration-500"
               style={{
                 opacity: loadState === 'loaded' ? 1 : 0,
-                filter: hovered ? 'blur(0px) brightness(1)' : 'blur(4px) brightness(0.92)',
-                transform: hovered ? 'scale(1.05)' : 'scale(1)',
-                transition: 'filter 0.4s ease, transform 0.4s ease, opacity 0.3s ease',
+                transition: 'opacity 0.3s ease',
               }}
               loading="lazy"
               onLoad={handleLoad}
@@ -355,11 +355,10 @@ const ImageCard = memo(function ImageCard({
                   e.stopPropagation();
                   onToggleSelect(image);
                 }}
-                className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-all duration-200 ${
-                  isSelected
-                    ? 'border-white bg-[color:var(--primary)] text-[color:var(--primary-foreground)] shadow-md'
-                    : 'border-white/70 bg-black/25 opacity-0 backdrop-blur-sm hover:border-white group-hover:opacity-100'
-                }`}
+                className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-all duration-200 ${isSelected
+                  ? 'border-white bg-blue-600 text-white shadow-md'
+                  : 'border-white/70 bg-black/25 backdrop-blur-sm hover:border-white'
+                  }`}
                 aria-label={isSelected ? 'Deselect' : 'Select for share'}
               >
                 {isSelected ? <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={2.5} /> : null}
@@ -450,6 +449,7 @@ const ClientImagesPage = () => {
   const [gallerySearch, setGallerySearch] = useState('');
   const [gallerySearchOpen, setGallerySearchOpen] = useState(false);
   const [gridCompact, setGridCompact] = useState(false);
+  const [showSourcesPanel, setShowSourcesPanel] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareContactIds, setShareContactIds] = useState<Set<string>>(new Set());
   const [shareNewEmails, setShareNewEmails] = useState('');
@@ -1269,173 +1269,205 @@ const ClientImagesPage = () => {
         <div className="absolute top-1/3 -left-40 h-96 w-96 rounded-full bg-[var(--primary-glow)]/15 blur-3xl" />
       </div>
 
-       <div className="relative w-full px-4 py-6 sm:px-6 sm:py-8">
+      <div className="relative w-full px-4 py-6 sm:px-6 sm:py-8">
 
         {/* header section start */}
-   <header
-  className="relative mb-6 overflow-hidden rounded-3xl border border-[#D9E7FF] px-8 py-7 shadow-[0_10px_40px_rgba(37,99,235,0.06)]"
-  style={{
-    background:
-      'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)',
-  }}
->
-  <div className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full bg-blue-300/10 blur-3xl" />
-  <div className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-blue-400/5 blur-3xl" />
+        <header
+          className="relative mb-6 overflow-hidden rounded-3xl border border-[#D9E7FF] px-8 py-7 shadow-[0_10px_40px_rgba(37,99,235,0.06)]"
+          style={{
+            background:
+              'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)',
+          }}
+        >
+          <div className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full bg-blue-300/10 blur-3xl" />
+          <div className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-blue-400/5 blur-3xl" />
 
-  <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-    {/* LEFT */}
-    <div className="flex-1 min-w-0">
-      <div className="inline-flex items-center gap-2 rounded-full border border-[#D9E7FF] bg-white/70 px-3 py-1 backdrop-blur-xl">
-        <span className="relative flex h-1.5 w-1.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2563EB] opacity-60" />
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
-        </span>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2563EB]">
-          Photo Library
-        </span>
-      </div>
+          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            {/* LEFT */}
+            <div className="flex-1 min-w-0">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#D9E7FF] bg-white/70 px-3 py-1 backdrop-blur-xl">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2563EB] opacity-60" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
+                </span>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2563EB]">
+                  Photo Library
+                </span>
+              </div>
 
-      <h1 className="mt-4 text-[2.25rem] font-semibold leading-[1.1] tracking-tight text-[#0F172A]">
-        {viewMode === 'my'
-          ? 'My Images'
-          : t('imagesPage.theirFiles', {
-              name:
-                [selectedUser?.inviterFirstName, selectedUser?.inviterLastName]
-                  .filter(Boolean)
-                  .join(' ')
-                  .trim() || '—',
-            })}
-      </h1>
+              <h1 className="mt-4 text-[2.25rem] font-semibold leading-[1.1] tracking-tight text-[#0F172A]">
+                {viewMode === 'my'
+                  ? 'My Images'
+                  : t('imagesPage.theirFiles', {
+                    name:
+                      [selectedUser?.inviterFirstName, selectedUser?.inviterLastName]
+                        .filter(Boolean)
+                        .join(' ')
+                        .trim() || '—',
+                  })}
+              </h1>
 
-      <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-        Browse, organize, and manage every file in your library.
-      </p>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+                Browse, organize, and manage every file in your librarccdasfy.
+              </p>
 
-      {/* Stat row — flatter, more enterprise */}
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <div className="inline-flex items-center gap-3 rounded-2xl border border-[#D9E7FF] bg-white/80 px-4 py-2.5 backdrop-blur-xl">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2563EB] to-[#3B82F6] shadow-[0_6px_16px_rgba(37,99,235,0.25)]">
-            <ImageIcon className="h-4 w-4 text-white" strokeWidth={2.4} />
+              {/* Stat row — flatter, more enterprise */}
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <div className="inline-flex items-center gap-3 rounded-2xl border border-[#D9E7FF] bg-white/80 px-4 py-2.5 backdrop-blur-xl">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2563EB] to-[#3B82F6] shadow-[0_6px_16px_rgba(37,99,235,0.25)]">
+                    <ImageIcon className="h-4 w-4 text-white" strokeWidth={2.4} />
+                  </div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-semibold tabular-nums text-[#0F172A]">
+                      {userImagesData?.pages?.[0]?.totalImages ?? images.length}
+                    </span>
+                    <span className="text-xs font-medium text-slate-500">files</span>
+                  </div>
+                </div>
+
+                <div className="inline-flex items-center gap-2 rounded-2xl border border-[#D9E7FF] bg-white/80 px-4 py-2.5 backdrop-blur-xl">
+                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span className="text-xs font-medium text-slate-600">All synced</span>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT ACTIONS */}
+            <div className="flex shrink-0 items-center gap-2 rounded-2xl border border-[#D9E7FF] bg-white/60 p-1.5 backdrop-blur-xl">
+              <button
+                type="button"
+                onClick={() => setGallerySearchOpen((o) => !o)}
+                className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all ${gallerySearchOpen || gallerySearch
+                  ? 'bg-[#2563EB] text-white shadow-sm'
+                  : 'text-slate-500 hover:bg-white hover:text-[#0F172A]'
+                  }`}
+                aria-label="Search"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setGridCompact((c) => !c)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-white hover:text-[#0F172A]"
+                aria-label="Toggle layout"
+              >
+                {gridCompact ? <LayoutGrid className="h-4 w-4" /> : <Grid3x3 className="h-4 w-4" />}
+              </button>
+
+              <div className="mx-1 h-6 w-px bg-[#D9E7FF]" />
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedImageIds.size > 0) {
+                    setShowShareModal(true);
+                  } else {
+                    toast('Select images using the ☑ checkbox on each card, then share.', { icon: '💡' });
+                  }
+                }}
+                className={`inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-all ${selectedImageIds.size > 0
+                  ? 'text-blue-900 shadow-sm hover:opacity-90'
+                  : 'text-slate-500 hover:bg-white hover:text-[#0F172A]'
+                  }`}
+                style={selectedImageIds.size > 0 ? { background: 'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)' } : undefined}
+                aria-label="Share"
+              >
+                <Share2 className="h-4 w-4" />
+                <span className="hidden sm:inline">
+                  {selectedImageIds.size > 0 ? `Share (${selectedImageIds.size})` : 'Share'}
+                </span>
+                {selectedImageIds.size > 0 && (
+                  <span className="sm:hidden text-xs font-bold">{selectedImageIds.size}</span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { window.location.href = '/upload'; }}
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#3B82F6] px-3 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(37,99,235,0.25)] transition-all hover:shadow-[0_10px_28px_rgba(37,99,235,0.32)]"
+                aria-label="Upload"
+              >
+                <Upload className="h-4 w-4" />
+                <span className="hidden sm:inline">Upload</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-semibold tabular-nums text-[#0F172A]">
-              {userImagesData?.pages?.[0]?.totalImages ?? images.length}
-            </span>
-            <span className="text-xs font-medium text-slate-500">files</span>
-          </div>
-        </div>
+        </header>
 
-        <div className="inline-flex items-center gap-2 rounded-2xl border border-[#D9E7FF] bg-white/80 px-4 py-2.5 backdrop-blur-xl">
-          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-          <span className="text-xs font-medium text-slate-600">All synced</span>
-        </div>
-      </div>
-    </div>
+        {viewMode === 'my' && familyRelationships.length > 0 && (
+          <section className="mb-8 overflow-hidden rounded-3xl border border-[#D9E7FF] bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+            {/* Header — always visible, tap to expand on mobile */}
+            <button
+              type="button"
+              className="flex w-full items-center justify-between px-6 py-4 sm:cursor-default"
+              onClick={() => setShowSourcesPanel((v) => !v)}
+            >
+              <div className="text-left">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2563EB]">
+                  Image Sources
+                </p>
+                <h3 className="mt-0.5 text-base font-semibold tracking-tight text-[#0F172A]">
+                  Show files from
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-500">
+                  {familyRelationships.length + 1} sources
+                </span>
+                <span className={`text-slate-400 transition-transform duration-200 sm:hidden ${showSourcesPanel ? 'rotate-180' : ''}`}>
+                  ▾
+                </span>
+              </div>
+            </button>
 
-    {/* RIGHT ACTIONS */}
-    <div className="flex shrink-0 items-center gap-2 rounded-2xl border border-[#D9E7FF] bg-white/60 p-1.5 backdrop-blur-xl">
-      <button
-        type="button"
-        onClick={() => setGallerySearchOpen((o) => !o)}
-        className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
-          gallerySearchOpen || gallerySearch
-            ? 'bg-[#2563EB] text-white shadow-sm'
-            : 'text-slate-500 hover:bg-white hover:text-[#0F172A]'
-        }`}
-        aria-label="Search"
-      >
-        <Search className="h-4 w-4" />
-      </button>
+            {/* Body — always visible on sm+, collapsible on mobile */}
+            <div className={`px-6 pb-5 sm:block ${showSourcesPanel ? 'block' : 'hidden'}`}>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleBackToMyFiles}
+                  className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all ${viewMode === 'my' && !selectedUser
+                    ? 'bg-[#0F172A] text-white shadow-sm'
+                    : 'border border-[#D9E7FF] bg-white text-slate-600 hover:border-[#2563EB]/40 hover:text-[#0F172A]'
+                    }`}
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${viewMode === 'my' && !selectedUser ? 'bg-emerald-400' : 'bg-slate-300'}`} />
+                  {t('imagesPage.myImages')}
+                </button>
 
-      <button
-        type="button"
-        onClick={() => setGridCompact((c) => !c)}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-white hover:text-[#0F172A]"
-        aria-label="Toggle layout"
-      >
-        {gridCompact ? <LayoutGrid className="h-4 w-4" /> : <Grid3x3 className="h-4 w-4" />}
-      </button>
+                {familyRelationships.map((member) => {
+                  const active = selectedUser?.inviterId === member.inviterId;
+                  const name = [member.inviterFirstName, member.inviterLastName].filter(Boolean).join(' ');
+                  const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+                  return (
+                    <button
+                      key={member.inviterId}
+                      type="button"
+                      onClick={() => { handleUserSelect(member); setShowSourcesPanel(false); }}
+                      className={`inline-flex shrink-0 max-w-[200px] items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all ${active
+                        ? 'bg-[#0F172A] text-white shadow-sm'
+                        : 'border border-[#D9E7FF] bg-white text-slate-600 hover:border-[#2563EB]/40 hover:text-[#0F172A]'
+                        }`}
+                    >
+                      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${active ? 'bg-white/15 text-white' : 'bg-[#EFF6FF] text-[#2563EB]'}`}>
+                        {initials || '·'}
+                      </span>
+                      <span className="truncate">{name}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-      <div className="mx-1 h-6 w-px bg-[#D9E7FF]" />
-
-      <button
-        type="button"
-        onClick={() => { window.location.href = '/upload'; }}
-        className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#3B82F6] px-4 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(37,99,235,0.25)] transition-all hover:shadow-[0_10px_28px_rgba(37,99,235,0.32)]"
-      >
-        <Upload className="h-4 w-4" />
-        Upload
-      </button>
-    </div>
-  </div>
-</header>
-
-{viewMode === 'my' && familyRelationships.length > 0 && (
-  <section className="mb-8 overflow-hidden rounded-3xl border border-[#D9E7FF] bg-white/80 p-6 shadow-[0_10px_30px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-    <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2563EB]">
-          Image Sources
-        </p>
-        <h3 className="mt-1.5 text-base font-semibold tracking-tight text-[#0F172A]">
-          Show files from
-        </h3>
-      </div>
-      <span className="text-xs font-medium text-slate-500">
-        {familyRelationships.length + 1} sources available
-      </span>
-    </div>
-
-    <div className="flex flex-wrap gap-2">
-      <button
-        type="button"
-        onClick={handleBackToMyFiles}
-        className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all ${
-          viewMode === 'my' && !selectedUser
-            ? 'bg-[#0F172A] text-white shadow-sm'
-            : 'border border-[#D9E7FF] bg-white text-slate-600 hover:border-[#2563EB]/40 hover:text-[#0F172A]'
-        }`}
-      >
-        <span className={`h-1.5 w-1.5 rounded-full ${
-          viewMode === 'my' && !selectedUser ? 'bg-emerald-400' : 'bg-slate-300'
-        }`} />
-        {t('imagesPage.myImages')}
-      </button>
-
-      {familyRelationships.map((member) => {
-        const active = selectedUser?.inviterId === member.inviterId;
-        const name = [member.inviterFirstName, member.inviterLastName].filter(Boolean).join(' ');
-        const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-        return (
-          <button
-            key={member.inviterId}
-            type="button"
-            onClick={() => handleUserSelect(member)}
-            className={`inline-flex max-w-[260px] items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all ${
-              active
-                ? 'bg-[#0F172A] text-white shadow-sm'
-                : 'border border-[#D9E7FF] bg-white text-slate-600 hover:border-[#2563EB]/40 hover:text-[#0F172A]'
-            }`}
-          >
-            <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold ${
-              active ? 'bg-white/15 text-white' : 'bg-[#EFF6FF] text-[#2563EB]'
-            }`}>
-              {initials || '·'}
-            </span>
-            <span className="truncate">{name}</span>
-          </button>
-        );
-      })}
-    </div>
-
-    <p className="mt-5 border-t border-[#D9E7FF] pt-4 text-xs leading-5 text-slate-500">
-      {t('imagesPage.familySectionHint')}
-    </p>
-  </section>
-)}
+              <p className="mt-4 border-t border-[#D9E7FF] pt-3 text-xs leading-5 text-slate-500">
+                {t('imagesPage.familySectionHint')}
+              </p>
+            </div>
+          </section>
+        )}
 
 
-      
+
 
         {/* {viewMode === 'my' && (
           <section className="mb-8">
@@ -1530,104 +1562,103 @@ const ClientImagesPage = () => {
           </section>
         )} */}
 
-      <section>
-        {images.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-[color:color-mix(in_oklab,var(--border),transparent_25%)] bg-[var(--card)]/50 px-4 py-16 text-center sm:py-20">
-            <Upload className="mx-auto h-14 w-14 text-[color:var(--muted-foreground)] opacity-45" />
-            <h3 className="mt-4 text-lg font-semibold text-[color:var(--foreground)]">
-              {viewMode === 'my' ? t('imagesPage.noFilesMy') : t('imagesPage.noFilesShared')}
-            </h3>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-[color:var(--muted-foreground)]">
-              {viewMode === 'my'
-                ? t('imagesPage.uploadHint')
-                : t('imagesPage.noFilesTheir', {
+        <section>
+          {images.length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-[color:color-mix(in_oklab,var(--border),transparent_25%)] bg-[var(--card)]/50 px-4 py-16 text-center sm:py-20">
+              <Upload className="mx-auto h-14 w-14 text-[color:var(--muted-foreground)] opacity-45" />
+              <h3 className="mt-4 text-lg font-semibold text-[color:var(--foreground)]">
+                {viewMode === 'my' ? t('imagesPage.noFilesMy') : t('imagesPage.noFilesShared')}
+              </h3>
+              <p className="mx-auto mt-2 max-w-sm text-sm text-[color:var(--muted-foreground)]">
+                {viewMode === 'my'
+                  ? t('imagesPage.uploadHint')
+                  : t('imagesPage.noFilesTheir', {
                     name: [selectedUser?.inviterFirstName, selectedUser?.inviterLastName]
                       .filter(Boolean)
                       .join(' ')
                       .trim() || '—',
                   })}
-            </p>
-            {viewMode === 'my' && (
+              </p>
+              {viewMode === 'my' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = '/upload';
+                  }}
+                  className="mt-6 inline-flex items-center rounded-xl il-primary-gradient px-5 py-2.5 text-sm font-semibold text-[color:var(--primary-foreground)] il-shadow-elegant transition hover:opacity-95"
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {t('imagesPage.uploadFile')}
+                </button>
+              )}
+            </div>
+          ) : filteredImagesWithIndex.length === 0 ? (
+            <div className="rounded-2xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--card)]/70 py-14 text-center il-shadow-soft backdrop-blur-sm">
+              <Search className="mx-auto mb-3 h-10 w-10 text-[color:var(--muted-foreground)] opacity-45" />
+              <p className="text-sm text-[color:var(--muted-foreground)]">{t('imagesPage.noSearchMatches')}</p>
               <button
                 type="button"
                 onClick={() => {
-                  window.location.href = '/upload';
+                  setGallerySearch('');
+                  setGallerySearchOpen(false);
                 }}
-                className="mt-6 inline-flex items-center rounded-xl il-primary-gradient px-5 py-2.5 text-sm font-semibold text-[color:var(--primary-foreground)] il-shadow-elegant transition hover:opacity-95"
+                className="mt-4 inline-flex items-center rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_25%)] bg-[var(--background)] px-4 py-2 text-sm font-medium text-[color:var(--foreground)] transition hover:bg-[var(--muted)]"
               >
-                <Upload className="mr-2 h-4 w-4" />
-                {t('imagesPage.uploadFile')}
+                {t('imagesPage.clearSearch')}
               </button>
-            )}
-          </div>
-        ) : filteredImagesWithIndex.length === 0 ? (
-          <div className="rounded-2xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--card)]/70 py-14 text-center il-shadow-soft backdrop-blur-sm">
-            <Search className="mx-auto mb-3 h-10 w-10 text-[color:var(--muted-foreground)] opacity-45" />
-            <p className="text-sm text-[color:var(--muted-foreground)]">{t('imagesPage.noSearchMatches')}</p>
-            <button
-              type="button"
-              onClick={() => {
-                setGallerySearch('');
-                setGallerySearchOpen(false);
-              }}
-              className="mt-4 inline-flex items-center rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_25%)] bg-[var(--background)] px-4 py-2 text-sm font-medium text-[color:var(--foreground)] transition hover:bg-[var(--muted)]"
-            >
-              {t('imagesPage.clearSearch')}
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="mb-4 flex flex-col gap-1 border-b border-[color:color-mix(in_oklab,var(--border),transparent_45%)] pb-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-[color:var(--foreground)]">{t('imagesPage.galleryHeading')}</h2>
-                <p className="text-xs text-[color:var(--muted-foreground)]">
-                  {t('imagesPage.itemsShowing', { n: filteredImagesWithIndex.length })}
-                </p>
-              </div>
             </div>
-            <div className="space-y-10">
-              {galleryImagesByDay.map((group) => (
-                <div key={group.dayKey}>
-                  <p className="mb-3 mt-0.5 text-[16px] text-[color:var(--muted-foreground)]">
-                    {formatDate(group.items[0].image.uploadTime)}
+          ) : (
+            <>
+              <div className="mb-4 flex flex-col gap-1 border-b border-[color:color-mix(in_oklab,var(--border),transparent_45%)] pb-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-[color:var(--foreground)]">{t('imagesPage.galleryHeading')}</h2>
+                  <p className="text-xs text-[color:var(--muted-foreground)]">
+                    {t('imagesPage.itemsShowing', { n: filteredImagesWithIndex.length })}
                   </p>
-                  <div
-                    className={`grid gap-3 ${
-                      gridCompact
+                </div>
+              </div>
+              <div className="space-y-10">
+                {galleryImagesByDay.map((group) => (
+                  <div key={group.dayKey}>
+                    <p className="mb-3 mt-0.5 text-[16px] text-[color:var(--muted-foreground)]">
+                      {formatDate(group.items[0].image.uploadTime)}
+                    </p>
+                    <div
+                      className={`grid gap-3 ${gridCompact
                         ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6'
                         : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
-                    }`}
-                  >
-                    {group.items.map(({ image, index }) => (
-                      <div key={`${getImageKey(image)}-${index}`}>
-                        <ImageCard
-                          image={image}
-                          index={index}
-                          isVisible={visibleIndices.has(index)}
-                          onView={handleView}
-                          onDownload={handleDownload}
-                          onDelete={handleDelete}
-                          viewMode={viewMode}
-                          deletePending={deleteImageMutation.isPending}
-                          cardRef={setCardRef(index)}
-                          isSelected={viewMode === 'my' ? selectedImageIds.has(getImageKey(image)) : undefined}
-                          onToggleSelect={viewMode === 'my' ? handleToggleSelect : undefined}
-                        />
-                      </div>
-                    ))}
+                        }`}
+                    >
+                      {group.items.map(({ image, index }) => (
+                        <div key={`${getImageKey(image)}-${index}`}>
+                          <ImageCard
+                            image={image}
+                            index={index}
+                            isVisible={visibleIndices.has(index)}
+                            onView={handleView}
+                            onDownload={handleDownload}
+                            onDelete={handleDelete}
+                            viewMode={viewMode}
+                            deletePending={deleteImageMutation.isPending}
+                            cardRef={setCardRef(index)}
+                            isSelected={viewMode === 'my' ? selectedImageIds.has(getImageKey(image)) : undefined}
+                            onToggleSelect={viewMode === 'my' ? handleToggleSelect : undefined}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            <div ref={loadMoreSentinelRef} className="h-4" aria-hidden />
-            {isFetchingNextPage && (
-              <div className="mt-4 flex justify-center py-4">
-                <LoadingSpinner size="md" text={t('imagesPage.loadingMore')} />
+                ))}
               </div>
-            )}
-          </>
-        )}
-      </section>
+              <div ref={loadMoreSentinelRef} className="h-4" aria-hidden />
+              {isFetchingNextPage && (
+                <div className="mt-4 flex justify-center py-4">
+                  <LoadingSpinner size="md" text={t('imagesPage.loadingMore')} />
+                </div>
+              )}
+            </>
+          )}
+        </section>
 
       </div>
 
@@ -1880,6 +1911,20 @@ const ClientImagesPage = () => {
             <div className="flex items-center gap-1 pointer-events-auto">
               <button
                 type="button"
+                onClick={() => {
+                  // Select this image and open share modal
+                  const key = getImageKey(selectedImage);
+                  setSelectedImageIds(new Set([key]));
+                  closeLightbox();
+                  setTimeout(() => setShowShareModal(true), 50);
+                }}
+                className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                aria-label="Share"
+              >
+                <Share2 className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
                 onClick={() => handleDownload(selectedImage)}
                 className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
                 aria-label="Download"
@@ -1961,9 +2006,8 @@ const ClientImagesPage = () => {
                         <img
                           src={thumbUrl}
                           alt={selectedImage.filename}
-                          className={`absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-300 ${
-                            showingPreviewOverlay ? 'opacity-0' : 'opacity-100'
-                          }`}
+                          className={`absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-300 ${showingPreviewOverlay ? 'opacity-0' : 'opacity-100'
+                            }`}
                           draggable={false}
                         />
                         {/* {isLoadingPreview && (
@@ -1978,9 +2022,8 @@ const ClientImagesPage = () => {
                         <img
                           src={previewUrl}
                           alt={selectedImage.filename}
-                          className={`absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-300 ${
-                            lightboxPreviewVisible ? 'opacity-100' : 'opacity-0'
-                          }`}
+                          className={`absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-300 ${lightboxPreviewVisible ? 'opacity-100' : 'opacity-0'
+                            }`}
                           draggable={false}
                         />
                       )}
@@ -2029,20 +2072,20 @@ const ClientImagesPage = () => {
 };
 
 export default ClientImagesPage;
-  // if (error) {
-  //   return (
-  //     <div className="p-6">
-  //       <div className="text-center py-12">
-  //         <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Images</h2>
-  //         <p className="text-gray-600 mb-4">Failed to load your images. Please try again.</p>
-  //         <button
-  //           type="button"
-  //           onClick={() => refetch()}
-  //           className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-  //         >
-  //           Retry
-  //         </button>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+// if (error) {
+//   return (
+//     <div className="p-6">
+//       <div className="text-center py-12">
+//         <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Images</h2>
+//         <p className="text-gray-600 mb-4">Failed to load your images. Please try again.</p>
+//         <button
+//           type="button"
+//           onClick={() => refetch()}
+//           className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+//         >
+//           Retry
+//         </button>
+//       </div>
+//     </div>
+//   );
+// }
