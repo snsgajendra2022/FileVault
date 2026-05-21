@@ -5,7 +5,7 @@
 
 import { useMemo } from 'react';
 import { useAuth } from '../state/context/AuthContext';
-import { getRoleFromAccountType, isMenuAllowed, canAccessPath } from '../utils/portalSettings';
+import { getResolvedPortalRole, isMenuAllowed, canAccessPath } from '../utils/portalSettings';
 
 interface UsePermissionsReturn {
   role: 'admin' | 'studio' | 'regular' | 'users';
@@ -31,8 +31,8 @@ export const usePermissions = (): UsePermissionsReturn => {
   const { user ,isUsers ,isStudio ,isAdmin  } = useAuth() as any;
 
   const role = useMemo(
-    () => getRoleFromAccountType(user?.accountType),
-    [user?.accountType]
+    () => getResolvedPortalRole(user),
+    [user?.role, user?.accountType]
   );
 
   // const isAdmin = role === 'admin';

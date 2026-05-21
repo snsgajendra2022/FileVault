@@ -153,8 +153,9 @@ export function buildDefaultRolePermissions(): Record<RoleType, RoleMenuPermissi
     'studio',
     'studio'
   );
+  const usersPermissions = buildPermissionsFromNav(usersNavigation, 'users', 'users');
   const regularPermissions = buildPermissionsFromNav(
-    usersNavigation,
+    regularNavigation,
     'regular',
     'regular'
   );
@@ -163,6 +164,7 @@ export function buildDefaultRolePermissions(): Record<RoleType, RoleMenuPermissi
     admin: [
       ...adminPermissions,
       ...studioPermissions,
+      ...usersPermissions,
       ...regularPermissions,
     ].map(p => ({
       ...p,
@@ -178,10 +180,7 @@ export function buildDefaultRolePermissions(): Record<RoleType, RoleMenuPermissi
         manage: true,
       },
     })),
-    studio: [
-      ...studioPermissions,
-      ...regularPermissions.filter(p => isUsefulForStudio(p.href)),
-    ].map(p => ({
+    studio: studioPermissions.map(p => ({
       ...p,
       enabled: true,
       actions: {
@@ -209,7 +208,7 @@ export function buildDefaultRolePermissions(): Record<RoleType, RoleMenuPermissi
         manage: false,
       },
     })),
-    users: regularPermissions.map((p) => ({
+    users: usersPermissions.map((p) => ({
       ...p,
       enabled: true,
       actions: {
@@ -253,7 +252,7 @@ export function normalizeRoleMenuPermissions(
  */
 function buildPermissionsFromNav(
   navGroup: NavGroup,
-  group: 'regular' | 'studio' | 'admin',
+  group: 'regular' | 'studio' | 'admin' | 'users',
   role: RoleType
 ): Omit<RoleMenuPermission, 'actions'>[] {
   return navGroup.items.map(item => ({
@@ -265,21 +264,60 @@ function buildPermissionsFromNav(
   }));
 }
 
-/**
- * Determine if a menu item is useful for studio users
- */
-function isUsefulForStudio(href: string): boolean {
-  const usefulHrefs = [
-    '/profile',
-    '/studio/dashboard',
-    '/upload',
-    '/services',
-    '/plans',
-    '/usage',
-    '/invitations',
-    '/family-tree',
+/** Display groups shown in Portal Settings permissions tab per role. */
+export type MenuPermissionGroup = 'Regular' | 'Studio' | 'Admin' | 'Users';
+
+export function getMenuGroupsForRole(role: RoleType): MenuPermissionGroup[] {
+  switch (role) {
+    case 'admin':
+      return ['Admin', 'Studio', 'Users', 'Regular'];
+    case 'studio':
+      return ['Studio'];
+    case 'users':
+      return ['Users'];
+    case 'regular':
+    default:
+      return ['Regular'];
+  }
+}
+
+/** Resolve portal role from DB `users.role` first, then accountType. */
+export function getResolvedPortalRole(
+  user?: { role?: string; accountType?: string } | null
+): RoleType {
+  if (!user) return 'users';
+  const r = String(user.role || '').trim().toUpperCase();
+  if (r === 'ADMIN') return 'admin';
+  if (r === 'STUDIO') return 'studio';
+  if (r === 'USERS' || r === 'USER') return 'users';
+  return getRoleFromAccountType(user.accountType);
+}
+
+/** Roles this user may edit in Portal Settings → Permissions. */
+export function getEditablePortalRoles(
+  user?: { role?: string; accountType?: string } | null
+): RoleType[] {
+  const role = getResolvedPortalRole(user);
+  if (role === 'admin') return ['admin', 'studio', 'users', 'regular'];
+  if (role === 'studio') return ['studio', 'users'];
+  return [];
+}
+
+export function canManagePortalPermissions(
+  user?: { role?: string; accountType?: string } | null
+): boolean {
+  return getEditablePortalRoles(user).length > 0;
+}
+
+/** labelKey from navConfig for a route (keeps API permissions aligned with sidebar). */
+export function findNavLabelKeyForHref(href: string): string | undefined {
+  const items = [
+    ...regularNavigation.items,
+    ...studioNavigation.items,
+    ...adminNavigation.items,
+    ...usersNavigation.items,
   ];
-  return usefulHrefs.some(useful => href.includes(useful));
+  return items.find((i) => i.href === href)?.labelKey;
 }
 
 // ============================================================================
@@ -464,6 +502,7 @@ function isMenuEnabledInConfig(href: string): boolean {
     regularNavigation,
     studioNavigation,
     adminNavigation,
+    usersNavigation,
   ];
 
   for (const nav of allNavs) {
@@ -560,13 +599,27 @@ export function isPortalAssistantEnabled(): boolean {
  * Includes all relevant navigation groups
  */
 export function getFilteredNavigationForRole(role: RoleType) {
-  const filtered = {
+  return {
     regular: filterNavigationByRolePermissions(regularNavigation, role),
     studio: filterNavigationByRolePermissions(studioNavigation, role),
+    users: filterNavigationByRolePermissions(usersNavigation, role),
     admin: filterNavigationByRolePermissions(adminNavigation, role),
   };
+}
 
-  return filtered;
+/** Primary sidebar nav group for the signed-in user. */
+export function getActiveNavGroupForRole(role: RoleType): NavGroup {
+  switch (role) {
+    case 'admin':
+      return adminNavigation;
+    case 'studio':
+      return studioNavigation;
+    case 'users':
+      return usersNavigation;
+    case 'regular':
+    default:
+      return regularNavigation;
+  }
 }
 
 // ============================================================================

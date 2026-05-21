@@ -231,7 +231,7 @@ export default function WhatsAppChannelCard({
       )}
 
       {/* Real WhatsApp link instructions */}
-      <div className="mx-6 mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
+      {/* <div className="mx-6 mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
         <p className="text-sm font-bold text-amber-900">{t('whatsapp.realLinkTitle')}</p>
         <p className="mt-2 text-sm text-amber-800">{t('whatsapp.realLinkIntro')}</p>
         <ol className="mt-3 list-decimal list-inside space-y-2 text-sm text-amber-900/90">
@@ -241,7 +241,7 @@ export default function WhatsAppChannelCard({
           <li>{t('whatsapp.realLinkStep4')}</li>
         </ol>
         <p className="mt-3 text-xs text-amber-800/90">{t('whatsapp.realLinkNote')}</p>
-      </div>
+      </div> */}
 
       {/* Dev QR (not scannable in WhatsApp) */}
       {hasQr && (

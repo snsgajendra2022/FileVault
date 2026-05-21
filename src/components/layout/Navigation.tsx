@@ -9,8 +9,9 @@ import {
   usersNavigation,
 } from './navConfig';
 import {
-  getRoleFromAccountType,
+  getResolvedPortalRole,
   filterNavigationByRolePermissions,
+  subscribePortalSettings,
 } from '../../utils/portalSettings';
 import { FaTimes, FaCrown, FaCog, FaSignOutAlt, FaHeart, FaChevronRight } from 'react-icons/fa';
 
@@ -52,7 +53,13 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
   const location = useLocation();
   const route = useNavigate();
   // Get user role from account type
-  const userRole = React.useMemo(() => getRoleFromAccountType(user?.accountType), [user?.accountType]);
+  const [navTick, setNavTick] = React.useState(0);
+  const userRole = React.useMemo(
+    () => getResolvedPortalRole(user),
+    [user?.role, user?.accountType]
+  );
+
+  React.useEffect(() => subscribePortalSettings(() => setNavTick((n) => n + 1)), []);
 
   const navigationItems = regularNavigation;
   const studioNavigationItems = studioNavigation;
@@ -61,17 +68,17 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
   // Apply permission-based filtering to navigation
   const filteredRegularNav = React.useMemo(
     () => filterNavigationByRolePermissions(navigationItems, userRole),
-    [userRole]
+    [userRole, navTick]
   );
 
   const filteredStudioNav = React.useMemo(
     () => filterNavigationByRolePermissions(studioNavigationItems, userRole),
-    [userRole]
+    [userRole, navTick]
   );
 
   const filteredAdminNav = React.useMemo(
     () => filterNavigationByRolePermissions(adminNavigationItems, userRole),
-    [userRole]
+    [userRole, navTick]
   );
 
   // Runtime menu visibility flags
@@ -93,9 +100,14 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
     return defaults;
   }, [isAdmin]);
 
-  const studioItems = studioNavigation.items.filter((i) => i.enabled !== false);
-  const usersItems = usersNavigation.items.filter((i) => i.enabled !== false);
-  const adminItems  = adminNavigation.items.filter((i) => i.enabled !== false);
+  const filteredUsersNav = React.useMemo(
+    () => filterNavigationByRolePermissions(usersNavigation, userRole),
+    [userRole, navTick]
+  );
+
+  const studioItems = filteredStudioNav.items;
+  const usersItems = filteredUsersNav.items;
+  const adminItems = filteredAdminNav.items;
 
   const isAdminActive = (href: string) =>
     location.pathname + location.search === href ||

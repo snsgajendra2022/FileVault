@@ -71,7 +71,7 @@ const RegisterPage = () => {
     phone: '',
     accountType: 'FREE',
     company: '',
-    role: '',
+    role: 'USERS',
     department: 'subscribed',
     canViewImages : true,
     canUploadImages : true,
@@ -130,7 +130,9 @@ const RegisterPage = () => {
         break;
       
       case 'role':
-        if (value && value.length > 100) return t('registerPage.validation.roleMax');
+        if (value && !['USERS', 'STUDIO'].includes(value)) {
+          return t('registerPage.validation.roleInvalid');
+        }
         break;
       
       case 'department':
@@ -414,16 +416,21 @@ const RegisterPage = () => {
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
               <FaBriefcase className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
             </div>
-            <input
-              type="text"
-              className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
+            <select
+              className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
                 errors.role ? 'border-red-400' : 'border-white/20'
               }`}
-              placeholder={t('registerPage.placeholderRole')}
               value={formData.role}
               onChange={(e) => handleFieldChange('role', e.target.value)}
               style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
-            />
+            >
+              <option value="USERS" className="bg-gray-800 text-white">
+                {t('registerPage.roleRegular')}
+              </option>
+              <option value="STUDIO" className="bg-gray-800 text-white">
+                {t('registerPage.roleStudio')}
+              </option>
+            </select>
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10"></div>
           </div>
           {errors.role && <p className="text-sm text-red-300">{errors.role}</p>}

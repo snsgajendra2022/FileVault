@@ -293,8 +293,8 @@
     "working": "Working…"
   },
   "whatsapp": {
-    "pageTitle": "WhatsApp Channel",
-    "pageSubtitle": "Link your WhatsApp account and manage channel settings",
+    "pageTitle": "Our Memories Connect to WhatsApp",
+    "pageSubtitle":  "To control your studio from your phone, link WhatsApp through OM.",
     "loading": "Loading WhatsApp status…",
     "loadingConfig": "Loading settings…",
     "loadingMessages": "Loading messages…",
@@ -1223,6 +1223,8 @@
     "placeholderCompany": "Enter your company name",
     "labelRole": "Role (Optional)",
     "placeholderRole": "Enter your role",
+    "roleRegular": "Regular",
+    "roleStudio": "Studio",
     "labelDepartment": "Department (Optional)",
     "placeholderDepartment": "Enter your department",
     "previous": "Previous",
@@ -1260,6 +1262,7 @@
       "phoneInvalid": "Please enter a valid phone number",
       "companyMax": "Company name must be less than 100 characters",
       "roleMax": "Role must be less than 100 characters",
+      "roleInvalid": "Please select a valid role",
       "departmentMax": "Department must be less than 100 characters"
     }
   },

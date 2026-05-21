@@ -6,7 +6,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../state/context/AuthContext';
-import { getRoleFromAccountType, canAccessPath, subscribePortalSettings } from '../../utils/portalSettings';
+import { getResolvedPortalRole, canAccessPath, subscribePortalSettings } from '../../utils/portalSettings';
 
 interface PermissionGuardProps {
   children: React.ReactNode;
@@ -30,7 +30,7 @@ const PermissionGuard: React.FC<PermissionGuardProps> = ({
   React.useEffect(() => subscribePortalSettings(() => setTick((n) => n + 1)), []);
 
   const pathToCheck = requiredPath || location.pathname + location.search;
-  const userRole = getRoleFromAccountType(user?.accountType);
+  const userRole = getResolvedPortalRole(user);
   const hasAccess = canAccessPath(userRole, pathToCheck);
 
   if (!hasAccess) {

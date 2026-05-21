@@ -1,7 +1,17 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../../state/context/AuthContext";
 import { usePortalSettings } from "../../state/context/PortalSettingsContext";
-import { buildDefaultRolePermissions, normalizeRoleMenuPermissions } from "../../utils/portalSettings";
+import { savePortalPermissions } from "../../api/services/portalSettingsService";
+import {
+  buildDefaultRolePermissions,
+  canManagePortalPermissions,
+  findNavLabelKeyForHref,
+  getEditablePortalRoles,
+  getMenuGroupsForRole,
+  getResolvedPortalRole,
+  normalizeRoleMenuPermissions,
+} from "../../utils/portalSettings";
 import type { MenuPermissionAction, RoleMenuPermission } from "../../types/permissions";
 import {
   FaBell,
@@ -271,6 +281,13 @@ function SettingSwitch({
   );
 }
 
+function roleGroupToDisplay(group: RoleMenuPermission["group"]): MenuPermission["group"] {
+  if (group === "admin") return "Admin";
+  if (group === "studio") return "Studio";
+  if (group === "users") return "Users";
+  return "Regular";
+}
+
 function rolePermissionsToMenuPermissions(
   perms: RoleMenuPermission[] | undefined,
   t: (key: string) => string,
@@ -280,7 +297,7 @@ function rolePermissionsToMenuPermissions(
     return {
       id: `${p.role}_${p.group}_${p.href.replace(/[^a-zA-Z0-9]/g, "_")}`,
       role: p.role,
-      group: (p.group.charAt(0).toUpperCase() + p.group.slice(1)) as MenuPermission["group"],
+      group: roleGroupToDisplay(p.group),
       label: t(p.labelKey),
       path: p.href,
       enabled: p.enabled ?? true,
@@ -319,9 +336,15 @@ function menuPermissionsToRolePermissions(
     const prev = existing.find((p) => p.href === row.path);
     return {
       role: row.role,
-      labelKey: prev?.labelKey ?? `nav.${row.group.toLowerCase()}.${row.path.replace(/\//g, '.')}`,
+      labelKey: prev?.labelKey ?? findNavLabelKeyForHref(row.path) ?? `nav.${row.group.toLowerCase()}.custom`,
       href: row.path,
-      group: (row.group.toLowerCase() === 'admin' ? 'admin' : row.group.toLowerCase() === 'studio' ? 'studio' : 'regular') as RoleMenuPermission['group'],
+      group: (row.group === 'Admin'
+        ? 'admin'
+        : row.group === 'Studio'
+          ? 'studio'
+          : row.group === 'Users'
+            ? 'users'
+            : 'regular') as RoleMenuPermission['group'],
       enabled: row.enabled,
       actions: { ...row.actions },
     };
@@ -330,9 +353,17 @@ function menuPermissionsToRolePermissions(
 
 export default function PortalSettingsPage() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const { config, saving, saveConfig, resetToDefaults, updateSettings, setRolePermissions } = usePortalSettings();
+  const portalRole = React.useMemo(() => getResolvedPortalRole(user), [user?.role, user?.accountType]);
+  const editableRoles = React.useMemo(() => getEditablePortalRoles(user), [user?.role, user?.accountType]);
+  const canEditPermissions = canManagePortalPermissions(user);
+  const visibleTabs = React.useMemo(
+    () => (canEditPermissions ? tabs : tabs.filter((tab) => tab.id !== "permissions")),
+    [canEditPermissions],
+  );
   const [activeTab, setActiveTab] = React.useState<SettingsTab>("general");
-  const [selectedRole, setSelectedRole] = React.useState<RoleType>("admin");
+  const [selectedRole, setSelectedRole] = React.useState<RoleType>(portalRole);
   const [permissionSearch, setPermissionSearch] = React.useState("");
   const settings = config.settings as PortalSettings;
   const [rolePermissions, setRolePermissionsLocal] = React.useState<Record<RoleType, MenuPermission[]>>(
@@ -343,6 +374,14 @@ export default function PortalSettingsPage() {
   React.useEffect(() => {
     setRolePermissionsLocal(configToLocalRolePermissions(config.roleMenuPermissions, t));
   }, [config.roleMenuPermissions, t]);
+
+  React.useEffect(() => {
+    if (editableRoles.includes(portalRole)) {
+      setSelectedRole(portalRole);
+    } else if (editableRoles.length > 0) {
+      setSelectedRole(editableRoles[0]);
+    }
+  }, [portalRole, editableRoles]);
 
   const selectedRolePermissions = React.useMemo(() => {
     const query = permissionSearch.trim().toLowerCase();
@@ -358,13 +397,16 @@ export default function PortalSettingsPage() {
     );
   }, [permissionSearch, rolePermissions, selectedRole]);
 
+  const permissionGroups = React.useMemo(() => getMenuGroupsForRole(selectedRole), [selectedRole]);
+
   const groupedPermissions = React.useMemo(() => {
     return selectedRolePermissions.reduce((acc, item) => {
+      if (!permissionGroups.includes(item.group)) return acc;
       if (!acc[item.group]) acc[item.group] = [];
       acc[item.group].push(item);
       return acc;
     }, {} as Record<MenuPermission["group"], MenuPermission[]>);
-  }, [selectedRolePermissions]);
+  }, [selectedRolePermissions, permissionGroups]);
 
   const updateSetting = <K extends keyof PortalSettings>(key: K, value: PortalSettings[K]) => {
     updateSettings({ [key]: value } as Partial<PortalSettings>);
@@ -391,11 +433,14 @@ export default function PortalSettingsPage() {
     };
     await saveConfig({
       settings,
-      roleMenuPermissions,
+      roleMenuPermissions: canEditPermissions ? roleMenuPermissions : undefined,
       aiToolSettings: config.aiToolSettings,
       menuFlags: config.menuFlags,
     });
-    setRolePermissions(roleMenuPermissions);
+    if (canEditPermissions) {
+      await savePortalPermissions(roleMenuPermissions);
+      setRolePermissions(roleMenuPermissions);
+    }
     setSavedMessage("Settings saved successfully.");
     window.setTimeout(() => setSavedMessage(""), 2500);
   };
@@ -501,22 +546,21 @@ export default function PortalSettingsPage() {
     <section className="space-y-5">
       <SectionHeader
         title="Role & Menu Permissions"
-        description="Control which role can view and access each portal menu."
+        description={`Menus for role “${selectedRole.toUpperCase()}” match navConfig.tsx. Changes save to the portal API and update the sidebar for all users with that role.`}
       />
 
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
           <div>
-            <label className="text-sm font-semibold text-slate-700">Select Role</label>
-            <select
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value as RoleType)}
+            <label className="text-sm font-semibold text-slate-700">Role</label>
+            <div
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
             >
-              <option value="admin">Admin</option>
-              <option value="studio">Studio</option>
-              <option value="regular">Regular User</option>
-            </select>
+              { portalRole.toUpperCase()}
+            </div>
+            {/* <p className="mt-2 text-xs text-slate-500">
+              Your account role: <span className="font-bold text-violet-700">{portalRole.toUpperCase()}</span>
+            </p> */}
           </div>
 
           <div>
@@ -555,7 +599,7 @@ export default function PortalSettingsPage() {
         </div>
       </div>
 
-      {(["Regular", "Studio", "Admin"] as MenuPermission["group"][]).map((group) => {
+      {permissionGroups.map((group) => {
         const rows = groupedPermissions[group] || [];
         if (!rows.length) return null;
 
@@ -760,7 +804,7 @@ export default function PortalSettingsPage() {
         <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
           <aside className="rounded-[2rem] border border-white/80 bg-white/80 p-3 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
             <nav className="space-y-2">
-              {tabs.map((tab) => {
+              {visibleTabs.map((tab) => {
                 const Icon = tab.icon;
                 const active = activeTab === tab.id;
 
