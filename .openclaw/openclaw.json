@@ -19,7 +19,7 @@
         "mode": "token",
         "token": ""
       },
-      "port": 9093,
+      "port": 18789,
       "bind": "loopback",
       "tailscale": {
         "mode": "off",
@@ -64,9 +64,18 @@
       "lastTouchedVersion": "2026.5.6",
       "lastTouchedAt": "2026-05-07T10:23:53.141Z"
     },
-    "plugins": {
+    "channels": {
+    "whatsapp": {
+      "enabled": true,
+      "dmPolicy": "pairing"
+    }
+  },
+  "plugins": {
       "entries": {
         "openai": {
+          "enabled": true
+        },
+        "whatsapp": {
           "enabled": true
         }
       }
