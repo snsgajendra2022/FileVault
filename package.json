@@ -53,6 +53,8 @@
     "openclaw-server": "node server/openclaw-dev-server.js",
     "openclaw": "openclaw",
     "openclaw:onboard": "openclaw onboard",
+    "openclaw:whatsapp:login": "openclaw channels login --channel whatsapp",
+    "openclaw:channels:status": "openclaw channels status",
     "dev": "npm start",
     "build": "craco build",
     "test": "craco test",

@@ -2,46 +2,42 @@
 
 Skills define _how_ tools work. This file is for _your_ specifics — the stuff that's unique to your setup.
 
-## What Goes Here
+## OM / Filevault assistant
 
-Things like:
+| Item | Value |
+|------|--------|
+| Dev assistant server | `http://localhost:9093` (`npm run openclaw-server`) |
+| Main API | `REACT_APP_API_URL` in `.env` |
+| OpenClaw Gateway | `npm run openclaw:onboard` then `npm run openclaw:whatsapp:login` |
+| Backend contract | `docs/BACKEND-OM-ASSISTANT.md` |
+| Persona | `OM-ASSISTANT.md` |
 
-- Camera names and locations
-- SSH hosts and aliases
-- Preferred voices for TTS
-- Speaker/room names
-- Device nicknames
-- Anything environment-specific
+### TTS (web assistant)
 
-## Examples
+- Preferred: browser speech synthesis (“Aloud on” in assistant panel)
+- Language follows i18n (`en-US` / `hi-IN`)
+
+### WhatsApp
+
+- UI: `/studio/whatsapp`
+- Dev: proxied to port 9093; simulated QR until Java/OpenClaw gateway is wired
+- Allowlist your number in channel config before testing inbound
+
+## Examples (environment-specific)
 
 ```markdown
-### Cameras
+### SSH / hosts
 
-- living-room → Main area, 180° wide angle
-- front-door → Entrance, motion-triggered
+- studio-api → backendstudio.mytiny.us
 
-### SSH
+### FaceSync
 
-- home-server → 192.168.1.100, user: admin
-
-### TTS
-
-- Preferred voice: "Nova" (warm, slightly British)
-- Default speaker: Kitchen HomePod
+- REACT_APP_FACESYNC_API_URL → http://192.168.1.9:8000
 ```
 
-## Why Separate?
-
-Skills are shared. Your setup is yours. Keeping them apart means you can update skills without losing your notes, and share skills without leaking your infrastructure.
-
----
-
 Add whatever helps you do your job. This is your cheat sheet.
-<<<<<<< HEAD
-=======
 
 ## Related
 
 - [Agent workspace](/concepts/agent-workspace)
->>>>>>> 3300c5a370c91fdb17dc121ccd41ff45cdbd464a
+- [Backend OM assistant](docs/BACKEND-OM-ASSISTANT.md)

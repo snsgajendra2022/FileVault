@@ -12,6 +12,14 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const crypto = require('crypto');
+const {
+  TOOL_CATALOG,
+  FILEVAULT_API,
+  runKeywordTools,
+  parseActionsFromReply,
+  processToolLines,
+} = require('./om-api-tools');
+const { mountWhatsAppRoutes } = require('./whatsapp-routes');
 
 const PORT = Number(process.env.OPENCLAW_DEV_PORT || 9093);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -54,8 +62,24 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 
 // x-ai/grok-4.1-fast
 // z-ai/glm-5
 
-const BRIDGE_URL = (process.env.OPENCLAW_BRIDGE_URL || 'http://192.168.1.58:9093').trim();
+const BRIDGE_URL_RAW = (process.env.OPENCLAW_BRIDGE_URL || '').trim();
 const BRIDGE_TOKEN = (process.env.OPENCLAW_BRIDGE_TOKEN || '').trim();
+
+/** Avoid infinite loop when OPENCLAW_BRIDGE_URL points at this dev server (any host, same port). */
+function isSelfBridgeUrl(url) {
+  if (!url) return true;
+  try {
+    const u = new URL(url);
+    const port = Number(u.port || (u.protocol === 'https:' ? 443 : 80));
+    const path = (u.pathname || '/').replace(/\/+$/, '') || '/';
+    if (port === PORT && (path === '/' || path === '')) return true;
+  } catch {
+    return url.includes(`:${PORT}`);
+  }
+  return false;
+}
+
+const BRIDGE_URL = BRIDGE_URL_RAW && !isSelfBridgeUrl(BRIDGE_URL_RAW) ? BRIDGE_URL_RAW : '';
 const OPENAI_KEY = (process.env.OPENAI_API_KEY || '').trim();
 const OPENAI_MODEL = (process.env.OPENAI_MODEL || 'baidu/cobuddy:free').trim();
 const OPENAI_API_BASE = (process.env.OPENAI_API_BASE || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
@@ -89,6 +113,8 @@ const ALLOWED_NAV = new Set([
   '/studio/dashboard',
   '/studio/albums',
   '/studio/openclaw',
+  '/studio/whatsapp',
+  '/filter-images',
   '/upload-family-images',
   '/client-images',
 ]);
@@ -104,6 +130,8 @@ const PATH_LABELS = {
   '/studio/dashboard': 'Studio dashboard',
   '/studio/albums': 'Albums',
   '/studio/openclaw': 'Assistant',
+  '/studio/whatsapp': 'WhatsApp',
+  '/filter-images': 'Face filter',
   '/upload-family-images': 'Family upload',
   '/client-images': 'My images',
 };
@@ -136,6 +164,10 @@ In-app routes you may send the user to (exact paths only, one line at the very e
 - /phonebook — phone book / contacts
 - /client-images — my images
 - /upload-family-images — family image upload
+- /studio/whatsapp — WhatsApp channel settings
+- /filter-images — face filter / FaceSync
+
+${TOOL_CATALOG}
 
 When navigation is intended, end your reply with a new line exactly in this form (no extra text on that line):
 NAVIGATE:/memories/events
@@ -230,6 +262,8 @@ function routeFromUserText(raw) {
     [/\bupload\s+family\b|\bfamily\s+upload\b/i, '/upload-family-images'],
     [/\bmy\s+images\b|\bclient\s+images\b/i, '/client-images'],
     [/\bopen\s*claw\b|\bassistant\s+page\b/i, '/studio/openclaw'],
+    [/\bwhatsapp\b/i, '/studio/whatsapp'],
+    [/\bface\s*filter\b|\bfilter\s+images\b/i, '/filter-images'],
   ];
   for (const [re, dest] of rules) {
     if (re.test(s)) return sanitizeNavigatePath(dest);
@@ -311,7 +345,24 @@ async function tryBridge(req, payload) {
   return res.json();
 }
 
-async function tryOpenAI({ userId, sid, userText, imageBuffer, imageMime, prompt, contextAppend }) {
+function buildJsonResponse(base) {
+  const { reply: rawReply, sessionId, userId, navigateTo, action, actions } = base;
+  const { cleanText, action: parsedAction, actions: parsedActions } = parseActionsFromReply(rawReply || '');
+  const out = {
+    sessionId,
+    userId,
+    reply: cleanText || rawReply || '',
+  };
+  if (navigateTo) out.navigateTo = navigateTo;
+  const act = parsedAction || action;
+  const acts = parsedActions || actions;
+  if (act) out.action = act.id;
+  if (act?.payload) out.payload = act.payload;
+  if (acts?.length) out.actions = acts;
+  return out;
+}
+
+async function tryOpenAI(req, { userId, sid, userText, imageBuffer, imageMime, prompt, contextAppend }) {
   if (!OPENAI_KEY) return null;
 
   const ctx = typeof contextAppend === 'string' ? contextAppend : '';
@@ -370,7 +421,12 @@ async function tryOpenAI({ userId, sid, userText, imageBuffer, imageMime, prompt
   const raw = data.choices?.[0]?.message?.content;
   if (typeof raw !== 'string') return null;
 
-  const { text, path } = parseNavigateFromText(raw);
+  let { text, path } = parseNavigateFromText(raw);
+  const processed = await processToolLines(req, text || raw);
+  text = processed.text;
+  if (processed.toolNotes) {
+    text = (text || '').trim() + processed.toolNotes;
+  }
   const reply = (text || raw).trim();
   pushTurn(userId, sid, 'assistant', reply);
   return { reply, navigateFromModel: path };
@@ -380,8 +436,8 @@ function fallbackReply(userText) {
   const r = replyForReminder(userText);
   if (r) return r;
   return (
-    'I can open app pages when you say things like “open events”, “my album”, or “phone book”. ' +
-    'For full AI answers, set  in `.env` (this server) or point  at your backend that talks to OM. See backend.md.'
+    'I can open OM pages when you say “open events”, “my albums”, or “phone book”. ' +
+    'For full AI, set OPENAI_API_KEY in `.env` or OPENCLAW_BRIDGE_URL to your Java bridge. See docs/BACKEND-OM-ASSISTANT.md.'
   );
 }
 
@@ -395,16 +451,17 @@ function replyForReminder(text) {
   return null;
 }
 
-async function runAssistantPipeline(req, res, { userText, transcript, imageBuffer, imageMime, prompt }) {
+async function computeAssistantResult(req, { userText, transcript, imageBuffer, imageMime, prompt, channel }) {
   const textIn = (userText || transcript || prompt || '').trim();
   const sidIn = req.body?.sessionId;
   const sid = typeof sidIn === 'string' && sidIn.trim() ? sidIn.trim() : newSessionId();
   const userId = getRequestUserId(req);
   const context = pickContext(req);
-  const contextAppend = formatContextForModel(context);
-  const localNav = routeFromUserText(textIn);
+  const channelNote = channel === 'whatsapp' ? '\n\n[Channel: WhatsApp — reply in plain text, no NAVIGATE unless user uses web app separately.]' : '';
+  const keywordContext = await runKeywordTools(req, textIn);
+  const contextAppend = formatContextForModel(context) + keywordContext + channelNote;
+  const localNav = channel === 'whatsapp' ? null : routeFromUserText(textIn);
 
-  // Prepare the payload for OpenClaw Bridge
   const bridgePayload = {
     kind: imageBuffer ? 'image' : transcript != null ? 'voice' : 'chat',
     message: userText,
@@ -412,36 +469,33 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
     prompt,
     sessionId: sid,
     userId,
-    context,
+    context: { ...context, channel },
   };
 
   try {
-    // If a Bridge URL is provided, try to call it first
     if (BRIDGE_URL) {
       const data = await tryBridge(req, bridgePayload);
       const reply = pickBridgeReply(data);
       if (reply) {
         const nav = pickBridgeNavigate(data) || localNav;
-        return res.json({
+        return buildJsonResponse({
           sessionId: data.sessionId || sid,
           userId,
           reply,
-          ...(nav ? { navigateTo: nav } : {}),
+          navigateTo: nav || undefined,
+          action: data.action,
+          actions: data.actions,
         });
       }
     }
   } catch (e) {
-    console.warn('[om-dev] failed:', e.message);
-    if (String(e.message).includes('404') || String(e.message).includes('Cannot POST')) {
-      console.warn();
-    }
+    console.warn('[om-dev] bridge failed:', e.message);
   }
 
   let llmError = null;
   try {
-    // If the OpenAI key is provided, call OpenAI (or OpenRouter in this case)
     if (OPENAI_KEY) {
-      const out = await tryOpenAI({
+      const out = await tryOpenAI(req, {
         userId,
         sid,
         userText: userText || transcript || '',
@@ -452,11 +506,11 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
       });
       if (out && out.reply) {
         const nav = out.navigateFromModel || localNav;
-        return res.json({
+        return buildJsonResponse({
           sessionId: sid,
           userId,
           reply: out.reply,
-          ...(nav ? { navigateTo: nav } : {}),
+          navigateTo: nav || undefined,
         });
       }
     }
@@ -465,22 +519,20 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
     console.warn('[openclaw-dev] OpenAI failed:', e.message);
   }
 
-  // If OpenAI failed, try to provide a helpful message
   if (OPENAI_KEY && llmError) {
     const detail = String(llmError.message || llmError).slice(0, 400);
-    return res.json({
+    return buildJsonResponse({
       sessionId: sid,
       userId,
       reply:
         `Could not reach the language model (${detail}). ` +
-        `Check  and  in the project root .env. ` +
-        `OpenRouter: use https://openrouter.ai/api/v1 and a valid key from openrouter.ai/keys (401 “User not found” usually means a bad or revoked key).`,
+        `Check OPENAI_API_KEY and OPENAI_API_BASE in .env. ` +
+        `Filevault API for tools: ${FILEVAULT_API}`,
     });
   }
 
-  // If local navigation is requested, return that path to navigate
   if (localNav) {
-    return res.json({
+    return buildJsonResponse({
       sessionId: sid,
       userId,
       reply: `Opening ${labelForPath(localNav)}…`,
@@ -488,9 +540,13 @@ async function runAssistantPipeline(req, res, { userText, transcript, imageBuffe
     });
   }
 
-  // If nothing else works, return a fallback reply
   const fb = fallbackReply(textIn);
-  return res.json({ sessionId: sid, userId, reply: fb });
+  return buildJsonResponse({ sessionId: sid, userId, reply: fb });
+}
+
+async function runAssistantPipeline(req, res, opts) {
+  const result = await computeAssistantResult(req, opts);
+  return res.json(result);
 }
 
 app.post('/api/openclaw/session', (_req, res) => {
@@ -533,10 +589,43 @@ app.post('/api/openclaw/image', upload.single('file'), async (req, res) => {
   }
 });
 
+mountWhatsAppRoutes(app, {
+  onInboundMessage: async ({ text, req }) => {
+    const fakeReq = {
+      headers: req.headers,
+      body: {
+        sessionId: `wa-${crypto.randomUUID()}`,
+        context: { channel: 'whatsapp', path: '/studio/whatsapp' },
+      },
+    };
+    const result = await computeAssistantResult(fakeReq, {
+      userText: text,
+      channel: 'whatsapp',
+    });
+    return { reply: result.reply || '' };
+  },
+});
+
+app.get('/api/om/health', (_req, res) => {
+  res.json({
+    ok: true,
+    port: PORT,
+    filevaultApi: FILEVAULT_API,
+    bridge: BRIDGE_URL || null,
+    openai: Boolean(OPENAI_KEY),
+    whatsapp: true,
+  });
+});
+
 app.listen(PORT, () => {
   const mode = BRIDGE_URL ? 'bridge' : OPENAI_KEY ? 'openai' : 'local-fallback';
   console.log(`[openclaw-dev] http://localhost:${PORT}  mode=${mode}`);
+  console.log(`[openclaw-dev] Filevault tools → ${FILEVAULT_API}`);
+  console.log(`[openclaw-dev] WhatsApp API + OpenClaw chat/voice/image on this port`);
+  if (BRIDGE_URL_RAW && !BRIDGE_URL) {
+    console.warn('[openclaw-dev] OPENCLAW_BRIDGE_URL points at this server — ignored to prevent loop. Use a separate bridge URL.');
+  }
   if (mode === 'local-fallback') {
-    console.log('[openclaw-dev] Add  or OPENCLAW_BRIDGE_URL in .env for a real assistant.');
+    console.log('[openclaw-dev] Add OPENAI_API_KEY or OPENCLAW_BRIDGE_URL in .env for a real assistant.');
   }
 });

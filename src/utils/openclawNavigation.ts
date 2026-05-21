@@ -15,6 +15,8 @@ const ALLOWED = new Set<string>([
   '/studio/dashboard',
   '/studio/albums',
   '/studio/openclaw',
+  '/studio/whatsapp',
+  '/filter-images',
   '/upload-family-images',
   '/client-images',
   '/studio/shared-albums',
@@ -103,7 +105,9 @@ const RULES: RouteRule[] = [
   { path: '/studio/dashboard', patterns: [/\bstudio\s+dashboard\b/i, /^\s*dashboard\s*$/i] },
   { path: '/upload-family-images', patterns: [/\bupload\s+family\b/i, /\bfamily\s+upload\b/i] },
   { path: '/client-images', patterns: [/\bmy\s+images\b/i, /\bclient\s+images\b/i] },
-  { path: '/studio/openclaw', patterns: [/\bopen\s*claw\b/i, /\bassistant\s+page\b/i] },
+  { path: '/studio/openclaw', patterns: [/\bopen\s*claw\b/i, /\bassistant\s+page\b/i, /\bom\s+assistant\b/i] },
+  { path: '/studio/whatsapp', patterns: [/\bwhatsapp\b/i, /\bwhats\s*app\b/i] },
+  { path: '/filter-images', patterns: [/\bface\s*filter\b/i, /\bfilter\s+images\b/i, /\bfacesync\b/i] },
 ];
 
 export function matchOpenClawLocalRoute(message: string): string | null {

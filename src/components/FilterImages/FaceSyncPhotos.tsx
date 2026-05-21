@@ -11,7 +11,7 @@ import {
 import ConfirmModal from './ConfirmModal';
 import RenameModal from './RenameModal';
 import { getImageSource, photoKey, qualityPillClasses } from './utils';
-
+import './style.css';
 const FaceSyncPhotos: React.FC = () => {
   const [photos, setPhotos] = React.useState<FaceSyncPhoto[]>([]);
   const [page, setPage] = React.useState(1);

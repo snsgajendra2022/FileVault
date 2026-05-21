@@ -495,4 +495,26 @@ Implement **`POST /api/openclaw/*`** on **`REACT_APP_API_URL`** the same way as 
 
 **Security**: never expose `OPENAI_API_KEY` or OpenClaw tokens to the React bundle — only in server env.
 
+---
+
+## WhatsApp channel + unified OM assistant
+
+The React app exposes **`/studio/whatsapp`** (channel config, QR link, message log). It calls the same **`REACT_APP_API_URL`** base as other APIs:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/whatsapp/status` | Connection status |
+| `POST` | `/api/whatsapp/login/start` | Start QR link (`qrDataUrl`) |
+| `POST` | `/api/whatsapp/login/wait` | Wait for scan |
+| `POST` | `/api/whatsapp/logout` | Unlink |
+| `GET` / `POST` | `/api/whatsapp/config` | DM/group policies, allowlists |
+| `GET` | `/api/whatsapp/messages` | Message log |
+| `POST` | `/api/whatsapp/send` | Outbound test message |
+
+**Production:** implement these on your Java API and connect to **OpenClaw Gateway** (`openclaw channels login --channel whatsapp`). Inbound WhatsApp messages should use the **same agent + OM API tools** as `/api/openclaw/chat`.
+
+**Local dev:** `server/openclaw-dev-server.js` implements the contract on port **9093**; CRA proxies `/api/whatsapp` via `src/setupProxy.js`.
+
+**Full specification (tools, bridge, security, runbook):** see **[docs/BACKEND-OM-ASSISTANT.md](docs/BACKEND-OM-ASSISTANT.md)**.
+
 *Generated for alignment with the filevault frontend (Photo theme category page, PhotoBook hub, album builder, Photo Phone Book, Studio checkout, Our Memories). Update this file when API contracts change.*

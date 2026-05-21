@@ -883,6 +883,8 @@ const OpenClawAssistantPanel: React.FC<OpenClawAssistantPanelProps> = ({ layout 
       { id: 'open_route_connections', label: 'Open Connections', description: 'Open connections', path: '/connections' },
       { id: 'open_route_studio_dashboard', label: 'Open Studio Dashboard', description: 'Open studio dashboard', path: '/studio/dashboard' },
       { id: 'open_route_studio_openclaw', label: 'Open Assistant', description: 'Open assistant page', path: '/studio/openclaw' },
+      { id: 'open_route_studio_whatsapp', label: 'Open WhatsApp', description: 'Open WhatsApp channel settings', path: '/studio/whatsapp' },
+      { id: 'open_route_filter_images', label: 'Open Face Filter', description: 'Open face filter / FaceSync', path: '/filter-images' },
       { id: 'open_route_studio_clients', label: 'Open Studio Clients', description: 'Open studio clients', path: '/studio/clients' },
       { id: 'open_route_studio_gallery', label: 'Open Studio Gallery', description: 'Open studio gallery', path: '/studio/gallery' },
       { id: 'open_route_studio_barcodes', label: 'Open Barcodes', description: 'Open barcodes', path: '/studio/barcodes' },

@@ -72,7 +72,7 @@ export const studioNavigation: NavGroup = {
     { labelKey: 'nav.studio.membersTree', href: '/family-tree', icon: FaSitemap, enabled: true },
     { labelKey: 'nav.studio.settings', href: '/portal-settings', icon: FaUsers, enabled: true },
     { labelKey: 'nav.studio.services', href: '/services', icon: FaCloud, enabled: true },
-    { labelKey: 'nav.studio.whatsapp', href: '/studio/whatsapp', icon: FaWhatsapp, enabled: true },
+    // { labelKey: 'nav.studio.whatsapp', href: '/studio/whatsapp', icon: FaWhatsapp, enabled: true },
   ],
 };
 export const usersNavigation: NavGroup = {
