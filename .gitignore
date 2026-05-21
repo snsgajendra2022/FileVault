@@ -9,6 +9,7 @@ todaywork.md
 # testing
 /coverage
 /openclaw
+.portal-data
 .env
 # production
 /build

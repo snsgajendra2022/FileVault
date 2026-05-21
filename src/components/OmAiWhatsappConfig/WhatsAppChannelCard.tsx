@@ -1,4 +1,5 @@
 import React from 'react';
+import QRCode from 'react-qr-code';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
@@ -29,6 +30,7 @@ export type WhatsAppLoginState = {
   busy: boolean;
   message: string | null;
   qrDataUrl: string | null;
+  qrPayload: string | null;
   connected: boolean | null;
 };
 
@@ -99,6 +101,15 @@ export default function WhatsAppChannelCard({
   onRefresh: () => void;
 }) {
   const { t } = useTranslation();
+  const [qrImgFailed, setQrImgFailed] = React.useState(false);
+  const hasQr = Boolean(loginState.qrPayload || loginState.qrDataUrl);
+
+  React.useEffect(() => {
+    setQrImgFailed(false);
+  }, [loginState.qrDataUrl, loginState.qrPayload]);
+
+  const showQrImage = Boolean(loginState.qrDataUrl) && !qrImgFailed;
+  const showQrSvg = Boolean(loginState.qrPayload);
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -219,20 +230,49 @@ export default function WhatsAppChannelCard({
         </div>
       )}
 
-      {/* QR code */}
-      {loginState.qrDataUrl && (
+      {/* Real WhatsApp link instructions */}
+      <div className="mx-6 mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4">
+        <p className="text-sm font-bold text-amber-900">{t('whatsapp.realLinkTitle')}</p>
+        <p className="mt-2 text-sm text-amber-800">{t('whatsapp.realLinkIntro')}</p>
+        <ol className="mt-3 list-decimal list-inside space-y-2 text-sm text-amber-900/90">
+          <li>{t('whatsapp.realLinkStep1')}</li>
+          <li>{t('whatsapp.realLinkStep2')}</li>
+          <li>{t('whatsapp.realLinkStep3')}</li>
+          <li>{t('whatsapp.realLinkStep4')}</li>
+        </ol>
+        <p className="mt-3 text-xs text-amber-800/90">{t('whatsapp.realLinkNote')}</p>
+      </div>
+
+      {/* Dev QR (not scannable in WhatsApp) */}
+      {hasQr && (
         <div className="mx-6 mb-6 flex flex-col items-center">
-          <p className="text-sm font-bold text-slate-700 mb-3">{t('whatsapp.scanQr')}</p>
-          <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-4 shadow-inner">
-            <img
-              src={loginState.qrDataUrl}
-              alt={t('whatsapp.qrAlt')}
-              className="h-56 w-56 object-contain"
-            />
-          </div>
-          <p className="mt-3 text-xs text-slate-500 text-center max-w-xs">
+          <p className="text-sm font-bold text-slate-700 mb-1">{t('whatsapp.scanQr')}</p>
+          <p className="text-xs text-amber-700 font-medium mb-3 text-center max-w-sm">
             {t('whatsapp.scanQrHint')}
           </p>
+          <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-4 shadow-inner flex items-center justify-center min-h-[15rem] min-w-[15rem]">
+            {showQrImage ? (
+              <img
+                src={loginState.qrDataUrl!}
+                alt={t('whatsapp.qrAlt')}
+                className="h-56 w-56 object-contain bg-white"
+                onError={() => setQrImgFailed(true)}
+              />
+            ) : showQrSvg ? (
+              <QRCode
+                value={loginState.qrPayload!}
+                size={224}
+                level="M"
+                bgColor="#ffffff"
+                fgColor="#000000"
+              />
+            ) : null}
+          </div>
+          {loginState.qrPayload ? (
+            <p className="mt-2 font-mono text-[10px] text-slate-400 break-all text-center max-w-xs">
+              {loginState.qrPayload}
+            </p>
+          ) : null}
         </div>
       )}
 
@@ -241,7 +281,7 @@ export default function WhatsAppChannelCard({
         <button
           type="button"
           disabled={loginState.busy}
-          onClick={() => onStartLogin(false)}
+          onClick={() => onStartLogin(true)}
           className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-green-700 disabled:opacity-50 transition-colors"
         >
           <FaQrcode className="h-3.5 w-3.5" />

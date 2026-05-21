@@ -20,6 +20,7 @@ const {
   processToolLines,
 } = require('./om-api-tools');
 const { mountWhatsAppRoutes } = require('./whatsapp-routes');
+const { mountPortalSettingsRoutes } = require('./portal-settings-routes');
 
 const PORT = Number(process.env.OPENCLAW_DEV_PORT || 9093);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -588,6 +589,8 @@ app.post('/api/openclaw/image', upload.single('file'), async (req, res) => {
     res.status(500).json({ error: 'openclaw image failed', message: String(e.message) });
   }
 });
+
+mountPortalSettingsRoutes(app);
 
 mountWhatsAppRoutes(app, {
   onInboundMessage: async ({ text, req }) => {

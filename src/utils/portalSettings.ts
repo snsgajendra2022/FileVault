@@ -9,12 +9,19 @@ import {
   AiToolSettings,
   MenuRiskAssessment,
 } from '../types/permissions';
+import type {
+  PortalConfigResponse,
+  PortalGeneralSettings,
+  PortalMenuFlags,
+  PortalNavigationOverride,
+} from '../types/portalApi';
 import {
   regularNavigation,
   studioNavigation,
   adminNavigation,
   NavItem,
   NavGroup,
+  usersNavigation,
 } from '../components/layout/navConfig';
 
 // ============================================================================
@@ -27,6 +34,105 @@ export const STORAGE_KEYS = {
   LANGUAGE: 'portal_language',
   PORTAL_SETTINGS: 'portal_settings',
 } as const;
+
+export const PORTAL_SETTINGS_CHANGED_EVENT = 'fv-portal-settings-changed';
+
+let portalConfigCache: PortalConfigResponse | null = null;
+
+/** In-memory config (API + live updates). Falls back to localStorage / defaults. */
+export function getPortalConfigCache(): PortalConfigResponse | null {
+  return portalConfigCache;
+}
+
+export function setPortalConfigCache(config: PortalConfigResponse): void {
+  portalConfigCache = config;
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(PORTAL_SETTINGS_CHANGED_EVENT, { detail: config }));
+  }
+}
+
+export function subscribePortalSettings(listener: (config: PortalConfigResponse) => void): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  const handler = (e: Event) => {
+    const detail = (e as CustomEvent<PortalConfigResponse>).detail;
+    if (detail) listener(detail);
+  };
+  window.addEventListener(PORTAL_SETTINGS_CHANGED_EVENT, handler);
+  return () => window.removeEventListener(PORTAL_SETTINGS_CHANGED_EVENT, handler);
+}
+
+function defaultPortalGeneralSettings(): PortalGeneralSettings {
+  const ai = getDefaultAiToolSettings();
+  return {
+    portalName: 'Our Memories Portal',
+    language: 'en',
+    timezone: 'Asia/Kolkata',
+    compactMode: false,
+    emailNotifications: true,
+    browserNotifications: false,
+    requireDeleteConfirmation: true,
+    requirePublicShareConfirmation: true,
+    themeMode: 'system',
+    sidebarCollapsedByDefault: false,
+    aiAssistantEnabled: ai.enabled,
+    aiPageContextEnabled: ai.pageContextEnabled,
+    aiChatHistoryEnabled: ai.chatHistoryEnabled,
+    aiUserWiseHistoryEnabled: ai.userWiseHistoryEnabled,
+    aiVoiceEnabled: ai.voiceEnabled,
+    aiImageEnabled: ai.imageEnabled,
+    aiUploadDebugEnabled: ai.uploadDebugEnabled,
+    aiNetworkDebugEnabled: ai.networkDebugEnabled,
+    aiUiErrorDebugEnabled: ai.uiErrorDebugEnabled,
+    aiSafeActionsEnabled: ai.actionsEnabled,
+    aiDangerousConfirmation: ai.dangerousActionsRequireConfirmation,
+    aiShowUsedModel: ai.showUsedModel,
+  };
+}
+
+export function loadPortalGeneralSettings(): PortalGeneralSettings {
+  if (portalConfigCache?.settings) return portalConfigCache.settings;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.PORTAL_SETTINGS);
+    if (raw) return { ...defaultPortalGeneralSettings(), ...JSON.parse(raw) };
+  } catch {
+    /* ignore */
+  }
+  return defaultPortalGeneralSettings();
+}
+
+export function loadMenuFlags(): PortalMenuFlags {
+  const defaults: PortalMenuFlags = { regular: true, studio: true, users: true, admin: true };
+  if (portalConfigCache?.menuFlags) return { ...defaults, ...portalConfigCache.menuFlags };
+  try {
+    const raw = localStorage.getItem('MENU_FLAGS');
+    if (raw) return { ...defaults, ...JSON.parse(raw) };
+  } catch {
+    /* ignore */
+  }
+  return defaults;
+}
+
+export function loadNavigationOverrides(): PortalNavigationOverride[] {
+  if (portalConfigCache?.navigationOverrides) return portalConfigCache.navigationOverrides;
+  try {
+    const raw = localStorage.getItem('portal_navigation_overrides');
+    if (raw) return JSON.parse(raw);
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
+function applyNavItemOverrides(items: NavItem[]): NavItem[] {
+  const overrides = loadNavigationOverrides();
+  if (!overrides.length) return items;
+  const map = new Map(overrides.map((o) => [o.href, o]));
+  return items.map((item) => {
+    const o = map.get(item.href);
+    if (!o) return item;
+    return { ...item, enabled: o.enabled, ...(o.labelKey ? { labelKey: o.labelKey } : {}) };
+  });
+}
 
 // ============================================================================
 // Default Permissions
@@ -48,7 +154,7 @@ export function buildDefaultRolePermissions(): Record<RoleType, RoleMenuPermissi
     'studio'
   );
   const regularPermissions = buildPermissionsFromNav(
-    regularNavigation,
+    usersNavigation,
     'regular',
     'regular'
   );
@@ -103,7 +209,43 @@ export function buildDefaultRolePermissions(): Record<RoleType, RoleMenuPermissi
         manage: false,
       },
     })),
+    users: regularPermissions.map((p) => ({
+      ...p,
+      enabled: true,
+      actions: {
+        view: true,
+        create: p.labelKey.includes('upload') ? true : false,
+        edit: false,
+        delete: false,
+        upload: p.labelKey.includes('upload') ? true : false,
+        download: true,
+        share: false,
+        manage: false,
+      },
+    })),
   };
+}
+
+const PORTAL_ROLE_KEYS: RoleType[] = ['admin', 'studio', 'regular', 'users'];
+
+/**
+ * Ensure every role has a menu list (API may return empty arrays or omit `users`).
+ */
+export function normalizeRoleMenuPermissions(
+  raw?: Partial<Record<RoleType, RoleMenuPermission[]>> | null,
+): Record<RoleType, RoleMenuPermission[]> {
+  const defaults = buildDefaultRolePermissions();
+  if (!raw || typeof raw !== 'object') {
+    return defaults;
+  }
+  const out = { ...defaults };
+  for (const role of PORTAL_ROLE_KEYS) {
+    const list = raw[role];
+    if (Array.isArray(list) && list.length > 0) {
+      out[role] = list;
+    }
+  }
+  return out;
 }
 
 /**
@@ -176,6 +318,7 @@ export function getDefaultAiToolSettings(): AiToolSettings {
  * Returns defaults if not found
  */
 export function loadRoleMenuPermissions(): Record<RoleType, RoleMenuPermission[]> {
+  if (portalConfigCache?.roleMenuPermissions) return portalConfigCache.roleMenuPermissions;
   try {
     const stored = localStorage.getItem(STORAGE_KEYS.ROLE_MENU_PERMISSIONS);
     if (stored) {
@@ -199,6 +342,9 @@ export function saveRoleMenuPermissions(
       STORAGE_KEYS.ROLE_MENU_PERMISSIONS,
       JSON.stringify(permissions)
     );
+    if (portalConfigCache) {
+      setPortalConfigCache({ ...portalConfigCache, roleMenuPermissions: permissions });
+    }
   } catch (error) {
     console.error('Error saving role menu permissions:', error);
   }
@@ -231,6 +377,7 @@ export function getRolePermissions(
  * Load AI tool settings from localStorage
  */
 export function loadAiToolSettings(): AiToolSettings {
+  if (portalConfigCache?.aiToolSettings) return portalConfigCache.aiToolSettings;
   try {
     const stored = localStorage.getItem(STORAGE_KEYS.AI_TOOL_SETTINGS);
     if (stored) {
@@ -251,6 +398,9 @@ export function saveAiToolSettings(settings: AiToolSettings): void {
       STORAGE_KEYS.AI_TOOL_SETTINGS,
       JSON.stringify(settings)
     );
+    if (portalConfigCache) {
+      setPortalConfigCache({ ...portalConfigCache, aiToolSettings: settings });
+    }
   } catch (error) {
     console.error('Error saving AI tool settings:', error);
   }
@@ -378,10 +528,11 @@ export function filterNavigationByRolePermissions(
   role: RoleType
 ): NavGroup {
   const permissions = getRolePermissions(role);
+  const withOverrides = applyNavItemOverrides(navGroup.items);
 
   return {
     ...navGroup,
-    items: navGroup.items.filter(item => {
+    items: withOverrides.filter(item => {
       const permission = permissions.find(p => p.href === item.href);
 
       if (permission) {
@@ -392,6 +543,16 @@ export function filterNavigationByRolePermissions(
       return item.enabled ?? true;
     }),
   };
+}
+
+/** Whether OM assistant should show (portal settings override env). */
+export function isPortalAssistantEnabled(): boolean {
+  const general = loadPortalGeneralSettings();
+  const ai = loadAiToolSettings();
+  if (typeof general.aiAssistantEnabled === 'boolean') {
+    return general.aiAssistantEnabled && ai.enabled;
+  }
+  return ai.enabled;
 }
 
 /**
@@ -477,7 +638,7 @@ export function isHighRiskMenuItem(href: string): boolean {
  * Maps account types to simplified roles
  */
 export function getRoleFromAccountType(accountType?: string): RoleType {
-  if (!accountType) return 'regular';
+  if (!accountType) return 'users';
 
   // Admin account type
   if (accountType === 'ADMIN') {
@@ -488,9 +649,15 @@ export function getRoleFromAccountType(accountType?: string): RoleType {
   if (accountType === 'FREE') {
     return 'studio';
   }
+  if (accountType === 'STUDIO') {
+    return 'studio';
+  }
+  if (accountType === 'USERS') {
+    return 'users';
+  }
 
   // All other account types (BASIC, PREMIUM, ENTERPRISE, CLIENT)
-  return 'regular';
+  return 'users';
 }
 
 /**

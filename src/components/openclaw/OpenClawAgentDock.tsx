@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { FaComments, FaTimes } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import { openclawEnabled } from '../../config/openclaw';
+import { isPortalAssistantEnabled, subscribePortalSettings } from '../../utils/portalSettings';
 import OpenClawAssistantPanel from './OpenClawAssistantPanel';
 
 const FAB_SIZE = 56;
@@ -196,7 +197,10 @@ const OpenClawAgentDock: React.FC = () => {
     }
   }, []);
 
-  if (!openclawEnabled || isLoading || !isAuthenticated || shouldHideDock(pathname) || fabPos === null) {
+  const [assistantOn, setAssistantOn] = React.useState(() => openclawEnabled && isPortalAssistantEnabled());
+  React.useEffect(() => subscribePortalSettings(() => setAssistantOn(openclawEnabled && isPortalAssistantEnabled())), []);
+
+  if (!assistantOn || isLoading || !isAuthenticated || shouldHideDock(pathname) || fabPos === null) {
     return null;
   }
 

@@ -11,7 +11,11 @@ import {
 import {
   getRoleFromAccountType,
   filterNavigationByRolePermissions,
+  loadPortalGeneralSettings,
+  loadMenuFlags,
+  subscribePortalSettings,
 } from '../../utils/portalSettings';
+import { usePortalSettingsOptional } from '../../state/context/PortalSettingsContext';
 import { FaCog, FaCrown, FaSignOutAlt, FaHeart } from 'react-icons/fa';
 
 
@@ -54,46 +58,41 @@ const Sidebar = () => {
   const { user, isAdmin,isUsers, isStudio, logout } = useAuth() as any;
   const location = useLocation();
   const { t }:any = useTranslation();
+  const portalCtx = usePortalSettingsOptional();
+  const [, setNavTick] = React.useState(0);
   const navigationItems = regularNavigation;
   const studioNavigationItems = studioNavigation;
   const adminNavigationItems = adminNavigation;
   const route = useNavigate();
-  // Get user role from account type
   const userRole = React.useMemo(() => getRoleFromAccountType(user?.accountType), [user?.accountType]);
 
-  // Apply permission-based filtering to navigation
+  React.useEffect(() => subscribePortalSettings(() => setNavTick((n) => n + 1)), []);
+
   const filteredRegularNav = React.useMemo(
     () => filterNavigationByRolePermissions(navigationItems, userRole),
-    [userRole]
+    [userRole, portalCtx?.config.updatedAt]
   );
 
   const filteredStudioNav = React.useMemo(
     () => filterNavigationByRolePermissions(studioNavigationItems, userRole),
-    [userRole]
+    [userRole, portalCtx?.config.updatedAt]
   );
 
   const filteredAdminNav = React.useMemo(
     () => filterNavigationByRolePermissions(adminNavigationItems, userRole),
-    [userRole]
+    [userRole, portalCtx?.config.updatedAt]
   );
 
-  // Runtime menu visibility flags
-  // Priority order: window.__MENU_FLAGS__ > localStorage('MENU_FLAGS') > defaults
   const menuFlags = React.useMemo(() => {
-    const defaults = { regular: true, studio: true, users: true, admin: isAdmin } as { regular: boolean; studio: boolean; users: boolean; admin: boolean };
-    try {
-      // @ts-ignore
-      const winFlags = typeof window !== 'undefined' ? (window.__MENU_FLAGS__ as any) : undefined;
-      if (winFlags && typeof winFlags === 'object') return { ...defaults, ...winFlags };
-      const raw = typeof window !== 'undefined' ? localStorage.getItem('MENU_FLAGS') : null;
-      if (raw) { const p = JSON.parse(raw); if (p && typeof p === 'object') return { ...defaults, ...p }; }
-    } catch (_) {}
-    return defaults;
-  }, [isAdmin]);
+    const flags = loadMenuFlags();
+    return { ...flags, admin: isAdmin ? flags.admin : false };
+  }, [isAdmin, portalCtx?.config.updatedAt]);
 
-  const studioItems = studioNavigation.items.filter((i) => i.enabled !== false);
-  const usersItems = usersNavigation.items.filter((i) => i.enabled !== false);
-  const adminItems  = adminNavigation.items.filter((i) => i.enabled !== false);
+  const portalName = portalCtx?.config.settings.portalName ?? loadPortalGeneralSettings().portalName;
+
+  const studioItems = filteredStudioNav.items;
+  const usersItems = filterNavigationByRolePermissions(usersNavigation, userRole).items;
+  const adminItems = filteredAdminNav.items;
 
   const isAdminActive = (href: string) =>
     location.pathname + location.search === href ||
@@ -121,7 +120,7 @@ const Sidebar = () => {
                 Memories Platform
               </p>
               <p className="text-[15px] font-bold text-slate-800 dark:text-slate-100 leading-tight">
-                {isAdmin ? 'Admin Panel' : 'Our Memories'}
+                {isAdmin ? 'Admin Panel' : portalName}
               </p>
             </div>
           </div>
@@ -213,18 +212,18 @@ const Sidebar = () => {
                 );
               })}
             </>
-              <div className="space-y-1">
+              {/* <div className="space-y-1">
                 {adminItems.map((item) => (
                   <NavItem key={item.href} item={item} isActive={isAdminActive(item.href)} />
                 ))}
-              </div>
+              </div> */}
             </div>
           )}
         </nav>
 
         {/* ── Bottom ── */}
         <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-3 space-y-1">
-          <button
+        {!isAdmin &&   <button
             type="button"
             onClick={()=>route('portal-settings')}
             className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5
@@ -232,7 +231,7 @@ const Sidebar = () => {
           >
             <FaCog className="h-[15px] w-[15px] shrink-0 text-slate-400 group-hover:text-slate-500 dark:group-hover:text-slate-300" />
             <span>Settings</span>
-          </button>
+          </button>}
           {typeof logout === 'function' && (
             <button
               type="button"

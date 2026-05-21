@@ -22,6 +22,10 @@ import {
   getWhatsAppMessages,
 } from '../api/services/whatsappService';
 
+function newQrPayload(): string {
+  return `om-wa-${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
+}
+
 export default function WhatsAppConfigPage() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -30,6 +34,7 @@ export default function WhatsAppConfigPage() {
     busy: false,
     message: null,
     qrDataUrl: null,
+    qrPayload: null,
     connected: null,
   });
 
@@ -64,23 +69,32 @@ export default function WhatsAppConfigPage() {
       setLoginState((prev) => ({ ...prev, busy: true, connected: null }));
     },
     onSuccess: (data) => {
+      const qrDataUrl = data.qrDataUrl ?? null;
+      const qrPayload = qrDataUrl ? null : data.qrPayload || newQrPayload();
       setLoginState((prev) => ({
         ...prev,
         busy: false,
         message: data.message || null,
-        qrDataUrl: data.qrDataUrl || null,
+        qrDataUrl,
+        qrPayload,
         connected: null,
       }));
-      if (data.qrDataUrl) {
+      if (data.source === 'openclaw-gateway' && qrDataUrl) {
+        toast.success('Real WhatsApp QR — scan with your phone (Linked devices)');
+      } else if (qrDataUrl) {
         toast.success(t('whatsapp.qrGenerated'));
+      } else {
+        toast.error(t('whatsapp.scanQrHint'));
       }
     },
     onError: (err: Error) => {
+      const qrPayload = newQrPayload();
       setLoginState((prev) => ({
         ...prev,
         busy: false,
-        message: err.message,
+        message: `${err.message} (local QR shown — restart Java backend if this persists)`,
         qrDataUrl: null,
+        qrPayload,
         connected: false,
       }));
       toast.error(err.message);
@@ -99,6 +113,7 @@ export default function WhatsAppConfigPage() {
         message: data.message || null,
         connected: data.connected ?? null,
         qrDataUrl: data.connected ? null : prev.qrDataUrl,
+        qrPayload: data.connected ? null : prev.qrPayload,
       }));
       if (data.connected) {
         toast.success(t('whatsapp.linkedSuccess'));
@@ -126,6 +141,7 @@ export default function WhatsAppConfigPage() {
         busy: false,
         message: t('whatsapp.loggedOut'),
         qrDataUrl: null,
+        qrPayload: null,
         connected: null,
       });
       toast.success(t('whatsapp.loggedOut'));

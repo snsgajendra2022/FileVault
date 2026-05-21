@@ -1,5 +1,7 @@
 # FileVault - Image Security React Portal
 
+node  verion use 22.22.2
+
 A comprehensive React frontend for the ImageSecurity API system, providing user management, cloud service configuration, and secure file handling.
 
 ## 🚀 Features
@@ -293,4 +295,57 @@ This frontend integrates with the ImageSecurity API backend. Ensure the backend 
 
 **FileVault** - Secure, scalable image management for modern businesses.
 
+
+You can run only the React project and skip OpenClaw entirely.
+
+Easiest: use the script you already have
+npm run start:web
+That runs only craco start (the Filevault app on port 3000). It does not start server/openclaw-dev-server.js.
+
+Command	What runs
+npm start
+Dev server 9093 + React 3000
+npm run start:web
+React 3000 only
+What still works without OpenClaw dev server
+Login, dashboard, memories, albums, upload, Face Filter, etc. (via REACT_APP_API_URL → backendstudio.mytiny.us)
+Normal API calls to your Java backend
+What will not work locally (unless your backend implements it)
+Feature	Without dev server on 9093
+Om AI assistant (/studio/openclaw)
+Only works if backendstudio.mytiny.us has /api/openclaw/* and you remove or leave empty REACT_APP_OPENCLAW_DEV_URL in .env
+WhatsApp page (/studio/whatsapp)
+Proxied to 9093 in dev — will fail unless Java backend has /api/whatsapp/*
+Voice assistant in browser
+Same as above — needs API or dev server
+So “project only” = main app yes, assistant/WhatsApp dev features = need production API or you hide/disable those menu items.
+
+.env when you only run the web app
+For assistant to call your main API (not localhost:9093):
+
+Remove or comment out:
+REACT_APP_OPENCLAW_DEV_URL=http://192.168.1.58:9093
+Keep:
+REACT_APP_API_URL=https://backendstudio.mytiny.us
+If the backend does not have OpenClaw/WhatsApp routes yet, the assistant/WhatsApp pages will show errors — that’s expected.
+
+Optional: set REACT_APP_OPENCLAW_ENABLED=false to hide assistant UI if you don’t want it at all.
+
+Make npm start = web only (optional)
+If you want npm start itself to mean “project only”, change package.json to:
+
+"start": "craco start"
+and keep the old behavior as:
+
+"start:all": "concurrently ..."
+I’m in Ask mode and can’t edit files; switch to Agent mode if you want that change applied for you.
+
+You do not need
+npm run openclaw:whatsapp:login
+npm run openclaw -- gateway
+@openclaw/whatsapp plugin
+A separate ~/openclaw repo
+Those are only for real WhatsApp + OpenClaw Gateway. If you only want Filevault, ignore them.
+
+Summary: Run npm run start:web (or change start to craco start). That is your project only, no OpenClaw dev server.
 

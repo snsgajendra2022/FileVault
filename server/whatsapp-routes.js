@@ -1,8 +1,14 @@
 /**
  * Dev / bridge WhatsApp REST API — matches src/api/services/whatsappService.ts
+ * When OpenClaw Gateway is running, login/start returns the REAL WhatsApp Web QR (scannable in phone app).
  */
 
 const crypto = require('crypto');
+const {
+  gatewayCall,
+  isGatewayConfigured,
+  normalizeGatewayLoginResult,
+} = require('./openclaw-gateway-client');
 
 const DEFAULT_CONFIG = {
   dmPolicy: 'pairing',
@@ -63,6 +69,7 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     lastMessageAt: null,
     lastError: null,
     loginPending: false,
+    lastQrDataUrl: null,
     config: { ...DEFAULT_CONFIG },
     messages: [],
   };
@@ -107,10 +114,76 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     res.json({ ok: true });
   });
 
-  app.post('/api/whatsapp/login/start', (req, res) => {
+  app.post('/api/whatsapp/login/start', async (req, res) => {
     const force = Boolean(req.body?.force);
+    state.lastQrDataUrl = null;
+
+    if (process.env.OPENCLAW_WHATSAPP_USE_GATEWAY !== 'false' && isGatewayConfigured()) {
+      try {
+        const raw = await gatewayCall('web.login.start', {
+          force,
+          timeoutMs: 60000,
+          verbose: false,
+        });
+        const result = normalizeGatewayLoginResult(raw);
+        if (result?.qrDataUrl) {
+          state.loginPending = true;
+          state.lastQrDataUrl = result.qrDataUrl;
+          state.connected = Boolean(result.connected);
+          state.linked = state.connected;
+          state.running = state.connected;
+          state.lastError = null;
+          return res.json({
+            message:
+              result.message ||
+              'Scan this QR in WhatsApp → Settings → Linked devices → Link a device (same as terminal login).',
+            qrDataUrl: result.qrDataUrl,
+            qrPayload: null,
+            connected: result.connected ?? null,
+            source: 'openclaw-gateway',
+          });
+        }
+        if (result?.message) {
+          return res.json({
+            message: result.message,
+            qrDataUrl: result.qrDataUrl ?? null,
+            qrPayload: null,
+            connected: result.connected ?? null,
+            source: 'openclaw-gateway',
+          });
+        }
+      } catch (err) {
+        state.lastError = String(err.message || err);
+        const msg = String(err.message || err);
+        let hint =
+          'Run: launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/ai.openclaw.gateway.plist then ' +
+          'OPENCLAW_CONFIG=$PWD/.openclaw/openclaw.json npx openclaw gateway run --force. See docs/WHATSAPP-OPENCLAW-FIX.md';
+        if (/protocol mismatch/i.test(msg)) {
+          hint =
+            'Stale OpenClaw gateway on 18789 (often LaunchAgent v2026.4.x). Stop it and start gateway from filevault (2026.5.19). ' +
+            hint;
+        } else if (/pairing required|scope upgrade/i.test(msg)) {
+          hint =
+            'Approve CLI device: open http://127.0.0.1:18789/ (gateway token) or run: npx openclaw devices approve --latest';
+        } else if (/web login provider is not available/i.test(msg)) {
+          hint =
+            'Install WhatsApp plugin and enable channel: npx openclaw plugins install @openclaw/whatsapp, ' +
+            'add channels.whatsapp.enabled in .openclaw/openclaw.json, restart gateway.';
+        }
+        return res.status(503).json({
+          error: state.lastError,
+          message: hint,
+          qrDataUrl: null,
+        });
+      }
+    }
+
     if (state.connected && !force) {
-      return res.json({ message: 'Already connected.', qrDataUrl: null });
+      return res.json({
+        message: 'Already connected (dev). Use Relink or start OpenClaw Gateway for a real QR.',
+        qrDataUrl: null,
+        qrPayload: null,
+      });
     }
     state.loginPending = true;
     state.linked = false;
@@ -118,12 +191,55 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     state.lastError = null;
     res.json({
       message:
-        'Dev: simulated QR. Production: OpenClaw Gateway + `openclaw channels login --channel whatsapp`. See docs/BACKEND-OM-ASSISTANT.md.',
-      qrDataUrl: devQrDataUrl('Scan then POST login/wait'),
+        'Gateway offline — showing dev placeholder only (invalid in WhatsApp). Start: npx openclaw gateway run --force',
+      qrDataUrl: devQrDataUrl('Start openclaw gateway'),
+      qrPayload: null,
+      source: 'dev-fallback',
     });
   });
 
-  app.post('/api/whatsapp/login/wait', (_req, res) => {
+  app.post('/api/whatsapp/login/wait', async (req, res) => {
+    if (process.env.OPENCLAW_WHATSAPP_USE_GATEWAY !== 'false' && isGatewayConfigured() && state.loginPending) {
+      try {
+        const raw = await gatewayCall(
+          'web.login.wait',
+          {
+            timeoutMs: 120000,
+            currentQrDataUrl: state.lastQrDataUrl || undefined,
+          },
+          130000
+        );
+        const result = normalizeGatewayLoginResult(raw);
+        const connected = Boolean(result?.connected);
+        if (connected) {
+          state.loginPending = false;
+          state.linked = true;
+          state.running = true;
+          state.connected = true;
+          state.lastConnectedAt = new Date().toISOString();
+          state.lastError = null;
+          pushMessage({
+            direction: 'outbound',
+            from: 'system',
+            to: 'om',
+            text: 'WhatsApp linked via OpenClaw Gateway.',
+            status: 'delivered',
+          });
+        }
+        return res.json({
+          message: result?.message || (connected ? 'Connected.' : 'Not connected yet.'),
+          connected,
+          source: 'openclaw-gateway',
+        });
+      } catch (err) {
+        return res.status(503).json({
+          error: String(err.message || err),
+          message: 'Gateway wait failed. Is the gateway still running?',
+          connected: false,
+        });
+      }
+    }
+
     if (!state.loginPending) {
       return res.json({ message: 'Call login/start first.', connected: state.connected });
     }
@@ -140,7 +256,7 @@ function mountWhatsAppRoutes(app, hooks = {}) {
       text: 'WhatsApp channel connected (dev simulation).',
       status: 'delivered',
     });
-    res.json({ message: 'Connected (dev simulation).', connected: true });
+    res.json({ message: 'Connected (dev simulation).', connected: true, source: 'dev-fallback' });
   });
 
   app.post('/api/whatsapp/logout', (_req, res) => {

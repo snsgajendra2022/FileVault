@@ -1,4 +1,8 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
+import { usePortalSettings } from "../../state/context/PortalSettingsContext";
+import { buildDefaultRolePermissions, normalizeRoleMenuPermissions } from "../../utils/portalSettings";
+import type { MenuPermissionAction, RoleMenuPermission } from "../../types/permissions";
 import {
   FaBell,
   FaCheck,
@@ -23,7 +27,7 @@ type SettingsTab =
   | "security"
   | "appearance";
 
-type RoleType = "admin" | "studio" | "regular";
+type RoleType = "admin" | "studio" | "regular" | "users";
 
 type PermissionAction = {
   view: boolean;
@@ -39,7 +43,7 @@ type PermissionAction = {
 type MenuPermission = {
   id: string;
   role: RoleType;
-  group: "Regular" | "Studio" | "Admin";
+  group: "Regular" | "Studio" | "Admin" | "Users";
   label: string;
   path: string;
   enabled: boolean;
@@ -219,6 +223,7 @@ function loadRolePermissions(): Record<RoleType, MenuPermission[]> {
       admin: parsed.admin?.length ? parsed.admin : defaults.admin,
       studio: parsed.studio?.length ? parsed.studio : defaults.studio,
       regular: parsed.regular?.length ? parsed.regular : defaults.regular,
+      users: parsed.users?.length ? parsed.users : defaults.users,
     };
   } catch {
     return defaults;
@@ -266,15 +271,78 @@ function SettingSwitch({
   );
 }
 
+function rolePermissionsToMenuPermissions(
+  perms: RoleMenuPermission[] | undefined,
+  t: (key: string) => string,
+): MenuPermission[] {
+  return (perms ?? []).map((p) => {
+    const actions: MenuPermissionAction = p.actions ?? { view: false };
+    return {
+      id: `${p.role}_${p.group}_${p.href.replace(/[^a-zA-Z0-9]/g, "_")}`,
+      role: p.role,
+      group: (p.group.charAt(0).toUpperCase() + p.group.slice(1)) as MenuPermission["group"],
+      label: t(p.labelKey),
+      path: p.href,
+      enabled: p.enabled ?? true,
+      actions: {
+        view: actions.view ?? false,
+        create: actions.create ?? false,
+        edit: actions.edit ?? false,
+        delete: actions.delete ?? false,
+        upload: actions.upload ?? false,
+        download: actions.download ?? false,
+        share: actions.share ?? false,
+        manage: actions.manage ?? false,
+      },
+    };
+  });
+}
+
+function configToLocalRolePermissions(
+  roleMenuPermissions: Partial<Record<RoleType, RoleMenuPermission[]>> | undefined,
+  t: (key: string) => string,
+): Record<RoleType, MenuPermission[]> {
+  const normalized = normalizeRoleMenuPermissions(roleMenuPermissions);
+  return {
+    admin: rolePermissionsToMenuPermissions(normalized.admin, t),
+    studio: rolePermissionsToMenuPermissions(normalized.studio, t),
+    regular: rolePermissionsToMenuPermissions(normalized.regular, t),
+    users: rolePermissionsToMenuPermissions(normalized.users, t),
+  };
+}
+
+function menuPermissionsToRolePermissions(
+  rows: MenuPermission[],
+  existing: RoleMenuPermission[],
+): RoleMenuPermission[] {
+  return rows.map((row) => {
+    const prev = existing.find((p) => p.href === row.path);
+    return {
+      role: row.role,
+      labelKey: prev?.labelKey ?? `nav.${row.group.toLowerCase()}.${row.path.replace(/\//g, '.')}`,
+      href: row.path,
+      group: (row.group.toLowerCase() === 'admin' ? 'admin' : row.group.toLowerCase() === 'studio' ? 'studio' : 'regular') as RoleMenuPermission['group'],
+      enabled: row.enabled,
+      actions: { ...row.actions },
+    };
+  });
+}
+
 export default function PortalSettingsPage() {
+  const { t } = useTranslation();
+  const { config, saving, saveConfig, resetToDefaults, updateSettings, setRolePermissions } = usePortalSettings();
   const [activeTab, setActiveTab] = React.useState<SettingsTab>("general");
   const [selectedRole, setSelectedRole] = React.useState<RoleType>("admin");
   const [permissionSearch, setPermissionSearch] = React.useState("");
-  const [settings, setSettings] = React.useState<PortalSettings>(() => loadPortalSettings());
-  const [rolePermissions, setRolePermissions] = React.useState<Record<RoleType, MenuPermission[]>>(() =>
-    loadRolePermissions(),
+  const settings = config.settings as PortalSettings;
+  const [rolePermissions, setRolePermissionsLocal] = React.useState<Record<RoleType, MenuPermission[]>>(
+    () => configToLocalRolePermissions(config.roleMenuPermissions, t),
   );
   const [savedMessage, setSavedMessage] = React.useState("");
+
+  React.useEffect(() => {
+    setRolePermissionsLocal(configToLocalRolePermissions(config.roleMenuPermissions, t));
+  }, [config.roleMenuPermissions, t]);
 
   const selectedRolePermissions = React.useMemo(() => {
     const query = permissionSearch.trim().toLowerCase();
@@ -299,7 +367,7 @@ export default function PortalSettingsPage() {
   }, [selectedRolePermissions]);
 
   const updateSetting = <K extends keyof PortalSettings>(key: K, value: PortalSettings[K]) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
+    updateSettings({ [key]: value } as Partial<PortalSettings>);
   };
 
   const updatePermission = (
@@ -307,39 +375,56 @@ export default function PortalSettingsPage() {
     permissionId: string,
     updater: (item: MenuPermission) => MenuPermission,
   ) => {
-    setRolePermissions((prev) => ({
+    setRolePermissionsLocal((prev) => ({
       ...prev,
       [role]: prev[role].map((item) => (item.id === permissionId ? updater(item) : item)),
     }));
   };
 
-  const handleSave = () => {
-    savePortalSettings(settings);
-    saveRolePermissions(rolePermissions);
+  const handleSave = async () => {
+    const normalized = normalizeRoleMenuPermissions(config.roleMenuPermissions);
+    const roleMenuPermissions = {
+      admin: menuPermissionsToRolePermissions(rolePermissions.admin, normalized.admin),
+      studio: menuPermissionsToRolePermissions(rolePermissions.studio, normalized.studio),
+      regular: menuPermissionsToRolePermissions(rolePermissions.regular, normalized.regular),
+      users: menuPermissionsToRolePermissions(rolePermissions.users, normalized.users),
+    };
+    await saveConfig({
+      settings,
+      roleMenuPermissions,
+      aiToolSettings: config.aiToolSettings,
+      menuFlags: config.menuFlags,
+    });
+    setRolePermissions(roleMenuPermissions);
     setSavedMessage("Settings saved successfully.");
     window.setTimeout(() => setSavedMessage(""), 2500);
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     const ok = window.confirm("Reset all settings and permissions to default?");
     if (!ok) return;
-
-    const defaultPermissions = buildDefaultPermissions();
-    setSettings(defaultSettings);
-    setRolePermissions(defaultPermissions);
-    savePortalSettings(defaultSettings);
-    saveRolePermissions(defaultPermissions);
+    await resetToDefaults();
+    const defaults = buildDefaultRolePermissions();
+    setRolePermissionsLocal({
+      admin: rolePermissionsToMenuPermissions(defaults.admin, t),
+      studio: rolePermissionsToMenuPermissions(defaults.studio, t),
+      regular: rolePermissionsToMenuPermissions(defaults.regular, t),
+      users: rolePermissionsToMenuPermissions(defaults.users, t),
+    });
     setSavedMessage("Settings reset to default.");
     window.setTimeout(() => setSavedMessage(""), 2500);
   };
 
   const handleRoleReset = () => {
-    const defaults = buildDefaultPermissions();
-    setRolePermissions((prev) => ({ ...prev, [selectedRole]: defaults[selectedRole] }));
+    const defaults = buildDefaultRolePermissions();
+    setRolePermissionsLocal((prev) => ({
+      ...prev,
+      [selectedRole]: rolePermissionsToMenuPermissions(defaults[selectedRole], t),
+    }));
   };
 
   const handleRoleBulkEnable = (enabled: boolean) => {
-    setRolePermissions((prev) => ({
+    setRolePermissionsLocal((prev) => ({
       ...prev,
       [selectedRole]: prev[selectedRole].map((item) => ({
         ...item,
@@ -654,11 +739,12 @@ export default function PortalSettingsPage() {
 
               <button
                 type="button"
-                onClick={handleSave}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800"
+                onClick={() => void handleSave()}
+                disabled={saving}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 disabled:opacity-60"
               >
                 <FaSave className="h-4 w-4" />
-                Save Settings
+                {saving ? "Saving…" : "Save Settings"}
               </button>
             </div>
           </div>

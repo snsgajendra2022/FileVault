@@ -46,13 +46,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [ user ,setUser] = useState<User | null |any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const queryClient = useQueryClient();
-   const users = {
-     accountType: 'STUDIO'
-    }
-  // Check if user is admin
-  const isAdmin = users?.accountType === 'ADMIN';
-  const isStudio = users?.accountType === 'STUDIO';
-  const isUsers = users?.accountType === 'USERS';
+  const roleType = user?.role;
+  const roleUpper = user?.role?.toUpperCase();
+  const isAdmin = roleType === 'ADMIN' || roleUpper === 'ADMIN' || roleType === 'admin';
+  const isStudio = roleType === 'STUDIO' ||
+    roleUpper === 'STUDIO' ||
+    roleType === 'studio';
+  const isUsers = roleType === 'USERS' || roleType === 'users' || (!isAdmin && !isStudio);
   const isAuthenticated = !!user;
 
   useEffect(() => {

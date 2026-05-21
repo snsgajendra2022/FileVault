@@ -20,7 +20,9 @@ export interface User {
   firstName: string;
   lastName: string;
   phone: string;
-  accountType: 'FREE' | 'BASIC' | 'PREMIUM' | 'ENTERPRISE' | 'ADMIN' | 'CLIENT' | 'FREE';
+  accountType: 'FREE' | 'BASIC' | 'PREMIUM' | 'ENTERPRISE' | 'ADMIN' | 'CLIENT' | 'FREE' | 'STUDIO' | 'USERS';
+  /** Portal nav role from login API: admin | studio | users */
+  portalRole?: 'admin' | 'studio' | 'users';
   status: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'VERIFIED';
   company?: string;
   role?: string;

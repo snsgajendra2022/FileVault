@@ -234,70 +234,60 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
 
           {/* Admin navigation */}
           {isAdmin && menuFlags.admin && adminNavigation.active && (
-            <div>
+              <div>
               <>
-              <div className="mb-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-50 border border-purple-100">
-                <FaCrown className="h-3 w-3 text-purple-500 shrink-0" />
-                <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-purple-600">Admin Panel</p>
+              <div className="mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-50 border border-purple-100">
+                <FaCrown className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-purple-600">Admin Panel</p>
               </div>
-              {filteredAdminNav.active === true && filteredAdminNav.items.filter(i=>i.enabled!==false).map((item) => (
+              
+              {filteredAdminNav.active === true && filteredAdminNav.items.filter(i=>i.enabled!==false).map((item) => {
+                // For admin items with query params, check both pathname and search
+                const isAdminItemActive = location.pathname + location.search === item.href ||
+                  (item.href.includes('?') && location.pathname === '/admin' && location.search === '?' + item.href.split('?')[1]);
+                return (
                 <NavLink
                   key={item.href}
                   to={item.href}
                   data-ai-action={`open-route-${item.href.replace(/[/?=&]/g, '-').replace(/^-+/, '')}`}
-                  className={({ isActive }) =>
+                  className={
                     `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
-                      isActive
+                      isAdminItemActive
                         ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-xl border-r-4 border-purple-400'
                         : 'text-gray-700 hover:text-gray-900 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 border-r-4 border-transparent hover:border-purple-200'
                     }`
                   }
                 >
-                  {({ isActive }) => (
-                    <>
-                      {/* Active indicator */}
-                      {isActive && (
-                        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
-                      )}
-                      
-                      <div className={`relative ${isActive ? 'text-white' : 'text-gray-600 group-hover:text-purple-700'}`}>
-                        <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
-                      </div>
-                      <span className="font-semibold">{t(item.labelKey)}</span>
-                      
-                      {/* Hover glow effect */}
-                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-400 to-pink-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
-                    </>
-                  )}
+                  <>
+                    {/* Active indicator */}
+                    {isAdminItemActive && (
+                      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
+                    )}
+                    
+                    <div className={`relative ${isAdminItemActive ? 'text-white' : 'text-gray-600 group-hover:text-purple-700'}`}>
+                      <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
+                    </div>
+                    <span className="font-semibold">{t(item.labelKey)}</span>
+                    
+                    {/* Hover glow effect */}
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-400 to-pink-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
+                  </>
                 </NavLink>
-              ))}
+                );
+              })}
             </>
-              <div className="space-y-0.5">
-                {adminItems.map((item) => {
-                  const Icon = item.icon;
-                  const active = isAdminActive(item.href);
-                  return (
-                    <NavLink
-                      key={item.href}
-                      to={item.href}
-                      onClick={onClose}
-                      className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium
-                        transition-colors duration-150 select-none
-                        ${active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}
-                    >
-                      <Icon className={`h-[15px] w-[15px] shrink-0 ${active ? 'text-violet-600' : 'text-slate-400 group-hover:text-slate-500'}`} />
-                      <span className="truncate leading-none">{t(item.labelKey)}</span>
-                    </NavLink>
-                  );
-                })}
-              </div>
+              {/* <div className="space-y-1">
+                {adminItems.map((item) => (
+                  <NavItem key={item.href} item={item} isActive={isAdminActive(item.href)} />
+                ))}
+              </div> */}
             </div>
           )}
         </nav>
 
         {/* ── Bottom ─────────────────────────────────────────────────── */}
         <div className="shrink-0 border-t border-slate-100 px-3 py-2.5 space-y-0.5">
-          <button
+  {!isAdmin &&   <button
             type="button"
             onClick={()=>route('portal-settings')}
             className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5
@@ -305,7 +295,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
           >
             <FaCog className="h-[15px] w-[15px] shrink-0 text-slate-400 group-hover:text-slate-500" />
             <span>Settings</span>
-          </button>
+          </button>}
           {typeof logout === 'function' && (
             <button
               type="button"

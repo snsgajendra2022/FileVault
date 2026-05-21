@@ -29,5 +29,7 @@ module.exports = function setupProxy(app) {
     changeOrigin: true,
     logLevel: 'warn',
   });
+  // WhatsApp real QR: proxy to openclaw-dev-server (9093) when page uses same-origin /api/whatsapp
   app.use('/api/whatsapp', omProxy);
+  app.use('/api/portal', omProxy);
 };

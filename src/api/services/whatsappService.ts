@@ -1,5 +1,24 @@
+import axios, { type AxiosInstance } from 'axios';
 import api from '../../api/client/axiosInstance';
 import type { WhatsAppConfigValues } from '../../components/OmAiWhatsappConfig/WhatsAppConfigForm';
+
+/** Real WhatsApp QR comes from OpenClaw Gateway via dev server (9093), not Java fake QR. */
+function whatsappClient(): AxiosInstance {
+  const base =
+    (process.env.REACT_APP_WHATSAPP_API_URL || process.env.REACT_APP_OPENCLAW_DEV_URL || '')
+      .trim()
+      .replace(/\/$/, '') || undefined;
+  if (!base) return api;
+  const client = axios.create({ baseURL: base, timeout: 120_000 });
+  client.interceptors.request.use((config) => {
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+    if (token && !config.headers.Authorization) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
+  return client;
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -16,7 +35,13 @@ export type WhatsAppStatus = {
 
 export type WhatsAppLoginStartResponse = {
   message?: string;
-  qrDataUrl?: string;
+  /** PNG data URL from backend (preferred for <img>). */
+  qrDataUrl?: string | null;
+  /** Raw QR text — frontend can render with react-qr-code if image missing. */
+  qrPayload?: string | null;
+  /** openclaw-gateway = real WhatsApp QR; dev-fallback = not scannable */
+  source?: string;
+  error?: string;
 };
 
 export type WhatsAppLoginWaitResponse = {
@@ -52,37 +77,57 @@ export type WhatsAppLogEntry = {
 
 /** Fetch current WhatsApp channel status from the backend. */
 export async function getWhatsAppStatus(): Promise<WhatsAppStatus> {
-  const res = await api.get<WhatsAppStatus>('/api/whatsapp/status');
+  const res = await whatsappClient().get<WhatsAppStatus>('/api/whatsapp/status');
   return res.data;
+}
+
+function pickLoginStartPayload(data: unknown): WhatsAppLoginStartResponse {
+  if (!data || typeof data !== 'object') return {};
+  const d = data as Record<string, unknown>;
+  return {
+    message: typeof d.message === 'string' ? d.message : undefined,
+    qrDataUrl: typeof d.qrDataUrl === 'string' ? d.qrDataUrl : d.qrDataUrl === null ? null : undefined,
+    qrPayload: typeof d.qrPayload === 'string' ? d.qrPayload : d.qrPayload === null ? null : undefined,
+  };
 }
 
 /** Start WhatsApp QR login. Returns QR code data URL and message. */
 export async function startWhatsAppLogin(force = false): Promise<WhatsAppLoginStartResponse> {
-  const res = await api.post<WhatsAppLoginStartResponse>('/api/whatsapp/login/start', { force });
-  return res.data;
+  try {
+    const res = await whatsappClient().post('/api/whatsapp/login/start', { force });
+    return pickLoginStartPayload(res.data);
+  } catch (err: unknown) {
+    const ax = err as { response?: { data?: { error?: string; message?: string } }; message?: string };
+    const msg =
+      ax.response?.data?.error ||
+      ax.response?.data?.message ||
+      ax.message ||
+      'Failed to start WhatsApp login';
+    throw new Error(msg);
+  }
 }
 
 /** Wait for WhatsApp QR scan to complete. */
 export async function waitWhatsAppLogin(): Promise<WhatsAppLoginWaitResponse> {
-  const res = await api.post<WhatsAppLoginWaitResponse>('/api/whatsapp/login/wait', {});
+  const res = await whatsappClient().post<WhatsAppLoginWaitResponse>('/api/whatsapp/login/wait', {});
   return res.data;
 }
 
 /** Logout / unlink WhatsApp. */
 export async function logoutWhatsApp(): Promise<{ message?: string }> {
-  const res = await api.post<{ message?: string }>('/api/whatsapp/logout', {});
+  const res = await whatsappClient().post<{ message?: string }>('/api/whatsapp/logout', {});
   return res.data;
 }
 
 /** Save WhatsApp channel configuration. */
 export async function saveWhatsAppConfig(config: WhatsAppConfigValues): Promise<{ ok?: boolean; error?: string }> {
-  const res = await api.post<{ ok?: boolean; error?: string }>('/api/whatsapp/config', config);
+  const res = await whatsappClient().post<{ ok?: boolean; error?: string }>('/api/whatsapp/config', config);
   return res.data;
 }
 
 /** Fetch current WhatsApp channel configuration. */
 export async function getWhatsAppConfig(): Promise<WhatsAppConfigValues> {
-  const res = await api.get<WhatsAppConfigValues>('/api/whatsapp/config');
+  const res = await whatsappClient().get<WhatsAppConfigValues>('/api/whatsapp/config');
   return res.data;
 }
 
@@ -91,7 +136,7 @@ export async function getWhatsAppMessages(params?: {
   limit?: number;
   before?: string;
 }): Promise<WhatsAppLogEntry[]> {
-  const res = await api.get<WhatsAppLogEntry[]>('/api/whatsapp/messages', { params });
+  const res = await whatsappClient().get<WhatsAppLogEntry[]>('/api/whatsapp/messages', { params });
   return res.data;
 }
 
@@ -100,7 +145,7 @@ export async function sendWhatsAppMessage(params: {
   to: string;
   text: string;
 }): Promise<{ ok?: boolean; messageId?: string; error?: string }> {
-  const res = await api.post<{ ok?: boolean; messageId?: string; error?: string }>(
+  const res = await whatsappClient().post<{ ok?: boolean; messageId?: string; error?: string }>(
     '/api/whatsapp/send',
     params,
   );

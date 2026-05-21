@@ -8,12 +8,13 @@ import { useAuth } from '../state/context/AuthContext';
 import { getRoleFromAccountType, isMenuAllowed, canAccessPath } from '../utils/portalSettings';
 
 interface UsePermissionsReturn {
-  role: 'admin' | 'studio' | 'regular';
+  role: 'admin' | 'studio' | 'regular' | 'users';
   canAccessMenu: (href: string) => boolean;
   canAccessPath: (path: string) => boolean;
   isAdmin: boolean;
   isStudio: boolean;
   isRegular: boolean;
+  isUsers: boolean;
 }
 
 /**
@@ -27,16 +28,17 @@ interface UsePermissionsReturn {
  * }
  */
 export const usePermissions = (): UsePermissionsReturn => {
-  const { user } = useAuth();
+  const { user ,isUsers ,isStudio ,isAdmin  } = useAuth() as any;
 
   const role = useMemo(
     () => getRoleFromAccountType(user?.accountType),
     [user?.accountType]
   );
 
-  const isAdmin = role === 'admin';
-  const isStudio = role === 'studio';
+  // const isAdmin = role === 'admin';
+  // const isStudio = role === 'studio';
   const isRegular = role === 'regular';
+  // const isUsers = role === 'users';
 
   const canAccessMenuFunc = (href: string) => isMenuAllowed(role, href);
   const canAccessPathFunc = (path: string) => canAccessPath(role, path);
@@ -48,6 +50,7 @@ export const usePermissions = (): UsePermissionsReturn => {
     isAdmin,
     isStudio,
     isRegular,
+    isUsers,
   };
 };
 

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavig
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './state/context/AuthContext';
+import { PortalSettingsProvider } from './state/context/PortalSettingsContext';
 import Layout from './components/layout/Layout';
 // common
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -307,6 +308,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <SkeletonTheme baseColor={SKELETON_BASE_COLOR} highlightColor={SKELETON_HIGHLIGHT}>
           <AuthProvider>
+            <PortalSettingsProvider>
             <Router>
               <AppRoutes />
               <OpenClawAgentDock />
@@ -321,6 +323,7 @@ function App() {
                 }}
               />
             </Router>
+            </PortalSettingsProvider>
           </AuthProvider>
         </SkeletonTheme>
       </QueryClientProvider>

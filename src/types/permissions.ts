@@ -4,7 +4,7 @@
  */
 
 /** Supported user roles */
-export type RoleType = 'admin' | 'studio' | 'regular';
+export type RoleType = 'admin' | 'studio' | 'regular' | 'users';
 
 /** Action-level permissions for menu items */
 export interface MenuPermissionAction {
@@ -23,7 +23,7 @@ export interface RoleMenuPermission {
   role: RoleType;
   labelKey: string;
   href: string;
-  group: 'regular' | 'studio' | 'admin';
+  group: 'regular' | 'studio' | 'admin' | 'users';
   enabled: boolean;
   actions: MenuPermissionAction;
 }

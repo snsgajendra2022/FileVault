@@ -361,15 +361,12 @@ The Memories photographer dashboard pages (`src/pages/memories/*`) now expect **
 | Method | Path | Purpose |
 |--------|------|---------|
 | `GET` | `/api/memories/events` | List events for the current authenticated host. Response may be `{ events: [...] }` or a bare array. |
-<<<<<<< HEAD
 | `POST` | `/api/memories/events` | Create event. Body: `{ name, dateTime, location, privacy }`. Response: `{ event: ... }` or event object. |
 | `GET` | `/api/memories/events/{id}` | Fetch one event with images. Response: `{ event: ... }` or event object. |
 | `PUT` | `/api/memories/events/{id}` | Update event fields (`name`, `dateTime`, `location`, `privacy`, optional `coverImageUrl`). |
-=======
 | `POST` | `/api/memories/events` | Create event. Body: `{ name, dateTime, location, privacy? }` (UI defaults **`privacy` to `invite`**), optional **`summary`**, **`description`**, **`eventType`**, **`coverImageUrl`**, **`photobookNeeded`** (default false), **`photobookTemplateId`** (valid `photo_themes` / photobook template id), **`photobookThankYouMessage`**. Response: `{ event: ... }` or event object. |
 | `GET` | `/api/memories/events/{id}` | Fetch one event with images. Response: `{ event: ... }` or event object. Optional query: **`token`** or **`t`** (access token; client may send both), **`shareId`** — used when opening a numeric guest URL so unauthenticated clients can load the event. |
 | `PUT` | `/api/memories/events/{id}` | Partial update: `name`, `dateTime`, `location`, `privacy`, `coverImageUrl`, optional `summary`, `description`, `eventType`, `photobookNeeded`, `photobookTemplateId` (null clears when turning photobook off), `photobookThankYouMessage` (empty string clears thank-you per API rules). |
->>>>>>> 7afa926ef02389846adaefa80bb2f779124d6050
 | `DELETE` | `/api/memories/events/{id}` | Delete event. |
 | `POST` | `/api/memories/events/{id}/images` | Attach uploaded images to event. Body: `{ imageIds: (number|string)[] }`. |
 
@@ -384,10 +381,7 @@ The UI expects each image to provide (names are flexible; the client maps severa
 
 ### Notes
 
-<<<<<<< HEAD
-=======
 - **Guest gallery URL (`/memories/e/{slug}`):** The host app includes **`token`** and legacy **`t`** (same value) plus `guest`, `allowImageUpload`, and `allowViewEventImages`. If **`POST /api/public-share/send`** (or email/SMS templates) append **`shareId`**, they must **merge** into the existing query string and **must not drop** `token` / `t`. When **`slug` is numeric** (e.g. `/memories/e/3`), the client **only** calls **`GET /api/memories/events/{id}?t=<token>&token=<token>&shareId=<id>`** (query params only for that GET — same whether the site is opened on `localhost` or a LAN/public URL). Non-numeric slugs use **`GET /api/simple-invitations/memories-event-guest`**.
->>>>>>> 7afa926ef02389846adaefa80bb2f779124d6050
 - **Privacy** is shown in the events list via icon (`public` / `invite` / `private`). Backend can store `privacy` as a string field.
 - **Likes & comments** are still client-only for now; if you want persistence, add endpoints under `/api/memories/...` and return `likes` / `comments` on each image.
 
@@ -516,5 +510,119 @@ The React app exposes **`/studio/whatsapp`** (channel config, QR link, message l
 **Local dev:** `server/openclaw-dev-server.js` implements the contract on port **9093**; CRA proxies `/api/whatsapp` via `src/setupProxy.js`.
 
 **Full specification (tools, bridge, security, runbook):** see **[docs/BACKEND-OM-ASSISTANT.md](docs/BACKEND-OM-ASSISTANT.md)**.
+
+---
+
+## Portal settings (dynamic UI, permissions, AI)
+
+The React app loads portal configuration on login and applies it **live** (sidebar menus, route guards, assistant dock, language, theme). Admin UI: **`/portal-settings`**.
+
+**Auth:** same Bearer token as other routes. **Recommended:** admin-only for `PUT` / `POST` reset.
+
+### Bundle (primary)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/portal/config` | Full config for the SPA |
+| `PUT` | `/api/portal/config` | Partial update (merge on server) |
+| `POST` | `/api/portal/config/reset` | Reset to server defaults |
+
+**Response / body shape (`GET` and `PUT` response):**
+
+```json
+{
+  "settings": {
+    "portalName": "Our Memories Portal",
+    "language": "en",
+    "timezone": "Asia/Kolkata",
+    "compactMode": false,
+    "emailNotifications": true,
+    "browserNotifications": false,
+    "requireDeleteConfirmation": true,
+    "requirePublicShareConfirmation": true,
+    "themeMode": "system",
+    "sidebarCollapsedByDefault": false,
+    "aiAssistantEnabled": true,
+    "aiPageContextEnabled": true,
+    "aiChatHistoryEnabled": true,
+    "aiUserWiseHistoryEnabled": false,
+    "aiVoiceEnabled": false,
+    "aiImageEnabled": true,
+    "aiUploadDebugEnabled": false,
+    "aiNetworkDebugEnabled": false,
+    "aiUiErrorDebugEnabled": false,
+    "aiSafeActionsEnabled": true,
+    "aiDangerousConfirmation": true,
+    "aiShowUsedModel": false
+  },
+  "roleMenuPermissions": {
+    "admin": [{ "role": "admin", "labelKey": "nav.studio.dashboard", "href": "/studio/dashboard", "group": "studio", "enabled": true, "actions": { "view": true, "create": true, "edit": true, "delete": true, "upload": true, "download": true, "share": true, "manage": true } }],
+    "studio": [],
+    "regular": []
+  },
+  "aiToolSettings": {
+    "enabled": true,
+    "pageContextEnabled": true,
+    "chatHistoryEnabled": true,
+    "userWiseHistoryEnabled": false,
+    "voiceEnabled": false,
+    "imageEnabled": true,
+    "uploadDebugEnabled": false,
+    "networkDebugEnabled": false,
+    "uiErrorDebugEnabled": false,
+    "actionsEnabled": true,
+    "safeClicksEnabled": true,
+    "dangerousActionsRequireConfirmation": true,
+    "showUsedModel": false,
+    "fallbackModelsEnabled": false,
+    "maxTokens": 4096,
+    "modelTimeoutMs": 30000,
+    "primaryModel": "gpt-4o-mini",
+    "fallbackModels": "gpt-3.5-turbo"
+  },
+  "menuFlags": { "regular": true, "studio": true, "users": true, "admin": true },
+  "navigationOverrides": [{ "href": "/studio/whatsapp", "enabled": true }],
+  "updatedAt": "2026-05-20T12:00:00.000Z"
+}
+```
+
+### `roleMenuPermissions` rules
+
+- **`labelKey`** must match `nav.*` keys in `src/locales/en.json` / `hi.json`.
+- **`href`** must match routes in `src/components/layout/navConfig.tsx` (include query for admin tabs, e.g. `/admin?tab=users`).
+- **`group`:** `"regular"` | `"studio"` | `"admin"`.
+- **`actions`:** `view`, `create`, `edit`, `delete`, `upload`, `download`, `share`, `manage` (booleans).
+- If `roleMenuPermissions` is empty or missing on `GET`, the SPA builds defaults from `navConfig` (see `src/utils/portalSettings.ts`).
+
+### Granular endpoints (optional)
+
+| Method | Path | Body |
+|--------|------|------|
+| `GET` | `/api/portal/settings` | — |
+| `PUT` | `/api/portal/settings` | Partial `settings` object |
+| `GET` | `/api/portal/permissions` | — |
+| `PUT` | `/api/portal/permissions` | `{ "roleMenuPermissions": { ... } }` |
+| `GET` | `/api/portal/ai` | — |
+| `PUT` | `/api/portal/ai` | Partial `aiToolSettings` object |
+
+### SPA behavior (live reflect)
+
+1. On login, `GET /api/portal/config` → cache + `localStorage` fallback.
+2. On save in `/portal-settings`, `PUT /api/portal/config` → dispatch `fv-portal-settings-changed`.
+3. **Sidebar** re-filters menus; **PermissionGuard** re-checks paths; **OpenClaw dock** shows/hides from `aiAssistantEnabled`.
+4. **`language`** → `i18n.changeLanguage`; **`themeMode`** → `document.documentElement` dark class.
+
+### Local dev
+
+- **`npm start`:** `server/openclaw-dev-server.js` implements `/api/portal/*` (persists to `.portal-data/portal-config.json`).
+- **`npm run start:web`:** run `npm run openclaw-server` in a second terminal for API, or rely on `localStorage` until Java backend implements routes.
+- CRA proxies `/api/portal` → port **9093** via `src/setupProxy.js`.
+
+### Java implementation notes
+
+- Store one JSON document per tenant (or global) keyed by `userId` / `accountId`.
+- On `PUT`, merge partial bodies; return full config like `GET`.
+- Enforce admin role on writes; allow `GET` for all authenticated users (or cache on CDN edge).
+- Sync `aiToolSettings` with your OpenClaw bridge when `settings.aiAssistantEnabled` is true.
 
 *Generated for alignment with the filevault frontend (Photo theme category page, PhotoBook hub, album builder, Photo Phone Book, Studio checkout, Our Memories). Update this file when API contracts change.*
