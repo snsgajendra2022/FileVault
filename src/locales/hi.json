@@ -1197,6 +1197,123 @@
     "placeholderEnter": "{{field}} दर्ज करें",
     "placeholderSelect": "{{field}} चुनें"
   },
+  "portalSettingsPage": {
+    "badge": "पोर्टल सेटिंग्स",
+    "title": "सेटिंग्स",
+    "subtitle": "पोर्टल प्राथमिकताएँ, भूमिका अनुमतियाँ, OM असिस्टेंट, सूचनाएँ, सुरक्षा और दिखावट प्रबंधित करें।",
+    "reset": "रीसेट",
+    "save": "सेटिंग्स सहेजें",
+    "saving": "सहेज रहे हैं…",
+    "savedSuccess": "सेटिंग्स सफलतापूर्वक सहेजी गईं।",
+    "resetConfirm": "सभी सेटिंग्स और अनुमतियाँ डिफ़ॉल्ट पर रीसेट करें?",
+    "resetSuccess": "सेटिंग्स डिफ़ॉल्ट पर रीसेट हो गईं।",
+    "tabs": {
+      "general": "सामान्य",
+      "generalDesc": "बुनियादी पोर्टल सेटिंग्स",
+      "language": "भाषा",
+      "languageDesc": "भाषा और क्षेत्र",
+      "permissions": "अनुमतियाँ",
+      "permissionsDesc": "भूमिका और मेनू एक्सेस",
+      "omAssistant": "OM असिस्टेंट",
+      "omAssistantDesc": "OM असिस्टेंट सुविधाएँ और विकल्प",
+      "notifications": "सूचनाएँ",
+      "notificationsDesc": "ईमेल और ब्राउज़र अलर्ट",
+      "security": "सुरक्षा",
+      "securityDesc": "पुष्टि और सुरक्षा",
+      "appearance": "दिखावट",
+      "appearanceDesc": "थीम और प्रदर्शन"
+    },
+    "general": {
+      "title": "सामान्य सेटिंग्स",
+      "description": "बुनियादी पोर्टल प्राथमिकताएँ प्रबंधित करें।",
+      "portalName": "पोर्टल नाम",
+      "compactMode": "कॉम्पैक्ट मोड",
+      "compactModeDesc": "कम जगह में पोर्टल पेज दिखाएँ।"
+    },
+    "language": {
+      "title": "भाषा सेटिंग्स",
+      "description": "डिफ़ॉल्ट भाषा और समय क्षेत्र चुनें।",
+      "languageLabel": "भाषा",
+      "langEn": "अंग्रेज़ी",
+      "langHi": "हिंदी",
+      "timezone": "समय क्षेत्र"
+    },
+    "permissions": {
+      "title": "भूमिका और मेनू अनुमतियाँ",
+      "description": "भूमिका {{role}} के मेनू। बदलाव API में सहेजे जाते हैं और उसी भूमिका के उपयोगकर्ताओं के साइडबार में दिखते हैं।",
+      "role": "भूमिका",
+      "yourRole": "आपकी खाता भूमिका: {{role}}",
+      "searchMenu": "मेनू खोजें",
+      "searchPlaceholder": "मेनू, पथ या समूह से खोजें…",
+      "enableAll": "सभी सक्षम",
+      "disableAll": "सभी अक्षम",
+      "resetRole": "भूमिका डिफ़ॉल्ट",
+      "menuCount": "{{count}} अनुमतियाँ",
+      "menuTitle": "{{group}} मेनू",
+      "menuAccess": "मेनू एक्सेस",
+      "sensitive": "संवेदनशील",
+      "roles": {
+        "admin": "एडमिन",
+        "studio": "स्टूडियो",
+        "users": "उपयोगकर्ता",
+        "regular": "नियमित"
+      },
+      "groups": {
+        "Regular": "नियमित",
+        "Studio": "स्टूडियो",
+        "Admin": "एडमिन",
+        "Users": "उपयोगकर्ता"
+      }
+    },
+    "omAssistant": {
+      "title": "OM असिस्टेंट सेटिंग्स",
+      "description": "चैट, वॉयस और स्टूडियो क्रियाओं के लिए OM असिस्टेंट सुविधाएँ प्रबंधित करें।",
+      "enable": "OM असिस्टेंट सक्षम करें",
+      "pageContext": "पेज संदर्भ सक्षम",
+      "pageContextDesc": "वर्तमान पेज UI संदर्भ समझने दें।",
+      "chatHistory": "चैट इतिहास सक्षम",
+      "userChatHistory": "उपयोगकर्ता-वार चैट इतिहास",
+      "voice": "वॉयस इनपुट सक्षम",
+      "image": "इमेज इनपुट सक्षम",
+      "uploadDebug": "अपलोड डिबग सक्षम",
+      "networkDebug": "नेटवर्क डिबग सक्षम",
+      "uiErrorDebug": "UI त्रुटि डिबग सक्षम",
+      "safeActions": "सुरक्षित क्रियाएँ सक्षम",
+      "dangerConfirm": "खतरनाक क्रियाओं के लिए पुष्टि आवश्यक",
+      "showModel": "उपयोग मॉडल दिखाएँ"
+    },
+    "notifications": {
+      "title": "सूचना सेटिंग्स",
+      "description": "ईमेल और ब्राउज़र सूचनाएँ प्रबंधित करें।",
+      "email": "ईमेल सूचनाएँ",
+      "browser": "ब्राउज़र सूचनाएँ"
+    },
+    "security": {
+      "title": "सुरक्षा सेटिंग्स",
+      "description": "सुरक्षित पुष्टि व्यवहार कॉन्फ़िगर करें।",
+      "deleteConfirm": "हटाने से पहले पुष्टि आवश्यक",
+      "shareConfirm": "सार्वजनिक शेयर से पहले पुष्टि आवश्यक"
+    },
+    "appearance": {
+      "title": "दिखावट सेटिंग्स",
+      "description": "थीम और प्रदर्शन प्राथमिकता बदलें।",
+      "theme": "थीम मोड",
+      "themeSystem": "सिस्टम",
+      "themeLight": "लाइट",
+      "themeDark": "डार्क",
+      "sidebarCollapsed": "साइडबार डिफ़ॉल्ट संकुचित"
+    },
+    "actions": {
+      "view": "देखें",
+      "create": "बनाएँ",
+      "edit": "संपादित",
+      "delete": "हटाएँ",
+      "upload": "अपलोड",
+      "download": "डाउनलोड",
+      "share": "शेयर",
+      "manage": "प्रबंधन"
+    }
+  },
   "registerPage": {
     "toastFixValidationSubmit": "सबमिट करने से पहले कृपया सत्यापन त्रुटियाँ ठीक करें",
     "toastRegistrationSuccessPlan": "पंजीकरण सफल! आपकी {{plan}} योजना सक्रिय हो गई है।",

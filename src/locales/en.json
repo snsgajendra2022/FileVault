@@ -1195,6 +1195,123 @@
     "placeholderEnter": "Enter {{field}}",
     "placeholderSelect": "Select {{field}}"
   },
+  "portalSettingsPage": {
+    "badge": "Portal Settings",
+    "title": "Settings",
+    "subtitle": "Manage portal preferences, role permissions, OM assistant, notifications, security, and appearance.",
+    "reset": "Reset",
+    "save": "Save Settings",
+    "saving": "Saving…",
+    "savedSuccess": "Settings saved successfully.",
+    "resetConfirm": "Reset all settings and permissions to default?",
+    "resetSuccess": "Settings reset to default.",
+    "tabs": {
+      "general": "General",
+      "generalDesc": "Basic portal settings",
+      "language": "Language",
+      "languageDesc": "Language and region",
+      "permissions": "Permissions",
+      "permissionsDesc": "Role and menu access",
+      "omAssistant": "OM Assistant",
+      "omAssistantDesc": "OM assistant features and options",
+      "notifications": "Notifications",
+      "notificationsDesc": "Email and browser alerts",
+      "security": "Security",
+      "securityDesc": "Confirmation and safety",
+      "appearance": "Appearance",
+      "appearanceDesc": "Theme and display"
+    },
+    "general": {
+      "title": "General Settings",
+      "description": "Manage basic portal preferences.",
+      "portalName": "Portal Name",
+      "compactMode": "Compact Mode",
+      "compactModeDesc": "Reduce spacing and make portal pages more compact."
+    },
+    "language": {
+      "title": "Language Settings",
+      "description": "Choose default language and timezone.",
+      "languageLabel": "Language",
+      "langEn": "English",
+      "langHi": "Hindi",
+      "timezone": "Timezone"
+    },
+    "permissions": {
+      "title": "Role & Menu Permissions",
+      "description": "Menus for role {{role}}. Changes save to the API and update the sidebar for users with that role.",
+      "role": "Role",
+      "yourRole": "Your account role: {{role}}",
+      "searchMenu": "Search Menu",
+      "searchPlaceholder": "Search by menu, path, or group…",
+      "enableAll": "Enable All",
+      "disableAll": "Disable All",
+      "resetRole": "Reset Role Defaults",
+      "menuCount": "{{count}} permissions",
+      "menuTitle": "{{group}} Menu",
+      "menuAccess": "Menu Access",
+      "sensitive": "Sensitive",
+      "roles": {
+        "admin": "Admin",
+        "studio": "Studio",
+        "users": "Users (Regular)",
+        "regular": "Regular"
+      },
+      "groups": {
+        "Regular": "Regular",
+        "Studio": "Studio",
+        "Admin": "Admin",
+        "Users": "Users"
+      }
+    },
+    "omAssistant": {
+      "title": "OM Assistant Settings",
+      "description": "Manage OM assistant features for chat, voice, and studio actions.",
+      "enable": "Enable OM Assistant",
+      "pageContext": "Enable Page Context",
+      "pageContextDesc": "Allow assistant to understand current page UI context.",
+      "chatHistory": "Enable Chat History",
+      "userChatHistory": "Enable User-wise Chat History",
+      "voice": "Enable Voice Input",
+      "image": "Enable Image Input",
+      "uploadDebug": "Enable Upload Debug",
+      "networkDebug": "Enable Network Debug",
+      "uiErrorDebug": "Enable UI Error Debug",
+      "safeActions": "Enable Safe Actions",
+      "dangerConfirm": "Require Confirmation for Dangerous Actions",
+      "showModel": "Show Used Model"
+    },
+    "notifications": {
+      "title": "Notification Settings",
+      "description": "Manage email and browser notifications.",
+      "email": "Email Notifications",
+      "browser": "Browser Notifications"
+    },
+    "security": {
+      "title": "Security Settings",
+      "description": "Configure safe confirmation behavior.",
+      "deleteConfirm": "Require Confirmation Before Delete",
+      "shareConfirm": "Require Confirmation Before Public Share"
+    },
+    "appearance": {
+      "title": "Appearance Settings",
+      "description": "Change theme and display preference.",
+      "theme": "Theme Mode",
+      "themeSystem": "System",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "sidebarCollapsed": "Sidebar Collapsed By Default"
+    },
+    "actions": {
+      "view": "View",
+      "create": "Create",
+      "edit": "Edit",
+      "delete": "Delete",
+      "upload": "Upload",
+      "download": "Download",
+      "share": "Share",
+      "manage": "Manage"
+    }
+  },
   "registerPage": {
     "toastFixValidationSubmit": "Please fix the validation errors before submitting",
     "toastRegistrationSuccessPlan": "Registration successful! Your {{plan}} plan has been activated.",

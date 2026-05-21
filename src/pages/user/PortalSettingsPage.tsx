@@ -113,19 +113,19 @@ const defaultSettings: PortalSettings = {
   aiShowUsedModel: false,
 };
 
-const tabs: Array<{
+const TAB_DEFS: Array<{
   id: SettingsTab;
-  label: string;
-  description: string;
+  labelKey: string;
+  descKey: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = [
-  { id: "general", label: "General", description: "Basic portal settings", icon: FaCog },
-  { id: "language", label: "Language", description: "Language and region", icon: FaGlobe },
-  { id: "permissions", label: "Permissions", description: "Role and menu access", icon: FaUserCog },
-  { id: "ai", label: "AI Tools", description: "OpenClaw assistant settings", icon: FaRobot },
-  { id: "notifications", label: "Notifications", description: "Email and browser alerts", icon: FaBell },
-  { id: "security", label: "Security", description: "Confirmation and safety", icon: FaLock },
-  { id: "appearance", label: "Appearance", description: "Theme and display", icon: FaPalette },
+  { id: "general", labelKey: "portalSettingsPage.tabs.general", descKey: "portalSettingsPage.tabs.generalDesc", icon: FaCog },
+  { id: "language", labelKey: "portalSettingsPage.tabs.language", descKey: "portalSettingsPage.tabs.languageDesc", icon: FaGlobe },
+  { id: "permissions", labelKey: "portalSettingsPage.tabs.permissions", descKey: "portalSettingsPage.tabs.permissionsDesc", icon: FaUserCog },
+  { id: "ai", labelKey: "portalSettingsPage.tabs.omAssistant", descKey: "portalSettingsPage.tabs.omAssistantDesc", icon: FaRobot },
+  { id: "notifications", labelKey: "portalSettingsPage.tabs.notifications", descKey: "portalSettingsPage.tabs.notificationsDesc", icon: FaBell },
+  { id: "security", labelKey: "portalSettingsPage.tabs.security", descKey: "portalSettingsPage.tabs.securityDesc", icon: FaLock },
+  { id: "appearance", labelKey: "portalSettingsPage.tabs.appearance", descKey: "portalSettingsPage.tabs.appearanceDesc", icon: FaPalette },
 ];
 
 const menuSeed: Array<{ group: MenuPermission["group"]; label: string; path: string }> = [
@@ -352,15 +352,25 @@ function menuPermissionsToRolePermissions(
 }
 
 export default function PortalSettingsPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { config, saving, saveConfig, resetToDefaults, updateSettings, setRolePermissions } = usePortalSettings();
   const portalRole = React.useMemo(() => getResolvedPortalRole(user), [user?.role, user?.accountType]);
   const editableRoles = React.useMemo(() => getEditablePortalRoles(user), [user?.role, user?.accountType]);
   const canEditPermissions = canManagePortalPermissions(user);
+  const tabs = React.useMemo(
+    () =>
+      TAB_DEFS.map((tab) => ({
+        id: tab.id,
+        icon: tab.icon,
+        label: t(tab.labelKey),
+        description: t(tab.descKey),
+      })),
+    [t],
+  );
   const visibleTabs = React.useMemo(
     () => (canEditPermissions ? tabs : tabs.filter((tab) => tab.id !== "permissions")),
-    [canEditPermissions],
+    [canEditPermissions, tabs],
   );
   const [activeTab, setActiveTab] = React.useState<SettingsTab>("general");
   const [selectedRole, setSelectedRole] = React.useState<RoleType>(portalRole);
@@ -382,6 +392,13 @@ export default function PortalSettingsPage() {
       setSelectedRole(editableRoles[0]);
     }
   }, [portalRole, editableRoles]);
+
+  React.useEffect(() => {
+    const lang = settings.language === "hi" ? "hi" : "en";
+    if (i18n.language !== lang) {
+      void i18n.changeLanguage(lang);
+    }
+  }, [settings.language, i18n]);
 
   const selectedRolePermissions = React.useMemo(() => {
     const query = permissionSearch.trim().toLowerCase();
@@ -441,12 +458,12 @@ export default function PortalSettingsPage() {
       await savePortalPermissions(roleMenuPermissions);
       setRolePermissions(roleMenuPermissions);
     }
-    setSavedMessage("Settings saved successfully.");
+    setSavedMessage(t("portalSettingsPage.savedSuccess"));
     window.setTimeout(() => setSavedMessage(""), 2500);
   };
 
   const handleReset = async () => {
-    const ok = window.confirm("Reset all settings and permissions to default?");
+    const ok = window.confirm(t("portalSettingsPage.resetConfirm"));
     if (!ok) return;
     await resetToDefaults();
     const defaults = buildDefaultRolePermissions();
@@ -456,9 +473,12 @@ export default function PortalSettingsPage() {
       regular: rolePermissionsToMenuPermissions(defaults.regular, t),
       users: rolePermissionsToMenuPermissions(defaults.users, t),
     });
-    setSavedMessage("Settings reset to default.");
+    setSavedMessage(t("portalSettingsPage.resetSuccess"));
     window.setTimeout(() => setSavedMessage(""), 2500);
   };
+
+  const roleLabel = (role: RoleType) =>
+    t(`portalSettingsPage.permissions.roles.${role}`, { defaultValue: role });
 
   const handleRoleReset = () => {
     const defaults = buildDefaultRolePermissions();
@@ -484,10 +504,10 @@ export default function PortalSettingsPage() {
 
   const renderGeneral = () => (
     <section className="space-y-5">
-      <SectionHeader title="General Settings" description="Manage basic portal preferences." />
+      <SectionHeader title={t("portalSettingsPage.general.title")} description={t("portalSettingsPage.general.description")} />
 
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <label className="text-sm font-semibold text-slate-700">Portal Name</label>
+        <label className="text-sm font-semibold text-slate-700">{t("portalSettingsPage.general.portalName")}</label>
         <input
           value={settings.portalName}
           onChange={(e) => updateSetting("portalName", e.target.value)}
@@ -496,8 +516,8 @@ export default function PortalSettingsPage() {
       </div>
 
       <SettingSwitch
-        label="Compact Mode"
-        description="Reduce spacing and make portal pages more compact."
+        label={t("portalSettingsPage.general.compactMode")}
+        description={t("portalSettingsPage.general.compactModeDesc")}
         checked={settings.compactMode}
         onChange={(v) => updateSetting("compactMode", v)}
       />
@@ -506,27 +526,27 @@ export default function PortalSettingsPage() {
 
   const renderLanguage = () => (
     <section className="space-y-5">
-      <SectionHeader title="Language Settings" description="Choose default language and timezone." />
+      <SectionHeader title={t("portalSettingsPage.language.title")} description={t("portalSettingsPage.language.description")} />
 
       <div className="grid gap-5 md:grid-cols-2">
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <label className="text-sm font-semibold text-slate-700">Language</label>
+          <label className="text-sm font-semibold text-slate-700">{t("portalSettingsPage.language.languageLabel")}</label>
           <select
-            value={settings.language}
-            onChange={(e) => updateSetting("language", e.target.value)}
+            value={settings.language === "hi" ? "hi" : "en"}
+            onChange={(e) => {
+              const lang = e.target.value;
+              updateSetting("language", lang);
+              void i18n.changeLanguage(lang);
+            }}
             className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
           >
-            <option value="en">English</option>
-            <option value="hi">Hindi</option>
-            <option value="es">Spanish</option>
-            <option value="fr">French</option>
-            <option value="de">German</option>
-            <option value="ar">Arabic</option>
+            <option value="en">{t("portalSettingsPage.language.langEn")}</option>
+            <option value="hi">{t("portalSettingsPage.language.langHi")}</option>
           </select>
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <label className="text-sm font-semibold text-slate-700">Timezone</label>
+          <label className="text-sm font-semibold text-slate-700">{t("portalSettingsPage.language.timezone")}</label>
           <select
             value={settings.timezone}
             onChange={(e) => updateSetting("timezone", e.target.value)}
@@ -545,30 +565,27 @@ export default function PortalSettingsPage() {
   const renderPermissions = () => (
     <section className="space-y-5">
       <SectionHeader
-        title="Role & Menu Permissions"
-        description={`Menus for role “${selectedRole.toUpperCase()}” match navConfig.tsx. Changes save to the portal API and update the sidebar for all users with that role.`}
+        title={t("portalSettingsPage.permissions.title")}
+        description={t("portalSettingsPage.permissions.description", { role: roleLabel(selectedRole) })}
       />
 
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
           <div>
-            <label className="text-sm font-semibold text-slate-700">Role</label>
+            <label className="text-sm font-semibold text-slate-700">{t("portalSettingsPage.permissions.role")}</label>
             <div
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
             >
-              { portalRole.toUpperCase()}
+              {roleLabel(portalRole)}
             </div>
-            {/* <p className="mt-2 text-xs text-slate-500">
-              Your account role: <span className="font-bold text-violet-700">{portalRole.toUpperCase()}</span>
-            </p> */}
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-slate-700">Search Menu</label>
+            <label className="text-sm font-semibold text-slate-700">{t("portalSettingsPage.permissions.searchMenu")}</label>
             <input
               value={permissionSearch}
               onChange={(e) => setPermissionSearch(e.target.value)}
-              placeholder="Search by menu, path, or group..."
+              placeholder={t("portalSettingsPage.permissions.searchPlaceholder")}
               className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
             />
           </div>
@@ -580,21 +597,21 @@ export default function PortalSettingsPage() {
             onClick={() => handleRoleBulkEnable(true)}
             className="rounded-2xl bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
           >
-            Enable All
+            {t("portalSettingsPage.permissions.enableAll")}
           </button>
           <button
             type="button"
             onClick={() => handleRoleBulkEnable(false)}
             className="rounded-2xl bg-rose-50 px-4 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-100"
           >
-            Disable All
+            {t("portalSettingsPage.permissions.disableAll")}
           </button>
           <button
             type="button"
             onClick={handleRoleReset}
             className="rounded-2xl bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-200"
           >
-            Reset Role Defaults
+            {t("portalSettingsPage.permissions.resetRole")}
           </button>
         </div>
       </div>
@@ -602,15 +619,22 @@ export default function PortalSettingsPage() {
       {permissionGroups.map((group) => {
         const rows = groupedPermissions[group] || [];
         if (!rows.length) return null;
+        const groupLabel = t(`portalSettingsPage.permissions.groups.${group}`, { defaultValue: group });
 
         return (
           <div key={group} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-base font-black text-slate-950">{group} Menu</h3>
-                <p className="text-xs text-slate-500">{rows.length} permissions</p>
+                <h3 className="text-base font-black text-slate-950">
+                  {t("portalSettingsPage.permissions.menuTitle", { group: groupLabel })}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {t("portalSettingsPage.permissions.menuCount", { count: rows.length })}
+                </p>
               </div>
-              <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">{selectedRole}</span>
+              <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700">
+                {roleLabel(selectedRole)}
+              </span>
             </div>
 
             <div className="space-y-3">
@@ -622,7 +646,7 @@ export default function PortalSettingsPage() {
                         <p className="truncate text-sm font-bold text-slate-950">{item.label}</p>
                         {item.path.includes("payment") || item.path.includes("admin") ? (
                           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-700">
-                            Sensitive
+                            {t("portalSettingsPage.permissions.sensitive")}
                           </span>
                         ) : null}
                       </div>
@@ -630,7 +654,7 @@ export default function PortalSettingsPage() {
                     </div>
 
                     <SettingMiniSwitch
-                      label="Menu Access"
+                      label={t("portalSettingsPage.permissions.menuAccess")}
                       checked={item.enabled}
                       onChange={(checked) =>
                         updatePermission(selectedRole, item.id, (old) => ({
@@ -650,7 +674,7 @@ export default function PortalSettingsPage() {
                     ).map((action) => (
                       <SettingMiniSwitch
                         key={action}
-                        label={action.charAt(0).toUpperCase() + action.slice(1)}
+                        label={t(`portalSettingsPage.actions.${action}`)}
                         checked={Boolean(item.actions[action])}
                         onChange={(checked) =>
                           updatePermission(selectedRole, item.id, (old) => ({
@@ -672,60 +696,63 @@ export default function PortalSettingsPage() {
 
   const renderAi = () => (
     <section className="space-y-5">
-      <SectionHeader title="AI Tools Settings" description="Manage OpenClaw assistant features and permissions." />
+      <SectionHeader
+        title={t("portalSettingsPage.omAssistant.title")}
+        description={t("portalSettingsPage.omAssistant.description")}
+      />
 
       <div className="grid gap-4">
-        <SettingSwitch label="Enable AI Assistant" checked={settings.aiAssistantEnabled} onChange={(v) => updateSetting("aiAssistantEnabled", v)} />
-        <SettingSwitch label="Enable Page Context" description="Allow assistant to understand current page UI context." checked={settings.aiPageContextEnabled} onChange={(v) => updateSetting("aiPageContextEnabled", v)} />
-        <SettingSwitch label="Enable Chat History" checked={settings.aiChatHistoryEnabled} onChange={(v) => updateSetting("aiChatHistoryEnabled", v)} />
-        <SettingSwitch label="Enable User-wise Chat History" checked={settings.aiUserWiseHistoryEnabled} onChange={(v) => updateSetting("aiUserWiseHistoryEnabled", v)} />
-        <SettingSwitch label="Enable Voice Input" checked={settings.aiVoiceEnabled} onChange={(v) => updateSetting("aiVoiceEnabled", v)} />
-        <SettingSwitch label="Enable Image Input" checked={settings.aiImageEnabled} onChange={(v) => updateSetting("aiImageEnabled", v)} />
-        <SettingSwitch label="Enable Upload Debug" checked={settings.aiUploadDebugEnabled} onChange={(v) => updateSetting("aiUploadDebugEnabled", v)} />
-        <SettingSwitch label="Enable Network Debug" checked={settings.aiNetworkDebugEnabled} onChange={(v) => updateSetting("aiNetworkDebugEnabled", v)} />
-        <SettingSwitch label="Enable UI Error Debug" checked={settings.aiUiErrorDebugEnabled} onChange={(v) => updateSetting("aiUiErrorDebugEnabled", v)} />
-        <SettingSwitch label="Enable Safe Actions" checked={settings.aiSafeActionsEnabled} onChange={(v) => updateSetting("aiSafeActionsEnabled", v)} />
-        <SettingSwitch label="Require Confirmation for Dangerous Actions" checked={settings.aiDangerousConfirmation} onChange={(v) => updateSetting("aiDangerousConfirmation", v)} />
-        <SettingSwitch label="Show Used Model" checked={settings.aiShowUsedModel} onChange={(v) => updateSetting("aiShowUsedModel", v)} />
+        <SettingSwitch label={t("portalSettingsPage.omAssistant.enable")} checked={settings.aiAssistantEnabled} onChange={(v) => updateSetting("aiAssistantEnabled", v)} />
+        <SettingSwitch label={t("portalSettingsPage.omAssistant.pageContext")} description={t("portalSettingsPage.omAssistant.pageContextDesc")} checked={settings.aiPageContextEnabled} onChange={(v) => updateSetting("aiPageContextEnabled", v)} />
+        <SettingSwitch label={t("portalSettingsPage.omAssistant.chatHistory")} checked={settings.aiChatHistoryEnabled} onChange={(v) => updateSetting("aiChatHistoryEnabled", v)} />
+        <SettingSwitch label={t("portalSettingsPage.omAssistant.userChatHistory")} checked={settings.aiUserWiseHistoryEnabled} onChange={(v) => updateSetting("aiUserWiseHistoryEnabled", v)} />
+        <SettingSwitch label={t("portalSettingsPage.omAssistant.voice")} checked={settings.aiVoiceEnabled} onChange={(v) => updateSetting("aiVoiceEnabled", v)} />
+        <SettingSwitch label={t("portalSettingsPage.omAssistant.image")} checked={settings.aiImageEnabled} onChange={(v) => updateSetting("aiImageEnabled", v)} />
+        <SettingSwitch label={t("portalSettingsPage.omAssistant.uploadDebug")} checked={settings.aiUploadDebugEnabled} onChange={(v) => updateSetting("aiUploadDebugEnabled", v)} />
+        <SettingSwitch label={t("portalSettingsPage.omAssistant.networkDebug")} checked={settings.aiNetworkDebugEnabled} onChange={(v) => updateSetting("aiNetworkDebugEnabled", v)} />
+        <SettingSwitch label={t("portalSettingsPage.omAssistant.uiErrorDebug")} checked={settings.aiUiErrorDebugEnabled} onChange={(v) => updateSetting("aiUiErrorDebugEnabled", v)} />
+        <SettingSwitch label={t("portalSettingsPage.omAssistant.safeActions")} checked={settings.aiSafeActionsEnabled} onChange={(v) => updateSetting("aiSafeActionsEnabled", v)} />
+        <SettingSwitch label={t("portalSettingsPage.omAssistant.dangerConfirm")} checked={settings.aiDangerousConfirmation} onChange={(v) => updateSetting("aiDangerousConfirmation", v)} />
+        <SettingSwitch label={t("portalSettingsPage.omAssistant.showModel")} checked={settings.aiShowUsedModel} onChange={(v) => updateSetting("aiShowUsedModel", v)} />
       </div>
     </section>
   );
 
   const renderNotifications = () => (
     <section className="space-y-5">
-      <SectionHeader title="Notification Settings" description="Manage email and browser notifications." />
-      <SettingSwitch label="Email Notifications" checked={settings.emailNotifications} onChange={(v) => updateSetting("emailNotifications", v)} />
-      <SettingSwitch label="Browser Notifications" checked={settings.browserNotifications} onChange={(v) => updateSetting("browserNotifications", v)} />
+      <SectionHeader title={t("portalSettingsPage.notifications.title")} description={t("portalSettingsPage.notifications.description")} />
+      <SettingSwitch label={t("portalSettingsPage.notifications.email")} checked={settings.emailNotifications} onChange={(v) => updateSetting("emailNotifications", v)} />
+      <SettingSwitch label={t("portalSettingsPage.notifications.browser")} checked={settings.browserNotifications} onChange={(v) => updateSetting("browserNotifications", v)} />
     </section>
   );
 
   const renderSecurity = () => (
     <section className="space-y-5">
-      <SectionHeader title="Security Settings" description="Configure safe confirmation behavior." />
-      <SettingSwitch label="Require Confirmation Before Delete" checked={settings.requireDeleteConfirmation} onChange={(v) => updateSetting("requireDeleteConfirmation", v)} />
-      <SettingSwitch label="Require Confirmation Before Public Share" checked={settings.requirePublicShareConfirmation} onChange={(v) => updateSetting("requirePublicShareConfirmation", v)} />
+      <SectionHeader title={t("portalSettingsPage.security.title")} description={t("portalSettingsPage.security.description")} />
+      <SettingSwitch label={t("portalSettingsPage.security.deleteConfirm")} checked={settings.requireDeleteConfirmation} onChange={(v) => updateSetting("requireDeleteConfirmation", v)} />
+      <SettingSwitch label={t("portalSettingsPage.security.shareConfirm")} checked={settings.requirePublicShareConfirmation} onChange={(v) => updateSetting("requirePublicShareConfirmation", v)} />
     </section>
   );
 
   const renderAppearance = () => (
     <section className="space-y-5">
-      <SectionHeader title="Appearance Settings" description="Change theme and display preference." />
+      <SectionHeader title={t("portalSettingsPage.appearance.title")} description={t("portalSettingsPage.appearance.description")} />
 
       <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <label className="text-sm font-semibold text-slate-700">Theme Mode</label>
+        <label className="text-sm font-semibold text-slate-700">{t("portalSettingsPage.appearance.theme")}</label>
         <select
           value={settings.themeMode}
           onChange={(e) => updateSetting("themeMode", e.target.value as PortalSettings["themeMode"])}
           className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
         >
-          <option value="system">System</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
+          <option value="system">{t("portalSettingsPage.appearance.themeSystem")}</option>
+          <option value="light">{t("portalSettingsPage.appearance.themeLight")}</option>
+          <option value="dark">{t("portalSettingsPage.appearance.themeDark")}</option>
         </select>
       </div>
 
       <SettingSwitch
-        label="Sidebar Collapsed By Default"
+        label={t("portalSettingsPage.appearance.sidebarCollapsed")}
         checked={settings.sidebarCollapsedByDefault}
         onChange={(v) => updateSetting("sidebarCollapsedByDefault", v)}
       />
@@ -761,14 +788,12 @@ export default function PortalSettingsPage() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-violet-100 bg-violet-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-violet-700">
                 <FaSlidersH className="h-3 w-3" />
-                Portal Settings
+                {t("portalSettingsPage.badge")}
               </div>
 
-              <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Settings</h1>
+              <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{t("portalSettingsPage.title")}</h1>
 
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                Manage portal preferences, role-based permissions, AI tools, notifications, security, and appearance.
-              </p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{t("portalSettingsPage.subtitle")}</p>
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -778,7 +803,7 @@ export default function PortalSettingsPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
               >
                 <FaUndo className="h-4 w-4" />
-                Reset
+                {t("portalSettingsPage.reset")}
               </button>
 
               <button
@@ -788,7 +813,7 @@ export default function PortalSettingsPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 disabled:opacity-60"
               >
                 <FaSave className="h-4 w-4" />
-                {saving ? "Saving…" : "Save Settings"}
+                {saving ? t("portalSettingsPage.saving") : t("portalSettingsPage.save")}
               </button>
             </div>
           </div>

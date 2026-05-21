@@ -1,6 +1,7 @@
 # FileVault - Image Security React Portal
 
 node  verion use 22.22.2
+    "start": "concurrently -n openclaw,web -c magenta,cyan \"node server/openclaw-dev-server.js\" \"craco start\"",
 
 A comprehensive React frontend for the ImageSecurity API system, providing user management, cloud service configuration, and secure file handling.
 

@@ -48,7 +48,7 @@
     "zustand": "^5.0.10"
   },
   "scripts": {
-    "start": "concurrently -n openclaw,web -c magenta,cyan \"node server/openclaw-dev-server.js\" \"craco start\"",
+    "start": "craco start",
     "start:web": "craco start",
     "openclaw-server": "node server/openclaw-dev-server.js",
     "openclaw": "openclaw",
