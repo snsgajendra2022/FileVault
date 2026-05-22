@@ -40,6 +40,7 @@ import {
   CheckCircle2,
   X,
   LayoutGrid,
+  Calendar,
 } from 'lucide-react';
 import './imagesPageTheme.css';
 const SCROLL_RESTORE_KEY = 'photo-studio-images-scroll';
@@ -92,24 +93,58 @@ function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+function parseUploadTime(raw: string | number | undefined | null): Date | null {
+  if (raw == null || raw === '') return null;
+  if (typeof raw === 'number') {
+    const ms = raw > 9_999_999_999 ? raw : raw * 1000;
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const str = String(raw).trim();
+  const asNum = Number(str);
+  if (!Number.isNaN(asNum) && asNum > 1_000_000_000) {
+    const d = new Date(asNum > 9_999_999_999 ? asNum : asNum * 1000);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  const d = new Date(str);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  const d = parseUploadTime(dateString);
+  if (!d) return '—';
+  return d.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
   });
 }
-// hour: '2-digit',
-// minute: '2-digit',
 
 /** Local calendar day key for grouping (YYYY-MM-DD). */
 function uploadDayKey(dateString: string): string {
-  const d = new Date(dateString);
-  if (Number.isNaN(d.getTime())) return 'invalid';
+  const d = parseUploadTime(dateString);
+  if (!d) return 'invalid';
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+function formatDayKeyLabel(dayKey: string, invalidLabel: string): string {
+  if (dayKey === 'invalid') return invalidLabel;
+  const parts = dayKey.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return invalidLabel;
+  const [y, m, day] = parts;
+  return new Date(y, m - 1, day).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function imageDedupeKey(image: UserImage): string {
+  if (image.id != null && image.id !== '') return `id:${image.id}`;
+  return `f:${image.previewUrl}|${image.filename}|${image.uploadTime}`;
 }
 
 function getFileTypeIcon(fileType: string, filename?: string): string {
@@ -448,6 +483,7 @@ const ClientImagesPage = () => {
   const [selectedImageIds, setSelectedImageIds] = useState<Set<string>>(new Set());
   const [gallerySearch, setGallerySearch] = useState('');
   const [gallerySearchOpen, setGallerySearchOpen] = useState(false);
+  const [galleryDateFilter, setGalleryDateFilter] = useState('');
   const [gridCompact, setGridCompact] = useState(false);
   const [showSourcesPanel, setShowSourcesPanel] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -469,6 +505,10 @@ const ClientImagesPage = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const familyRelationships = user?.familyRelationships || [];
+
+  useEffect(() => {
+    setGalleryDateFilter('');
+  }, [viewMode, selectedUser?.inviterId]);
 
   const {
     data: userImagesData,
@@ -516,38 +556,61 @@ const ClientImagesPage = () => {
     },
   });
 
-  const images = useMemo(
-    () => userImagesData?.pages?.flatMap((p) => (p as UserImagesResponse).images ?? []) ?? [],
-    [userImagesData]
-  );
+  const images = useMemo(() => {
+    const flat = userImagesData?.pages?.flatMap((p) => (p as UserImagesResponse).images ?? []) ?? [];
+    const seen = new Set<string>();
+    return flat.filter((img) => {
+      const key = imageDedupeKey(img);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [userImagesData]);
+
+  const availableUploadDays = useMemo(() => {
+    const keys = new Set<string>();
+    for (const img of images) {
+      const k = uploadDayKey(img.uploadTime);
+      if (k !== 'invalid') keys.add(k);
+    }
+    return Array.from(keys).sort((a, b) => b.localeCompare(a));
+  }, [images]);
 
   const filteredImagesWithIndex = useMemo(() => {
     const q = gallerySearch.trim().toLowerCase();
     return images
       .map((image, index) => ({ image, index }))
-      .filter(({ image }) => !q || image.filename.toLowerCase().includes(q));
-  }, [images, gallerySearch]);
+      .filter(({ image }) => {
+        if (galleryDateFilter && uploadDayKey(image.uploadTime) !== galleryDateFilter) return false;
+        if (!q) return true;
+        return image.filename.toLowerCase().includes(q);
+      });
+  }, [images, gallerySearch, galleryDateFilter]);
 
-  /** Newest-first, grouped by local calendar day for gallery sections. */
+  /** Group by calendar day (Map) so each date appears once even if API order is mixed. */
   const galleryImagesByDay = useMemo(() => {
-    const sorted = [...filteredImagesWithIndex].sort(
-      (a, b) => new Date(b.image.uploadTime).getTime() - new Date(a.image.uploadTime).getTime()
-    );
     type Row = (typeof filteredImagesWithIndex)[number];
-    const groups: { dayKey: string; items: Row[] }[] = [];
-    for (const row of sorted) {
+    const byDay = new Map<string, Row[]>();
+    for (const row of filteredImagesWithIndex) {
       const key = uploadDayKey(row.image.uploadTime);
-      const prev = groups[groups.length - 1];
-      if (prev && prev.dayKey === key) {
-        prev.items.push(row);
-      } else {
-        groups.push({
-          dayKey: key,
-          items: [row],
-        });
-      }
+      if (!byDay.has(key)) byDay.set(key, []);
+      byDay.get(key)!.push(row);
     }
-    return groups;
+    const sortTime = (a: Row, b: Row) => {
+      const ta = parseUploadTime(a.image.uploadTime)?.getTime() ?? 0;
+      const tb = parseUploadTime(b.image.uploadTime)?.getTime() ?? 0;
+      return tb - ta;
+    };
+    return Array.from(byDay.entries())
+      .sort(([a], [b]) => {
+        if (a === 'invalid') return 1;
+        if (b === 'invalid') return -1;
+        return b.localeCompare(a);
+      })
+      .map(([dayKey, items]) => ({
+        dayKey,
+        items: [...items].sort(sortTime),
+      }));
   }, [filteredImagesWithIndex]);
 
   const getImageKey = useCallback((image: UserImage) => {
@@ -1595,34 +1658,75 @@ const ClientImagesPage = () => {
           ) : filteredImagesWithIndex.length === 0 ? (
             <div className="rounded-2xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--card)]/70 py-14 text-center il-shadow-soft backdrop-blur-sm">
               <Search className="mx-auto mb-3 h-10 w-10 text-[color:var(--muted-foreground)] opacity-45" />
-              <p className="text-sm text-[color:var(--muted-foreground)]">{t('imagesPage.noSearchMatches')}</p>
+              <p className="text-sm text-[color:var(--muted-foreground)]">
+                {galleryDateFilter ? t('imagesPage.noDateMatches') : t('imagesPage.noSearchMatches')}
+              </p>
               <button
                 type="button"
                 onClick={() => {
                   setGallerySearch('');
+                  setGalleryDateFilter('');
                   setGallerySearchOpen(false);
                 }}
                 className="mt-4 inline-flex items-center rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_25%)] bg-[var(--background)] px-4 py-2 text-sm font-medium text-[color:var(--foreground)] transition hover:bg-[var(--muted)]"
               >
-                {t('imagesPage.clearSearch')}
+                {galleryDateFilter ? t('imagesPage.clearDateFilter') : t('imagesPage.clearSearch')}
               </button>
             </div>
           ) : (
             <>
-              <div className="mb-4 flex flex-col gap-1 border-b border-[color:color-mix(in_oklab,var(--border),transparent_45%)] pb-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="mb-4 flex flex-col gap-3 border-b border-[color:color-mix(in_oklab,var(--border),transparent_45%)] pb-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
                 <div>
                   <h2 className="text-base font-semibold text-[color:var(--foreground)]">{t('imagesPage.galleryHeading')}</h2>
                   <p className="text-xs text-[color:var(--muted-foreground)]">
                     {t('imagesPage.itemsShowing', { n: filteredImagesWithIndex.length })}
                   </p>
                 </div>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                  {(gallerySearchOpen || gallerySearch) && (
+                    <div className="relative min-w-0 flex-1 sm:min-w-[200px]">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--muted-foreground)]" />
+                      <input
+                        type="search"
+                        value={gallerySearch}
+                        onChange={(e) => setGallerySearch(e.target.value)}
+                        placeholder={t('imagesPage.searchPlaceholder')}
+                        className="w-full rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--background)] py-2.5 pl-10 pr-3 text-sm text-[color:var(--foreground)] outline-none transition focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:color-mix(in_oklab,var(--primary),transparent_75%)]"
+                      />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 shrink-0 text-[color:var(--muted-foreground)]" aria-hidden />
+                    <label htmlFor="gallery-date-filter" className="sr-only">
+                      {t('imagesPage.filterByDate')}
+                    </label>
+                    <select
+                      id="gallery-date-filter"
+                      value={galleryDateFilter}
+                      onChange={(e) => setGalleryDateFilter(e.target.value)}
+                      className="min-w-[10rem] flex-1 rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--background)] px-3 py-2.5 text-sm text-[color:var(--foreground)] outline-none transition focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:color-mix(in_oklab,var(--primary),transparent_75%)] sm:flex-none"
+                    >
+                      <option value="">{t('imagesPage.allDates')}</option>
+                      {availableUploadDays.map((dayKey) => (
+                        <option key={dayKey} value={dayKey}>
+                          {formatDayKeyLabel(dayKey, t('imagesPage.unknownDate'))}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
               <div className="space-y-10">
                 {galleryImagesByDay.map((group) => (
                   <div key={group.dayKey}>
-                    <p className="mb-3 mt-0.5 text-[16px] text-[color:var(--muted-foreground)]">
-                      {formatDate(group.items[0].image.uploadTime)}
-                    </p>
+                    <div className="mb-3 mt-0.5 flex flex-wrap items-baseline gap-2">
+                      <p className="text-[16px] font-medium text-[color:var(--foreground)]">
+                        {formatDayKeyLabel(group.dayKey, t('imagesPage.unknownDate'))}
+                      </p>
+                      <span className="text-xs text-[color:var(--muted-foreground)]">
+                        {t('imagesPage.photosOnDay', { n: group.items.length })}
+                      </span>
+                    </div>
                     <div
                       className={`grid gap-3 ${gridCompact
                         ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6'

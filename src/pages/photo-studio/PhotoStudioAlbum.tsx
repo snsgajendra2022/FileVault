@@ -104,6 +104,114 @@ function getImageFilename(image: AlbumImage, fallback = 'Unknown'): string {
   return image.originalFilename || image.filename || fallback;
 }
 
+function parseUploadTime(raw: string | number | undefined | null): Date | null {
+  if (raw == null || raw === '') return null;
+  if (typeof raw === 'number') {
+    const ms = raw > 9_999_999_999 ? raw : raw * 1000;
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const str = String(raw).trim();
+  const asNum = Number(str);
+  if (!Number.isNaN(asNum) && asNum > 1_000_000_000) {
+    const d = new Date(asNum > 9_999_999_999 ? asNum : asNum * 1000);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  const d = new Date(str);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function uploadDayKey(dateString: string | undefined): string {
+  const d = parseUploadTime(dateString ?? '');
+  if (!d) return 'invalid';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatDayKeyLabel(dayKey: string, invalidLabel: string): string {
+  if (dayKey === 'invalid') return invalidLabel;
+  const parts = dayKey.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return invalidLabel;
+  const [y, m, day] = parts;
+  return new Date(y, m - 1, day).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function dedupeAlbumImages(list: AlbumImage[]): AlbumImage[] {
+  const seen = new Set<string>();
+  return list.filter((img) => {
+    const key = `id:${img.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function albumDateRaw(album: Album): string {
+  return album.updatedAt || album.createdAt || '';
+}
+
+function groupAlbumsByDay(
+  items: Album[],
+  sort: 'name' | 'date'
+): { dayKey: string; items: Album[] }[] {
+  const byDay = new Map<string, Album[]>();
+  for (const album of items) {
+    const key = uploadDayKey(albumDateRaw(album));
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key)!.push(album);
+  }
+  const sortWithin = (a: Album, b: Album) => {
+    if (sort === 'name') {
+      return (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
+    }
+    const ta = parseUploadTime(albumDateRaw(a))?.getTime() ?? 0;
+    const tb = parseUploadTime(albumDateRaw(b))?.getTime() ?? 0;
+    return tb - ta;
+  };
+  return Array.from(byDay.entries())
+    .sort(([a], [b]) => {
+      if (a === 'invalid') return 1;
+      if (b === 'invalid') return -1;
+      return b.localeCompare(a);
+    })
+    .map(([dayKey, dayItems]) => ({
+      dayKey,
+      items: [...dayItems].sort(sortWithin),
+    }));
+}
+
+function groupAlbumImagesByDay(
+  items: AlbumImage[]
+): { dayKey: string; items: AlbumImage[] }[] {
+  const byDay = new Map<string, AlbumImage[]>();
+  for (const img of items) {
+    const key = uploadDayKey(img.uploadTime);
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key)!.push(img);
+  }
+  const sortTime = (a: AlbumImage, b: AlbumImage) => {
+    const ta = parseUploadTime(a.uploadTime)?.getTime() ?? 0;
+    const tb = parseUploadTime(b.uploadTime)?.getTime() ?? 0;
+    return tb - ta;
+  };
+  return Array.from(byDay.entries())
+    .sort(([a], [b]) => {
+      if (a === 'invalid') return 1;
+      if (b === 'invalid') return -1;
+      return b.localeCompare(a);
+    })
+    .map(([dayKey, dayItems]) => ({
+      dayKey,
+      items: [...dayItems].sort(sortTime),
+    }));
+}
+
 // Normalize infinite-query cache so pages/pageParams are always arrays (prevents getNextPageParam .length crash)
 function normalizeInfiniteCache(old: unknown): { pages: unknown[]; pageParams: number[] } {
   if (old == null || typeof old !== 'object') return { pages: [], pageParams: [0] };
@@ -191,7 +299,9 @@ const PhotoStudioAlbum: React.FC = () => {
   const [editPerPhotoPrice, setEditPerPhotoPrice] = useState('');
   const [editAlbumIsPublic, setEditAlbumIsPublic] = useState(false);
   const [albumSearch, setAlbumSearch] = useState('');
+  const [albumListDateFilter, setAlbumListDateFilter] = useState('');
   const [viewingAlbumId, setViewingAlbumId] = useState<number | null>(null);
+  const [albumDateFilter, setAlbumDateFilter] = useState('');
   const [menuOpenAlbumId, setMenuOpenAlbumId] = useState<number | null>(null);
   const [albumSort, setAlbumSort] = useState<'name' | 'date'>('date');
   const ALBUMS_PAGE_SIZE = 20;
@@ -317,6 +427,10 @@ const PhotoStudioAlbum: React.FC = () => {
     refetchOnWindowFocus: false,
   });
 
+  useEffect(() => {
+    setAlbumDateFilter('');
+  }, [viewingAlbumId]);
+
   // Log query state
   useEffect(() => {
   }, [isLoading, isError, albumsData, authLoading, userId]);
@@ -407,19 +521,24 @@ const PhotoStudioAlbum: React.FC = () => {
     return albums.filter((album) => album.name.toLowerCase().includes(q));
   }, [albums, albumSearch]);
 
-  const filteredAndSortedAlbums = useMemo(() => {
-    const list = [...filteredAlbums];
-    if (albumSort === 'name') {
-      list.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
-    } else {
-      list.sort((a, b) => {
-        const da = a.updatedAt || a.createdAt ? new Date(a.updatedAt || a.createdAt!).getTime() : 0;
-        const db = b.updatedAt || b.createdAt ? new Date(b.updatedAt || b.createdAt!).getTime() : 0;
-        return db - da;
-      });
+  const availableAlbumDays = useMemo(() => {
+    const keys = new Set<string>();
+    for (const album of filteredAlbums) {
+      const k = uploadDayKey(albumDateRaw(album));
+      if (k !== 'invalid') keys.add(k);
     }
-    return list;
-  }, [filteredAlbums, albumSort]);
+    return Array.from(keys).sort((a, b) => b.localeCompare(a));
+  }, [filteredAlbums]);
+
+  const filteredDisplayAlbums = useMemo(() => {
+    if (!albumListDateFilter) return filteredAlbums;
+    return filteredAlbums.filter((a) => uploadDayKey(albumDateRaw(a)) === albumListDateFilter);
+  }, [filteredAlbums, albumListDateFilter]);
+
+  const albumsByDay = useMemo(
+    () => groupAlbumsByDay(filteredDisplayAlbums, albumSort),
+    [filteredDisplayAlbums, albumSort]
+  );
 
   const selectedAlbumsName = useMemo(() => {
     const selected = albums.filter((a) => selectedAlbums.has(a.id));
@@ -461,8 +580,9 @@ const PhotoStudioAlbum: React.FC = () => {
   useEffect(() => {
     if (!fullScreenImage) return;
     const { albumId, index } = fullScreenImage;
-    const images = albumImages.get(albumId) || extractAlbumImages(albums.find(a => a.id === albumId) || {} as Album);
-    const total = images?.length || 0;
+    const raw = albumImages.get(albumId) || extractAlbumImages(albums.find(a => a.id === albumId) || {} as Album);
+    const images = dedupeAlbumImages(raw);
+    const total = images.length;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (total === 0) return;
       if (e.key === 'Escape') setFullScreenImage(null);
@@ -1257,12 +1377,42 @@ const PhotoStudioAlbum: React.FC = () => {
   }, []);
 
   // Build public URL for selected photos (images-display for view-only, no payment)
-  const selectedPhotoImages = useMemo((): AlbumImage[] => {
-    if (!viewingAlbumId) return [];
+  const viewingAlbumSourceImages = useMemo((): AlbumImage[] => {
+    if (viewingAlbumId == null) return [];
     const album = albums.find((a) => a.id === viewingAlbumId);
-    const images = album ? (albumImages.get(viewingAlbumId) || extractAlbumImages(album)) : [];
-    return images.filter((img) => selectedPhotoIds.has(img.id));
-  }, [viewingAlbumId, albums, albumImages, selectedPhotoIds]);
+    if (!album) return [];
+    return dedupeAlbumImages(albumImages.get(viewingAlbumId) || extractAlbumImages(album));
+  }, [viewingAlbumId, albums, albumImages]);
+
+  const viewingAlbumBaseImages = useMemo((): AlbumImage[] => {
+    if (sharedImagesOnly) {
+      return viewingAlbumSourceImages.filter((img) => sharedImageIds.has(img.id));
+    }
+    return viewingAlbumSourceImages;
+  }, [viewingAlbumSourceImages, sharedImagesOnly, sharedImageIds]);
+
+  const viewingAlbumAvailableDays = useMemo(() => {
+    const keys = new Set<string>();
+    for (const img of viewingAlbumBaseImages) {
+      const k = uploadDayKey(img.uploadTime);
+      if (k !== 'invalid') keys.add(k);
+    }
+    return Array.from(keys).sort((a, b) => b.localeCompare(a));
+  }, [viewingAlbumBaseImages]);
+
+  const viewingAlbumDisplayImages = useMemo((): AlbumImage[] => {
+    if (!albumDateFilter) return viewingAlbumBaseImages;
+    return viewingAlbumBaseImages.filter((img) => uploadDayKey(img.uploadTime) === albumDateFilter);
+  }, [viewingAlbumBaseImages, albumDateFilter]);
+
+  const viewingAlbumPhotosByDay = useMemo(
+    () => groupAlbumImagesByDay(viewingAlbumDisplayImages),
+    [viewingAlbumDisplayImages]
+  );
+
+  const selectedPhotoImages = useMemo((): AlbumImage[] => {
+    return viewingAlbumDisplayImages.filter((img) => selectedPhotoIds.has(img.id));
+  }, [viewingAlbumDisplayImages, selectedPhotoIds]);
 
   // Generate public images-display URL for selected photos (view-only, no payment)
   const photoSharePublicUrl = useMemo(() => {
@@ -1678,7 +1828,6 @@ const PhotoStudioAlbum: React.FC = () => {
               </div>
             );
           }
-          const images = albumImages.get(album.id) || extractAlbumImages(album);
           return (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2 sm:gap-4">
@@ -1968,16 +2117,35 @@ const PhotoStudioAlbum: React.FC = () => {
               </div>
 
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                {images.length > 0 ? (
+                {viewingAlbumSourceImages.length > 0 ? (
                   <>
-                    {/* Select-all / clear row */}
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                       <p className="text-sm text-gray-500">
                         {selectedPhotoIds.size > 0
-                          ? `${selectedPhotoIds.size} of ${images.length} selected`
-                          : `${images.length} ${images.length === 1 ? t('photoStudioAlbumPage.photo') : t('photoStudioAlbumPage.photos')}`}
+                          ? `${selectedPhotoIds.size} of ${viewingAlbumDisplayImages.length} selected`
+                          : `${viewingAlbumDisplayImages.length} ${viewingAlbumDisplayImages.length === 1 ? t('photoStudioAlbumPage.photo') : t('photoStudioAlbumPage.photos')}`}
                       </p>
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        {viewingAlbumAvailableDays.length > 0 && (
+                          <div className="flex items-center gap-2">
+                            <label htmlFor="album-date-filter" className="text-sm text-gray-600 whitespace-nowrap">
+                              {t('imagesPage.filterByDate')}
+                            </label>
+                            <select
+                              id="album-date-filter"
+                              value={albumDateFilter}
+                              onChange={(e) => setAlbumDateFilter(e.target.value)}
+                              className="min-w-[10rem] rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-[#2731db] focus:ring-2 focus:ring-indigo-100"
+                            >
+                              <option value="">{t('imagesPage.allDates')}</option>
+                              {viewingAlbumAvailableDays.map((dayKey) => (
+                                <option key={dayKey} value={dayKey}>
+                                  {formatDayKeyLabel(dayKey, t('imagesPage.unknownDate'))}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                         {selectedShareAlbum && isEditingSharedImages && (
                           <button
                             type="button"
@@ -2004,102 +2172,128 @@ const PhotoStudioAlbum: React.FC = () => {
                         <button
                           type="button"
                           onClick={() =>
-                            selectedPhotoIds.size === images.length
+                            selectedPhotoIds.size === viewingAlbumDisplayImages.length
                               ? clearPhotoSelection()
-                              : selectAllPhotos(images)
+                              : selectAllPhotos(viewingAlbumDisplayImages)
                           }
                           className="text-sm font-medium text-[#2731db] hover:underline"
                         >
-                          {selectedPhotoIds.size === images.length ? 'Deselect all' : 'Select all'}
+                          {selectedPhotoIds.size === viewingAlbumDisplayImages.length ? 'Deselect all' : 'Select all'}
                         </button>
                       </div>
                     </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4">
-                    {(sharedImagesOnly ? images.filter((img) => sharedImageIds.has(img.id)) : images).map((image, index) => {
-                      const imageUrl = getImageUrl(image);
-                      const thumbUrl = getThumbnailUrl(image);
-                      const fileType = getFileType(image);
-                      const filename = getImageFilename(image);
-                      const canViewFullScreen = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
-                      const isPhotoSelected = selectedPhotoIds.has(image.id);
-                      const isShared = sharedImageIds.has(image.id);
-                      const downloadUrl = image.downloadUrl || image.previewUrl || imageUrl;
-                      return (
-                        <div
-                          key={image.id}
-                          className={`relative rounded-xl overflow-hidden border-2 bg-white shadow-sm hover:shadow-md transition-all duration-200 group ${
-                            isPhotoSelected ? 'border-[#2731db] shadow-md' : 'border-transparent hover:border-gray-200'
-                          }`}
+                    {viewingAlbumDisplayImages.length === 0 ? (
+                      <div className="text-center py-12 text-gray-500">
+                        <p className="text-sm mb-3">{t('imagesPage.noDateMatches')}</p>
+                        <button
+                          type="button"
+                          onClick={() => setAlbumDateFilter('')}
+                          className="text-sm font-medium text-[#2731db] hover:underline"
                         >
-                          {/* Shared marker */}
-                          {selectedShareAlbum && isShared && !isEditingSharedImages && (
-                            <div className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded-md bg-black/60 text-white text-[10px] font-semibold">
-                              Shared
+                          {t('imagesPage.clearDateFilter')}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-8">
+                        {viewingAlbumPhotosByDay.map((group) => (
+                          <div key={group.dayKey}>
+                            <div className="mb-3 flex flex-wrap items-baseline gap-2">
+                              <p className="text-base font-medium text-gray-900">
+                                {formatDayKeyLabel(group.dayKey, t('imagesPage.unknownDate'))}
+                              </p>
+                              <span className="text-xs text-gray-500">
+                                {t('imagesPage.photosOnDay', { n: group.items.length })}
+                              </span>
                             </div>
-                          )}
-                          {/* Checkbox overlay */}
-                          <button
-                            type="button"
-                            onClick={() => togglePhotoSelection(image.id)}
-                            className="absolute top-2 left-2 z-10 p-1 rounded-md bg-white/90 hover:bg-white shadow-sm"
-                            title={isPhotoSelected ? 'Deselect' : 'Select'}
-                          >
-                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${isPhotoSelected ? 'border-[#2731db] bg-[#2731db]' : 'border-gray-400 bg-white'}`}>
-                              {isPhotoSelected && <FaCheck className="h-2.5 w-2.5 text-white" />}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4">
+                              {group.items.map((image) => {
+                                const imageUrl = getImageUrl(image);
+                                const thumbUrl = getThumbnailUrl(image);
+                                const fileType = getFileType(image);
+                                const filename = getImageFilename(image);
+                                const canViewFullScreen = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                                const isPhotoSelected = selectedPhotoIds.has(image.id);
+                                const isShared = sharedImageIds.has(image.id);
+                                const downloadUrl = image.downloadUrl || image.previewUrl || imageUrl;
+                                return (
+                                  <div
+                                    key={image.id}
+                                    className={`relative rounded-xl overflow-hidden border-2 bg-white shadow-sm hover:shadow-md transition-all duration-200 group ${
+                                      isPhotoSelected ? 'border-[#2731db] shadow-md' : 'border-transparent hover:border-gray-200'
+                                    }`}
+                                  >
+                                    {selectedShareAlbum && isShared && !isEditingSharedImages && (
+                                      <div className="absolute top-2 right-2 z-10 px-2 py-0.5 rounded-md bg-black/60 text-white text-[10px] font-semibold">
+                                        Shared
+                                      </div>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => togglePhotoSelection(image.id)}
+                                      className="absolute top-2 left-2 z-10 p-1 rounded-md bg-white/90 hover:bg-white shadow-sm"
+                                      title={isPhotoSelected ? 'Deselect' : 'Select'}
+                                    >
+                                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${isPhotoSelected ? 'border-[#2731db] bg-[#2731db]' : 'border-gray-400 bg-white'}`}>
+                                        {isPhotoSelected && <FaCheck className="h-2.5 w-2.5 text-white" />}
+                                      </div>
+                                    </button>
+                                    {downloadUrl && (
+                                      <button
+                                        type="button"
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          try {
+                                            await downloadSingleImage(downloadUrl, filename);
+                                          } catch {
+                                            toast.error('Download failed');
+                                          }
+                                        }}
+                                        className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-white/90 hover:bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title={`Download ${filename}`}
+                                      >
+                                        <FaDownload className="h-3 w-3 text-gray-700" />
+                                      </button>
+                                    )}
+                                    <div
+                                      className={`aspect-square bg-gray-100 overflow-hidden relative ${canViewFullScreen ? 'cursor-pointer' : ''}`}
+                                      onClick={() => {
+                                        if (canViewFullScreen) {
+                                          const lbIndex = viewingAlbumSourceImages.findIndex((i) => i.id === image.id);
+                                          if (lbIndex >= 0) {
+                                            openLightbox(album.id, lbIndex, viewingAlbumSourceImages);
+                                          }
+                                        }
+                                      }}
+                                    >
+                                      {canViewFullScreen ? (
+                                        <>
+                                          <img
+                                            src={(thumbUrl || imageUrl)!}
+                                            alt={filename}
+                                            loading="lazy"
+                                            decoding="async"
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                          />
+                                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                            <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium">{t('photoStudioAlbumPage.view')}</span>
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <div className="flex items-center justify-center h-full text-gray-500 text-xs">{fileType.toUpperCase() || t('photoStudioAlbumPage.file')}</div>
+                                      )}
+                                    </div>
+                                    <div className="p-2 bg-white">
+                                      <p className="text-xs text-gray-700 truncate" title={filename}>{filename}</p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
-                          </button>
-                          {/* Download button – visible on hover */}
-                          {downloadUrl && (
-                            <button
-                              type="button"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                try {
-                                  await downloadSingleImage(downloadUrl, filename);
-                                } catch {
-                                  toast.error('Download failed');
-                                }
-                              }}
-                              className="absolute top-2 right-2 z-10 p-1.5 rounded-md bg-white/90 hover:bg-white shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                              title={`Download ${filename}`}
-                            >
-                              <FaDownload className="h-3 w-3 text-gray-700" />
-                            </button>
-                          )}
-                          <div
-                            className={`aspect-square bg-gray-100 overflow-hidden relative ${canViewFullScreen ? 'cursor-pointer' : ''}`}
-                            onClick={() => {
-                              if (canViewFullScreen) {
-                                const albumImgs = albumImages.get(album.id) || extractAlbumImages(album);
-                                openLightbox(album.id, index, albumImgs);
-                              }
-                            }}
-                          >
-                            {canViewFullScreen ? (
-                              <>
-                                <img
-                                  src={(thumbUrl || imageUrl)!}
-                                  alt={filename}
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                                  <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium">{t('photoStudioAlbumPage.view')}</span>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="flex items-center justify-center h-full text-gray-500 text-xs">{fileType.toUpperCase() || t('photoStudioAlbumPage.file')}</div>
-                            )}
                           </div>
-                          <div className="p-2 bg-white">
-                            <p className="text-xs text-gray-700 truncate" title={filename}>{filename}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        ))}
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="text-center py-16 text-gray-500">
@@ -2239,6 +2433,27 @@ const PhotoStudioAlbum: React.FC = () => {
         </div>
       </div>
 
+      {availableAlbumDays.length > 0 && (
+        <div className="flex items-center gap-2">
+          <label htmlFor="album-list-date-filter" className="text-sm font-medium text-slate-600 whitespace-nowrap">
+            {t('imagesPage.filterByDate')}
+          </label>
+          <select
+            id="album-list-date-filter"
+            value={albumListDateFilter}
+            onChange={(e) => setAlbumListDateFilter(e.target.value)}
+            className="min-w-[10rem] cursor-pointer rounded-xl border border-[#D9E7FF] bg-white/80 backdrop-blur-sm px-3 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:border-[#2731db]/40 hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#2731db]/20 focus:border-[#2731db]"
+          >
+            <option value="">{t('imagesPage.allDates')}</option>
+            {availableAlbumDays.map((dayKey) => (
+              <option key={dayKey} value={dayKey}>
+                {formatDayKeyLabel(dayKey, t('imagesPage.unknownDate'))}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Sort */}
       <div className="relative">
         <select
@@ -2293,7 +2508,7 @@ const PhotoStudioAlbum: React.FC = () => {
 </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            {filteredAndSortedAlbums.length === 0 ? (
+            {filteredAlbums.length === 0 ? (
               <div className="text-center py-20 text-gray-500">
                 <FaFolder className="mx-auto mb-4 text-6xl text-gray-300" />
                 <p className="text-xl font-medium mb-2">{t('photoStudioAlbumPage.noAlbumsFound')}</p>
@@ -2305,10 +2520,32 @@ const PhotoStudioAlbum: React.FC = () => {
                   {t('photoStudioAlbumPage.createAlbum')}
                 </button>
               </div>
+            ) : filteredDisplayAlbums.length === 0 ? (
+              <div className="text-center py-16 text-gray-500">
+                <p className="text-sm mb-3">{t('imagesPage.noDateMatches')}</p>
+                <button
+                  type="button"
+                  onClick={() => setAlbumListDateFilter('')}
+                  className="text-sm font-medium text-[#2731db] hover:underline"
+                >
+                  {t('imagesPage.clearDateFilter')}
+                </button>
+              </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
-                  {filteredAndSortedAlbums.map((album) => {
+                <div className="space-y-10">
+                  {albumsByDay.map((group) => (
+                    <div key={group.dayKey}>
+                      <div className="mb-3 flex flex-wrap items-baseline gap-2">
+                        <p className="text-base font-medium text-gray-900">
+                          {formatDayKeyLabel(group.dayKey, t('imagesPage.unknownDate'))}
+                        </p>
+                        <span className="text-xs text-gray-500">
+                          {t('photoStudioAlbumPage.albumsOnDay', { n: group.items.length })}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-6">
+                        {group.items.map((album) => {
                     const coverUrl = getCoverImageUrl(album);
                     const isMenuOpen = menuOpenAlbumId === album.id;
                     const count = album.imageCount ?? (albumImages.get(album.id) || extractAlbumImages(album)).length;
@@ -2399,7 +2636,10 @@ const PhotoStudioAlbum: React.FC = () => {
                         {isMenuOpen && <div className="fixed inset-0 z-30" onClick={() => setMenuOpenAlbumId(null)} aria-hidden />}
                       </div>
                     );
-                  })}
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
                 <div ref={loadMoreAlbumsRef} className="h-4" aria-hidden />
                 {isFetchingMoreAlbums && (
@@ -2853,7 +3093,8 @@ const PhotoStudioAlbum: React.FC = () => {
 
       {/* Full Screen Image Viewer — powered by ImagePreloadManager */}
       {fullScreenImage && lbAlbumId !== null && (() => {
-        const images = albumImages.get(lbAlbumId) || extractAlbumImages(albums.find(a => a.id === lbAlbumId) || {} as Album);
+        const raw = albumImages.get(lbAlbumId) || extractAlbumImages(albums.find(a => a.id === lbAlbumId) || {} as Album);
+        const images = dedupeAlbumImages(raw);
         const lbItems: LightboxItem[] = images.map((img) => ({
           id: img.id,
           src: getImageUrl(img),

@@ -600,7 +600,14 @@
     "captureOrganizeShare": "अपने सबसे बड़े मूल्यों को पकड़ें, व्यवस्थित करें और साझा करें",
     "tryDifferentSearchTerm": "एक अलग खोज शब्द कोशिश करें",
     "createFirst": "पहला बनाएं",
-    "clearSearch": "खोज साफ़ करें"
+    "clearSearch": "खोज साफ़ करें",
+    "filterByDate": "तारीख",
+    "allDates": "सभी तारीखें",
+    "noDateMatches": "इस तारीख पर कोई फ़ाइल नहीं।",
+    "clearDateFilter": "सभी तारीखें दिखाएँ",
+    "searchPlaceholder": "फ़ाइल नाम से खोजें…",
+    "photosOnDay": "इस दिन {{n}}",
+    "unknownDate": "अज्ञात तारीख"
   },
   "faceSync": {
     "subtitle": "आपकी फ़ोटो लाइब्रेरी के लिए फेस इंटेलिजेंस",
@@ -2764,6 +2771,7 @@
     "noImagesInAlbum": "इस एल्बम में अभी कोई इमेज नहीं",
     "uploadToGetStarted": "शुरू करने के लिए इमेज अपलोड करें।",
     "totalAlbums": "कुल एल्बम:",
+    "albumsOnDay": "इस दिन {{n}} एल्बम",
     "sortByDate": "तिथि के अनुसार",
     "sortByName": "नाम के अनुसार",
     "searchAlbumsPlaceholder": "एल्बम खोजें...",

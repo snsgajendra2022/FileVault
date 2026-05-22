@@ -122,7 +122,6 @@ export function loadNavigationOverrides(): PortalNavigationOverride[] {
 // Default Permissions (offline fallback only — live menu is API-driven)
 // ============================================================================
 
-const defaultViewActions = { view: true };
 const studioActions = {
   view: true,
   create: true,

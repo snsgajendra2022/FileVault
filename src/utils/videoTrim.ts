@@ -3,7 +3,7 @@
  * Used for upload flow - auto-trim videos > 30s without user confirmation.
  */
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import {  toBlobURL } from '@ffmpeg/util';
 
 const VIDEO_TRIM_MAX_SECONDS = 30;
 

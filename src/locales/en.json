@@ -597,7 +597,14 @@
     "noEventsMatch": "No events match \"{{searchQuery}}\"",
     "tryDifferentSearchTerm": "Try a different search term",
     "createFirst": "Create first",
-    "clearSearch": "Clear search"
+    "clearSearch": "Clear search",
+    "filterByDate": "Date",
+    "allDates": "All dates",
+    "noDateMatches": "No files on this date.",
+    "clearDateFilter": "Show all dates",
+    "searchPlaceholder": "Search by filename…",
+    "photosOnDay": "{{n}} on this day",
+    "unknownDate": "Unknown date"
 
   },
   "faceSync": {
@@ -2770,6 +2777,7 @@
     "noImagesInAlbum": "No images in this album yet",
     "uploadToGetStarted": "Upload images to get started.",
     "totalAlbums": "Total albums:",
+    "albumsOnDay": "{{n}} albums on this day",
     "sortByDate": "Sort by date",
     "sortByName": "Sort by name",
     "searchAlbumsPlaceholder": "Search albums...",
