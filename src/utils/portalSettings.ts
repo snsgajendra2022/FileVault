@@ -156,15 +156,17 @@ function fallbackPermissionRows(): Record<RoleType, RoleMenuPermission[]> {
     { role: 'users', labelKey: 'nav.studio.phoneBook', href: '/phonebook', group: 'studio', enabled: true, actions: studioActions },
     { role: 'users', labelKey: 'nav.studio.membersTree', href: '/family-tree', group: 'studio', enabled: true, actions: studioActions },
     { role: 'users', labelKey: 'nav.studio.photoThemes', href: '/photo-themes', group: 'studio', enabled: true, actions: studioActions },
+    { role: 'admin', labelKey: 'nav.studio.settings', href: '/portal-settings', group: 'admin', enabled: true, actions: studioActions },
   ];
   const users: RoleMenuPermission[] = [
     { role: 'users', labelKey: 'nav.studio.dashboard', href: '/studio/dashboard', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.uploadFamily', href: '/upload-family-images', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.myImages', href: '/client-images', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.album', href: '/studio/albums', group: 'users', enabled: true, actions: regularActions },
-    { role: 'users', labelKey: 'nav.studio.ourMemories', href: '/memories/events', group: 'studio', enabled: true, actions: studioActions },
-    { role: 'users', labelKey: 'nav.studio.createMembers', href: '/invitations', group: 'studio', enabled: true, actions: studioActions },
+    { role: 'users', labelKey: 'nav.studio.ourMemories', href: '/memories/events', group: 'studio', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.createMembers', href: '/invitations', group: 'studio', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.services', href: '/services', group: 'users', enabled: true, actions: regularActions },
+    { role: 'admin', labelKey: 'nav.studio.settings', href: '/portal-settings', group: 'admin', enabled: true, actions: regularActions },
   ];
   const regular: RoleMenuPermission[] = [];
 
@@ -178,6 +180,7 @@ function fallbackPermissionRows(): Record<RoleType, RoleMenuPermission[]> {
     { role: 'admin', labelKey: 'nav.admin.usageAnalytics', href: '/admin?tab=analytics', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
     { role: 'admin', labelKey: 'nav.admin.systemHealth', href: '/admin?tab=health', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
     { role: 'admin', labelKey: 'nav.admin.adminSettings', href: '/admin?tab=settings', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
+    { role: 'admin', labelKey: 'nav.studio.settings', href: '/portal-settings', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
   ];
   return {
     admin: [...admin].map((p) => ({

@@ -52,7 +52,7 @@ function buildDefaults() {
       browserNotifications: false,
       requireDeleteConfirmation: true,
       requirePublicShareConfirmation: true,
-      themeMode: 'system',
+      themeMode: 'light',
       sidebarCollapsedByDefault: false,
       aiAssistantEnabled: true,
       aiPageContextEnabled: true,

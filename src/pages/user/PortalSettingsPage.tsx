@@ -97,7 +97,7 @@ const defaultSettings: PortalSettings = {
   browserNotifications: false,
   requireDeleteConfirmation: true,
   requirePublicShareConfirmation: true,
-  themeMode: "system",
+  themeMode: "light",
   sidebarCollapsedByDefault: false,
   aiAssistantEnabled: false,
   aiPageContextEnabled: true,
