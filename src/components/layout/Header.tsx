@@ -145,8 +145,8 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
               onClick={() => setUserMenuOpen(!userMenuOpen)}
             >
               <div className="relative">
-                <div className="w-10 h-10 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/20">
-                  <span className="text-white font-bold text-sm">
+                <div className="w-10 h-10 bg-[var(--header-background)] shadow-[var(rgb(92 121 246 / 56%))] from-violet-600 to-fuchsia-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/20">
+                  <span className="text-[var(--header-background)] font-bold text-sm">
                     {user?.firstName?.charAt(0) || user?.username?.charAt(0) || 'U'}
                   </span>
                 </div>
@@ -172,8 +172,8 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
                 <div className="p-6">
                   <div className="flex items-center space-x-4 p-4 rounded-xl mb-4 border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
                     <div className="relative">
-                      <div className="w-12 h-12 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/20">
-                        <span className="text-white font-bold text-sm">
+                      <div className="w-12 h-12 bg-[var(--header-background)] shadow-[var(rgb(92 121 246 / 56%))] from-violet-600 to-fuchsia-600 rounded-xl flex items-center justify-center shadow-lg ">
+                        <span className="text-[var(--header-background)] font-bold text-sm">
                           {user?.firstName?.charAt(0) || user?.username?.charAt(0) || 'U'}
                         </span>
                       </div>

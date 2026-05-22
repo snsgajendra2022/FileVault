@@ -99,7 +99,7 @@ const defaultSettings: PortalSettings = {
   requirePublicShareConfirmation: true,
   themeMode: "system",
   sidebarCollapsedByDefault: false,
-  aiAssistantEnabled: true,
+  aiAssistantEnabled: false,
   aiPageContextEnabled: true,
   aiChatHistoryEnabled: true,
   aiUserWiseHistoryEnabled: true,
