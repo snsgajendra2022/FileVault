@@ -152,21 +152,35 @@ function fallbackPermissionRows(): Record<RoleType, RoleMenuPermission[]> {
     { role: 'studio', labelKey: 'nav.studio.album', href: '/studio/albums', group: 'studio', enabled: true, actions: studioActions },
     { role: 'studio', labelKey: 'nav.studio.ourMemories', href: '/memories/events', group: 'studio', enabled: true, actions: studioActions },
     { role: 'studio', labelKey: 'nav.studio.services', href: '/services', group: 'studio', enabled: true, actions: studioActions },
+    { role: 'users', labelKey: 'nav.studio.createMembers', href: '/invitations', group: 'studio', enabled: true, actions: studioActions },
+    { role: 'users', labelKey: 'nav.studio.phoneBook', href: '/phonebook', group: 'studio', enabled: true, actions: studioActions },
+    { role: 'users', labelKey: 'nav.studio.membersTree', href: '/family-tree', group: 'studio', enabled: true, actions: studioActions },
+    { role: 'users', labelKey: 'nav.studio.photoThemes', href: '/photo-themes', group: 'studio', enabled: true, actions: studioActions },
   ];
   const users: RoleMenuPermission[] = [
     { role: 'users', labelKey: 'nav.studio.dashboard', href: '/studio/dashboard', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.uploadFamily', href: '/upload-family-images', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.myImages', href: '/client-images', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.album', href: '/studio/albums', group: 'users', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.ourMemories', href: '/memories/events', group: 'studio', enabled: true, actions: studioActions },
+    { role: 'users', labelKey: 'nav.studio.createMembers', href: '/invitations', group: 'studio', enabled: true, actions: studioActions },
     { role: 'users', labelKey: 'nav.studio.services', href: '/services', group: 'users', enabled: true, actions: regularActions },
   ];
   const regular: RoleMenuPermission[] = [];
+
   const admin: RoleMenuPermission[] = [
     { role: 'admin', labelKey: 'nav.admin.adminDashboard', href: '/admin?tab=dashboard', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
     { role: 'admin', labelKey: 'nav.admin.userManagement', href: '/admin?tab=users', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
+    { role: 'admin', labelKey: 'nav.admin.services', href: '/admin?tab=services', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
+    { role: 'admin', labelKey: 'nav.admin.planManagement', href: '/admin?tab=plans', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
+    { role: 'admin', labelKey: 'nav.admin.paymentManagement', href: '/admin?tab=payments', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
+    { role: 'admin', labelKey: 'nav.admin.featureFlags', href: '/admin?tab=flags', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
+    { role: 'admin', labelKey: 'nav.admin.usageAnalytics', href: '/admin?tab=analytics', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
+    { role: 'admin', labelKey: 'nav.admin.systemHealth', href: '/admin?tab=health', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
+    { role: 'admin', labelKey: 'nav.admin.adminSettings', href: '/admin?tab=settings', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
   ];
   return {
-    admin: [...admin, ...studio, ...users, ...regular].map((p) => ({
+    admin: [...admin].map((p) => ({
       ...p,
       role: 'admin' as RoleType,
       group: 'admin' as const,
