@@ -13,6 +13,7 @@ import PaymentManagement from '../../components/admin/PaymentManagement';
 import FlagManagement from '../../components/admin/FlagManagement';
 import UsageAnalytics from '../../components/admin/UsageAnalytics';
 import SystemHealth from '../../components/admin/SystemHealth';
+import PortalMenuManagement from '../../components/admin/PortalMenuManagement';
 import adminService from '../../api/services/adminService';
 import { toast } from 'react-hot-toast';
 
@@ -66,7 +67,7 @@ const AdminPage = () => {
       case 'health':
         return <SystemHealth />;
       case 'settings':
-        return <AdminSettings />;
+        return <PortalMenuManagement />;
       default:
         return <AdminDashboard setActiveTab={handleTabChange} />;
     }

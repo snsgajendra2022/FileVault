@@ -102,10 +102,16 @@ function loadPortalConfigFromLocal(): PortalConfigResponse | null {
       : getDefaultPortalGeneralSettings();
     const menuRaw = localStorage.getItem('MENU_FLAGS');
     const navRaw = localStorage.getItem('portal_navigation_overrides');
+    const permsRaw = localStorage.getItem(STORAGE_KEYS.ROLE_MENU_PERMISSIONS);
+    const aiRaw = localStorage.getItem(STORAGE_KEYS.AI_TOOL_SETTINGS);
     return {
       settings,
-      roleMenuPermissions: buildDefaultRolePermissions(),
-      aiToolSettings: getDefaultAiToolSettings(),
+      roleMenuPermissions: permsRaw
+        ? normalizeRoleMenuPermissions(JSON.parse(permsRaw))
+        : buildDefaultRolePermissions(),
+      aiToolSettings: aiRaw
+        ? { ...getDefaultAiToolSettings(), ...JSON.parse(aiRaw) }
+        : getDefaultAiToolSettings(),
       menuFlags: menuRaw ? JSON.parse(menuRaw) : undefined,
       navigationOverrides: navRaw ? JSON.parse(navRaw) : [],
       source: 'cache',
@@ -115,8 +121,11 @@ function loadPortalConfigFromLocal(): PortalConfigResponse | null {
   }
 }
 
-/** Load permissions from localStorage into config */
+/** Load permissions from localStorage into config (skip when fresh API payload). */
 export function mergeLocalPermissions(config: PortalConfigResponse): PortalConfigResponse {
+  if (config.source === 'api') {
+    return config;
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.ROLE_MENU_PERMISSIONS);
     if (raw) {

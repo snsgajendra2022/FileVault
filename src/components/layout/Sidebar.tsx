@@ -3,69 +3,17 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../state/context/AuthContext';
 import {
-  regularNavigation,
-  studioNavigation,
-  adminNavigation,
-  usersNavigation,
+  STUDIO_SIDEBAR_GROUPS,
+  USERS_SIDEBAR_GROUPS,
+  assignItemsToSidebarGroups,
+  isRoleMenuVisible,
+  useRoleNavigation,
+  type NavItem,
+  type SidebarGroupDef,
 } from './navConfig';
-import {
-  getResolvedPortalRole,
-  filterNavigationByRolePermissions,
-  loadPortalGeneralSettings,
-  loadMenuFlags,
-  subscribePortalSettings,
-} from '../../utils/portalSettings';
+import { getResolvedPortalRole, loadPortalGeneralSettings } from '../../utils/portalSettings';
 import { usePortalSettingsOptional } from '../../state/context/PortalSettingsContext';
 import { FaCog, FaCrown, FaSignOutAlt, FaHeart } from 'react-icons/fa';
-
-/** Grouped studio menu (matches Navigation.tsx + navConfig). */
-const STUDIO_GROUPS = [
-  {
-    label: 'Main',
-    keys: [
-      'nav.studio.dashboard',
-      'nav.studio.uploadFamily',
-      'nav.studio.myImages',
-      'nav.studio.filterImages',
-      'nav.studio.album',
-    ],
-  },
-  {
-    label: 'Memories',
-    keys: ['nav.studio.ourMemories', 'nav.studio.photoBooks', 'nav.studio.photoThemes'],
-  },
-  {
-    label: 'People',
-    keys: ['nav.studio.createMembers', 'nav.studio.membersTree', 'nav.studio.phoneBook'],
-  },
-  {
-    label: 'Account',
-    keys: [
-      'nav.studio.settings',
-      'nav.studio.selectPay',
-      'nav.studio.paymentManagement',
-      'nav.studio.services',
-      'nav.studio.whatsapp',
-    ],
-  },
-];
-
-/** Subset for USERS role (usersNavigation in navConfig). */
-const USERS_GROUPS = [
-  {
-    label: 'Main',
-    keys: [
-      'nav.studio.dashboard',
-      'nav.studio.uploadFamily',
-      'nav.studio.myImages',
-      'nav.studio.filterImages',
-      'nav.studio.album',
-    ],
-  },
-  { label: 'Memories', keys: ['nav.studio.ourMemories'] },
-  { label: 'People', keys: ['nav.studio.createMembers'] },
-  { label: 'Account', keys: ['nav.studio.settings', 'nav.studio.services'] },
-];
 
 function NavItem({
   item,
@@ -99,26 +47,26 @@ function NavGroups({
   items,
   location,
 }: {
-  groups: typeof STUDIO_GROUPS;
-  items: Array<{ labelKey: string; href: string; icon: React.ComponentType<{ className?: string }> }>;
+  groups: readonly SidebarGroupDef[];
+  items: NavItem[];
   location: ReturnType<typeof useLocation>;
 }) {
+  const { grouped, ungrouped, groupOrder } = assignItemsToSidebarGroups(items, groups);
+
   return (
     <>
-      {groups.map((group) => {
-        const groupItems = group.keys
-          .map((k) => items.find((i) => i.labelKey === k))
-          .filter(Boolean) as typeof items;
-        if (!groupItems.length) return null;
+      {groupOrder.map((label) => {
+        const groupItems = grouped.get(label);
+        if (!groupItems?.length) return null;
         return (
-          <div key={group.label} className="mb-6 last:mb-0">
+          <div key={label} className="mb-6 last:mb-0">
             <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
-              {group.label}
+              {label}
             </p>
             <div className="space-y-1">
               {groupItems.map((item) => (
                 <NavItem
-                  key={item.href}
+                  key={`${item.labelKey}-${item.href}`}
                   item={item}
                   isActive={
                     location.pathname === item.href ||
@@ -130,6 +78,20 @@ function NavGroups({
           </div>
         );
       })}
+      {ungrouped.length > 0 ? (
+        <div className="mb-6 last:mb-0 space-y-1">
+          {ungrouped.map((item) => (
+            <NavItem
+              key={`${item.labelKey}-${item.href}`}
+              item={item}
+              isActive={
+                location.pathname === item.href ||
+                location.pathname + location.search === item.href
+              }
+            />
+          ))}
+        </div>
+      ) : null}
     </>
   );
 }
@@ -140,53 +102,25 @@ const Sidebar = () => {
   const route = useNavigate();
   const { t } = useTranslation();
   const portalCtx = usePortalSettingsOptional();
-  const [navTick, setNavTick] = React.useState(0);
 
   const userRole = React.useMemo(
     () => getResolvedPortalRole(user),
     [user?.role, user?.accountType]
   );
 
-  React.useEffect(() => subscribePortalSettings(() => setNavTick((n) => n + 1)), []);
-
-  const filteredStudioNav = React.useMemo(
-    () => filterNavigationByRolePermissions(studioNavigation, userRole),
-    [userRole, navTick, portalCtx?.config.updatedAt]
-  );
-
-  const filteredUsersNav = React.useMemo(
-    () => filterNavigationByRolePermissions(usersNavigation, userRole),
-    [userRole, navTick, portalCtx?.config.updatedAt]
-  );
-
-  const filteredAdminNav = React.useMemo(
-    () => filterNavigationByRolePermissions(adminNavigation, userRole),
-    [userRole, navTick, portalCtx?.config.updatedAt]
-  );
-
-  const filteredRegularNav = React.useMemo(
-    () => filterNavigationByRolePermissions(regularNavigation, userRole),
-    [userRole, navTick, portalCtx?.config.updatedAt]
-  );
-
-  const menuFlags = React.useMemo(() => {
-    const flags = loadMenuFlags();
-    return { ...flags, admin: userRole === 'admin' ? flags.admin : false };
-  }, [userRole, portalCtx?.config.updatedAt]);
+  const { nav: roleNav, config: portalConfig } = useRoleNavigation(userRole);
 
   const portalName =
-    portalCtx?.config.settings.portalName ?? loadPortalGeneralSettings().portalName;
+    portalCtx?.config.settings.portalName ??
+    portalConfig?.settings.portalName ??
+    loadPortalGeneralSettings().portalName;
 
-  const studioItems = filteredStudioNav.items;
-  const usersItems = filteredUsersNav.items;
-  const adminItems = filteredAdminNav.items;
-  const regularItems = filteredRegularNav.items;
+  const roleItems = roleNav.items;
 
-  const showAdminNav = userRole === 'admin' && menuFlags.admin && adminNavigation.active;
-  const showStudioNav = userRole === 'studio' && menuFlags.studio && studioNavigation.active;
-  const showUsersNav = userRole === 'users' && menuFlags.users && usersNavigation.active;
-  const showRegularNav =
-    userRole === 'regular' && menuFlags.regular && regularNavigation.active;
+  const showAdminNav = userRole === 'admin' && isRoleMenuVisible('admin', portalConfig) && roleNav.active;
+  const showStudioNav = userRole === 'studio' && isRoleMenuVisible('studio', portalConfig) && roleNav.active;
+  const showUsersNav = userRole === 'users' && isRoleMenuVisible('users', portalConfig) && roleNav.active;
+  const showRegularNav = userRole === 'regular' && isRoleMenuVisible('regular', portalConfig) && roleNav.active;
 
   const isAdminActive = (href: string) =>
     location.pathname + location.search === href ||
@@ -219,18 +153,18 @@ const Sidebar = () => {
 
         <nav className="px-4 pt-5 pb-3">
           {showStudioNav && (
-            <NavGroups groups={STUDIO_GROUPS} items={studioItems} location={location} />
+            <NavGroups groups={STUDIO_SIDEBAR_GROUPS} items={roleItems} location={location} />
           )}
 
           {showUsersNav && (
-            <NavGroups groups={USERS_GROUPS} items={usersItems} location={location} />
+            <NavGroups groups={USERS_SIDEBAR_GROUPS} items={roleItems} location={location} />
           )}
 
           {showRegularNav && (
             <div className="space-y-1">
-              {regularItems.map((item) => (
+              {roleItems.map((item) => (
                 <NavItem
-                  key={item.href}
+                  key={`${item.labelKey}-${item.href}`}
                   item={item}
                   isActive={location.pathname === item.href}
                 />
@@ -247,8 +181,8 @@ const Sidebar = () => {
                 </p>
               </div>
               <div className="space-y-1">
-                {adminItems.map((item) => (
-                  <NavItem key={item.href} item={item} isActive={isAdminActive(item.href)} />
+                {roleItems.map((item) => (
+                  <NavItem key={`${item.labelKey}-${item.href}`} item={item} isActive={isAdminActive(item.href)} />
                 ))}
               </div>
             </div>
@@ -256,17 +190,6 @@ const Sidebar = () => {
         </nav>
 
         <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-3 space-y-1">
-          {!showAdminNav && (
-            <button
-              type="button"
-              onClick={() => route('/portal-settings')}
-              className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5
-              text-[13px] font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-100 transition-colors duration-150"
-            >
-              <FaCog className="h-[15px] w-[15px] shrink-0 text-slate-400 group-hover:text-slate-500 dark:group-hover:text-slate-300" />
-              <span>{t('nav.studio.settings', 'Settings')}</span>
-            </button>
-          )}
           {typeof logout === 'function' && (
             <button
               type="button"

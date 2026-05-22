@@ -1871,7 +1871,7 @@
       "flags": "Feature Flags",
       "analytics": "Usage Analytics",
       "health": "System Health",
-      "settings": "Admin Settings"
+      "settings": "Sidebar menus"
     },
     "toastDashboardLoadFailed": "Failed to load dashboard data",
     "dashboardTitle": "Admin Dashboard",
@@ -1925,6 +1925,43 @@
     "adminSettingsTitle": "Admin Settings",
     "adminSettingsSubtitle": "Configure system-wide settings and preferences.",
     "adminSettingsPlaceholder": "Admin settings configuration will be implemented here."
+  },
+  "adminPortalMenu": {
+    "badge": "Portal API",
+    "title": "Sidebar menu management",
+    "subtitle": "Edit role menus from GET /api/portal/config — paths, label keys, show/hide, and actions for Admin, Studio, Users, and Regular.",
+    "reload": "Reload from API",
+    "save": "Save to API",
+    "saving": "Saving…",
+    "loadFailed": "Failed to load portal config",
+    "saveSuccess": "Sidebar menus saved. All users will see updates after refresh.",
+    "saveFailed": "Failed to save portal config",
+    "resetRoleDone": "Reset {{role}} menu to defaults (save to apply)",
+    "menuFlagsTitle": "Show role sidebar",
+    "menuFlagsDesc": "Turn off to hide the entire sidebar for that role.",
+    "searchPlaceholder": "Search label key, path, or group…",
+    "enableAll": "Show all",
+    "disableAll": "Hide all",
+    "resetRole": "Reset role",
+    "addItem": "Add menu item",
+    "colShow": "Show",
+    "colLabelKey": "Label key (i18n)",
+    "colPath": "Path / href",
+    "colGroup": "Group",
+    "colActions": "Order",
+    "show": "Show in sidebar",
+    "hide": "Hide from sidebar",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "remove": "Remove",
+    "noItems": "No menu items for this role. Add one or reload from API.",
+    "footerHint": "Saves to global portal template (user id 1) via PUT /api/portal/config. Sidebar order matches table order.",
+    "roles": {
+      "admin": "Admin",
+      "studio": "Studio",
+      "users": "Users",
+      "regular": "Regular"
+    }
   },
   "checkoutPage": {
     "toastLoadFailed": "Failed to load plan details",

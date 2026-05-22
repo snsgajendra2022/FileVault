@@ -15,14 +15,8 @@ import type {
   PortalMenuFlags,
   PortalNavigationOverride,
 } from '../types/portalApi';
-import {
-  regularNavigation,
-  studioNavigation,
-  adminNavigation,
-  NavItem,
-  NavGroup,
-  usersNavigation,
-} from '../components/layout/navConfig';
+import type { NavGroup } from '../components/layout/navConfig';
+import { findLabelKeyForHref, getNavigationForRole } from '../components/layout/navConfig';
 
 // ============================================================================
 // LocalStorage Keys
@@ -32,6 +26,7 @@ export const STORAGE_KEYS = {
   ROLE_MENU_PERMISSIONS: 'portal_role_menu_permissions',
   AI_TOOL_SETTINGS: 'portal_ai_tool_settings',
   LANGUAGE: 'portal_language',
+  MENU_FLAGS: 'menu_flags',
   PORTAL_SETTINGS: 'portal_settings',
 } as const;
 
@@ -72,7 +67,7 @@ function defaultPortalGeneralSettings(): PortalGeneralSettings {
     browserNotifications: false,
     requireDeleteConfirmation: true,
     requirePublicShareConfirmation: true,
-    themeMode: 'system',
+    themeMode: 'light',
     sidebarCollapsedByDefault: false,
     aiAssistantEnabled: ai.enabled,
     aiPageContextEnabled: ai.pageContextEnabled,
@@ -123,106 +118,70 @@ export function loadNavigationOverrides(): PortalNavigationOverride[] {
   return [];
 }
 
-function applyNavItemOverrides(items: NavItem[]): NavItem[] {
-  const overrides = loadNavigationOverrides();
-  if (!overrides.length) return items;
-  const map = new Map(overrides.map((o) => [o.href, o]));
-  return items.map((item) => {
-    const o = map.get(item.href);
-    if (!o) return item;
-    return { ...item, enabled: o.enabled, ...(o.labelKey ? { labelKey: o.labelKey } : {}) };
-  });
+// ============================================================================
+// Default Permissions (offline fallback only — live menu is API-driven)
+// ============================================================================
+
+const defaultViewActions = { view: true };
+const studioActions = {
+  view: true,
+  create: true,
+  edit: true,
+  delete: false,
+  upload: true,
+  download: true,
+  share: true,
+  manage: false,
+};
+const regularActions = {
+  view: true,
+  create: false,
+  edit: false,
+  delete: false,
+  upload: false,
+  download: true,
+  share: false,
+  manage: false,
+};
+
+/** Minimal seed when API returns no roleMenuPermissions (not used for sidebar rendering). */
+function fallbackPermissionRows(): Record<RoleType, RoleMenuPermission[]> {
+  const studio: RoleMenuPermission[] = [
+    { role: 'studio', labelKey: 'nav.studio.dashboard', href: '/studio/dashboard', group: 'studio', enabled: true, actions: studioActions },
+    { role: 'studio', labelKey: 'nav.studio.uploadFamily', href: '/upload-family-images', group: 'studio', enabled: true, actions: studioActions },
+    { role: 'studio', labelKey: 'nav.studio.myImages', href: '/client-images', group: 'studio', enabled: true, actions: studioActions },
+    { role: 'studio', labelKey: 'nav.studio.album', href: '/studio/albums', group: 'studio', enabled: true, actions: studioActions },
+    { role: 'studio', labelKey: 'nav.studio.ourMemories', href: '/memories/events', group: 'studio', enabled: true, actions: studioActions },
+    { role: 'studio', labelKey: 'nav.studio.services', href: '/services', group: 'studio', enabled: true, actions: studioActions },
+  ];
+  const users: RoleMenuPermission[] = [
+    { role: 'users', labelKey: 'nav.studio.dashboard', href: '/studio/dashboard', group: 'users', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.uploadFamily', href: '/upload-family-images', group: 'users', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.myImages', href: '/client-images', group: 'users', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.album', href: '/studio/albums', group: 'users', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.services', href: '/services', group: 'users', enabled: true, actions: regularActions },
+  ];
+  const regular: RoleMenuPermission[] = [];
+  const admin: RoleMenuPermission[] = [
+    { role: 'admin', labelKey: 'nav.admin.adminDashboard', href: '/admin?tab=dashboard', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
+    { role: 'admin', labelKey: 'nav.admin.userManagement', href: '/admin?tab=users', group: 'admin', enabled: true, actions: { view: true, create: true, edit: true, delete: true, manage: true } },
+  ];
+  return {
+    admin: [...admin, ...studio, ...users, ...regular].map((p) => ({
+      ...p,
+      role: 'admin' as RoleType,
+      group: 'admin' as const,
+      enabled: true,
+      actions: { view: true, create: true, edit: true, delete: true, upload: true, download: true, share: true, manage: true },
+    })),
+    studio,
+    users,
+    regular,
+  };
 }
 
-// ============================================================================
-// Default Permissions
-// ============================================================================
-
-/**
- * Build default role permissions from navigation config
- * This is the fallback used if no custom permissions are saved
- */
 export function buildDefaultRolePermissions(): Record<RoleType, RoleMenuPermission[]> {
-  const adminPermissions = buildPermissionsFromNav(
-    adminNavigation,
-    'admin',
-    'admin'
-  );
-  const studioPermissions = buildPermissionsFromNav(
-    studioNavigation,
-    'studio',
-    'studio'
-  );
-  const usersPermissions = buildPermissionsFromNav(usersNavigation, 'users', 'users');
-  const regularPermissions = buildPermissionsFromNav(
-    regularNavigation,
-    'regular',
-    'regular'
-  );
-
-  return {
-    admin: [
-      ...adminPermissions,
-      ...studioPermissions,
-      ...usersPermissions,
-      ...regularPermissions,
-    ].map(p => ({
-      ...p,
-      enabled: true,
-      actions: {
-        view: true,
-        create: true,
-        edit: true,
-        delete: true,
-        upload: true,
-        download: true,
-        share: true,
-        manage: true,
-      },
-    })),
-    studio: studioPermissions.map(p => ({
-      ...p,
-      enabled: true,
-      actions: {
-        view: true,
-        create: true,
-        edit: true,
-        delete: false,
-        upload: true,
-        download: true,
-        share: true,
-        manage: false,
-      },
-    })),
-    regular: regularPermissions.map(p => ({
-      ...p,
-      enabled: true,
-      actions: {
-        view: true,
-        create: p.labelKey.includes('upload') ? true : false,
-        edit: false,
-        delete: false,
-        upload: p.labelKey.includes('upload') ? true : false,
-        download: true,
-        share: false,
-        manage: false,
-      },
-    })),
-    users: usersPermissions.map((p) => ({
-      ...p,
-      enabled: true,
-      actions: {
-        view: true,
-        create: p.labelKey.includes('upload') ? true : false,
-        edit: false,
-        delete: false,
-        upload: p.labelKey.includes('upload') ? true : false,
-        download: true,
-        share: false,
-        manage: false,
-      },
-    })),
-  };
+  return fallbackPermissionRows();
 }
 
 const PORTAL_ROLE_KEYS: RoleType[] = ['admin', 'studio', 'regular', 'users'];
@@ -247,37 +206,17 @@ export function normalizeRoleMenuPermissions(
   return out;
 }
 
-/**
- * Helper to build permissions from a nav group
- */
-function buildPermissionsFromNav(
-  navGroup: NavGroup,
-  group: 'regular' | 'studio' | 'admin' | 'users',
-  role: RoleType
-): Omit<RoleMenuPermission, 'actions'>[] {
-  return navGroup.items.map(item => ({
-    role,
-    labelKey: item.labelKey,
-    href: item.href,
-    group,
-    enabled: item.enabled ?? true,
-  }));
-}
-
 /** Display groups shown in Portal Settings permissions tab per role. */
 export type MenuPermissionGroup = 'Regular' | 'Studio' | 'Admin' | 'Users';
 
 export function getMenuGroupsForRole(role: RoleType): MenuPermissionGroup[] {
   switch (role) {
     case 'admin':
-      return ['Admin', 'Studio', 'Users', 'Regular'];
+      return ['Admin'];
     case 'studio':
       return ['Studio'];
     case 'users':
       return ['Users'];
-    case 'regular':
-    default:
-      return ['Regular'];
   }
 }
 
@@ -298,7 +237,7 @@ export function getEditablePortalRoles(
   user?: { role?: string; accountType?: string } | null
 ): RoleType[] {
   const role = getResolvedPortalRole(user);
-  if (role === 'admin') return ['admin', 'studio', 'users', 'regular'];
+  if (role === 'admin') return ['admin'];
   if (role === 'studio') return ['studio', 'users'];
   return [];
 }
@@ -309,15 +248,9 @@ export function canManagePortalPermissions(
   return getEditablePortalRoles(user).length > 0;
 }
 
-/** labelKey from navConfig for a route (keeps API permissions aligned with sidebar). */
+/** labelKey from API roleMenuPermissions for a route. */
 export function findNavLabelKeyForHref(href: string): string | undefined {
-  const items = [
-    ...regularNavigation.items,
-    ...studioNavigation.items,
-    ...adminNavigation.items,
-    ...usersNavigation.items,
-  ];
-  return items.find((i) => i.href === href)?.labelKey;
+  return findLabelKeyForHref(href, portalConfigCache ?? undefined);
 }
 
 // ============================================================================
@@ -498,19 +431,6 @@ export function isMenuAllowed(role: RoleType, href: string): boolean {
  * Check if menu is enabled in original config (fallback)
  */
 function isMenuEnabledInConfig(href: string): boolean {
-  const allNavs = [
-    regularNavigation,
-    studioNavigation,
-    adminNavigation,
-    usersNavigation,
-  ];
-
-  for (const nav of allNavs) {
-    const item = nav.items.find(i => i.href === href);
-    if (item) {
-      return item.enabled ?? true;
-    }
-  }
   return true;
 }
 
@@ -559,29 +479,14 @@ function normalizePath(path: string): string {
 // Navigation Filtering
 // ============================================================================
 
-/**
- * Filter navigation group based on role permissions
- */
-export function filterNavigationByRolePermissions(
-  navGroup: NavGroup,
-  role: RoleType
-): NavGroup {
-  const permissions = getRolePermissions(role);
-  const withOverrides = applyNavItemOverrides(navGroup.items);
+/** Sidebar nav from API (see navConfig.getNavigationForRole). */
+export function buildNavigationFromRolePermissions(role: RoleType): NavGroup {
+  return getNavigationForRole(role, portalConfigCache ?? undefined);
+}
 
-  return {
-    ...navGroup,
-    items: withOverrides.filter(item => {
-      const permission = permissions.find(p => p.href === item.href);
-
-      if (permission) {
-        return permission.enabled && permission.actions.view;
-      }
-
-      // Fallback to original enabled state
-      return item.enabled ?? true;
-    }),
-  };
+/** @deprecated Use buildNavigationFromRolePermissions — kept for callers. */
+export function filterNavigationByRolePermissions(_navGroup: NavGroup, role: RoleType): NavGroup {
+  return buildNavigationFromRolePermissions(role);
 }
 
 /** Whether OM assistant should show (portal settings override env). */
@@ -599,27 +504,13 @@ export function isPortalAssistantEnabled(): boolean {
  * Includes all relevant navigation groups
  */
 export function getFilteredNavigationForRole(role: RoleType) {
+  const config = portalConfigCache ?? undefined;
   return {
-    regular: filterNavigationByRolePermissions(regularNavigation, role),
-    studio: filterNavigationByRolePermissions(studioNavigation, role),
-    users: filterNavigationByRolePermissions(usersNavigation, role),
-    admin: filterNavigationByRolePermissions(adminNavigation, role),
+    regular: getNavigationForRole('regular', config),
+    studio: getNavigationForRole('studio', config),
+    users: getNavigationForRole('users', config),
+    admin: getNavigationForRole('admin', config),
   };
-}
-
-/** Primary sidebar nav group for the signed-in user. */
-export function getActiveNavGroupForRole(role: RoleType): NavGroup {
-  switch (role) {
-    case 'admin':
-      return adminNavigation;
-    case 'studio':
-      return studioNavigation;
-    case 'users':
-      return usersNavigation;
-    case 'regular':
-    default:
-      return regularNavigation;
-  }
 }
 
 // ============================================================================

@@ -3,37 +3,14 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../state/context/AuthContext';
 import {
-  regularNavigation,
-  studioNavigation,
-  adminNavigation,
-  usersNavigation,
+  STUDIO_SIDEBAR_GROUPS,
+  USERS_SIDEBAR_GROUPS,
+  assignItemsToSidebarGroups,
+  isRoleMenuVisible,
+  useRoleNavigation,
 } from './navConfig';
-import {
-  getResolvedPortalRole,
-  filterNavigationByRolePermissions,
-  subscribePortalSettings,
-} from '../../utils/portalSettings';
+import { getResolvedPortalRole } from '../../utils/portalSettings';
 import { FaTimes, FaCrown, FaCog, FaSignOutAlt, FaHeart, FaChevronRight } from 'react-icons/fa';
-
-// ── Same groups as desktop sidebar ────────────────────────────────────────────
-const STUDIO_GROUPS = [
-  {
-    label: 'Main',
-    keys: ['nav.studio.dashboard', 'nav.studio.myImages', 'nav.studio.filterImages', 'nav.studio.album', 'nav.studio.uploadFamily'],
-  },
-  {
-    label: 'Memories',
-    keys: ['nav.studio.ourMemories', 'nav.studio.photoBooks', 'nav.studio.photoThemes', 'nav.studio.sharedAlbums'],
-  },
-  {
-    label: 'People',
-    keys: ['nav.studio.createMembers', 'nav.studio.membersTree', 'nav.studio.phoneBook'],
-  },
-  {
-    label: 'Account',
-    keys: ['nav.studio.selectPay', 'nav.studio.paymentManagement', 'nav.studio.services', 'nav.studio.whatsapp'],
-  },
-];
 
 function getInitials(firstName?: string, lastName?: string, username?: string): string {
   if (firstName && lastName) return `${firstName[0]}${lastName[0]}`.toUpperCase();
@@ -49,65 +26,19 @@ interface NavigationProps {
 
 const Navigation = ({ isOpen, onClose }: NavigationProps) => {
   const { t } = useTranslation();
-  const { user, isAdmin,isUsers, isStudio, logout } = useAuth() as any;
+  const { user, logout } = useAuth() as any;
   const location = useLocation();
   const route = useNavigate();
-  // Get user role from account type
-  const [navTick, setNavTick] = React.useState(0);
   const userRole = React.useMemo(
     () => getResolvedPortalRole(user),
     [user?.role, user?.accountType]
   );
 
-  React.useEffect(() => subscribePortalSettings(() => setNavTick((n) => n + 1)), []);
-
-  const navigationItems = regularNavigation;
-  const studioNavigationItems = studioNavigation;
-  const adminNavigationItems = adminNavigation;
-
-  // Apply permission-based filtering to navigation
-  const filteredRegularNav = React.useMemo(
-    () => filterNavigationByRolePermissions(navigationItems, userRole),
-    [userRole, navTick]
-  );
-
-  const filteredStudioNav = React.useMemo(
-    () => filterNavigationByRolePermissions(studioNavigationItems, userRole),
-    [userRole, navTick]
-  );
-
-  const filteredAdminNav = React.useMemo(
-    () => filterNavigationByRolePermissions(adminNavigationItems, userRole),
-    [userRole, navTick]
-  );
-
-  // Runtime menu visibility flags
-  // Priority order: window.__MENU_FLAGS__ > localStorage('MENU_FLAGS') > defaults
-  const menuFlags = React.useMemo(() => {
-    const defaults = { regular: true, studio: true, users: true, admin: isAdmin } as {
-      regular: boolean; studio: boolean; admin: boolean;
-    };
-    try {
-      // @ts-ignore
-      const winFlags = typeof window !== 'undefined' ? (window.__MENU_FLAGS__ as any) : undefined;
-      if (winFlags && typeof winFlags === 'object') return { ...defaults, ...winFlags };
-      const raw = typeof window !== 'undefined' ? localStorage.getItem('MENU_FLAGS') : null;
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === 'object') return { ...defaults, ...parsed };
-      }
-    } catch (_) {}
-    return defaults;
-  }, [isAdmin]);
-
-  const filteredUsersNav = React.useMemo(
-    () => filterNavigationByRolePermissions(usersNavigation, userRole),
-    [userRole, navTick]
-  );
-
-  const studioItems = filteredStudioNav.items;
-  const usersItems = filteredUsersNav.items;
-  const adminItems = filteredAdminNav.items;
+  const { nav: roleNav, config: portalConfig } = useRoleNavigation(userRole);
+  const roleItems = roleNav.items;
+  const isAdmin = userRole === 'admin';
+  const isStudio = userRole === 'studio';
+  const isUsers = userRole === 'users';
 
   const isAdminActive = (href: string) =>
     location.pathname + location.search === href ||
@@ -170,82 +101,149 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
           className="overflow-y-auto px-3 pt-4 pb-2 scrollbar-thin scrollbar-thumb-slate-100"
           style={{ flex: '1 1 0', minHeight: 0 }}
         >
-          {!isAdmin && !isUsers && menuFlags.studio && studioNavigation.active &&
-            STUDIO_GROUPS.map((group) => {
-              const items = group.keys
-                .map((k) => studioItems.find((i) => i.labelKey === k))
-                .filter(Boolean) as typeof studioItems;
-              if (!items.length) return null;
+          {isStudio && isRoleMenuVisible('studio', portalConfig) && roleNav.active && (() => {
+            const { grouped, ungrouped, groupOrder } = assignItemsToSidebarGroups(roleItems, STUDIO_SIDEBAR_GROUPS);
+            return (
+              <>
+                {groupOrder.map((label) => {
+                  const items = grouped.get(label);
+                  if (!items?.length) return null;
+                  return (
+                    <div key={label} className="mb-5 last:mb-0">
+                      <p className="mb-1.5 px-3 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                        {label}
+                      </p>
+                      <div className="space-y-0.5">
+                        {items.map((item) => {
+                          const Icon = item.icon;
+                          const active =
+                            location.pathname === item.href ||
+                            location.pathname + location.search === item.href;
+                          return (
+                            <NavLink
+                              key={`${item.labelKey}-${item.href}`}
+                              to={item.href}
+                              onClick={onClose}
+                              className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors duration-150 select-none ${
+                                active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                              }`}
+                            >
+                              <Icon
+                                className={`h-[15px] w-[15px] shrink-0 transition-colors duration-150 ${
+                                  active ? 'text-violet-600' : 'text-slate-400 group-hover:text-slate-500'
+                                }`}
+                              />
+                              <span className="truncate leading-none">{t(item.labelKey)}</span>
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+                {ungrouped.map((item) => {
+                  const Icon = item.icon;
+                  const active =
+                    location.pathname === item.href ||
+                    location.pathname + location.search === item.href;
+                  return (
+                    <NavLink
+                      key={`${item.labelKey}-${item.href}`}
+                      to={item.href}
+                      onClick={onClose}
+                      className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors duration-150 select-none ${
+                        active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                      }`}
+                    >
+                      <Icon className="h-[15px] w-[15px] shrink-0" />
+                      <span className="truncate leading-none">{t(item.labelKey)}</span>
+                    </NavLink>
+                  );
+                })}
+              </>
+            );
+          })()}
 
-              return (
-                <div key={group.label} className="mb-5 last:mb-0">
-                  <p className="mb-1.5 px-3 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                    {group.label}
-                  </p>
-                  <div className="space-y-0.5">
-                    {items.map((item) => {
-                      const Icon = item.icon;
-                      const active = location.pathname === item.href || location.pathname + location.search === item.href;
-                      return (
-                        <NavLink
-                          key={item.href}
-                          to={item.href}
-                          onClick={onClose}
-                          className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium
-                            transition-colors duration-150 select-none
-                            ${active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}
-                        >
-                          <Icon className={`h-[15px] w-[15px] shrink-0 transition-colors duration-150
-                            ${active ? 'text-violet-600' : 'text-slate-400 group-hover:text-slate-500'}`} />
-                          <span className="truncate leading-none">{t(item.labelKey)}</span>
-                        </NavLink>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })
-          }
+          {isUsers && isRoleMenuVisible('users', portalConfig) && roleNav.active && (() => {
+            const { grouped, ungrouped, groupOrder } = assignItemsToSidebarGroups(roleItems, USERS_SIDEBAR_GROUPS);
+            return (
+              <>
+                {groupOrder.map((label) => {
+                  const items = grouped.get(label);
+                  if (!items?.length) return null;
+                  return (
+                    <div key={label} className="mb-5 last:mb-0">
+                      <p className="mb-1.5 px-3 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                        {label}
+                      </p>
+                      <div className="space-y-0.5">
+                        {items.map((item) => {
+                          const Icon = item.icon;
+                          const active =
+                            location.pathname === item.href ||
+                            location.pathname + location.search === item.href;
+                          return (
+                            <NavLink
+                              key={`${item.labelKey}-${item.href}`}
+                              to={item.href}
+                              onClick={onClose}
+                              className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors duration-150 select-none ${
+                                active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                              }`}
+                            >
+                              <Icon className="h-[15px] w-[15px] shrink-0" />
+                              <span className="truncate leading-none">{t(item.labelKey)}</span>
+                            </NavLink>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+                {ungrouped.map((item) => {
+                  const Icon = item.icon;
+                  const active =
+                    location.pathname === item.href ||
+                    location.pathname + location.search === item.href;
+                  return (
+                    <NavLink
+                      key={`${item.labelKey}-${item.href}`}
+                      to={item.href}
+                      onClick={onClose}
+                      className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium text-slate-500"
+                    >
+                      <Icon className="h-[15px] w-[15px] shrink-0" />
+                      <span className="truncate leading-none">{t(item.labelKey)}</span>
+                    </NavLink>
+                  );
+                })}
+              </>
+            );
+          })()}
 
-          {!isAdmin && !isStudio && menuFlags.users && usersNavigation.active &&
-            STUDIO_GROUPS.map((group) => {
-              const items = group.keys
-                .map((k) => usersItems.find((i) => i.labelKey === k))
-                .filter(Boolean) as typeof usersItems;
-              if (!items.length) return null;
+          {userRole === 'regular' && isRoleMenuVisible('regular', portalConfig) && roleNav.active && (
+            <div className="space-y-0.5">
+              {roleItems.map((item) => {
+                const Icon = item.icon;
+                const active = location.pathname === item.href;
+                return (
+                  <NavLink
+                    key={`${item.labelKey}-${item.href}`}
+                    to={item.href}
+                    onClick={onClose}
+                    className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors duration-150 ${
+                      active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Icon className="h-[15px] w-[15px] shrink-0" />
+                    <span>{t(item.labelKey)}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          )}
 
-              return (
-                <div key={group.label} className="mb-5 last:mb-0">
-                  <p className="mb-1.5 px-3 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                    {group.label}
-                  </p>
-                  <div className="space-y-0.5">
-                    {items.map((item) => {
-                      const Icon = item.icon;
-                      const active = location.pathname === item.href || location.pathname + location.search === item.href;
-                      return (
-                        <NavLink
-                          key={item.href}
-                          to={item.href}
-                          onClick={onClose}
-                          className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium
-                            transition-colors duration-150 select-none
-                            ${active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}
-                        >
-                          <Icon className={`h-[15px] w-[15px] shrink-0 transition-colors duration-150
-                            ${active ? 'text-violet-600' : 'text-slate-400 group-hover:text-slate-500'}`} />
-                          <span className="truncate leading-none">{t(item.labelKey)}</span>
-                        </NavLink>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })
-          }
-
-          {/* Admin navigation */}
-          {isAdmin && menuFlags.admin && adminNavigation.active && (
+          {isAdmin && isRoleMenuVisible('admin', portalConfig) && roleNav.active && (
               <div>
               <>
               <div className="mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-50 border border-purple-100">
@@ -253,7 +251,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
                 <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-purple-600">Admin Panel</p>
               </div>
               
-              {filteredAdminNav.active === true && filteredAdminNav.items.filter(i=>i.enabled!==false).map((item) => {
+              {roleNav.active === true && roleItems.filter(i=>i.enabled!==false).map((item) => {
                 // For admin items with query params, check both pathname and search
                 const isAdminItemActive = location.pathname + location.search === item.href ||
                   (item.href.includes('?') && location.pathname === '/admin' && location.search === '?' + item.href.split('?')[1]);
@@ -299,15 +297,6 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
 
         {/* ── Bottom ─────────────────────────────────────────────────── */}
         <div className="shrink-0 border-t border-slate-100 px-3 py-2.5 space-y-0.5">
-  {!isAdmin &&   <button
-            type="button"
-            onClick={()=>route('portal-settings')}
-            className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5
-              text-[13px] font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-colors duration-150"
-          >
-            <FaCog className="h-[15px] w-[15px] shrink-0 text-slate-400 group-hover:text-slate-500" />
-            <span>Settings</span>
-          </button>}
           {typeof logout === 'function' && (
             <button
               type="button"
