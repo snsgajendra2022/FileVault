@@ -3,9 +3,6 @@
 @tailwind components;
 @tailwind utilities;
 @import 'react-inner-image-zoom/lib/styles.min.css';
-
-@import url('https://googleapis.com');
-
 @layer base {
   :root {
     --primary-50: #eff6ff;
