@@ -13,7 +13,8 @@ import {
 } from './navConfig';
 import { getResolvedPortalRole, loadPortalGeneralSettings } from '../../utils/portalSettings';
 import { usePortalSettingsOptional } from '../../state/context/PortalSettingsContext';
-import { FaCog, FaCrown, FaSignOutAlt, FaHeart } from 'react-icons/fa';
+import { FaCog, FaCrown, FaSignOutAlt, FaHeart, FaImage, FaCamera} from 'react-icons/fa';
+import { THEME } from 'src/pages/photo-studio/StudioDashboard';
 
 function NavItem({
   item,
@@ -135,18 +136,39 @@ const Sidebar = () => {
         scrollbar-thin scrollbar-thumb-slate-100 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent transition-colors duration-200"
       >
         <div className="px-5 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 shadow-sm shrink-0">
-              <FaHeart className="h-4 w-4 text-white" />
-            </div>
+          <div className="flex items-center gap-3 flex-col">
+            {/* <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm shrink-0">
+              <FaImage className="h-6 w-6 text-blue-400" />
+            </div> */}
+                          <div className="hidden sm:flex items-end gap-2 opacity-90 select-none pointer-events-none">
+                <div className="relative">
+                  {/* Camera body */}
+                  <div className="w-20 h-14 rounded-xl shadow-xl flex items-center justify-center"
+                    style={{ background: THEME.glassBgLight, border: `1px solid ${THEME.border}`, boxShadow: THEME.shadowMedium }}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center"
+                      style={{ border: '4px solid rgba(37 99 235 / 83%)' }}>
+                      <div className="w-4 h-4 rounded-full" style={{ background: 'rgba(37 99 235 / 83%)' }} />
+                    </div>
+                    <div className="absolute top-1.5 right-2 w-2 h-1.5 rounded-sm" style={{ background: 'rgba(37 99 235 / 83%)' }} />
+                  </div>
+                  {/* Flash */}
+                  <div className="absolute -top-1.5 left-3 w-5 h-2 rounded-sm"
+                    style={{ background: '#EFF6FF', border: `1px solid ${THEME.borderLight}` }} />
+                </div>
+                {/* Flower pot */}
+                <div className="flex flex-col items-center mb-1">
+                  <div className="text-lg">🌸</div>
+                  <div className="w-5 h-6 rounded-b-lg"
+                    style={{ background: `linear-gradient(135deg, ${THEME.primary} 0%, ${THEME.primaryLight} 100%)` }} />
+                </div>
+              </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 leading-none mb-0.5">
-                Memories Platform
-              </p>
+              {/* <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 leading-none mb-0.5">
+              {portalName} Platform
+              </p> */}
               <p className="text-[15px] font-bold text-slate-800 dark:text-slate-100 leading-tight">
                 {showAdminNav ? 'Admin Panel' : portalName}
               </p>
-              <p className="text-[10px] font-medium text-slate-400 mt-0.5 capitalize">{userRole}</p>
             </div>
           </div>
         </div>

@@ -1860,6 +1860,8 @@
     "perImageRupee": "₹{{price}}"
   },
   "adminPage": {
+    "badge": "Admin",
+    "panelTitle": "Control panel",
     "accessDenied": "Access Denied",
     "accessDeniedBody": "You don't have permission to access the admin panel.",
     "tabs": {
@@ -1892,7 +1894,8 @@
       "plans": "Manage plans",
       "payments": "Manage payments",
       "analytics": "Manage analytics",
-      "health": "Manage system health"
+      "health": "Manage system health",
+      "settings": "Sidebar menus"
     },
     "systemOverview": "System Overview",
     "totalUsers": "Total Users",

@@ -4,6 +4,20 @@ import adminService, { AdminUser, UserStatistics } from '../../api/services/admi
 import { FaPlus, FaEye, FaEdit, FaCheck, FaTimes, FaUser, FaTrash } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import CreateUserModal from './CreateUserModal';
+import {
+  AdminShell,
+  AdminStatGrid,
+  AdminStatCard,
+  AdminFiltersBar,
+  AdminFilterField,
+  AdminCard,
+  AdminBadge,
+  adminBtnPrimary,
+  adminBtnSecondary,
+  adminInputClass,
+  adminSelectClass,
+  adminTableHeadClass,
+} from './adminUi';
 
 const UserManagement = () => {
   const [currentPage, setCurrentPage] = useState(0);
@@ -159,11 +173,7 @@ const UserManagement = () => {
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.INACTIVE;
-    return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${config.color}`}>
-        {config.label}
-      </span>
-    );
+    return <AdminBadge tone={status === 'ACTIVE' ? 'green' : status === 'SUSPENDED' ? 'rose' : 'amber'}>{config.label}</AdminBadge>;
   };
 
   const getAccountTypeBadge = (accountType: string) => {
@@ -176,74 +186,52 @@ const UserManagement = () => {
     };
 
     const config = typeConfig[accountType as keyof typeof typeConfig] || typeConfig.FREE;
-    return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${config.color}`}>
-        {config.label}
-      </span>
-    );
+    const tone = accountType === 'ADMIN' ? 'rose' : accountType === 'PREMIUM' ? 'purple' : accountType === 'ENTERPRISE' ? 'green' : 'slate';
+    return <AdminBadge tone={tone as 'slate'}>{config.label}</AdminBadge>;
   };
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">User Management</h3>
-          <p className="text-sm text-gray-600">Manage all users in the system</p>
-        </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="btn-primary flex items-center space-x-2"
-        >
+    <AdminShell
+      embedded
+      badge="Admin"
+      badgeIcon={FaUser}
+      title="User management"
+      subtitle="Manage all users, roles, and account status."
+      actions={
+        <button type="button" onClick={() => setShowCreateModal(true)} className={adminBtnPrimary}>
           <FaUser className="h-4 w-4" />
-          <span>Add User</span>
+          Add user
         </button>
-      </div>
-
-      {/* Statistics Cards */}
+      }
+    >
       {!statsLoading && userStats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <p className="text-sm font-medium text-blue-600">Total Users</p>
-            <p className="text-2xl font-bold text-blue-900">{userStats.totalUsers}</p>
-          </div>
-          <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-            <p className="text-sm font-medium text-green-600">Active Users</p>
-            <p className="text-2xl font-bold text-green-900">{userStats.activeUsers}</p>
-          </div>
-          <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-            <p className="text-sm font-medium text-yellow-600">Pending Verification</p>
-            <p className="text-2xl font-bold text-yellow-900">{userStats.statusCounts.PENDING_VERIFICATION || 0}</p>
-          </div>
-          <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-            <p className="text-sm font-medium text-purple-600">Recent Registrations</p>
-            <p className="text-2xl font-bold text-purple-900">{userStats.recentRegistrations}</p>
-          </div>
-        </div>
+        <AdminStatGrid>
+          <AdminStatCard tone="blue" label="Total users" value={userStats.totalUsers} icon={FaUser} />
+          <AdminStatCard tone="green" label="Active users" value={userStats.activeUsers} />
+          <AdminStatCard
+            tone="amber"
+            label="Pending verification"
+            value={userStats.statusCounts?.PENDING_VERIFICATION || 0}
+          />
+          <AdminStatCard tone="purple" label="Recent registrations" value={userStats.recentRegistrations} />
+        </AdminStatGrid>
       )}
 
-      {/* Filters */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-            <div className="relative">
+      <AdminFiltersBar>
+          <AdminFilterField label="Search">
               <input
                 type="text"
                 placeholder="Search users..."
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="input-modern pl-10"
+                className={adminInputClass}
               />
-              <FaPlus className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          </AdminFilterField>
+          <AdminFilterField label="Status">
             <select
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="input-modern"
+              className={adminSelectClass}
             >
               <option value="">All Status</option>
               <option value="ACTIVE">Active</option>
@@ -252,13 +240,12 @@ const UserManagement = () => {
               <option value="LOCKED">Locked</option>
               <option value="INACTIVE">Inactive</option>
             </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+          </AdminFilterField>
+          <AdminFilterField label="Account type">
             <select
               value={filters.accountType}
               onChange={(e) => handleFilterChange('accountType', e.target.value)}
-              className="input-modern"
+              className={adminSelectClass}
             >
               <option value="">All Types</option>
               <option value="FREE">Free</option>
@@ -267,28 +254,24 @@ const UserManagement = () => {
               <option value="ENTERPRISE">Enterprise</option>
               <option value="ADMIN">Admin</option>
             </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Page Size</label>
+          </AdminFilterField>
+          <AdminFilterField label="Page size">
             <select
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
-              className="input-modern"
+              className={adminSelectClass}
             >
               <option value={10}>10</option>
               <option value={20}>20</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
             </select>
-          </div>
-        </div>
-      </div>
+          </AdminFilterField>
+      </AdminFiltersBar>
 
-      {/* Users Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+      <AdminCard className="overflow-hidden p-0">
+          <table className="min-w-full divide-y divide-slate-200">
+            <thead className={adminTableHeadClass}>
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   User
@@ -429,11 +412,8 @@ const UserManagement = () => {
               )}
             </tbody>
           </table>
-        </div>
-
-        {/* Pagination */}
-        {usersData && (
-          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+        {usersData ? (
+          <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 sm:px-6">
             <div className="flex-1 flex justify-between sm:hidden">
               <button
                 onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
@@ -497,10 +477,9 @@ const UserManagement = () => {
               </div>
             </div>
           </div>
-        )}
-      </div>
+        ) : null}
+      </AdminCard>
 
-      {/* Create User Modal */}
       {showCreateModal && (
         <CreateUserModal
           onClose={() => setShowCreateModal(false)}
@@ -509,7 +488,6 @@ const UserManagement = () => {
         />
       )}
 
-      {/* User Details Modal */}
       {showDetailsModal && selectedUser && (
         <UserDetailsModal
           user={selectedUser}
@@ -519,7 +497,7 @@ const UserManagement = () => {
           }}
         />
       )}
-    </div>
+    </AdminShell>
   );
 };
 

@@ -3,6 +3,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import adminService, { ServiceConfiguration, ServiceStatistics } from '../../api/services/adminService';
 import { FaCloud, FaPlus, FaTimes, FaSave, FaEye, FaEyeSlash, FaCog, FaShieldAlt, FaCheck } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import {
+  AdminShell,
+  AdminStatGrid,
+  AdminStatCard,
+  AdminCard,
+  AdminFiltersBar,
+  AdminFilterField,
+  adminBtnPrimary,
+  adminSelectClass,
+  adminTableHeadClass,
+} from './adminUi';
 
 interface ServiceField {
   id: string;
@@ -165,132 +176,92 @@ const ServiceManagement = () => {
   };
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h3 className="text-2xl font-bold text-gray-900">Service Management</h3>
-          <p className="text-sm text-gray-600">Manage existing services and create dynamic configurations</p>
-        </div>
-        {/* <button
-          onClick={handleCreateService}
-          className="btn-primary flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-        >
-          <FaPlus className="h-4 w-4" />
-          <span>Create Dynamic Service</span>
-        </button> */}
-      </div>
-
-      {/* Statistics Cards */}
+    <AdminShell
+      embedded
+      badge="Admin"
+      badgeIcon={FaCloud}
+      title="Service management"
+      subtitle="Manage cloud service configurations and connections."
+    >
       {!statsLoading && serviceStats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <p className="text-sm font-medium text-blue-600">Total Configurations</p>
-            <p className="text-2xl font-bold text-blue-900">{serviceStats.totalConfigurations}</p>
-          </div>
-          <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-            <p className="text-sm font-medium text-green-600">Connected Services</p>
-            <p className="text-2xl font-bold text-green-900">{serviceStats.connectionStatusCounts.CONNECTED || 0}</p>
-          </div>
-          <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-            <p className="text-sm font-medium text-red-600">Failed Connections</p>
-            <p className="text-2xl font-bold text-red-900">{serviceStats.connectionStatusCounts.FAILED || 0}</p>
-          </div>
-          <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-            <p className="text-sm font-medium text-purple-600">Unique Users</p>
-            <p className="text-2xl font-bold text-purple-900">{serviceStats.uniqueUsersWithServices}</p>
-          </div>
-        </div>
+        <AdminStatGrid>
+          <AdminStatCard tone="blue" label="Total configurations" value={serviceStats.totalConfigurations} icon={FaCloud} />
+          <AdminStatCard tone="green" label="Connected" value={serviceStats.connectionStatusCounts?.CONNECTED || 0} />
+          <AdminStatCard tone="rose" label="Failed" value={serviceStats.connectionStatusCounts?.FAILED || 0} />
+          <AdminStatCard tone="purple" label="Unique users" value={serviceStats.uniqueUsersWithServices} />
+        </AdminStatGrid>
       )}
 
       {/* Service Type Distribution */}
       {!statsLoading && serviceStats && (
-        <div className="bg-white rounded-lg p-4 border border-gray-200 mb-6">
-          <h4 className="text-md font-medium text-gray-900 mb-3">Service Type Distribution</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <AdminCard title="Service type distribution" className="mb-6">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             {Object.entries(serviceStats.serviceTypeCounts).map(([type, count]) => (
-              <div key={type} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span className="font-medium text-gray-700">{type.replace('_', ' ')}</span>
-                <span className="text-lg font-bold text-gray-900">{count}</span>
+              <div key={type} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-3">
+                <span className="font-medium text-slate-700">{type.replace('_', ' ')}</span>
+                <span className="text-lg font-bold text-slate-900">{count}</span>
               </div>
             ))}
           </div>
-        </div>
+        </AdminCard>
       )}
 
-      {/* Filters */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Service Type</label>
+      <AdminFiltersBar>
+          <AdminFilterField label="Service type">
             <select
               value={filters.serviceType}
               onChange={(e) => handleFilterChange('serviceType', e.target.value)}
-              className="input-modern"
+              className={adminSelectClass}
             >
               <option value="">All Types</option>
               <option value="S3_BUCKET">S3 Bucket</option>
               <option value="B2_SERVICE">Backblaze B2</option>
               <option value="GOOGLE_DRIVE">Google Drive</option>
             </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Connection Status</label>
+          </AdminFilterField>
+          <AdminFilterField label="Connection status">
             <select
               value={filters.status}
               onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="input-modern"
+              className={adminSelectClass}
             >
               <option value="">All Status</option>
               <option value="CONNECTED">Connected</option>
               <option value="FAILED">Failed</option>
               <option value="NOT_TESTED">Not Tested</option>
             </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Page Size</label>
+          </AdminFilterField>
+          <AdminFilterField label="Page size">
             <select
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
-              className="input-modern"
+              className={adminSelectClass}
             >
               <option value={10}>10</option>
               <option value={20}>20</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
             </select>
-          </div>
-        </div>
-      </div>
+          </AdminFilterField>
+      </AdminFiltersBar>
 
-      {/* Existing Services Table */}
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">Existing Service Configurations</h3>
-        <p className="text-sm text-gray-600 mb-4">Manage and monitor current user service connections</p>
-      </div>
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden mb-8">
+      <AdminCard
+        title="Existing service configurations"
+        description="Manage and monitor current user service connections"
+        className="mb-8 overflow-hidden p-0"
+      >
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-slate-200">
+            <thead className={adminTableHeadClass}>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Service
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3">User</th>
+                <th className="px-6 py-3">Service</th>
+                <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-3">
                   Enabled
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Tested
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th className="px-6 py-3">Last tested</th>
+                <th className="px-6 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -445,7 +416,7 @@ const ServiceManagement = () => {
             </div>
           </div>
         )}
-      </div>
+      </AdminCard>
 
       {/* Dynamic Service Configurations */}
       <div className="mb-8">
@@ -531,10 +502,7 @@ const ServiceManagement = () => {
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Dynamic Service Configurations</h3>
                 <p className="text-gray-500 mb-6">Create your first dynamic service configuration to get started.</p>
-                <button
-                  onClick={handleCreateService}
-                  className="btn-primary flex items-center space-x-2 mx-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                >
+                <button type="button" onClick={handleCreateService} className={`${adminBtnPrimary} mx-auto`}>
                   <FaPlus className="h-4 w-4" />
                   <span>Create First Dynamic Service</span>
                 </button>
@@ -556,7 +524,7 @@ const ServiceManagement = () => {
           isLoading={createServiceMutation.isPending}
         />
       )}
-    </div>
+    </AdminShell>
   );
 };
 

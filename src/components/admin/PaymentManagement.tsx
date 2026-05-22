@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/client/axiosInstance';
 import { FaCheck, FaTimes, FaEye, FaImage, FaRupeeSign, FaClock, FaUser, FaFileImage } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import { AdminShell, AdminStatGrid, AdminStatCard, adminBtnPrimary, adminCardClass } from './adminUi';
 
 interface PendingPayment {
   id: number;
@@ -164,20 +165,18 @@ const PaymentManagement = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-            <FaRupeeSign className="mr-2 text-[#2731db]" />
-            Payment Management
-          </h1>
-          <p className="text-gray-600 mt-1">Review and manage pending payment submissions</p>
-        </div>
+    <AdminShell
+      embedded
+      badge="Admin"
+      badgeIcon={FaRupeeSign}
+      title="Payment management"
+      subtitle="Review and manage pending payment submissions."
+      actions={
         <button
+          type="button"
           onClick={() => refetch()}
           disabled={isFetching}
-          className="px-4 py-2 bg-[#2731db] text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+          className={adminBtnPrimary}
         >
           {isFetching ? (
             <>
@@ -188,45 +187,24 @@ const PaymentManagement = () => {
             <span>Refresh</span>
           )}
         </button>
-      </div>
+      }
+    >
+      <AdminStatGrid className="mb-6 sm:grid-cols-3">
+        <AdminStatCard tone="amber" label="Pending payments" value={payments.length} icon={FaClock} />
+        <AdminStatCard
+          tone="indigo"
+          label="Total amount"
+          value={formatAmount(payments.reduce((sum, p) => sum + (p.totalAmount || 0), 0))}
+        />
+        <AdminStatCard
+          tone="blue"
+          label="Total images"
+          value={payments.reduce((sum, p) => sum + (p.imageCount || p.imageIds?.length || 0), 0)}
+          icon={FaImage}
+        />
+      </AdminStatGrid>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Pending Payments</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{payments.length}</p>
-            </div>
-            <FaClock className="text-3xl text-yellow-500" />
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Amount</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
-                {formatAmount(payments.reduce((sum, p) => sum + (p.totalAmount || 0), 0))}
-              </p>
-            </div>
-            <FaRupeeSign className="text-3xl text-green-500" />
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Images</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">
-                {payments.reduce((sum, p) => sum + (p.imageCount || p.imageIds?.length || 0), 0)}
-              </p>
-            </div>
-            <FaImage className="text-3xl text-blue-500" />
-          </div>
-        </div>
-      </div>
-
-      {/* Payments Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className={`${adminCardClass} overflow-hidden`}>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -598,7 +576,7 @@ const PaymentManagement = () => {
           </div>
         </div>
       )}
-    </div>
+    </AdminShell>
   );
 };
 

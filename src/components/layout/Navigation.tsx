@@ -9,8 +9,9 @@ import {
   isRoleMenuVisible,
   useRoleNavigation,
 } from './navConfig';
-import { getResolvedPortalRole } from '../../utils/portalSettings';
+import { getResolvedPortalRole, loadPortalGeneralSettings } from '../../utils/portalSettings';
 import { FaTimes, FaCrown, FaCog, FaSignOutAlt, FaHeart, FaChevronRight } from 'react-icons/fa';
+import { usePortalSettingsOptional } from 'src/state/context/PortalSettingsContext';
 
 function getInitials(firstName?: string, lastName?: string, username?: string): string {
   if (firstName && lastName) return `${firstName[0]}${lastName[0]}`.toUpperCase();
@@ -29,12 +30,20 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
   const { user, logout } = useAuth() as any;
   const location = useLocation();
   const route = useNavigate();
+  const portalCtx = usePortalSettingsOptional();
   const userRole = React.useMemo(
     () => getResolvedPortalRole(user),
     [user?.role, user?.accountType]
   );
-
   const { nav: roleNav, config: portalConfig } = useRoleNavigation(userRole);
+  const showAdminNav = userRole === 'admin' && isRoleMenuVisible('admin', portalConfig) && roleNav.active;
+  const showStudioNav = userRole === 'studio' && isRoleMenuVisible('studio', portalConfig) && roleNav.active;
+  const showUsersNav = userRole === 'users' && isRoleMenuVisible('users', portalConfig) && roleNav.active;
+  const showRegularNav = userRole === 'regular' && isRoleMenuVisible('regular', portalConfig) && roleNav.active;
+  const portalName =
+    portalCtx?.config.settings.portalName ??
+    portalConfig?.settings.portalName ??
+    loadPortalGeneralSettings().portalName;
   const roleItems = roleNav.items;
   const isAdmin = userRole === 'admin';
   const isStudio = userRole === 'studio';
@@ -74,15 +83,15 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
         {/* ── Brand ──────────────────────────────────────────────────── */}
         <div className="shrink-0 flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-600 shadow-sm">
-              <FaHeart className="h-3.5 w-3.5 text-white" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-300 shadow-sm">
+              <FaHeart className="h-3.5 w-3.5 text-red-500" />
             </div>
             <div>
-              <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-400 leading-none mb-0.5">
-                Memories Platform
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 leading-none mb-0.5">
+              {portalName} Platform
               </p>
-              <p className="text-[13px] font-bold text-slate-800 leading-tight">
-                {isAdmin ? 'Admin Panel' : 'Our Memories'}
+              <p className="text-[15px] font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                {showAdminNav ? 'Admin Panel' : portalName}
               </p>
             </div>
           </div>

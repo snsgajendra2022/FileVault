@@ -26,6 +26,14 @@ import {
 } from '../../utils/portalSettings';
 import { KNOWN_NAV_LABEL_KEYS } from '../layout/navConfig';
 import LoadingSpinner from '../common/LoadingSpinner';
+import {
+  AdminShell,
+  AdminCard,
+  adminBtnPrimary,
+  adminBtnSecondary,
+  adminInputClass,
+  adminTableHeadClass,
+} from './adminUi';
 
 const ROLES: RoleType[] = ['admin', 'studio', 'users', 'regular'];
 const ACTION_KEYS: Array<keyof MenuPermissionAction> = [
@@ -238,57 +246,43 @@ const PortalMenuManagement = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center bg-white">
+      <div className="flex min-h-[40vh] items-center justify-center">
         <LoadingSpinner />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-      <div className="mx-auto max-w-7xl">
-        <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-indigo-600">
-              <FaBars className="h-5 w-5" />
-              <span className="text-xs font-bold uppercase tracking-wider">
-                {t('adminPortalMenu.badge')}
-              </span>
-            </div>
-            <h1 className="mt-1 text-2xl font-bold text-gray-900">{t('adminPortalMenu.title')}</h1>
-            <p className="mt-1 text-sm text-gray-600">{t('adminPortalMenu.subtitle')}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void loadConfig()}
-              disabled={loading || saving}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <FaSync className="h-4 w-4" />
-              {t('adminPortalMenu.reload')}
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleSave()}
-              disabled={saving || !dirty}
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-            >
-              <FaSave className="h-4 w-4" />
-              {saving ? t('adminPortalMenu.saving') : t('adminPortalMenu.save')}
-            </button>
-          </div>
-        </header>
-
-        {/* Role sidebar visibility (menuFlags) */}
-        <section className="mb-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-gray-900">{t('adminPortalMenu.menuFlagsTitle')}</h2>
-          <p className="mt-1 text-xs text-gray-500">{t('adminPortalMenu.menuFlagsDesc')}</p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <AdminShell
+      embedded
+      badge={t('adminPortalMenu.badge')}
+      badgeIcon={FaBars}
+      title={t('adminPortalMenu.title')}
+      subtitle={t('adminPortalMenu.subtitle')}
+      actions={
+        <>
+          <button type="button" onClick={() => void loadConfig()} disabled={saving} className={adminBtnSecondary}>
+            <FaSync className="h-4 w-4" />
+            {t('adminPortalMenu.reload')}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={saving || !dirty}
+            className={adminBtnPrimary}
+          >
+            <FaSave className="h-4 w-4" />
+            {saving ? t('adminPortalMenu.saving') : t('adminPortalMenu.save')}
+          </button>
+        </>
+      }
+    >
+        <AdminCard title={t('adminPortalMenu.menuFlagsTitle')} description={t('adminPortalMenu.menuFlagsDesc')} className="mb-6">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {ROLES.map((role) => (
               <label
                 key={role}
-                className="flex cursor-pointer items-center justify-between rounded-lg border border-gray-200 px-4 py-3 hover:bg-gray-50"
+                className="flex cursor-pointer items-center justify-between rounded-lg border border-slate-200 px-4 py-3 hover:bg-slate-50"
               >
                 <span className="text-sm font-medium capitalize">{roleLabel(role)}</span>
                 <input
@@ -303,7 +297,7 @@ const PortalMenuManagement = () => {
               </label>
             ))}
           </div>
-        </section>
+        </AdminCard>
 
         {/* Role tabs */}
         <div className="mb-4 flex flex-wrap gap-2">
@@ -315,7 +309,7 @@ const PortalMenuManagement = () => {
               className={`rounded-lg px-4 py-2 text-sm font-semibold capitalize transition ${
                 selectedRole === role
                   ? 'bg-indigo-600 text-white shadow'
-                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                  : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
               {roleLabel(role)}
@@ -326,14 +320,14 @@ const PortalMenuManagement = () => {
           ))}
         </div>
 
-        <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-3 border-b border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <AdminCard className="overflow-hidden p-0">
+          <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('adminPortalMenu.searchPlaceholder')}
-              className="w-full max-w-md rounded-lg border border-gray-300 px-3 py-2 text-sm sm:w-auto"
+              className={`${adminInputClass} max-w-md sm:w-auto`}
             />
             <div className="flex flex-wrap gap-2">
               <button
@@ -370,8 +364,8 @@ const PortalMenuManagement = () => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className={adminTableHeadClass}>
                 <tr>
                   <th className="px-3 py-3 text-left text-xs font-bold uppercase text-gray-500">
                     {t('adminPortalMenu.colShow')}
@@ -503,11 +497,10 @@ const PortalMenuManagement = () => {
               <option key={k} value={k} />
             ))}
           </datalist>
-        </section>
+        </AdminCard>
 
-        <p className="mt-4 text-xs text-gray-500">{t('adminPortalMenu.footerHint')}</p>
-      </div>
-    </div>
+        <p className="mt-4 text-xs text-slate-500">{t('adminPortalMenu.footerHint')}</p>
+    </AdminShell>
   );
 };
 

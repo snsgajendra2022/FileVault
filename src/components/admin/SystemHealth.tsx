@@ -1,7 +1,15 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import adminService, { SystemHealth as SystemHealthType } from '../../api/services/adminService';
-import { FaUsers, FaExclamationTriangle, FaCheck } from 'react-icons/fa';
+import { FaUsers, FaExclamationTriangle, FaCheck, FaShieldAlt } from 'react-icons/fa';
+import {
+  AdminShell,
+  AdminStatGrid,
+  AdminStatCard,
+  AdminCard,
+  AdminEmptyState,
+  adminBtnSecondary,
+} from './adminUi';
 
 const SystemHealth = () => {
   // Fetch system health data
@@ -58,111 +66,63 @@ const SystemHealth = () => {
   };
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">System Health Monitor</h3>
-          <p className="text-sm text-gray-600">Real-time system performance and status</p>
-        </div>
-        <button
-          onClick={() => refetch()}
-          className="btn-secondary flex items-center space-x-2"
-        >
+    <AdminShell
+      embedded
+      badge="Admin"
+      badgeIcon={FaShieldAlt}
+      title="System health"
+      subtitle="Real-time system performance and status."
+      actions={
+        <button type="button" onClick={() => refetch()} className={adminBtnSecondary}>
           <FaUsers className="h-4 w-4" />
-          <span>Refresh</span>
+          Refresh
         </button>
-      </div>
-
+      }
+    >
       {isLoading ? (
-        <div className="text-center py-8">
-          <p className="text-gray-500">Loading system health data...</p>
-        </div>
+        <AdminEmptyState title="Loading system health…" />
       ) : systemHealth ? (
         <>
-          {/* System Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-600">Total Users</p>
-                  <p className="text-2xl font-bold text-blue-900">
-                    {formatNumber(systemHealth.totalUsers)}
-                  </p>
-                  <p className="text-sm text-blue-700">
-                    Registered accounts
-                  </p>
-                </div>
-                <div className="h-12 w-12 bg-blue-500 rounded-lg flex items-center justify-center">
-                  <FaUsers className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </div>
+          <AdminStatGrid>
+            <AdminStatCard
+              tone="blue"
+              label="Total users"
+              value={formatNumber(systemHealth.totalUsers)}
+              hint="Registered accounts"
+              icon={FaUsers}
+            />
+            <AdminStatCard
+              tone="green"
+              label="Active users"
+              value={formatNumber(systemHealth.activeUsers)}
+              hint="Currently online"
+              icon={FaUsers}
+            />
+            <AdminStatCard
+              tone="purple"
+              label="Total images"
+              value={formatNumber(systemHealth.totalImages)}
+              hint="Files stored"
+              icon={FaUsers}
+            />
+            <AdminStatCard
+              tone="amber"
+              label="Storage used"
+              value={formatBytes(systemHealth.totalStorageUsedGB * 1024 * 1024 * 1024)}
+              hint={`${systemHealth.totalStorageUsedGB?.toFixed(2)} GB`}
+              icon={FaShieldAlt}
+            />
+          </AdminStatGrid>
 
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-green-600">Active Users</p>
-                  <p className="text-2xl font-bold text-green-900">
-                    {formatNumber(systemHealth.activeUsers)}
-                  </p>
-                  <p className="text-sm text-green-700">
-                    Currently online
-                  </p>
-                </div>
-                <div className="h-12 w-12 bg-green-500 rounded-lg flex items-center justify-center">
-                  <FaUsers className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-purple-600">Total Images</p>
-                  <p className="text-2xl font-bold text-purple-900">
-                    {formatNumber(systemHealth.totalImages)}
-                  </p>
-                  <p className="text-sm text-purple-700">
-                    Files stored
-                  </p>
-                </div>
-                                 <div className="h-12 w-12 bg-purple-500 rounded-lg flex items-center justify-center">
-                   <FaUsers className="h-6 w-6 text-white" />
-                 </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-orange-600">Storage Used</p>
-                  <p className="text-2xl font-bold text-orange-900">
-                    {formatBytes(systemHealth.totalStorageUsedGB * 1024 * 1024 * 1024)}
-                  </p>
-                  <p className="text-sm text-orange-700">
-                    {systemHealth.totalStorageUsedGB?.toFixed(2)} GB
-                  </p>
-                </div>
-                                 <div className="h-12 w-12 bg-orange-500 rounded-lg flex items-center justify-center">
-                   <FaUsers className="h-6 w-6 text-white" />
-                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Health Status Indicators */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* User Health */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">User Health Status</h4>
+          <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <AdminCard title="User health">
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 rounded-lg border">
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
                   <div className="flex items-center space-x-3">
                     {getStatusIcon(getHealthStatus(systemHealth.pendingVerifications, 10, 'high'))}
                     <div>
-                      <p className="font-medium text-gray-900">Pending Verifications</p>
-                      <p className="text-sm text-gray-600">Users awaiting approval</p>
+                      <p className="font-medium text-slate-900">Pending verifications</p>
+                      <p className="text-sm text-slate-500">Users awaiting approval</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -175,12 +135,12 @@ const SystemHealth = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg border">
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
                   <div className="flex items-center space-x-3">
                     {getStatusIcon(getHealthStatus(systemHealth.suspendedUsers, 5, 'high'))}
                     <div>
-                      <p className="font-medium text-gray-900">Suspended Users</p>
-                      <p className="text-sm text-gray-600">Accounts temporarily disabled</p>
+                      <p className="font-medium text-slate-900">Suspended users</p>
+                      <p className="text-sm text-slate-500">Accounts temporarily disabled</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -193,18 +153,16 @@ const SystemHealth = () => {
                   </div>
                 </div>
               </div>
-            </div>
+            </AdminCard>
 
-            {/* Service Health */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">Service Health Status</h4>
+            <AdminCard title="Service health">
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 rounded-lg border">
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
                   <div className="flex items-center space-x-3">
                     {getStatusIcon(getHealthStatus(systemHealth.failedServiceConnections, 3, 'high'))}
                     <div>
-                      <p className="font-medium text-gray-900">Failed Connections</p>
-                      <p className="text-sm text-gray-600">Service configuration issues</p>
+                      <p className="font-medium text-slate-900">Failed connections</p>
+                      <p className="text-sm text-slate-500">Service configuration issues</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -217,12 +175,12 @@ const SystemHealth = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg border">
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
                   <div className="flex items-center space-x-3">
                     {getStatusIcon('healthy')}
                     <div>
-                      <p className="font-medium text-gray-900">Total Configurations</p>
-                      <p className="text-sm text-gray-600">Service configurations</p>
+                      <p className="font-medium text-slate-900">Total configurations</p>
+                      <p className="text-sm text-slate-500">Service configurations</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -233,18 +191,16 @@ const SystemHealth = () => {
                   </div>
                 </div>
               </div>
-            </div>
+            </AdminCard>
           </div>
 
-          {/* System Metrics */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4">System Metrics</h4>
+          <AdminCard title="System metrics" className="mb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center">
                 <div className="h-24 w-24 mx-auto mb-3 rounded-full bg-blue-100 flex items-center justify-center">
                   <FaUsers className="h-8 w-8 text-blue-600" />
                 </div>
-                <h5 className="font-semibold text-gray-900">User Activity</h5>
+                <h5 className="font-semibold text-slate-900">User activity</h5>
                 <p className="text-2xl font-bold text-blue-600">
                   {systemHealth.activeUsers > 0 ? Math.round((systemHealth.activeUsers / systemHealth.totalUsers) * 100) : 0}%
                 </p>
@@ -255,7 +211,7 @@ const SystemHealth = () => {
                                  <div className="h-24 w-24 mx-auto mb-3 rounded-full bg-green-100 flex items-center justify-center">
                    <FaUsers className="h-8 w-8 text-green-600" />
                  </div>
-                <h5 className="font-semibold text-gray-900">Storage Efficiency</h5>
+                <h5 className="font-semibold text-slate-900">Storage efficiency</h5>
                 <p className="text-2xl font-bold text-green-600">
                   {systemHealth.totalImages > 0 ? Math.round(systemHealth.totalStorageUsedGB / systemHealth.totalImages) : 0}
                 </p>
@@ -266,7 +222,7 @@ const SystemHealth = () => {
                                  <div className="h-24 w-24 mx-auto mb-3 rounded-full bg-purple-100 flex items-center justify-center">
                    <FaUsers className="h-8 w-8 text-purple-600" />
                  </div>
-                <h5 className="font-semibold text-gray-900">Service Reliability</h5>
+                <h5 className="font-semibold text-slate-900">Service reliability</h5>
                 <p className="text-2xl font-bold text-purple-600">
                   {systemHealth.totalServiceConfigurations > 0 ? 
                     Math.round(((systemHealth.totalServiceConfigurations - systemHealth.failedServiceConnections) / systemHealth.totalServiceConfigurations) * 100) : 100}%
@@ -274,11 +230,9 @@ const SystemHealth = () => {
                 <p className="text-sm text-gray-600">Success rate</p>
               </div>
             </div>
-          </div>
+          </AdminCard>
 
-          {/* Health Alerts */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mt-6">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4">Health Alerts</h4>
+          <AdminCard title="Health alerts">
             <div className="space-y-3">
               {systemHealth.pendingVerifications > 10 && (
                 <div className="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -328,14 +282,12 @@ const SystemHealth = () => {
                 </div>
               )}
             </div>
-          </div>
+          </AdminCard>
         </>
       ) : (
-        <div className="text-center py-8">
-          <p className="text-gray-500">No system health data available</p>
-        </div>
+        <AdminEmptyState icon={FaShieldAlt} title="No system health data available" />
       )}
-    </div>
+    </AdminShell>
   );
 };
 
