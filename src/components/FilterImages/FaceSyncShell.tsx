@@ -1,17 +1,19 @@
 import React from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import './faceSync.css';
 
 const NAV = [
-  { to: '/filter-images/photos', label: 'Photos' },
-  { to: '/filter-images/people', label: 'People' },
-  { to: '/filter-images/suggestions', label: 'Suggestions' },
-  { to: '/filter-images/upload', label: 'Upload' },
+  { segment: 'photos', labelKey: 'faceSync.navPhotos' },
+  { segment: 'people', labelKey: 'faceSync.navPeople' },
+  { segment: 'suggestions', labelKey: 'faceSync.navSuggestions' },
+  // { segment: 'upload', labelKey: 'faceSync.navUpload' },
 ] as const;
 
 const FaceSyncShell: React.FC = () => {
-  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const { t } = useTranslation();
   const navigate = useNavigate();
+  const [mobileOpen, setMobileOpen] = React.useState(false);
   const [globalSearch, setGlobalSearch] = React.useState('');
 
   const onGlobalSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -21,80 +23,64 @@ const FaceSyncShell: React.FC = () => {
     navigate(q ? `/filter-images/people?q=${encodeURIComponent(q)}` : '/filter-images/people');
   };
 
+  const tabClass = ({ isActive }: { isActive: boolean }) =>
+    `rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+      isActive
+        ? 'bg-[#EFF6FF] text-[#2563EB] shadow-sm'
+        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+    }`;
+
   return (
-    <div className="font-sans antialiased text-slate-900">
-      <a className="skip-link" href="#filter-images-main">
-        Skip to main content
-      </a>
-      <div className="app-shell lg:grid lg:grid-cols-[280px_1fr]">
-        <aside className="desktop-sidebar sidebar-rail border-r border-slate-200/80 bg-white/90 p-6 backdrop-blur-xl">
-          <div className="mb-10 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-sm font-bold text-white shadow-lg shadow-indigo-500/25">
-              F
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight text-slate-900">FaceSync</h1>
-              <p className="text-xs text-slate-500">Face intelligence</p>
-            </div>
-          </div>
-          <nav className="space-y-1.5" aria-label="Primary">
-            {NAV.map(({ to, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) => `sidebar-link${isActive ? ' is-active' : ''}`}
-              >
-                {label}
+    <div className="face-sync-in-layout min-w-0 text-slate-900">
+      <div className="mb-4 rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+          <button
+            type="button"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 sm:hidden"
+            onClick={() => setMobileOpen((o) => !o)}
+          >
+            {t('faceSync.menu')}
+          </button>
+          <nav
+            className={`${mobileOpen ? 'flex' : 'hidden'} w-full flex-wrap gap-1 sm:flex sm:w-auto`}
+            aria-label={t('faceSync.navAria')}
+          >
+            {NAV.map(({ segment, labelKey }) => (
+              <NavLink key={segment} to={segment} className={tabClass} onClick={() => setMobileOpen(false)}>
+                {t(labelKey)}
               </NavLink>
             ))}
           </nav>
-        </aside>
+          </div>
+          <div className="hidden min-w-0 flex-1 sm:block sm:max-w-md">
+            <input
+              type="search"
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              onKeyDown={onGlobalSearch}
+              autoComplete="off"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm transition focus:border-[#2563EB]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
+              placeholder={t('faceSync.searchPlaceholder')}
+            />
+          </div>
+        </div>
 
-        <main id="filter-images-main" className="page-enter min-h-0">
-          <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 px-4 py-4 shadow-sm backdrop-blur-xl lg:px-8">
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                className="mobile-nav-trigger rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/30 lg:hidden"
-                onClick={() => setMobileOpen((o) => !o)}
-              >
-                Menu
-              </button>
-              <div className="hidden min-w-0 flex-1 md:block">
-                <input
-                  type="search"
-                  value={globalSearch}
-                  onChange={(e) => setGlobalSearch(e.target.value)}
-                  onKeyDown={onGlobalSearch}
-                  autoComplete="off"
-                  className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm shadow-sm transition focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-200/80"
-                  placeholder="Search people — Enter to open grid"
-                />
-              </div>
-              <Link
-                to="/studio/dashboard"
-                className="ml-auto rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
-              >
-                Back to studio
-              </Link>
-            </div>
-            {mobileOpen && (
-              <div className="mt-3 space-y-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:hidden">
-                {NAV.map(({ to, label }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    className={({ isActive }) => `sidebar-link block${isActive ? ' is-active' : ''}`}
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    {label}
-                  </NavLink>
-                ))}
-              </div>
-            )}
-          </header>
-          <Outlet />
-        </main>
+        <div className="mt-3 sm:hidden">
+          <input
+            type="search"
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+            onKeyDown={onGlobalSearch}
+            autoComplete="off"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm"
+            placeholder={t('faceSync.searchPlaceholder')}
+          />
+        </div>
+      </div>
+
+      <div id="filter-images-main" className="page-enter min-w-0">
+        <Outlet />
       </div>
     </div>
   );

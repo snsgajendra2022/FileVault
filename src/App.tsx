@@ -262,6 +262,8 @@ const AppRoutes = () => {
         <Route path="phonebook/new" element={<PhoneBookCreatePage />} />
         <Route path="phonebook/:contactId" element={<PhoneBookDetailPage />} />
         <Route path="phonebook/:contactId/edit" element={<PhoneBookEditPage />} />
+        {/* Face filter — inside main layout (sidebar + header) */}
+        <Route path="filter-images/*" element={<FilterImagesPage />} />
         <Route path="photo-themes/:categorySlug" element={<PhotoThemeCategoryPage />} />
         <Route path="photo-themes/:categorySlug/album" element={<PhotoThemeAlbumBuilderPage />} />
         {/* Admin route with proper protection */}
@@ -276,16 +278,6 @@ const AppRoutes = () => {
         } />
       </Route>
 
-      {/* FaceSync — full-screen UI (face filter / identity gallery) */}
-      <Route
-        path="/filter-images/*"
-        element={
-          <ProtectedRoute>
-            <FilterImagesPage />
-          </ProtectedRoute>
-        }
-      />
-      
       {/* Catch all other routes and show 404 page */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

@@ -9,17 +9,25 @@ import api from '../../api/client/axiosInstance';
 import imageService from '../../api/services/imageService';
 import toast from 'react-hot-toast';
 import {
-  FaCloudUploadAlt,
   FaFileImage,
   FaTimes,
-  FaCheck,
   FaExclamationTriangle,
-  FaPlus,
-  FaFolder,
-  FaClock,
-  FaRedoAlt,
   FaVideo,
 } from 'react-icons/fa';
+import {
+  Upload,
+  FolderArchive,
+  Folder,
+  Scissors,
+  Archive,
+  X,
+  RotateCcw,
+  ArrowUpFromLine,
+  Search,
+  Cloud,
+  FileText,
+  AlertCircle,
+} from 'lucide-react';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useQuery } from '@tanstack/react-query';
 import { FamilyMemberSkeleton } from '../../components/common/skeletons';
@@ -1030,11 +1038,13 @@ const UploadFamilyImagesPage = () => {
     [canUpload, isFileTypeAllowed, selectedAlbumId, selectedMemoriesEventId, defaultUploadDestination, defaultSelectedAccountIds, uploadTargetAccounts]
   );
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open: openFilePicker } = useDropzone({
     onDrop,
     accept: getAcceptTypes(),
     multiple: true,
     disabled: !canUpload() || isAddingFiles,
+    noClick: true,
+    noKeyboard: true,
   });
 
   const zipInputRef = useRef<HTMLInputElement>(null);
@@ -1304,23 +1314,6 @@ const UploadFamilyImagesPage = () => {
     return t('uploadFamilyPage.timeDayAgo', { n: Math.floor(sec / 86400) });
   };
 
-  const getStatusIcon = (status: QueueItemStatus) => {
-    switch (status) {
-      case 'completed':
-        return <FaCheck className="h-4 w-4 text-green-500" />;
-      case 'failed':
-        return <FaExclamationTriangle className="h-4 w-4 text-red-500" />;
-      case 'paused':
-        return <FaClock className="h-4 w-4 text-amber-500" />;
-      case 'uploading':
-        return <LoadingSpinner size="sm" text="" />;
-      case 'processing':
-        return <LoadingSpinner size="sm" text="" />;
-      default:
-        return null;
-    }
-  };
-
   const getStatusLabel = (status: QueueItemStatus): string => {
     switch (status) {
       case 'completed': return t('uploadFamilyPage.statusCompleted');
@@ -1332,28 +1325,24 @@ const UploadFamilyImagesPage = () => {
     }
   };
 
-  const getStatusColor = (status: QueueItemStatus) => {
-    switch (status) {
-      case 'completed':
-        return 'border-green-200 bg-green-50';
-      case 'failed':
-        return 'border-red-200 bg-red-50';
-      case 'paused':
-        return 'border-amber-200 bg-amber-50';
-      case 'uploading':
-        return 'border-blue-200 bg-blue-50';
-      case 'processing':
-        return 'border-indigo-200 bg-indigo-50';
-      default:
-        return 'border-gray-200 bg-white';
-    }
-  };
+  const glassCard =
+    'rounded-xl border border-[#c3c6d7]/80 bg-white/70 p-6 shadow-sm backdrop-blur-[10px] transition-shadow duration-200 hover:shadow-md';
+  const stepBadge =
+    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#dbe1ff] text-sm font-bold text-[#00174b]';
 
   const pendingCount = queueState.items.filter((i) => i.status === 'waiting' || i.status === 'paused').length;
-  const processingCount = queueState.items.filter((i) => i.status === 'processing').length;
+  const uploadingCount = queueState.items.filter(
+    (i) => i.status === 'uploading' || i.status === 'processing'
+  ).length;
+  const completedCount = queueState.items.filter((i) => i.status === 'completed').length;
+  const failedCount = queueState.items.filter((i) => i.status === 'failed').length;
+  const overallProgressPct = queueState.items.length
+    ? Math.round((completedCount / queueState.items.length) * 100)
+    : 0;
   const finishedCount = queueState.items.filter(
     (i) => i.status === 'completed' || i.status === 'failed'
   ).length;
+  const remainingCount = queueState.items.filter((i) => i.status !== 'completed').length;
   const completedWithIds = queueState.items.filter((i) => i.status === 'completed' && i.imageId != null);
 
   const handleClearFinished = useCallback(async () => {
@@ -1474,21 +1463,23 @@ const UploadFamilyImagesPage = () => {
 
   if (userLoading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-        <div className="h-8 w-64 bg-slate-200 rounded-xl animate-pulse" />
-        <FamilyMemberSkeleton count={3} />
+      <div className="min-h-full w-full min-w-0 overflow-x-hidden bg-[#faf8ff]">
+        <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6 px-4 py-10 md:px-8">
+          <div className="h-8 w-48 animate-pulse rounded-lg bg-[#e7e7f3]" />
+          <FamilyMemberSkeleton count={3} />
+        </div>
       </div>
     );
   }
 
   if (userError) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('uploadFamilyPage.profileErrorTitle')}</h1>
-          <p className="text-gray-600 mb-4">{t('uploadFamilyPage.profileErrorBody')}</p>
-          <button onClick={() => window.location.reload()} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+      <div className="flex min-h-[60vh] w-full min-w-0 items-center justify-center bg-[#faf8ff] px-4 py-12">
+        <div className={`${glassCard} w-full max-w-md text-center`}>
+          <FaExclamationTriangle className="mx-auto mb-4 h-10 w-10 text-[#ba1a1a]" />
+          <h1 className="mb-2 text-xl font-semibold text-[#191b23]">{t('uploadFamilyPage.profileErrorTitle')}</h1>
+          <p className="mb-6 text-sm text-[#505f76]">{t('uploadFamilyPage.profileErrorBody')}</p>
+          <button type="button" onClick={() => window.location.reload()} className="btn-primary w-full sm:w-auto">
             {t('common.retry')}
           </button>
         </div>
@@ -1498,208 +1489,104 @@ const UploadFamilyImagesPage = () => {
 
   if (!canUpload()) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center max-w-md mx-auto">
-          <div className="text-red-500 text-6xl mb-4">🔒</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('uploadFamilyPage.uploadNotAvailable')}</h1>
-          <p className="text-gray-600 mb-4">{t('uploadFamilyPage.uploadNotAllowedBody')}</p>
+      <div className="flex min-h-[60vh] w-full min-w-0 items-center justify-center bg-[#faf8ff] px-4 py-12">
+        <div className={`${glassCard} w-full max-w-md text-center`}>
+          <FaExclamationTriangle className="mx-auto mb-4 h-10 w-10 text-[#943700]" />
+          <h1 className="mb-2 text-xl font-semibold text-[#191b23]">{t('uploadFamilyPage.uploadNotAvailable')}</h1>
+          <p className="text-sm text-[#505f76]">{t('uploadFamilyPage.uploadNotAllowedBody')}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-6">
-          {t('uploadFamilyPage.title')}
-        </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          {t('uploadFamilyPage.subtitle')}
-        </p>
-        {/* {userProfile && (
-          <div className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 max-w-4xl mx-auto border border-blue-100">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-lg">{userProfile.accountType?.charAt(0) || 'U'}</span>
-                </div>
-                <h3 className="font-semibold text-gray-800">{t('uploadFamilyPage.accountType')}</h3>
-                <p className="text-sm text-gray-600">{userProfile.accountType || t('uploadFamilyPage.unknown')}</p>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-xl">∞</span>
-                </div>
-                <h3 className="font-semibold text-gray-800">{t('uploadFamilyPage.fileSize')}</h3>
-                <p className="text-sm text-gray-600">{t('uploadFamilyPage.unlimited')}</p>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                  <span className="text-white font-bold text-lg">{userProfile.allowedFileTypes?.split(',').length || 0}</span>
-                </div>
-                <h3 className="font-semibold text-gray-800">{t('uploadFamilyPage.allowedTypes')}</h3>
-                <p className="text-sm text-gray-600">{userProfile.allowedFileTypes?.toUpperCase() || t('uploadFamilyPage.none')}</p>
-              </div>
-              <div className="text-center">
-              <div
-                  className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg 
-                    ${queueState.isOnline ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-amber-500 to-orange-600'}`}
-                > <span className="text-white font-bold text-sm">{queueState.isOnline ? t('uploadFamilyPage.online') : t('uploadFamilyPage.offline')}</span>
-                </div>
-                <h3 className="font-semibold text-gray-800">{t('uploadFamilyPage.network')}</h3>
-                <p className="text-sm text-gray-600">{queueState.isOnline ? t('uploadFamilyPage.uploadsActive') : t('uploadFamilyPage.pausedOffline')}</p>
-              </div>
-            </div>
-          </div>
-        )} */}
-      </div>
+    <div className="upload-family-page min-h-full w-full min-w-0 overflow-x-hidden bg-[#faf8ff] pb-28 text-[#191b23]">
+      <style>{`
+        @keyframes upload-stripes {
+          0% { background-position: 0 0; }
+          100% { background-position: 60px 0; }
+        }
+        .upload-family-page .upload-progress-striped {
+          background-size: 30px 30px;
+          background-image: linear-gradient(135deg, rgba(255,255,255,.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.15) 50%, rgba(255,255,255,.15) 75%, transparent 75%, transparent);
+          animation: upload-stripes 2s linear infinite;
+        }
+      `}</style>
 
-      {/* Album selection */}
-      {/* <div className={`max-w-full mx-auto rounded-2xl p-6 border border-blue-100 transition-opacity ${canUpload() ? 'bg-gradient-to-r from-blue-50 to-purple-50' : 'bg-gray-100 opacity-75 pointer-events-none'}`}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <FaFolder className="mr-3 font-medium text-[#2731db]" />
-            <div>
-              <h3 className="text-lg font-semibold text-gray-800">{t('uploadFamilyPage.selectAlbumTitle')}</h3>
-              <p className="text-sm text-gray-600">{t('uploadFamilyPage.selectAlbumHint')}</p>
-            </div>
+      <div className="mx-auto w-full min-w-0 max-w-7xl px-4 md:px-8">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[#c3c6d7] pb-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-[#004ac6]">{t('uploadFamilyPage.title')}</h1>
+            <p className="mt-1 text-sm text-[#505f76]">{t('uploadFamilyPage.subtitle')}</p>
           </div>
-          <div className="flex items-center space-x-3">
-            <button
-              type="button"
-              onClick={() => setShowCreateAlbumModal(true)}
-              disabled={!canUpload()}
-              className="flex items-center px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 transition-colors text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <FaPlus className="mr-2" />
-              {t('uploadFamilyPage.createAlbum')}
-            </button>
-            {albums.length > 0 && (
-              <select
-                value={selectedAlbumId ?? ''}
-                onChange={(e) => setSelectedAlbumId(e.target.value ? Number(e.target.value) : null)}
-                disabled={!canUpload()}
-                className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#2731db] min-w-[200px] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="">{t('uploadFamilyPage.selectAlbum')}</option>
-                {albums.map((album) => (
-                  <option key={album.id} value={album.id}>
-                    {album.name}{' '}
-                    {album.imageCount != null ? t('uploadFamilyPage.imagesCount', { n: album.imageCount }) : ''}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-        </div>
-        {selectedAlbumId && (
-          <div className="mt-3 p-3 bg-blue-100 rounded-lg border border-blue-200">
-            <p className="text-sm text-blue-800">
-              ✓ {t('uploadFamilyPage.imagesAddedTo')} <strong>{albums.find((a) => a.id === selectedAlbumId)?.name}</strong>
-            </p>
-            {completedWithIds.length > 0 && (
-              <button
-                onClick={addCompletedToAlbum}
-                className="mt-2 text-sm text-blue-700 underline hover:no-underline"
-              >
-                {t('uploadFamilyPage.addCompletedHint', { n: completedWithIds.length })}
-              </button>
-            )}
-          </div>
-        )}
-      </div> */}
-
-      {/* Our Memories event selection (attach uploaded images to event) */}
-      {/* <div className={`max-w-full mx-auto rounded-2xl p-6 border border-violet-100 transition-opacity ${canUpload() ? 'bg-gradient-to-r from-violet-50 to-fuchsia-50' : 'bg-gray-100 opacity-75 pointer-events-none'}`}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <FaClock className="mr-3 font-medium text-violet-700" />
-            <div>
-              <h3 className="text-lg font-semibold text-gray-800">Our Memories event</h3>
-              <p className="text-sm text-gray-600">If selected, every uploaded image will be added to this event gallery.</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <select
-              value={selectedMemoriesEventId}
-              onChange={(e) => setSelectedMemoriesEventId(e.target.value)}
-              disabled={!canUpload()}
-              className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-violet-500 min-w-[240px] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <option value="">No event</option>
-              {memoriesEvents.map((ev) => (
-                <option key={ev.id} value={ev.id}>
-                  {ev.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        {selectedMemoriesEventId ? (
-          <div className="mt-3 p-3 bg-violet-100 rounded-lg border border-violet-200">
-            <p className="text-sm text-violet-900">
-              ✓ Images will be added to <strong>{memoriesEvents.find((e) => e.id === selectedMemoriesEventId)?.name}</strong>
-            </p>
-          </div>
-        ) : null}
-      </div> */}
-
-      {/* Dropzone */}
-      <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-3xl shadow-2xl border border-blue-100/50 relative">
-        {isAddingFiles && (
-          <div className="absolute inset-0 rounded-3xl bg-indigo-500/10 backdrop-blur-sm z-10 flex items-center justify-center">
-            <div className="bg-white rounded-2xl shadow-xl px-8 py-6 flex items-center gap-4">
-              <LoadingSpinner size="md" text="" />
-              <div>
-                <p className="font-semibold text-gray-800">{t('uploadFamilyPage.addingFiles')}</p>
-                <p className="text-sm text-gray-600">{t('uploadFamilyPage.addingFilesWait', { max: MAX_UPLOAD_QUEUE })}</p>
-              </div>
-            </div>
-          </div>
-        )}
-        <div className="p-10">
-          {/* Upload to: My Account / Client accounts — search + list (4 rows, scroll) */}
-          <div className="mb-6 rounded-2xl border border-purple-200 bg-purple-50/80 p-4">
-            <p className="text-sm font-semibold text-purple-900 mb-3">{t('uploadFamilyPage.uploadToLabel')}</p>
-            <div className="flex flex-wrap gap-4 mb-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="defaultUploadDestination"
-                  checked={defaultUploadDestination === 'my-account'}
-                  onChange={() => setDefaultUploadDestination('my-account')}
-                  className="text-indigo-600"
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <div className="flex items-center justify-end gap-1.5">
+                <span
+                  className={`h-2 w-2 rounded-full ${queueState.isOnline ? 'animate-pulse bg-emerald-500' : 'bg-amber-500'}`}
+                  aria-hidden
                 />
-                <span className="text-sm font-medium text-gray-800">{t('uploadFamilyPage.myAccount')}</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="defaultUploadDestination"
-                  checked={defaultUploadDestination === 'family-account'}
-                  onChange={() => setDefaultUploadDestination('family-account')}
-                  className="text-purple-600"
+                <span className="text-xs font-medium uppercase tracking-wide text-[#505f76]">
+                  {queueState.isOnline ? t('uploadFamilyPage.online') : t('uploadFamilyPage.offline')}
+                </span>
+              </div>
+              <p className="text-xs font-bold text-[#004ac6]">
+                {queueState.isOnline ? t('uploadFamilyPage.uploadsActive') : t('uploadFamilyPage.pausedOffline')}
+              </p>
+            </div>
+            <Cloud className="h-6 w-6 text-[#004ac6]" aria-hidden />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          {/* Step 1: Destination */}
+          <section className="flex flex-col gap-4 lg:col-span-4">
+            <div className={glassCard}>
+              <div className="mb-4 flex items-center gap-2">
+                <span className={stepBadge}>1</span>
+                <h2 className="text-xl font-semibold text-[#191b23]">{t('uploadFamilyPage.uploadToLabel')}</h2>
+              </div>
+              <div className="mb-6 flex rounded-lg bg-[#e7e7f3] p-1">
+                <button
+                  type="button"
+                  onClick={() => setDefaultUploadDestination('my-account')}
+                  className={`flex-1 rounded-md py-2 text-sm font-medium transition-all ${
+                    defaultUploadDestination === 'my-account'
+                      ? 'bg-white text-[#004ac6] shadow-sm'
+                      : 'text-[#505f76] hover:text-[#191b23]'
+                  }`}
+                >
+                  {t('uploadFamilyPage.myAccount')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDefaultUploadDestination('family-account')}
                   disabled={uploadTargetAccounts.length === 0}
-                />
-                <span className="text-sm font-medium text-gray-800">{t('uploadFamilyPage.clientAccounts')}</span>
-              </label>
-            </div>
-            {defaultUploadDestination === 'family-account' && (
-              <>
-                <div className="mb-2">
-                  <input
-                    type="search"
-                    value={defaultAccountSearch}
-                    onChange={(e) => setDefaultAccountSearch(e.target.value)}
-                    placeholder={t('uploadFamilyPage.searchAccounts')}
-                    className="w-full p-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
-                  />
-                </div>
-                <div className="border border-purple-200 rounded-lg bg-white overflow-hidden" style={{ maxHeight: '10.5rem' }}>
-                  <div className="overflow-y-auto p-1" style={{ maxHeight: '10rem' }}>
+                  className={`flex-1 rounded-md py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
+                    defaultUploadDestination === 'family-account'
+                      ? 'bg-white text-[#004ac6] shadow-sm'
+                      : 'text-[#505f76] hover:text-[#191b23]'
+                  }`}
+                >
+                  {t('uploadFamilyPage.clientAccounts')}
+                </button>
+              </div>
+
+              {defaultUploadDestination === 'family-account' ? (
+                <div className="space-y-3">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-[#505f76]" aria-hidden />
+                    <input
+                      type="search"
+                      value={defaultAccountSearch}
+                      onChange={(e) => setDefaultAccountSearch(e.target.value)}
+                      placeholder={t('uploadFamilyPage.searchAccounts')}
+                      className="w-full rounded-lg border border-[#c3c6d7] bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:border-[#004ac6] focus:ring-2 focus:ring-[#004ac6]/20"
+                    />
+                  </div>
+                  <div className="max-h-64 overflow-y-auto pr-1">
                     {uploadTargetAccounts.length === 0 ? (
-                      <p className="text-sm text-gray-500 p-2">{t('uploadFamilyPage.noClientAccounts')}</p>
+                      <p className="p-2 text-sm text-[#505f76]">{t('uploadFamilyPage.noClientAccounts')}</p>
                     ) : (() => {
                       const q = defaultAccountSearch.trim().toLowerCase();
                       const filtered = q
@@ -1712,505 +1599,402 @@ const UploadFamilyImagesPage = () => {
                           )
                         : uploadTargetAccounts;
                       return filtered.length === 0 ? (
-                        <p className="text-sm text-gray-500 p-2">{t('uploadFamilyPage.noAccountsMatch')}</p>
+                        <p className="p-2 text-sm text-[#505f76]">{t('uploadFamilyPage.noAccountsMatch')}</p>
                       ) : (
-                        filtered.map((acc) => {
-                          const checked = defaultSelectedAccountIds.includes(acc.inviterId);
-                          return (
-                            <label
-                              key={acc.inviterId}
-                              className="flex items-center gap-3 p-2 rounded-md hover:bg-purple-50 cursor-pointer"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() => {
-                                  setDefaultSelectedAccountIds((prev) =>
-                                    prev.includes(acc.inviterId) ? prev.filter((id) => id !== acc.inviterId) : [...prev, acc.inviterId]
-                                  );
-                                }}
-                                className="rounded border-purple-300 text-purple-600"
-                              />
-                              <span className="text-sm text-gray-900 truncate">
-                                {acc.inviterFirstName} {acc.inviterLastName}
-                                {acc.relationshipType ? ` · ${acc.relationshipType}` : ''}
-                              </span>
-                            </label>
-                          );
-                        })
+                        <div className="flex flex-col gap-2">
+                          {filtered.map((acc) => {
+                            const checked = defaultSelectedAccountIds.includes(acc.inviterId);
+                            return (
+                              <label
+                                key={acc.inviterId}
+                                className="flex cursor-pointer items-center gap-3 rounded-lg border border-transparent p-2 transition hover:border-[#c3c6d7] hover:bg-[#f3f3fe]"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() =>
+                                    setDefaultSelectedAccountIds((prev) =>
+                                      prev.includes(acc.inviterId)
+                                        ? prev.filter((id) => id !== acc.inviterId)
+                                        : [...prev, acc.inviterId]
+                                    )
+                                  }
+                                  className="h-4 w-4 rounded border-[#737686] text-[#004ac6] focus:ring-[#004ac6]/30"
+                                />
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium text-[#191b23]">
+                                    {acc.inviterFirstName} {acc.inviterLastName}
+                                  </p>
+                                  {acc.relationshipType ? (
+                                    <p className="truncate text-xs text-[#505f76]">{acc.relationshipType}</p>
+                                  ) : null}
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
                       );
                     })()}
                   </div>
+                  {defaultSelectedAccountIds.length > 0 && (
+                    <p className="text-xs font-medium text-[#004ac6]">
+                      {t('uploadFamilyPage.accountsSelectedLine', { n: defaultSelectedAccountIds.length })}
+                    </p>
+                  )}
                 </div>
-                {defaultSelectedAccountIds.length > 0 && (
-                  <p className="text-xs text-purple-700 mt-2">
-                    {t('uploadFamilyPage.accountsSelectedLine', { n: defaultSelectedAccountIds.length })}
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-
-          <div
-            {...getRootProps()}
-            className={`border-3 border-dashed rounded-3xl p-16 text-center cursor-pointer transition-all duration-300 ${
-              isDragActive ? 'border-indigo-400 bg-gradient-to-br from-indigo-50 to-purple-50' : 'border-gray-300 hover:border-indigo-400 hover:bg-gradient-to-br from-blue-50/50 to-purple-50/50'
-            } ${isAddingFiles ? 'pointer-events-none opacity-70' : ''}`}
-          >
-            <input {...getInputProps()} />
-            <FaCloudUploadAlt className="mx-auto h-20 w-20 text-indigo-500 mb-6" />
-            <p className="mt-6 text-2xl font-bold text-gray-800">
-              {isDragActive ? t('uploadFamilyPage.dropFilesHere') : t('uploadFamilyPage.dragDropHere')}
-            </p>
-          
-            <p className="mt-3 text-lg text-gray-600">{t('uploadFamilyPage.clickToSelect')}</p>
-            <p className="mt-2 text-sm text-gray-500">{t('uploadFamilyPage.videoTrimHint', { max: MAX_UPLOAD_QUEUE })}</p>
-            <div className="mt-6 flex flex-wrap justify-center gap-4 text-sm">
-              <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
-                <span className="w-3 h-3 bg-blue-400 rounded-full mr-3 animate-pulse" />
-                <span className="font-medium text-gray-700">{t('uploadFamilyPage.allowedTypesBadge')}</span>
-              </span>
-              <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
-              <span
-                className={`w-4 h-4 rounded-full mr-2 ${queueState.isOnline ? 'bg-green-500' : 'bg-yellow-500'}`}
-              ></span>
-              <span className={`font-bold text-sm ${queueState.isOnline ? 'text-green-500' : 'text-yellow-500'}`}>
-                {queueState.isOnline ? t('uploadFamilyPage.online') : t('uploadFamilyPage.offline')}
-              </span>
-              </span>
-              <input
-                ref={zipInputRef}
-                type="file"
-                accept=".zip,application/zip,application/x-zip-compressed"
-                multiple
-                onChange={onZipInputChange}
-                className="hidden"
-                aria-hidden
-              />
-              <button
-                type="button"
-                onClick={() => zipInputRef.current?.click()}
-                disabled={!canUpload() || isAddingFiles}
-                className="flex items-center bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 px-4 py-2 rounded-full shadow-sm font-medium text-sm disabled:opacity-50 disabled:pointer-events-none transition-colors"
-                title={t('uploadFamilyPage.zipTitleHint', { n: MAX_ZIP_SIZE_GB })}
-              >
-                <FaFolder className="mr-2 w-4 h-4" />
-                {t('uploadFamilyPage.selectZipTitle', { n: MAX_ZIP_SIZE_GB })}
-              </button>
-              {storageUsage && (
-                <span className="flex items-center bg-white/70 px-4 py-2 rounded-full shadow-sm">
-                  <span className="w-3 h-3 bg-purple-400 rounded-full mr-3 animate-pulse" />
-                  <span className="font-medium text-gray-700">
-                    {t('uploadFamilyPage.mbAvailable', { n: storageUsage.total - storageUsage.used })}
-                  </span>
-                </span>
+              ) : (
+                <div className="rounded-lg border border-[#dbe1ff] bg-[#dbe1ff]/30 p-6 text-center">
+                  <Cloud className="mx-auto mb-2 h-10 w-10 text-[#004ac6]" aria-hidden />
+                  <p className="text-sm font-medium text-[#004ac6]">{t('uploadFamilyPage.myAccountDesc')}</p>
+                  {storageUsage ? (
+                    <p className="mt-1 text-sm text-[#505f76]">
+                      {t('uploadFamilyPage.mbAvailable', { n: Math.max(0, storageUsage.total - storageUsage.used) })}
+                    </p>
+                  ) : null}
+                </div>
               )}
             </div>
-          </div>
-        </div>
-      </div>
+          </section>
 
-      {/* Queue list - scroll into view when files added */}
-      {queueState.items.length > 0 && (
-        <div ref={queueListRef} className="bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 rounded-3xl shadow-2xl border border-blue-100/50">
-          <div className="px-6 sm:px-10 py-6 sm:py-8 border-b border-blue-200/50 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 rounded-t-3xl">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-4 min-w-0">
-                <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
-                  <FaFileImage className="h-6 w-6 text-white" />
+          {/* Step 2: Upload Zone */}
+          <section className="relative flex flex-col gap-4 lg:col-span-8">
+            <div className={`${glassCard} relative flex flex-col !p-5`}>
+              {isAddingFiles && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-white/90 backdrop-blur-sm">
+                  <div className="flex flex-col items-center gap-3 text-center">
+                    <LoadingSpinner size="md" text="" />
+                    <p className="text-sm font-semibold text-[#191b23]">{t('uploadFamilyPage.addingFiles')}</p>
+                    <p className="text-xs text-[#505f76]">{t('uploadFamilyPage.addingFilesWait', { max: MAX_UPLOAD_QUEUE })}</p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800">{t('uploadFamilyPage.uploadQueue')}</h2>
-                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mt-1">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 font-semibold tabular-nums text-base shrink-0">
-                      {t('uploadFamilyPage.filesOfMax', { current: queueState.items.length, max: MAX_UPLOAD_QUEUE })}
-                    </span>
-                    {queueState.items.length >= MAX_UPLOAD_QUEUE && (
-                      <span className="text-amber-600 text-sm font-medium shrink-0">{t('uploadFamilyPage.maxLimit')}</span>
-                    )}
-                    <span className="text-gray-500 text-sm">·</span>
-                    <span className="text-gray-600 text-sm tabular-nums">{t('uploadFamilyPage.waiting', { n: pendingCount })}</span>
-                    {processingCount > 0 && (
-                      <>
-                        <span className="text-gray-400">·</span>
-                        <span className="text-indigo-600 text-sm tabular-nums">{t('uploadFamilyPage.processingCount', { n: processingCount })}</span>
-                      </>
-                    )}
-                    <span className="text-gray-400">·</span>
-                    <span className="text-gray-600 text-sm">{queueState.isOnline ? t('uploadFamilyPage.online') : t('uploadFamilyPage.paused')}</span>
+              )}
+              <div className="mb-3 flex items-center gap-2">
+                <span className={stepBadge}>2</span>
+                <h2 className="text-lg font-semibold text-[#191b23]">{t('uploadFamilyPage.uploadZoneTitle')}</h2>
+              </div>
+              <div
+                {...getRootProps()}
+                className={`group/drop relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#c3c6d7] bg-white px-4 py-5 text-center transition-all duration-200 sm:px-5 sm:py-6 ${
+                  isDragActive
+                    ? 'border-[#004ac6] bg-[#d0e1fb]/30 shadow-[0_8px_24px_rgba(0,74,198,0.12)]'
+                    : 'hover:border-[#004ac6]/50 hover:bg-[#d0e1fb]/20'
+                } ${isAddingFiles ? 'pointer-events-none opacity-60' : ''}`}
+              >
+                <input {...getInputProps()} />
+                <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-[#d0e1fb] transition-transform duration-200 group-hover/drop:scale-105">
+                  <Upload className="h-7 w-7 text-[#004ac6]" aria-hidden />
+                </div>
+                <h3 className="mb-0.5 text-base font-semibold text-[#191b23] sm:text-lg">
+                  {isDragActive ? t('uploadFamilyPage.dropFilesHere') : t('uploadFamilyPage.dragDropHere')}
+                </h3>
+                <p className="mb-4 text-sm text-[#505f76]">{t('uploadFamilyPage.browseLocalDrives')}</p>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openFilePicker();
+                    }}
+                    disabled={!canUpload() || isAddingFiles}
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#004ac6] px-5 py-2 text-sm font-medium text-white shadow-md transition hover:opacity-90 active:scale-95 disabled:opacity-50"
+                  >
+                    <Upload className="h-4 w-4" aria-hidden />
+                    {t('uploadFamilyPage.selectFiles')}
+                  </button>
+                  <input
+                    ref={zipInputRef}
+                    type="file"
+                    accept=".zip,application/zip,application/x-zip-compressed"
+                    multiple
+                    onChange={onZipInputChange}
+                    className="hidden"
+                    aria-hidden
+                  />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      zipInputRef.current?.click();
+                    }}
+                    disabled={!canUpload() || isAddingFiles}
+                    title={t('uploadFamilyPage.zipTitleHint', { n: MAX_ZIP_SIZE_GB })}
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#c3c6d7] bg-white px-5 py-2 text-sm font-medium text-[#191b23] transition hover:bg-[#f3f3fe] active:scale-95 disabled:opacity-50"
+                  >
+                    <FolderArchive className="h-4 w-4 text-[#004ac6]" aria-hidden />
+                    {t('uploadFamilyPage.selectZipBtn')}
+                  </button>
+                </div>
+                <div className="mt-4 grid w-full max-w-lg grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                  <div className="flex items-center gap-2 text-left">
+                    <Archive className="h-5 w-5 shrink-0 text-[#004ac6]" aria-hidden />
+                    <div>
+                      <p className="text-sm font-medium text-[#191b23]">{t('uploadFamilyPage.zipExtractionTitle')}</p>
+                      <p className="text-sm text-[#505f76]">{t('uploadFamilyPage.zipExtractionDesc')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-left">
+                    <Scissors className="h-5 w-5 shrink-0 text-[#004ac6]" aria-hidden />
+                    <div>
+                      <p className="text-sm font-medium text-[#191b23]">{t('uploadFamilyPage.autoTrimTitle')}</p>
+                      <p className="text-sm text-[#505f76]">{t('uploadFamilyPage.autoTrimDesc')}</p>
+                    </div>
                   </div>
                 </div>
               </div>
-              {finishedCount > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearFinished}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors shrink-0"
-                >
-                  {t('uploadFamilyPage.clearFinished', { n: finishedCount })}
-                </button>
-              )}
             </div>
-          </div>
-          {isAddingFiles && (
-            <div className="px-6 py-3 bg-indigo-100 border-b border-indigo-200 flex items-center justify-center gap-2 text-sm text-indigo-800 font-medium">
-              <LoadingSpinner size="sm" text="" />
-              <span>{t('uploadFamilyPage.addingMoreFiles', { max: MAX_UPLOAD_QUEUE })}</span>
-            </div>
-          )}
-          <div className="relative flex flex-col min-h-[320px] max-h-[70vh] h-[70vh]">
-            <div className="sticky top-0 z-10 px-4 py-2 bg-indigo-50/95 border-b border-indigo-100/80 backdrop-blur-sm flex items-center justify-center gap-2 text-sm text-gray-700 shrink-0">
-              <span className="tabular-nums font-semibold text-indigo-800">{queueState.items.length}</span>
-              <span>{t('uploadFamilyPage.filesInQueueLine')}</span>
-              <span className="text-gray-400">{t('uploadFamilyPage.scrollToSeeAll')}</span>
-            </div>
-            <div className="p-6 md:p-8 overflow-y-auto overflow-x-hidden scroll-smooth flex-1 min-h-0 basis-0">
-            <div className="grid grid-cols-1 gap-4">
-              {queueState.items.map((item) => {
-                const isVideo = isVideoItem(item);
-                const isUploading = item.status === 'uploading';
-                const progressBarColor =
-                  item.status === 'completed'
-                    ? 'bg-green-500'
-                    : item.status === 'uploading' || item.status === 'processing'
-                      ? 'bg-blue-500'
-                      : 'bg-gray-300';
-                return (
-                  <div
-                    key={item.id}
-                    className={`flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-[14px] border shadow-sm hover:shadow-md transition-shadow duration-200 ${getStatusColor(item.status)}`}
-                  >
-                    {/* Left: Icon only (no image preview) */}
-                    <div className="w-full h-[90px] md:w-[120px] md:h-[90px] md:flex-shrink-0 rounded-lg bg-gray-100 flex items-center justify-center">
-                      {isVideo ? (
-                        <FaVideo className="h-10 w-10 text-indigo-500" />
-                      ) : (
-                        <FaFileImage className="h-10 w-10 text-gray-500" />
-                      )}
-                    </div>
+          </section>
 
-                    {/* Center: Details + progress */}
-                    <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                      <p className="font-bold text-gray-900 truncate" title={item.fileName}>
-                        {item.fileName}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {formatRelativeTime(item.createdAt)} · {formatFileSize(item.fileSize)}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5 h-10">
-                        {item.status === 'processing' && (
-                          <>
-                            {getStatusIcon(item.status)}
-                            <span className="text-sm font-medium text-indigo-600">{t('uploadFamilyPage.processingVideo')}</span>
-                          </>
-                        )}
-                        {item.status === 'uploading' && (
-                          <>
-                            {getStatusIcon(item.status)}
-                            <span className="text-sm font-medium text-blue-600">{t('uploadFamilyPage.uploading')}</span>
-                          </>
-                        )}
-                        {(item.status === 'waiting' || item.status === 'paused') && (
-                          <span className="text-sm font-medium text-gray-600">{getStatusLabel(item.status)}</span>
-                        )}
-                        {item.status === 'completed' && (
-                          <span className="text-sm font-medium text-green-700 flex items-center gap-1.5">
-                            {getStatusIcon(item.status)}
-                            {t('uploadFamilyPage.completed')}
-                          </span>
-                        )}
-                        {item.status === 'failed' && (
-                          <span className="text-sm font-medium text-red-700 flex items-center gap-1.5">
-                            {getStatusIcon(item.status)}
-                            {t('uploadFamilyPage.failed')}
-                          </span>
-                        )}
+          {/* Step 3: Upload Queue */}
+          {queueState.items.length > 0 && (
+            <section ref={queueListRef} className="lg:col-span-12">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className={stepBadge}>3</span>
+                  <h2 className="text-xl font-semibold text-[#191b23]">{t('uploadFamilyPage.uploadQueue')}</h2>
+                </div>
+                <span className="text-sm font-medium text-[#505f76]">
+                  {t('uploadFamilyPage.filesRemaining', { n: remainingCount })}
+                </span>
+              </div>
+              {isAddingFiles && (
+                <div className="mb-3 flex items-center justify-center gap-2 rounded-lg bg-[#d0e1fb]/50 px-4 py-2 text-xs font-medium text-[#505f76]">
+                  <LoadingSpinner size="sm" text="" />
+                  <span>{t('uploadFamilyPage.addingMoreFiles', { max: MAX_UPLOAD_QUEUE })}</span>
+                </div>
+              )}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {queueState.items.map((item) => {
+                  const isVideo = isVideoItem(item);
+                  const thumbUrl = getThumbnailUrl(item);
+                  const isUploading = item.status === 'uploading' || item.status === 'processing';
+                  const isCompleted = item.status === 'completed';
+                  const isFailed = item.status === 'failed';
+                  const progressPct =
+                    item.status === 'completed' ? 100 : item.status === 'processing' ? 33 : item.progress;
+                  return (
+                    <article
+                      key={item.id}
+                      className={`${glassCard} group/card p-4 ${
+                        isUploading ? 'border-l-4 border-l-[#004ac6]' : ''
+                      } ${isFailed ? 'border border-[#ba1a1a]/30' : ''}`}
+                    >
+                      <div className="flex gap-4">
+                        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#e7e7f3]">
+                          {thumbUrl && isVideo ? (
+                            <video src={thumbUrl} className="h-full w-full object-cover" muted playsInline />
+                          ) : thumbUrl ? (
+                            <img src={thumbUrl} alt="" className="h-full w-full object-cover" />
+                          ) : isVideo ? (
+                            <FaVideo className="h-8 w-8 text-[#737686]" />
+                          ) : isFailed ? (
+                            <AlertCircle className="h-8 w-8 text-[#ba1a1a]" />
+                          ) : (
+                            <FileText className="h-8 w-8 text-[#737686]" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="truncate text-sm font-medium text-[#191b23]" title={item.fileName}>
+                              {item.fileName}
+                            </h4>
+                            <button
+                              type="button"
+                              onClick={() => removeFromQueue(item.id)}
+                              className="shrink-0 rounded p-0.5 text-[#505f76] transition hover:text-[#ba1a1a]"
+                              aria-label={t('uploadFamilyPage.removeFromQueue')}
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <p className="text-sm text-[#505f76]">
+                            {formatFileSize(item.fileSize)} • {formatRelativeTime(item.createdAt)}
+                          </p>
+                        </div>
                       </div>
-                      {/* Progress bar: 6px, rounded, blue when uploading, green when completed */}
-                      <div className="mt-1.5 h-1.5 w-full max-w-xs bg-gray-200 rounded-full overflow-hidden">
-                        {item.status === 'processing' ? (
-                          <div className="h-full w-full rounded-full bg-blue-400 animate-pulse" />
-                        ) : (
+                      <div className="mt-4">
+                        <div className="mb-1 flex items-center justify-between">
+                          {isCompleted ? (
+                            <span className="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">
+                              {getStatusLabel(item.status)}
+                            </span>
+                          ) : isFailed ? (
+                            <span className="text-xs font-bold text-[#ba1a1a]">{getStatusLabel(item.status)}</span>
+                          ) : isUploading ? (
+                            <span className="text-xs font-bold text-[#004ac6]">{t('uploadFamilyPage.statusUploading')}...</span>
+                          ) : (
+                            <span className="text-xs font-medium text-[#505f76]">{getStatusLabel(item.status)}</span>
+                          )}
+                          {isFailed ? (
+                            <button
+                              type="button"
+                              onClick={() => retryUpload(item.id)}
+                              className="inline-flex items-center gap-1 text-xs font-bold text-[#004ac6] hover:underline"
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                              {t('uploadFamilyPage.retry')}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-[#505f76]">{progressPct}%</span>
+                          )}
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-[#e7e7f3]">
                           <div
-                            className={`h-full rounded-full transition-all duration-500 ease-out ${progressBarColor}`}
-                            style={{ width: item.status === 'completed' ? '100%' : `${item.progress}%` }}
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              isCompleted
+                                ? 'bg-emerald-500'
+                                : isFailed
+                                  ? 'bg-[#ba1a1a]'
+                                  : 'bg-[#004ac6] upload-progress-striped'
+                            }`}
+                            style={{ width: `${progressPct}%` }}
                           />
+                        </div>
+                        {item.error && (
+                          <p className="mt-2 break-words text-xs text-[#ba1a1a]">
+                            {item.error}
+                            {item.retries > 0 &&
+                              ` ${t('uploadFamilyPage.retryProgress', { current: item.retries, max: MAX_RETRIES })}`}
+                          </p>
+                        )}
+                        {item.successMessage && isCompleted && (
+                          <p className="mt-1 truncate text-xs text-emerald-700">{item.successMessage}</p>
+                        )}
+                        {item.status === 'paused' && (
+                          <p className="mt-1 text-xs text-amber-700">{t('uploadFamilyPage.pausedOfflineResume')}</p>
                         )}
                       </div>
                       {(item.status === 'waiting' || item.status === 'paused') && (
-                        <button
-                          type="button"
-                          onClick={() => openUploadOptions(item)}
-                          className="mt-1 text-sm font-medium text-purple-600 hover:text-purple-700"
-                        >
-                          {t('uploadFamilyPage.chooseDestination')}
-                        </button>
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => openUploadOptions(item)}
+                            className="rounded p-1 text-[#505f76] transition hover:text-[#004ac6]"
+                            title={t('uploadFamilyPage.chooseDestination')}
+                          >
+                            <ArrowUpFromLine className="h-4 w-4" aria-hidden />
+                          </button>
+                        </div>
                       )}
-                      {item.status === 'failed' && (
-                        <button
-                          type="button"
-                          onClick={() => retryUpload(item.id)}
-                          className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-amber-600 hover:text-amber-700"
-                        >
-                          <FaRedoAlt className="h-4 w-4" /> {t('uploadFamilyPage.retry')}
-                        </button>
-                      )}
-                      {item.status === 'paused' && (
-                        <p className="text-xs text-amber-700 mt-0.5">{t('uploadFamilyPage.pausedOfflineResume')}</p>
-                      )}
-                      {item.successMessage && item.status === 'completed' && (
-                        <p className="text-xs text-green-700 mt-0.5 truncate">{item.successMessage}</p>
-                      )}
-                      {item.error && (
-                        <p className="text-xs text-red-700 mt-0.5 break-words">
-                          {item.error}
-                          {item.retries > 0 &&
-                            ` ${t('uploadFamilyPage.retryProgress', { current: item.retries, max: MAX_RETRIES })}`}
-                        </p>
-                      )}
-                    </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
 
-                    {/* Right: Delete button - circular, centered, disabled during upload */}
-                    <div className="flex md:flex-shrink-0 justify-end md:justify-center items-center">
-                      <button
-                        type="button"
-                        onClick={() =>removeFromQueue(item.id)}
-                        // onClick={() => !isUploading && removeFromQueue(item.id)}
-                        // disabled={isUploading}
-                        className="w-10 h-10 rounded-full bg-red-100 hover:bg-red-200 text-red-600 flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        aria-label={t('uploadFamilyPage.removeFromQueue')}
-                      >
-                        <FaTimes className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+      {queueState.items.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#c3c6d7] bg-white/90 px-4 py-4 backdrop-blur-md lg:left-[240px]">
+          <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 md:flex-row">
+            <p className="shrink-0 text-sm font-medium text-[#191b23]">
+              <span className="font-bold text-[#004ac6]">
+                {completedCount} {t('uploadFamilyPage.of')} {queueState.items.length}
+              </span>{' '}
+              {t('uploadFamilyPage.filesUploadedSummary')}
+            </p>
+            <div className="h-3 w-full flex-1 overflow-hidden rounded-full border border-[#c3c6d7] bg-[#e7e7f3]">
+              <div
+                className="upload-progress-striped h-full rounded-full bg-[#004ac6] transition-all duration-500"
+                style={{ width: `${overallProgressPct}%` }}
+              />
             </div>
-            </div>
+            {finishedCount > 0 && (
+              <button
+                type="button"
+                onClick={handleClearFinished}
+                className="shrink-0 whitespace-nowrap rounded-lg border border-[#c3c6d7] px-6 py-2 text-sm font-medium text-[#191b23] transition hover:bg-[#f3f3fe]"
+              >
+                {t('uploadFamilyPage.clearFinished', { n: finishedCount })}
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {/* Summary */}
-      {queueState.items.length > 0 && (() => {
-  const total      = queueState.items.length;
-  const uploading  = queueState.items.filter(i => i.status === 'uploading').length;
-  const completed  = queueState.items.filter(i => i.status === 'completed').length;
-  const failed     = queueState.items.filter(i => i.status === 'failed').length;
-  const overallPct = total ? Math.round((completed / total) * 100) : 0;
-
-  const stats = [
-    { label: t('uploadFamilyPage.total'),      value: total,           accent: 'from-slate-700 to-slate-900',    track: 'stroke-slate-200',   bar: 'stroke-slate-800',    soft: 'bg-slate-50',    text: 'text-slate-800',   dot: 'bg-slate-700' },
-    { label: t('uploadFamilyPage.processing'), value: processingCount, accent: 'from-amber-500 to-orange-600',   track: 'stroke-amber-100',   bar: 'stroke-amber-500',    soft: 'bg-amber-50',    text: 'text-amber-700',   dot: 'bg-amber-500' },
-    { label: t('uploadFamilyPage.uploading'),  value: uploading,       accent: 'from-sky-500 to-blue-600',       track: 'stroke-sky-100',     bar: 'stroke-sky-500',      soft: 'bg-sky-50',      text: 'text-sky-700',     dot: 'bg-sky-500' },
-    { label: t('uploadFamilyPage.completed'),  value: completed,       accent: 'from-emerald-500 to-teal-600',   track: 'stroke-emerald-100', bar: 'stroke-emerald-500',  soft: 'bg-emerald-50',  text: 'text-emerald-700', dot: 'bg-emerald-500' },
-    { label: t('uploadFamilyPage.failed'),     value: failed,          accent: 'from-rose-500 to-red-600',       track: 'stroke-rose-100',    bar: 'stroke-rose-500',     soft: 'bg-rose-50',     text: 'text-rose-700',    dot: 'bg-rose-500' },
-  ];
-
-  const R = 26;
-  const C = 2 * Math.PI * R;
-
-  return (
-    <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 md:p-10 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_40px_-12px_rgba(15,23,42,0.08)]">
-      {/* subtle grid bg */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.35]"
-        style={{
-          backgroundImage:
-            'linear-gradient(to right, rgb(241 245 249) 1px, transparent 1px), linear-gradient(to bottom, rgb(241 245 249) 1px, transparent 1px)',
-          backgroundSize: '32px 32px',
-          maskImage: 'radial-gradient(ellipse at top, black 30%, transparent 75%)',
-        }}
-      />
-      <div className="pointer-events-none absolute -top-32 right-0 h-80 w-80 rounded-full bg-indigo-200/30 blur-3xl" />
-
-      {/* header */}
-      <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-5 mb-8">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 blur-lg opacity-40" />
-            <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 flex items-center justify-center ring-1 ring-white shadow-lg">
-              <FaCloudUploadAlt className="h-5 w-5 text-white" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-xl font-semibold text-slate-900 tracking-tight">
-                {t('uploadFamilyPage.uploadSummary')}
-              </h3>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-600">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                </span>
-                Live
-              </span>
-            </div>
-            <p className="text-sm text-slate-500 mt-0.5">
-              {completed} of {total} files complete · {overallPct}%
-            </p>
-          </div>
-        </div>
-
-        {/* overall progress */}
-        <div className="md:w-72">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] uppercase tracking-wider font-medium text-slate-500">Overall</span>
-            <span className="text-sm font-semibold text-slate-900 tabular-nums">{overallPct}%</span>
-          </div>
-          <div className="relative h-2 rounded-full bg-slate-100 overflow-hidden">
-            <div
-              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 transition-[width] duration-700 ease-out"
-              style={{ width: `${overallPct}%` }}
-            />
-            <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.6),transparent)] bg-[length:200%_100%] animate-[shimmer_2s_linear_infinite]" />
-          </div>
-        </div>
-      </div>
-
-      {/* stat grid */}
-      <div className="relative grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
-        {stats.map((s, i) => {
-          const pct = total ? Math.round((Number(s.value) / total) * 100) : 0;
-          const offset = C - (pct / 100) * C;
-          return (
-            <div
-              key={i}
-              className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_32px_-12px_rgba(15,23,42,0.15)]"
-            >
-              <div className={`absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r ${s.accent} opacity-90`} />
-
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-                    <p className="text-[10.5px] uppercase tracking-wider font-medium text-slate-500 truncate">
-                      {s.label}
-                    </p>
-                  </div>
-                  <span className={`bg-gradient-to-br ${s.accent} bg-clip-text text-3xl md:text-[2rem] font-bold text-transparent tabular-nums leading-none`}>
-                    {s.value}
-                  </span>
-                  <p className="mt-2 text-[11px] text-slate-500 tabular-nums">
-                    <span className={`font-semibold ${s.text}`}>{pct}%</span> of total
-                  </p>
-                </div>
-
-                {/* progress ring */}
-                <div className="relative flex-shrink-0">
-                  <svg width="60" height="60" viewBox="0 0 60 60" className="-rotate-90">
-                    <circle cx="30" cy="30" r={R} strokeWidth="5" fill="none" className={s.track} />
-                    <circle
-                      cx="30" cy="30" r={R} strokeWidth="5" fill="none" strokeLinecap="round"
-                      className={`${s.bar} transition-[stroke-dashoffset] duration-700 ease-out`}
-                      strokeDasharray={C}
-                      strokeDashoffset={offset}
-                    />
-                  </svg>
-                  <div className={`absolute inset-0 flex items-center justify-center text-[10px] font-semibold ${s.text} tabular-nums`}>
-                    {pct}%
-                  </div>
-                </div>
-              </div>
-
-              <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-slate-100/70 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-            </div>
-          );
-        })}
-      </div>
-
-      <style>{`@keyframes shimmer { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }`}</style>
-    </div>
-  );
-})()}
-
-
       {/* Upload options modal */}
       {showUploadOptions && selectedFileForOptions && (
-        <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-900">{t('uploadFamilyPage.modalDestinationTitle')}</h3>
-                <button
-                  onClick={() => {
-                    setShowUploadOptions(false);
-                    setSelectedFileForOptions(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="space-y-4">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-2">{t('uploadFamilyPage.selectedFile')}</h4>
-                  <div className="flex items-center space-x-3">
-                    <FaFileImage className="h-8 w-8 text-blue-500" />
-                    <div>
-                      <p className="font-medium text-gray-900">{selectedFileForOptions.fileName}</p>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/55 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="max-h-[min(92dvh,100%)] w-full max-w-lg overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-4 sm:px-6">
+              <h3 className="min-w-0 pr-2 text-lg font-bold text-slate-900">
+                {t('uploadFamilyPage.modalDestinationTitle')}
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUploadOptions(false);
+                  setSelectedFileForOptions(null);
+                }}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <FaTimes className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="max-h-[min(85dvh,100%)] space-y-4 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
+                <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-blue-50/40 to-white p-4 shadow-sm">
+                  <h4 className="mb-2 text-sm font-semibold text-slate-900 sm:text-base">{t('uploadFamilyPage.selectedFile')}</h4>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <FaFileImage className="h-7 w-7 shrink-0 text-[#513cd2] sm:h-8 sm:w-8" />
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-900">{selectedFileForOptions.fileName}</p>
                       <p className="text-sm text-gray-500">{formatFileSize(selectedFileForOptions.fileSize)}</p>
                     </div>
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
-                    <div className="flex items-center space-x-3">
-                      <input
-                        type="radio"
-                        name="uploadDestination"
-                        checked={selectedFileForOptions.uploadDestination === 'my-account'}
-                        onChange={() => setUploadDestination(selectedFileForOptions.id, 'my-account')}
-                        className="text-blue-600"
-                      />
-                      <div>
-                        <label className="font-medium text-blue-900">🏠 {t('uploadFamilyPage.myAccountTitle')}</label>
-                        <p className="text-sm text-blue-700">{t('uploadFamilyPage.myAccountDesc')}</p>
-                      </div>
+                  <label className="flex cursor-pointer gap-3 rounded-lg border border-slate-200 p-4 has-[:checked]:border-[#513cd2] has-[:checked]:ring-1 has-[:checked]:ring-[#513cd2]/30">
+                    <input
+                      type="radio"
+                      name="uploadDestination"
+                      checked={selectedFileForOptions.uploadDestination === 'my-account'}
+                      onChange={() => setUploadDestination(selectedFileForOptions.id, 'my-account')}
+                      className="mt-0.5 text-[#513cd2]"
+                    />
+                    <div>
+                      <span className="font-medium text-slate-900">{t('uploadFamilyPage.myAccountTitle')}</span>
+                      <p className="mt-0.5 text-sm text-slate-500">{t('uploadFamilyPage.myAccountDesc')}</p>
                     </div>
-                  </div>
-                  <div className="bg-purple-50 rounded-lg p-4 border-2 border-purple-200">
-                    <div className="flex items-center space-x-3 mb-3">
+                  </label>
+                  <div className="rounded-lg border border-slate-200 p-4">
+                    <label className="flex cursor-pointer gap-3 has-[:checked]:text-[#513cd2]">
                       <input
                         type="radio"
                         name="uploadDestination"
                         id="upload-dest-family"
                         checked={selectedFileForOptions.uploadDestination === 'family-account'}
                         onChange={() => setUploadDestination(selectedFileForOptions.id, 'family-account')}
-                        className="text-purple-600"
+                        className="mt-0.5 text-[#513cd2]"
                         disabled={uploadTargetAccounts.length === 0}
                       />
                       <div>
-                        <label htmlFor="upload-dest-family" className="font-medium text-purple-900 cursor-pointer">
-                          👥 {t('uploadFamilyPage.clientAccountTitle')}
-                        </label>
-                        <p className="text-sm text-purple-700">
+                        <span className="font-medium text-slate-900">{t('uploadFamilyPage.clientAccountTitle')}</span>
+                        <p className="mt-0.5 text-sm text-slate-500">
                           {uploadTargetAccounts.length > 0
                             ? t('uploadFamilyPage.clientAccountDescMulti')
                             : t('uploadFamilyPage.clientAccountDescEmpty')}
                         </p>
                       </div>
-                    </div>
+                    </label>
                     {selectedFileForOptions.uploadDestination === 'family-account' && (
-                      <div className="ml-6 space-y-2">
+                      <div className="ml-0 space-y-2 sm:ml-6">
                         {uploadTargetAccounts.length === 0 ? (
-                          <p className="text-sm text-gray-500 p-3 bg-white border border-purple-200 rounded-lg">
+                          <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
                             {t('uploadFamilyPage.noClientAccountsDetail')}
                           </p>
                         ) : (
                           <>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-purple-700 shrink-0">{t('uploadFamilyPage.searchLabel')}</span>
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                              <span className="shrink-0 text-sm text-slate-600">{t('uploadFamilyPage.searchLabel')}</span>
                               <input
                                 type="search"
                                 value={accountSearchQuery}
                                 onChange={(e) => setAccountSearchQuery(e.target.value)}
                                 placeholder={t('uploadFamilyPage.searchAccounts')}
-                                className="flex-1 min-w-0 p-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                                className="input-modern min-w-0 flex-1 text-sm"
                               />
                             </div>
-                            <div className="border border-purple-200 rounded-lg overflow-hidden bg-white" style={{ maxHeight: '10.5rem' }}>
+                            <div className="overflow-hidden rounded-lg border border-slate-200" style={{ maxHeight: '10.5rem' }}>
                               <div className="overflow-y-auto p-1" style={{ maxHeight: '10rem' }}>
                                 {(() => {
                                   const q = accountSearchQuery.trim().toLowerCase();
@@ -2231,7 +2015,7 @@ const UploadFamilyImagesPage = () => {
                                       return (
                                         <label
                                           key={acc.inviterId}
-                                          className="flex items-center gap-3 p-2 rounded-md hover:bg-purple-50 cursor-pointer"
+                                          className="flex cursor-pointer items-center gap-3 rounded-lg p-2 transition hover:bg-slate-50"
                                         >
                                           <input
                                             type="checkbox"
@@ -2243,7 +2027,7 @@ const UploadFamilyImagesPage = () => {
                                                   : [...prev, acc.inviterId]
                                               );
                                             }}
-                                            className="rounded border-purple-300 text-purple-600"
+                                            className="rounded border-slate-300 text-[#513cd2]"
                                           />
                                           <span className="text-sm text-gray-900 truncate">
                                             {acc.inviterFirstName} {acc.inviterLastName}
@@ -2257,7 +2041,7 @@ const UploadFamilyImagesPage = () => {
                               </div>
                             </div>
                             {selectedAccountIdsForModal.length > 0 && (
-                              <p className="text-xs text-purple-700">
+                              <p className="text-xs text-slate-500">
                                 {t('uploadFamilyPage.modalAccountsSelected', { n: selectedAccountIdsForModal.length })}
                               </p>
                             )}
@@ -2276,7 +2060,7 @@ const UploadFamilyImagesPage = () => {
                                 }
                               }}
                               disabled={selectedAccountIdsForModal.length === 0}
-                              className="w-full py-2 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="w-full rounded-xl bg-gradient-to-r from-[#513cd2] to-indigo-600 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:shadow-lg hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               {selectedAccountIdsForModal.length
                                 ? t('uploadFamilyPage.doneUploadTo', { n: selectedAccountIdsForModal.length })
@@ -2288,18 +2072,18 @@ const UploadFamilyImagesPage = () => {
                     )}
                   </div>
                 </div>
-                <div className="flex justify-end pt-4">
+                <div className="flex justify-stretch border-t border-slate-100 pt-4 sm:justify-end">
                   <button
+                    type="button"
                     onClick={() => {
                       setShowUploadOptions(false);
                       setSelectedFileForOptions(null);
                     }}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    className="min-h-[44px] w-full rounded-xl bg-gradient-to-r from-[#513cd2] to-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all duration-200 hover:shadow-xl hover:brightness-105 sm:w-auto"
                   >
                     {t('uploadFamilyPage.done')}
                   </button>
                 </div>
-              </div>
             </div>
           </div>
         </div>
@@ -2307,14 +2091,15 @@ const UploadFamilyImagesPage = () => {
 
       {/* Create album modal */}
       {showCreateAlbumModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-                <FaFolder className="mr-2 text-[#2731db]" />
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/55 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="max-h-[min(92dvh,100%)] w-full max-w-md overflow-y-auto rounded-t-2xl border border-slate-200 bg-white shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-h-[90vh] sm:rounded-2xl sm:p-6">
+            <div className="mb-5 flex items-center justify-between border-b border-slate-100 px-4 pb-4 pt-4 sm:px-0 sm:pt-0">
+              <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+                <Folder className="text-[#004ac6]" aria-hidden />
                 {t('uploadFamilyPage.createNewAlbum')}
               </h2>
               <button
+                type="button"
                 onClick={() => {
                   setShowCreateAlbumModal(false);
                   setNewAlbumName('');
@@ -2322,34 +2107,34 @@ const UploadFamilyImagesPage = () => {
                   setNewAlbumPrice('');
                   setNewAlbumIsPublic(false);
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
               >
-                <FaTimes />
+                <FaTimes className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadFamilyPage.albumName')}</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">{t('uploadFamilyPage.albumName')}</label>
                 <input
                   type="text"
                   value={newAlbumName}
                   onChange={(e) => setNewAlbumName(e.target.value)}
                   placeholder={t('uploadFamilyPage.albumNamePlaceholder')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+                  className="input-modern w-full"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadFamilyPage.albumDesc')}</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">{t('uploadFamilyPage.albumDesc')}</label>
                 <textarea
                   value={newAlbumDescription}
                   onChange={(e) => setNewAlbumDescription(e.target.value)}
                   placeholder={t('uploadFamilyPage.albumDescPlaceholder')}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+                  className="input-modern w-full resize-y"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadFamilyPage.albumPrice')}</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">{t('uploadFamilyPage.albumPrice')}</label>
                 <input
                   type="number"
                   value={newAlbumPrice}
@@ -2357,11 +2142,11 @@ const UploadFamilyImagesPage = () => {
                   placeholder={t('uploadFamilyPage.albumPricePlaceholder')}
                   min="0"
                   step="0.01"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+                  className="input-modern w-full"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('uploadFamilyPage.perPhotoPrice')}</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">{t('uploadFamilyPage.perPhotoPrice')}</label>
                 <input
                   type="number"
                   value={perPhotoPrice}
@@ -2369,36 +2154,38 @@ const UploadFamilyImagesPage = () => {
                   placeholder={t('uploadFamilyPage.perPhotoPlaceholder')}
                   min="0"
                   step="0.01"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2731db]"
+                  className="input-modern w-full"
                 />
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="isPublic"
                   checked={newAlbumIsPublic}
                   onChange={(e) => setNewAlbumIsPublic(e.target.checked)}
-                  className="w-4 h-4 text-[#2731db] border-gray-300 rounded"
+                  className="h-4 w-4 rounded border-slate-300 text-[#513cd2] focus:ring-[#513cd2]/40"
                 />
-                <label htmlFor="isPublic" className="text-sm font-medium text-gray-700">{t('uploadFamilyPage.makeAlbumPublic')}</label>
+                <label htmlFor="isPublic" className="text-sm font-medium text-slate-700">{t('uploadFamilyPage.makeAlbumPublic')}</label>
               </div>
-              <div className="flex space-x-3 pt-4">
+              <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:gap-3">
                 <button
-                  onClick={handleCreateAlbum}
-                  disabled={isCreatingAlbum || !newAlbumName.trim()}
-                  className="flex-1 px-4 py-2 rounded-lg bg-[#2731db] text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isCreatingAlbum ? t('uploadFamilyPage.creating') : t('uploadFamilyPage.createAlbumBtn')}
-                </button>
-                <button
+                  type="button"
                   onClick={() => {
                     setShowCreateAlbumModal(false);
                     setNewAlbumName('');
                     setNewAlbumDescription('');
                   }}
-                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  className="min-h-[44px] rounded-lg border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:py-2.5"
                 >
                   {t('common.cancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateAlbum}
+                  disabled={isCreatingAlbum || !newAlbumName.trim()}
+                  className="btn-primary min-h-[44px] flex-1 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isCreatingAlbum ? t('uploadFamilyPage.creating') : t('uploadFamilyPage.createAlbumBtn')}
                 </button>
               </div>
             </div>

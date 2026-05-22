@@ -1585,7 +1585,7 @@ const ClientImagesPage = () => {
                   onClick={() => {
                     window.location.href = '/upload';
                   }}
-                  className="mt-6 inline-flex items-center rounded-xl il-primary-gradient px-5 py-2.5 text-sm font-semibold text-[color:var(--primary-foreground)] il-shadow-elegant transition hover:opacity-95"
+                  className="mt-6 inline-flex items-center rounded-xl il-primary-gradient px-5 py-2.5 text-sm font-semibold text-[color:var(--header-background)] il-shadow-elegant transition hover:opacity-95"
                 >
                   <Upload className="mr-2 h-4 w-4" />
                   {t('imagesPage.uploadFile')}

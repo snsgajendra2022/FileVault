@@ -24,7 +24,7 @@
 }
 
 .images-library-scope .il-primary-gradient {
-  background-image: var(--gradient-primary);
+  background-image: var(--header-background);
 }
 
 .images-library-scope .il-shadow-elegant {

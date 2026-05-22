@@ -1,16 +1,48 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { FaPlus, FaSearch, FaStar, FaUser } from 'react-icons/fa';
 import { listPhoneBookContacts, type PhoneBookContact, type PhoneBookContactType } from '../../api/services/phoneBookService';
 import { usePhoneBookPrefsStore } from '../../state/stores/phoneBookPrefsStore';
 
+const CONTACT_TYPES: PhoneBookContactType[] = [
+  'Client',
+  'Family',
+  'Bride/Groom',
+  'Event Organizer',
+  'Photographer',
+  'Staff',
+  'VIP Customer',
+  'Other',
+];
+
+const CONTACT_TYPE_I18N_KEY: Record<PhoneBookContactType, string> = {
+  Client: 'Client',
+  Family: 'Family',
+  'Bride/Groom': 'BrideGroom',
+  'Event Organizer': 'EventOrganizer',
+  Photographer: 'Photographer',
+  Staff: 'Staff',
+  'VIP Customer': 'VipCustomer',
+  Other: 'Other',
+};
+
 const PhoneBookListPage: React.FC = () => {
+  const { t } = useTranslation();
   const [search, setSearch] = React.useState('');
   const [typeFilter, setTypeFilter] = React.useState<PhoneBookContactType | 'all'>('all');
 
   const favoriteContactIds = usePhoneBookPrefsStore((s) => s.favoriteContactIds);
   const toggleFavorite = usePhoneBookPrefsStore((s) => s.toggleFavorite);
+
+  const contactTypeLabel = React.useCallback(
+    (type: string) => {
+      const key = CONTACT_TYPE_I18N_KEY[type as PhoneBookContactType] ?? 'Other';
+      return t(`phoneBookListPage.contactTypes.${key}`);
+    },
+    [t]
+  );
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['phoneBookContacts', search],
@@ -28,17 +60,6 @@ const PhoneBookListPage: React.FC = () => {
     () => contacts.filter((c) => favoriteContactIds.has(c.id)),
     [contacts, favoriteContactIds]
   );
-
-  const CONTACT_TYPES: Array<PhoneBookContactType> = [
-    'Client',
-    'Family',
-    'Bride/Groom',
-    'Event Organizer',
-    'Photographer',
-    'Staff',
-    'VIP Customer',
-    'Other',
-  ];
 
   const grouped = React.useMemo(() => {
     const groups = new Map<string, PhoneBookContact[]>();
@@ -76,7 +97,7 @@ const PhoneBookListPage: React.FC = () => {
         <Link
           to={`/phonebook/${encodeURIComponent(c.id)}`}
           className="absolute inset-0"
-          aria-label={`Open ${c.displayName}`}
+          aria-label={t('phoneBookListPage.openContact', { name: c.displayName })}
         />
         <div className="relative flex items-center gap-3">
           <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-slate-200/80">
@@ -106,14 +127,14 @@ const PhoneBookListPage: React.FC = () => {
               >
                 <span className="inline-flex items-center gap-1">
                   <FaStar className={`h-3 w-3 ${isFav ? 'text-amber-500' : 'text-slate-400'}`} />
-                  {isFav ? 'Fav' : 'Star'}
+                  {isFav ? t('phoneBookListPage.fav') : t('phoneBookListPage.star')}
                 </span>
               </button>
             </div>
             <p className="mt-1 truncate text-xs text-slate-500">{[phone, c.email].filter(Boolean).join(' · ') || '—'}</p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
-                {type}
+                {contactTypeLabel(type)}
               </span>
               {c.meta?.inviteStatus ? (
                 <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-500">
@@ -132,20 +153,18 @@ const PhoneBookListPage: React.FC = () => {
       <div className="mx-auto max-w-5xl px-4 py-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-600">Photo Phone Book</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-600">{t('phoneBookListPage.eyebrow')}</p>
             <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-              Clients, guests, and VIPs — in one visual book.
+              {t('phoneBookListPage.title')}
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-600">
-              Use contacts for event invitations, gallery sharing, and quick communication.
-            </p>
+            <p className="mt-2 max-w-2xl text-sm text-slate-600">{t('phoneBookListPage.subtitle')}</p>
           </div>
           <Link
             to="/phonebook/new"
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-violet-500/25 hover:opacity-95"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--header-background)] from-violet-600 to-fuchsia-600 px-5 py-3 text-sm font-bold shadow-lg shadow-violet-500/25 hover:opacity-95"
           >
             <FaPlus className="h-4 w-4" />
-            Add contact
+            {t('phoneBookListPage.addContact')}
           </Link>
         </div>
 
@@ -155,18 +174,18 @@ const PhoneBookListPage: React.FC = () => {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name, email, mobile…"
+              placeholder={t('phoneBookListPage.searchPlaceholder')}
               className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
             />
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto rounded-3xl border border-slate-200/90 bg-white px-3 py-2 shadow-sm">
             <button type="button" onClick={() => setTypeFilter('all')} className="shrink-0">
-              <TypePill label="All" active={typeFilter === 'all'} />
+              <TypePill label={t('phoneBookListPage.filterAll')} active={typeFilter === 'all'} />
             </button>
-            {CONTACT_TYPES.map((t) => (
-              <button key={t} type="button" onClick={() => setTypeFilter(t)} className="shrink-0">
-                <TypePill label={t} active={typeFilter === t} />
+            {CONTACT_TYPES.map((contactType) => (
+              <button key={contactType} type="button" onClick={() => setTypeFilter(contactType)} className="shrink-0">
+                <TypePill label={contactTypeLabel(contactType)} active={typeFilter === contactType} />
               </button>
             ))}
           </div>
@@ -180,9 +199,9 @@ const PhoneBookListPage: React.FC = () => {
           </div>
         ) : isError ? (
           <div className="mt-6 rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800">
-            Failed to load contacts.
+            {t('phoneBookListPage.loadFailed')}
             <button type="button" className="ml-2 font-semibold underline underline-offset-4" onClick={() => refetch()}>
-              Retry
+              {t('common.retry')}
             </button>
           </div>
         ) : contacts.length === 0 ? (
@@ -190,16 +209,14 @@ const PhoneBookListPage: React.FC = () => {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 ring-1 ring-slate-200">
               <FaUser className="h-5 w-5" />
             </div>
-            <p className="text-base font-bold text-slate-900">No contacts yet</p>
-            <p className="mt-2 text-sm text-slate-600">
-              Create your first client to invite them to events and share galleries in seconds.
-            </p>
+            <p className="text-base font-bold text-slate-900">{t('phoneBookListPage.emptyTitle')}</p>
+            <p className="mt-2 text-sm text-slate-600">{t('phoneBookListPage.emptyBody')}</p>
             <Link
               to="/phonebook/new"
-              className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-violet-500/20 hover:opacity-95"
+              className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-[var(--header-background)] from-violet-600 to-fuchsia-600 px-5 py-3 text-sm font-bold  shadow-md shadow-violet-500/20 hover:opacity-95"
             >
               <FaPlus className="h-4 w-4" />
-              Add contact
+              {t('phoneBookListPage.addContact')}
             </Link>
           </div>
         ) : (
@@ -207,7 +224,7 @@ const PhoneBookListPage: React.FC = () => {
             {favorites.length > 0 && (
               <section>
                 <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">Favorites</h2>
+                  <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">{t('phoneBookListPage.favorites')}</h2>
                   <p className="text-xs text-slate-400">{favorites.length}</p>
                 </div>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -220,7 +237,7 @@ const PhoneBookListPage: React.FC = () => {
 
             <section>
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">All contacts</h2>
+                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-slate-500">{t('phoneBookListPage.allContacts')}</h2>
                 <p className="text-xs text-slate-400">{contacts.length}</p>
               </div>
 
