@@ -21,7 +21,7 @@ interface PermissionGuardProps {
 const PermissionGuard: React.FC<PermissionGuardProps> = ({
   children,
   requiredPath,
-  fallbackPath = '/studio/dashboard',
+  fallbackPath = '',
 }) => {
   const { user } = useAuth();
   const location = useLocation();
