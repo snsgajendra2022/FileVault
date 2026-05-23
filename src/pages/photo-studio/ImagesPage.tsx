@@ -41,8 +41,22 @@ import {
   X,
   LayoutGrid,
   Calendar,
+  Play,
+  Filter,
+  Database,
+  FolderOpen,
 } from 'lucide-react';
 import './imagesPageTheme.css';
+import ProgressiveImage from '../../components/photo-studio/ProgressiveImage';
+import type { ImageVariants } from '../../utils/progressiveImageVariants';
+import { useProgressiveImageSrc } from '../../hooks/useProgressiveImageSrc';
+import {
+  getBootstrapSrc,
+  getConnectionHint,
+  getSaveData,
+  getUpgradeStopUrl,
+  variantsNeedPolling,
+} from '../../utils/progressiveImageVariants';
 const SCROLL_RESTORE_KEY = 'photo-studio-images-scroll';
 const ASPECT_RATIO = 4 / 3;
 const IMAGE_ROOT_MARGIN = '100px';
@@ -61,6 +75,7 @@ interface UserImage {
   enabledServices: { [key: string]: string };
   uploadTime: string;
   fileType: string;
+  variants?: ImageVariants;
 }
 
 interface UserImagesResponse {
@@ -117,6 +132,17 @@ function formatDate(dateString: string): string {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
+  });
+}
+
+function formatImageCardDate(dateString: string): string {
+  const d = parseUploadTime(dateString);
+  if (!d) return '—';
+  return d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   });
 }
 
@@ -233,10 +259,14 @@ function getEnabledServicesCount(enabledServices: { [key: string]: string }): nu
 // Skeleton placeholder (fixed aspect ratio, shimmer)
 // ---------------------------------------------------------------------------
 
+function fileExtensionLabel(fileType: string, filename?: string): string {
+  if (fileType && fileType !== 'unknown') return fileType.toUpperCase().slice(0, 4);
+  const ext = filename?.split('.').pop()?.toUpperCase();
+  return ext?.slice(0, 4) || 'FILE';
+}
+
 const SkeletonPlaceholder = memo(function SkeletonPlaceholder() {
-  return (
-    <div className="absolute inset-0 bg-gray-200 animate-pulse" />
-  );
+  return <div className="lumina-shimmer" aria-hidden />;
 });
 
 // ---------------------------------------------------------------------------
@@ -273,9 +303,9 @@ const ImageCard = memo(function ImageCard({
   isSelected,
   onToggleSelect,
 }: ImageCardProps) {
+  const { t } = useTranslation();
   const [loadState, setLoadState] = useState<ImageLoadState>('idle');
-  const [hovered, setHovered] = useState(false);
-  const imgRef = useRef<HTMLImageElement | null>(null);
+  const [imageRetryKey, setImageRetryKey] = useState(0);
   const showImage = isImageType(image.fileType, image.filename);
   const showVideo = isVideoType(image.fileType, image.filename);
 
@@ -290,61 +320,59 @@ const ImageCard = memo(function ImageCard({
 
   const handleRetry = useCallback(() => {
     setLoadState('loading');
-    if (imgRef.current) {
-      const src = image.previewUrl;
-      imgRef.current.src = '';
-      imgRef.current.src = src;
-    }
-  }, [image.previewUrl]);
+    setImageRetryKey((k) => k + 1);
+  }, []);
 
   const showSkeleton = (showImage || showVideo) && (loadState === 'idle' || loadState === 'loading');
   const showImg = showImage && (loadState === 'loading' || loadState === 'loaded');
   const showError = (showImage || showVideo) && loadState === 'error';
   const showIcon = !showImage && !showVideo || loadState === 'error';
 
+  const extLabel = fileExtensionLabel(image.fileType, image.filename);
+
   return (
-    <div
+    <article
       ref={cardRef}
       data-index={index}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className={`group relative overflow-hidden rounded-2xl border bg-[var(--card)] il-shadow-soft ${isSelected
-        ? 'border-blue-500'
-        : 'border-[color:color-mix(in_oklab,var(--border),transparent_35%)] hover:border-[color:color-mix(in_oklab,var(--primary),transparent_60%)]'
-        }`}
+      className={`lumina-gallery-card group ${isSelected ? 'lumina-gallery-card--selected' : ''}`}
     >
-      {/* Preview area */}
       <div
-        className="relative w-full overflow-hidden bg-[color:var(--muted)]"
-        style={{ paddingBottom: `${(1 / ASPECT_RATIO) * 100}%` }}
+        className="lumina-media cursor-pointer"
         onClick={() => onView(image)}
-
-
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onView(image);
+          }
+        }}
+        aria-label={image.filename}
       >
-        <div className="absolute inset-0">
-          {showSkeleton && <SkeletonPlaceholder />}
-          {showImg && (
-            <img
-              ref={imgRef}
-              src={isVisible ? image.thumbnailUrl || image.previewUrl : undefined}
+        {showSkeleton && <SkeletonPlaceholder />}
+        {showImg && (
+          <div
+            className="absolute inset-0 transition-opacity duration-500 ease-out"
+            style={{ opacity: loadState === 'loaded' ? 1 : 0 }}
+          >
+            <ProgressiveImage
+              key={imageRetryKey}
+              image={image}
+              enabled={isVisible}
               alt={image.filename}
-              className="h-full w-full object-cover transition-all duration-500"
-              style={{
-                opacity: loadState === 'loaded' ? 1 : 0,
-                transition: 'opacity 0.3s ease',
-              }}
-              loading="lazy"
+              className="h-full w-full object-cover"
               onLoad={handleLoad}
               onError={handleError}
-              decoding="async"
             />
-          )}
+          </div>
+        )}
 
-          {showVideo && (
+        {showVideo && (
+          <>
             <video
               src={isVisible ? image.previewUrl : undefined}
-              className="w-full h-full object-cover"
-              style={{ opacity: loadState === 'loaded' ? 1 : 0, transition: 'opacity 0.3s ease' }}
+              className="h-full w-full object-cover"
+              style={{ opacity: loadState === 'loaded' ? 1 : 0, transition: 'opacity 0.4s ease' }}
               onLoadedData={handleLoad}
               onError={handleError}
               controls
@@ -352,99 +380,105 @@ const ImageCard = memo(function ImageCard({
               playsInline
               preload="metadata"
             />
-          )}
-
-          {showError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 p-4">
-              <p className="text-xs text-gray-500 text-center mb-2">Failed to load preview</p>
-              <button
-                type="button"
-                onClick={handleRetry}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
-          {showIcon && !showError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-              <div
-                className={`${getFileTypeColor(image.fileType, image.filename)} text-white rounded-2xl p-5 text-4xl shadow-lg`}
-              >
-                {getFileTypeIcon(image.fileType, image.filename)}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/10 transition-colors group-hover:bg-black/20">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/40 bg-white/30 text-white backdrop-blur-md">
+                <Play className="h-6 w-6 fill-white" />
               </div>
             </div>
-          )}
+          </>
+        )}
 
-          <div
-            className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none"
-            style={{ opacity: hovered ? 1 : 0, transition: 'opacity 0.4s ease' }}
-          />
-
-          <div className="absolute right-2 top-2 flex items-center gap-1">
-            {onToggleSelect && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleSelect(image);
-                }}
-                className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border-2 transition-all duration-200 ${isSelected
-                  ? 'border-white bg-blue-600 text-white shadow-md'
-                  : 'border-white/70 bg-black/25 backdrop-blur-sm hover:border-white'
-                  }`}
-                aria-label={isSelected ? 'Deselect' : 'Select for share'}
-              >
-                {isSelected ? <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={2.5} /> : null}
-              </button>
-            )}
+        {showError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#eceef0] p-4">
+            <p className="mb-2 text-center text-xs font-medium text-[#4a4455]">
+              {t('imagesPage.loadErrorTitle')}
+            </p>
+            <button type="button" onClick={handleRetry} className="lumina-btn-primary px-4 py-2 text-xs">
+              {t('imagesPage.retryAction')}
+            </button>
           </div>
+        )}
 
-          <div
-            className="absolute bottom-2 left-2 right-2 flex gap-1.5 pointer-events-none"
-            style={{ opacity: hovered ? 1 : 0, transform: hovered ? 'translateY(0)' : 'translateY(8px)', transition: 'opacity 0.3s ease, transform 0.3s ease', pointerEvents: hovered ? 'auto' : 'none' }}
+        {showIcon && !showError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#eceef0]">
+            <div
+              className={`${getFileTypeColor(image.fileType, image.filename)} rounded-2xl p-5 text-4xl text-white shadow-lg`}
+            >
+              {getFileTypeIcon(image.fileType, image.filename)}
+            </div>
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-[#4a4455]/60">
+              Preview unavailable
+            </span>
+          </div>
+        )}
+
+        <div className="lumina-media-overlay" aria-hidden />
+
+        <span className="lumina-ext-badge">{extLabel}</span>
+
+        {onToggleSelect && (
+          <div className="lumina-card-select">
+            <input
+              type="checkbox"
+              checked={!!isSelected}
+              onChange={(e) => {
+                e.stopPropagation();
+                onToggleSelect(image);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="h-5 w-5 rounded-full border-white bg-white/20 text-[#630ed4] focus:ring-[#630ed4]"
+              aria-label={isSelected ? t('imagesPage.clearSelection') : t('imagesPage.shareLink')}
+            />
+          </div>
+        )}
+
+        <div className="lumina-card-actions">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onView(image);
+            }}
+            className="lumina-action-icon"
+            aria-label={t('imagesPage.view')}
           >
+            <FaEye className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDownload(image);
+            }}
+            className="lumina-action-icon"
+            aria-label="Download"
+          >
+            <FiDownload className="h-3.5 w-3.5" />
+          </button>
+          {viewMode === 'my' && (
             <button
               type="button"
-              onClick={() => onView(image)}
-              className="flex-1 inline-flex justify-center items-center px-2 py-1.5 text-xs font-semibold rounded-lg text-white bg-white/20 hover:bg-white/35 backdrop-blur-sm border border-white/30 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(image);
+              }}
+              disabled={deletePending}
+              className="lumina-action-icon lumina-action-icon--danger"
+              aria-label={t('imagesPage.delete')}
             >
-              <FaEye className="h-3 w-3 mr-1" />
-              View
+              {deletePending ? <LoadingSpinner size="sm" /> : <FiTrash2 className="h-3.5 w-3.5" />}
             </button>
-            <button
-              type="button"
-              onClick={() => onDownload(image)}
-              className="flex-1 inline-flex justify-center items-center px-2 py-1.5 text-xs font-semibold rounded-lg text-white bg-white/20 hover:bg-white/35 backdrop-blur-sm border border-white/30 transition-colors"
-            >
-              <FiDownload className="h-3 w-3 mr-1" />
-              Save
-            </button>
-            {viewMode === 'my' && (
-              <button
-                type="button"
-                onClick={() => onDelete(image)}
-                disabled={deletePending}
-                className="inline-flex justify-center items-center px-2 py-1.5 text-xs font-semibold rounded-lg text-white bg-red-500/70 hover:bg-red-500/90 backdrop-blur-sm border border-red-400/40 transition-colors disabled:opacity-50 min-w-[2rem]"
-              >
-                {deletePending ? <LoadingSpinner size="sm" /> : <FiTrash2 className="h-3 w-3" />}
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Info footer */}
-      <div className="border-t border-[color:color-mix(in_oklab,var(--border),transparent_55%)] bg-[var(--card)] px-3 py-2.5">
-        <h3
-          className="truncate text-xs font-semibold leading-tight text-[color:var(--foreground)]"
-          title={image.filename}
-        >
+      <div className="lumina-card-footer">
+        <p className="lumina-card-filename" title={image.filename}>
           {image.filename}
-        </h3>
+        </p>
+        <p className="lumina-card-meta">{formatImageCardDate(image.uploadTime)}</p>
       </div>
-    </div>
+    </article>
   );
 });
 
@@ -527,7 +561,13 @@ const ClientImagesPage = () => {
         token = selectedUser.inviterApiToken;
       }
       const response = await api.get(`/api/images/user/all`, {
-        params: { token, page: pageParam, size: IMAGES_PAGE_SIZE },
+        params: {
+          token,
+          page: pageParam,
+          size: IMAGES_PAGE_SIZE,
+          connection: getConnectionHint(),
+          saveData: getSaveData(),
+        },
       });
       return response.data as UserImagesResponse;
     },
@@ -538,7 +578,11 @@ const ClientImagesPage = () => {
       return page + 1 < totalPages ? page + 1 : undefined;
     },
     retry: 2,
-    refetchInterval: 30000,
+    refetchInterval: (query) => {
+      const pages = query.state.data?.pages ?? [];
+      const all = pages.flatMap((p) => (p as UserImagesResponse).images ?? []);
+      return variantsNeedPolling(all) ? 4000 : 30000;
+    },
     enabled: !!user && (viewMode === 'my' || (viewMode === 'invited' && !!selectedUser)),
   });
 
@@ -617,6 +661,30 @@ const ClientImagesPage = () => {
     if (image.id != null && image.id !== '') return String(image.id);
     return image.previewUrl || image.filename || '';
   }, []);
+
+  /** Live row from query so lightbox picks up variant polling while open. */
+  const activeLightboxImage = useMemo(() => {
+    if (!selectedImage) return null;
+    const key = getImageKey(selectedImage);
+    return images.find((img) => getImageKey(img) === key) ?? selectedImage;
+  }, [selectedImage, images, getImageKey]);
+
+  const lightboxIsImage =
+    !!activeLightboxImage &&
+    isImageType(activeLightboxImage.fileType, activeLightboxImage.filename);
+
+  const lightboxProgressive = useProgressiveImageSrc(
+    activeLightboxImage ?? {
+      previewUrl: '',
+      filename: '',
+      downloadUrl: '',
+      thumbnailUrl: '',
+      enabledServices: {},
+      uploadTime: '',
+      fileType: '',
+    },
+    lightboxIsImage
+  );
 
   const selectedImages = useMemo(
     () => images.filter((img) => selectedImageIds.has(getImageKey(img))),
@@ -1020,11 +1088,12 @@ const ClientImagesPage = () => {
     setSelectedImageIndex(-1);
   }, []);
 
-  // Progressive image loading in lightbox: show thumbnail immediately, preload previewUrl, then fade in preview when ready
+  // Lightbox: bootstrap on original, tier ladder via hook, then preload full previewUrl when distinct from recommended stop
   useEffect(() => {
-    if (!selectedImage || !isImageType(selectedImage.fileType, selectedImage.filename)) return;
-    const thumb = selectedImage.thumbnailUrl || selectedImage.previewUrl;
-    const preview = selectedImage.previewUrl;
+    if (!activeLightboxImage || !lightboxIsImage) return;
+    const bootstrap = getBootstrapSrc(activeLightboxImage);
+    const stopUrl = getUpgradeStopUrl(activeLightboxImage);
+    const preview = activeLightboxImage.previewUrl;
     setLightboxImageLoaded(false);
     setLightboxZoom(1);
     setLightboxPan({ x: 0, y: 0 });
@@ -1032,7 +1101,7 @@ const ClientImagesPage = () => {
     setLightboxPreviewReady(false);
     setLightboxPreviewFailed(false);
     setLightboxPreviewVisible(false);
-    if (!preview || preview === thumb) {
+    if (!preview || preview === bootstrap || (stopUrl && preview === stopUrl)) {
       setLightboxPreviewReady(true);
       return;
     }
@@ -1058,7 +1127,7 @@ const ClientImagesPage = () => {
       img.onerror = null;
       img.src = '';
     };
-  }, [selectedImage]);
+  }, [activeLightboxImage, lightboxIsImage]);
 
   // Trigger fade-in after preview is in DOM (avoids no transition on first paint)
   useEffect(() => {
@@ -1262,272 +1331,226 @@ const ClientImagesPage = () => {
   const loadErrorMessage =
     error instanceof Error ? error.message : error ? String(error) : '';
 
+  const skeletonGridClass = gridCompact
+    ? 'lumina-gallery-grid lumina-gallery-grid--compact'
+    : 'lumina-gallery-grid';
+
   if (isError && !userImagesData) {
     return (
-      <div className="images-library-scope relative min-h-screen bg-[var(--gradient-surface)] font-clients text-[color:var(--foreground)]">
-        <div className="pointer-events-none fixed inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-[color:var(--primary)]/20 blur-3xl" />
-          <div className="absolute top-1/3 -left-40 h-96 w-96 rounded-full bg-[var(--primary-glow)]/15 blur-3xl" />
-        </div>
-        <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col items-center justify-center px-4 py-16 sm:px-6">
-          <div className="w-full max-w-md rounded-2xl border border-[color:color-mix(in_oklab,var(--border),transparent_30%)] bg-[var(--card)]/90 p-8 text-center il-shadow-soft backdrop-blur-sm">
-            <h2 className="text-lg font-semibold text-[color:var(--foreground)]">{t('imagesPage.loadErrorTitle')}</h2>
-            <p className="mt-2 text-sm text-[color:var(--muted-foreground)]">{t('imagesPage.loadErrorBody')}</p>
-            {loadErrorMessage && (
-              <p className="mt-3 rounded-lg bg-[color:var(--muted)] px-3 py-2 font-mono text-xs text-[color:var(--muted-foreground)]">
-                {loadErrorMessage}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={() => refetch()}
-              className="mt-6 inline-flex items-center justify-center rounded-xl il-primary-gradient px-5 py-2.5 text-sm font-semibold text-[color:var(--primary-foreground)] il-shadow-elegant transition hover:opacity-95"
-            >
-              {t('imagesPage.retryAction')}
-            </button>
+      <div className="images-library-scope relative min-h-screen">
+        <main className="flex min-h-screen flex-col">
+          <div className="lumina-page-body flex flex-1 flex-col items-center justify-center py-16">
+            <div className="lumina-glass w-full max-w-md rounded-2xl p-8 text-center">
+              <h2 className="text-lg font-semibold text-[#191c1e]">{t('imagesPage.loadErrorTitle')}</h2>
+              <p className="mt-2 text-sm text-[#4a4455]">{t('imagesPage.loadErrorBody')}</p>
+              {loadErrorMessage && (
+                <p className="mt-3 rounded-lg bg-[#eceef0] px-3 py-2 font-mono text-xs text-[#4a4455]">
+                  {loadErrorMessage}
+                </p>
+              )}
+              <button type="button" onClick={() => refetch()} className="lumina-btn-primary lumina-primary-glow mt-6">
+                {t('imagesPage.retryAction')}
+              </button>
+            </div>
           </div>
-        </div>
+        </main>
       </div>
     );
   }
 
   if (isPending && !userImagesData && !isError) {
     return (
-      <div className="images-library-scope relative min-h-screen bg-[var(--gradient-surface)] font-clients">
-        <div className="pointer-events-none fixed inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-[color:var(--primary)]/20 blur-3xl" />
-        </div>
-        <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6">
-          <div className="mb-8 h-10 w-48 animate-pulse rounded-xl bg-[color:var(--muted)]" />
-          <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[...Array(4)].map((_, i) => (
-              <div
-                key={i}
-                className="h-24 animate-pulse rounded-2xl bg-[color:color-mix(in_oklab,var(--card),var(--muted)_40%)]"
-              />
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {[...Array(8)].map((_, i) => (
-              <div
-                key={i}
-                className="overflow-hidden rounded-2xl border border-[color:color-mix(in_oklab,var(--border),transparent_40%)]"
-              >
-                <div
-                  className="animate-pulse bg-[color:var(--muted)]"
-                  style={{ paddingBottom: `${(1 / ASPECT_RATIO) * 100}%` }}
-                />
+      <div className="images-library-scope relative min-h-screen">
+        <main className="flex min-h-screen flex-col">
+          <header className="lumina-top-bar">
+            <div className="lumina-page-body flex h-14 items-center">
+              <div className="lumina-top-search flex-1 sm:flex-none">
+                <Search className="h-5 w-5 shrink-0 text-[#7b7487]" />
+                <input disabled placeholder={t('imagesPage.searchPlaceholder')} />
               </div>
-            ))}
+            </div>
+          </header>
+          <div className="lumina-page-body space-y-8">
+            <div className="lumina-hero lumina-glass h-40 animate-pulse" />
+            <div className={skeletonGridClass}>
+              {Array.from({ length: 18 }).map((_, i) => (
+                <div key={i} className="lumina-skeleton-card">
+                  <div className="lumina-skeleton-media lumina-shimmer" />
+                  <div className="lumina-skeleton-footer lumina-shimmer" />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="images-library-scope relative min-h-screen bg-[var(--gradient-surface)] font-clients text-[color:var(--foreground)]">
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-[color:var(--primary)]/20 blur-3xl" />
-        <div className="absolute top-1/3 -left-40 h-96 w-96 rounded-full bg-[var(--primary-glow)]/15 blur-3xl" />
-      </div>
-
-      <div className="relative w-full px-4 py-6 sm:px-6 sm:py-8">
-
-        {/* header section start */}
-        <header
-          className="relative mb-6 overflow-hidden rounded-3xl border border-[#D9E7FF] px-8 py-7 shadow-[0_10px_40px_rgba(37,99,235,0.06)]"
-          style={{
-            background:
-              'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)',
-          }}
-        >
-          <div className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full bg-blue-300/10 blur-3xl" />
-          <div className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-blue-400/5 blur-3xl" />
-
-          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            {/* LEFT */}
-            <div className="flex-1 min-w-0">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#D9E7FF] bg-white/70 px-3 py-1 backdrop-blur-xl">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2563EB] opacity-60" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
-                </span>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2563EB]">
-                  Photo Library
-                </span>
-              </div>
-
-              <h1 className="mt-4 text-[2.25rem] font-semibold leading-[1.1] tracking-tight text-[#0F172A]">
-                {viewMode === 'my'
-                  ? 'My Images'
-                  : t('imagesPage.theirFiles', {
-                    name:
-                      [selectedUser?.inviterFirstName, selectedUser?.inviterLastName]
-                        .filter(Boolean)
-                        .join(' ')
-                        .trim() || '—',
-                  })}
-              </h1>
-
-              <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-                Browse, organize, and manage every file in your librarccdasfy.
-              </p>
-
-              {/* Stat row — flatter, more enterprise */}
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                <div className="inline-flex items-center gap-3 rounded-2xl border border-[#D9E7FF] bg-white/80 px-4 py-2.5 backdrop-blur-xl">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#2563EB] to-[#3B82F6] shadow-[0_6px_16px_rgba(37,99,235,0.25)]">
-                    <ImageIcon className="h-4 w-4 text-white" strokeWidth={2.4} />
-                  </div>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-semibold tabular-nums text-[#0F172A]">
-                      {userImagesData?.pages?.[0]?.totalImages ?? images.length}
-                    </span>
-                    <span className="text-xs font-medium text-slate-500">files</span>
-                  </div>
-                </div>
-
-                <div className="inline-flex items-center gap-2 rounded-2xl border border-[#D9E7FF] bg-white/80 px-4 py-2.5 backdrop-blur-xl">
-                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  <span className="text-xs font-medium text-slate-600">All synced</span>
-                </div>
-              </div>
+    <div className="images-library-scope relative min-h-screen">
+      <main className="flex min-h-screen min-w-0 flex-1 flex-col">
+        {/* Top bar — search only (no left sidebar) */}
+        <header className="lumina-top-bar">
+          <div className="lumina-page-body flex h-14 items-center justify-between gap-4">
+            <div className="lumina-top-search min-w-0 flex-1 sm:max-w-md">
+              <Search className="h-5 w-5 shrink-0 text-[#7b7487]" />
+              <input
+                type="search"
+                value={gallerySearch}
+                onChange={(e) => setGallerySearch(e.target.value)}
+                placeholder={t('imagesPage.searchPlaceholder')}
+                aria-label={t('imagesPage.searchPlaceholder')}
+              />
             </div>
-
-            {/* RIGHT ACTIONS */}
-            <div className="flex shrink-0 items-center gap-2 rounded-2xl border border-[#D9E7FF] bg-white/60 p-1.5 backdrop-blur-xl">
-              <button
-                type="button"
-                onClick={() => setGallerySearchOpen((o) => !o)}
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all ${gallerySearchOpen || gallerySearch
-                  ? 'bg-[#2563EB] text-white shadow-sm'
-                  : 'text-slate-500 hover:bg-white hover:text-[#0F172A]'
-                  }`}
-                aria-label="Search"
-              >
-                <Search className="h-4 w-4" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setGridCompact((c) => !c)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-white hover:text-[#0F172A]"
-                aria-label="Toggle layout"
-              >
-                {gridCompact ? <LayoutGrid className="h-4 w-4" /> : <Grid3x3 className="h-4 w-4" />}
-              </button>
-
-              <div className="mx-1 h-6 w-px bg-[#D9E7FF]" />
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (selectedImageIds.size > 0) {
-                    setShowShareModal(true);
-                  } else {
-                    toast('Select images using the ☑ checkbox on each card, then share.', { icon: '💡' });
-                  }
-                }}
-                className={`inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-all ${selectedImageIds.size > 0
-                  ? 'text-blue-900 shadow-sm hover:opacity-90'
-                  : 'text-slate-500 hover:bg-white hover:text-[#0F172A]'
-                  }`}
-                style={selectedImageIds.size > 0 ? { background: 'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)' } : undefined}
-                aria-label="Share"
-              >
-                <Share2 className="h-4 w-4" />
-                <span className="hidden sm:inline">
-                  {selectedImageIds.size > 0 ? `Share (${selectedImageIds.size})` : 'Share'}
-                </span>
-                {selectedImageIds.size > 0 && (
-                  <span className="sm:hidden text-xs font-bold">{selectedImageIds.size}</span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { window.location.href = '/upload'; }}
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#3B82F6] px-3 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(37,99,235,0.25)] transition-all hover:shadow-[0_10px_28px_rgba(37,99,235,0.32)]"
-                aria-label="Upload"
-              >
-                <Upload className="h-4 w-4" />
-                <span className="hidden sm:inline">Upload</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setGridCompact((c) => !c)}
+              className="lumina-btn-secondary hidden shrink-0 px-3 py-2 sm:inline-flex"
+              aria-label="Toggle grid density"
+            >
+              {gridCompact ? <Grid3x3 className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+            </button>
           </div>
         </header>
 
-        {viewMode === 'my' && familyRelationships.length > 0 && (
-          <section className="mb-8 overflow-hidden rounded-3xl border border-[#D9E7FF] bg-white/80 shadow-[0_10px_30px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-            {/* Header — always visible, tap to expand on mobile */}
-            <button
-              type="button"
-              className="flex w-full items-center justify-between px-6 py-4 sm:cursor-default"
-              onClick={() => setShowSourcesPanel((v) => !v)}
-            >
-              <div className="text-left">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#2563EB]">
-                  Image Sources
+        <div className="lumina-page-body flex-1">
+          {/* Hero — Lumina glass (no left sidebar) */}
+          <section className="lumina-hero lumina-glass relative z-10">
+            <div className="lumina-hero-glow" aria-hidden />
+            <div className="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+              <div className="min-w-0 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="lumina-pulse-dot" aria-hidden />
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#630ed4]">
+                    {t('imagesPage.libraryKicker')}
+                  </span>
+                </div>
+                <h1 className="text-3xl font-semibold tracking-tight text-[#191c1e] sm:text-4xl md:text-5xl">
+                  {viewMode === 'my'
+                    ? t('imagesPage.myImages')
+                    : t('imagesPage.theirFiles', {
+                      name:
+                        [selectedUser?.inviterFirstName, selectedUser?.inviterLastName]
+                          .filter(Boolean)
+                          .join(' ')
+                          .trim() || '—',
+                    })}
+                </h1>
+                <p className="max-w-xl text-base leading-relaxed text-[#4a4455]">
+                  {viewMode === 'my'
+                    ? t('imagesPage.librarySubtitleMy')
+                    : t('imagesPage.librarySubtitleTheir')}
                 </p>
-                <h3 className="mt-0.5 text-base font-semibold tracking-tight text-[#0F172A]">
-                  Show files from
-                </h3>
+                <div className="pt-1">
+                  <span className="lumina-stat-chip">
+                    <Database className="h-4 w-4" />
+                    {userImagesData?.pages?.[0]?.totalImages ?? images.length} {t('imagesPage.totalFiles')}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-500">
-                  {familyRelationships.length + 1} sources
-                </span>
-                <span className={`text-slate-400 transition-transform duration-200 sm:hidden ${showSourcesPanel ? 'rotate-180' : ''}`}>
-                  ▾
-                </span>
-              </div>
-            </button>
 
-            {/* Body — always visible on sm+, collapsible on mobile */}
-            <div className={`px-6 pb-5 sm:block ${showSourcesPanel ? 'block' : 'hidden'}`}>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="lumina-view-toggle">
+                  <button
+                    type="button"
+                    onClick={() => setGridCompact(false)}
+                    className={!gridCompact ? 'lumina-view-toggle--active' : ''}
+                    aria-label="Comfortable grid"
+                  >
+                    <Grid3x3 className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGridCompact(true)}
+                    className={gridCompact ? 'lumina-view-toggle--active' : ''}
+                    aria-label="Compact grid"
+                  >
+                    <LayoutGrid className="h-5 w-5" />
+                  </button>
+                </div>
                 <button
                   type="button"
-                  onClick={handleBackToMyFiles}
-                  className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all ${viewMode === 'my' && !selectedUser
-                    ? 'bg-[#0F172A] text-white shadow-sm'
-                    : 'border border-[#D9E7FF] bg-white text-slate-600 hover:border-[#2563EB]/40 hover:text-[#0F172A]'
-                    }`}
+                  onClick={() => {
+                    if (selectedImageIds.size > 0) {
+                      setShowShareModal(true);
+                    } else {
+                      toast('Select images using the checkbox on each card, then share.', { icon: '💡' });
+                    }
+                  }}
+                  className="lumina-btn-secondary"
                 >
-                  <span className={`h-1.5 w-1.5 rounded-full ${viewMode === 'my' && !selectedUser ? 'bg-emerald-400' : 'bg-slate-300'}`} />
-                  {t('imagesPage.myImages')}
+                  <Share2 className="h-5 w-5" />
+                  {selectedImageIds.size > 0
+                    ? `${t('imagesPage.shareLink')} (${selectedImageIds.size})`
+                    : t('imagesPage.shareLink')}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = '/upload';
+                  }}
+                  className="lumina-btn-primary lumina-primary-glow"
+                >
+                  <Upload className="h-5 w-5" />
+                  {t('imagesPage.uploadFile')}
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* Image sources */}
+          {familyRelationships.length > 0 && (
+            <section className="mb-8">
+              <h3 className="mb-3 text-xl font-semibold tracking-tight text-[#191c1e]">
+                {t('imagesPage.fileSource')}
+              </h3>
+              <div className="flex flex-wrap gap-3">
+                {viewMode === 'my' && !selectedUser ? (
+                  <span className="lumina-source-active">
+                    <FolderOpen className="h-[18px] w-[18px]" />
+                    {t('imagesPage.myImages')}
+                  </span>
+                ) : (
+                  <button type="button" onClick={handleBackToMyFiles} className="lumina-source-chip">
+                    <FolderOpen className="h-[18px] w-[18px]" />
+                    {t('imagesPage.myImages')}
+                  </button>
+                )}
+
 
                 {familyRelationships.map((member) => {
                   const active = selectedUser?.inviterId === member.inviterId;
                   const name = [member.inviterFirstName, member.inviterLastName].filter(Boolean).join(' ');
-                  const initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+                  const initials = name
+                    .split(' ')
+                    .map((n) => n[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase();
+                  if (active) {
+                    return (
+                      <span key={member.inviterId} className="lumina-source-active">
+                        <span className="lumina-source-avatar">{initials || '·'}</span>
+                        {name}
+                      </span>
+                    );
+                  }
                   return (
                     <button
                       key={member.inviterId}
                       type="button"
-                      onClick={() => { handleUserSelect(member); setShowSourcesPanel(false); }}
-                      className={`inline-flex shrink-0 max-w-[200px] items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-all ${active
-                        ? 'bg-[#0F172A] text-white shadow-sm'
-                        : 'border border-[#D9E7FF] bg-white text-slate-600 hover:border-[#2563EB]/40 hover:text-[#0F172A]'
-                        }`}
+                      onClick={() => handleUserSelect(member)}
+                      className="lumina-source-chip"
                     >
-                      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${active ? 'bg-white/15 text-white' : 'bg-[#EFF6FF] text-[#2563EB]'}`}>
-                        {initials || '·'}
-                      </span>
+                      <span className="lumina-source-avatar">{initials || '·'}</span>
                       <span className="truncate">{name}</span>
                     </button>
                   );
                 })}
               </div>
-
-              <p className="mt-4 border-t border-[#D9E7FF] pt-3 text-xs leading-5 text-slate-500">
-                {t('imagesPage.familySectionHint')}
-              </p>
-            </div>
-          </section>
-        )}
+              <p className="mt-3 text-xs leading-5 text-[#4a4455]">{t('imagesPage.familySectionHint')}</p>
+            </section>
+          )}
 
 
 
@@ -1627,7 +1650,7 @@ const ClientImagesPage = () => {
 
         <section>
           {images.length === 0 ? (
-            <div className="rounded-2xl border-2 border-dashed border-[color:color-mix(in_oklab,var(--border),transparent_25%)] bg-[var(--card)]/50 px-4 py-16 text-center sm:py-20">
+            <div className="lumina-empty">
               <Upload className="mx-auto h-14 w-14 text-[color:var(--muted-foreground)] opacity-45" />
               <h3 className="mt-4 text-lg font-semibold text-[color:var(--foreground)]">
                 {viewMode === 'my' ? t('imagesPage.noFilesMy') : t('imagesPage.noFilesShared')}
@@ -1656,7 +1679,7 @@ const ClientImagesPage = () => {
               )}
             </div>
           ) : filteredImagesWithIndex.length === 0 ? (
-            <div className="rounded-2xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--card)]/70 py-14 text-center il-shadow-soft backdrop-blur-sm">
+            <div className="lumina-empty py-14">
               <Search className="mx-auto mb-3 h-10 w-10 text-[color:var(--muted-foreground)] opacity-45" />
               <p className="text-sm text-[color:var(--muted-foreground)]">
                 {galleryDateFilter ? t('imagesPage.noDateMatches') : t('imagesPage.noSearchMatches')}
@@ -1675,36 +1698,21 @@ const ClientImagesPage = () => {
             </div>
           ) : (
             <>
-              <div className="mb-4 flex flex-col gap-3 border-b border-[color:color-mix(in_oklab,var(--border),transparent_45%)] pb-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-                <div>
-                  <h2 className="text-base font-semibold text-[color:var(--foreground)]">{t('imagesPage.galleryHeading')}</h2>
-                  <p className="text-xs text-[color:var(--muted-foreground)]">
-                    {t('imagesPage.itemsShowing', { n: filteredImagesWithIndex.length })}
-                  </p>
+              <div className="lumina-gallery-bar lumina-glass flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-semibold text-[#191c1e]">{t('imagesPage.galleryHeading')}</span>
+                  <span className="text-sm text-[#4a4455]">
+                    • {t('imagesPage.itemsShowing', { n: filteredImagesWithIndex.length })}
+                  </span>
                 </div>
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                  {(gallerySearchOpen || gallerySearch) && (
-                    <div className="relative min-w-0 flex-1 sm:min-w-[200px]">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--muted-foreground)]" />
-                      <input
-                        type="search"
-                        value={gallerySearch}
-                        onChange={(e) => setGallerySearch(e.target.value)}
-                        placeholder={t('imagesPage.searchPlaceholder')}
-                        className="w-full rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--background)] py-2.5 pl-10 pr-3 text-sm text-[color:var(--foreground)] outline-none transition focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:color-mix(in_oklab,var(--primary),transparent_75%)]"
-                      />
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 shrink-0 text-[color:var(--muted-foreground)]" aria-hidden />
-                    <label htmlFor="gallery-date-filter" className="sr-only">
-                      {t('imagesPage.filterByDate')}
-                    </label>
+                <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+                  <div className="relative min-w-0 sm:min-w-[11rem]">
+                    <Filter className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#7b7487]" />
                     <select
                       id="gallery-date-filter"
                       value={galleryDateFilter}
                       onChange={(e) => setGalleryDateFilter(e.target.value)}
-                      className="min-w-[10rem] flex-1 rounded-xl border border-[color:color-mix(in_oklab,var(--border),transparent_35%)] bg-[var(--background)] px-3 py-2.5 text-sm text-[color:var(--foreground)] outline-none transition focus:border-[color:var(--primary)] focus:ring-2 focus:ring-[color:color-mix(in_oklab,var(--primary),transparent_75%)] sm:flex-none"
+                      className="lumina-select w-full"
                     >
                       <option value="">{t('imagesPage.allDates')}</option>
                       {availableUploadDays.map((dayKey) => (
@@ -1714,41 +1722,45 @@ const ClientImagesPage = () => {
                       ))}
                     </select>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setGridCompact((c) => !c)}
+                    className="lumina-btn-secondary inline-flex shrink-0 px-3 py-2 sm:hidden"
+                    aria-label="Toggle grid density"
+                  >
+                    {gridCompact ? <Grid3x3 className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
               <div className="space-y-10">
                 {galleryImagesByDay.map((group) => (
                   <div key={group.dayKey}>
-                    <div className="mb-3 mt-0.5 flex flex-wrap items-baseline gap-2">
-                      <p className="text-[16px] font-medium text-[color:var(--foreground)]">
-                        {formatDayKeyLabel(group.dayKey, t('imagesPage.unknownDate'))}
-                      </p>
-                      <span className="text-xs text-[color:var(--muted-foreground)]">
-                        {t('imagesPage.photosOnDay', { n: group.items.length })}
+                    <h4 className="lumina-day-title mb-4">
+                      {formatDayKeyLabel(group.dayKey, t('imagesPage.unknownDate'))}
+                      <span className="lumina-day-meta">
+                        • {t('imagesPage.photosOnDay', { n: group.items.length })}
                       </span>
-                    </div>
+                    </h4>
                     <div
-                      className={`grid gap-3 ${gridCompact
-                        ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6'
-                        : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
-                        }`}
+                      className={
+                        gridCompact ? 'lumina-gallery-grid lumina-gallery-grid--compact' : 'lumina-gallery-grid'
+                      }
                     >
                       {group.items.map(({ image, index }) => (
-                        <div key={`${getImageKey(image)}-${index}`}>
-                          <ImageCard
-                            image={image}
-                            index={index}
-                            isVisible={visibleIndices.has(index)}
-                            onView={handleView}
-                            onDownload={handleDownload}
-                            onDelete={handleDelete}
-                            viewMode={viewMode}
-                            deletePending={deleteImageMutation.isPending}
-                            cardRef={setCardRef(index)}
-                            isSelected={viewMode === 'my' ? selectedImageIds.has(getImageKey(image)) : undefined}
-                            onToggleSelect={viewMode === 'my' ? handleToggleSelect : undefined}
-                          />
-                        </div>
+                        <ImageCard
+                          key={`${getImageKey(image)}-${index}`}
+                          image={image}
+                          index={index}
+                          isVisible={visibleIndices.has(index)}
+                          onView={handleView}
+                          onDownload={handleDownload}
+                          onDelete={handleDelete}
+                          viewMode={viewMode}
+                          deletePending={deleteImageMutation.isPending}
+                          cardRef={setCardRef(index)}
+                          isSelected={viewMode === 'my' ? selectedImageIds.has(getImageKey(image)) : undefined}
+                          onToggleSelect={viewMode === 'my' ? handleToggleSelect : undefined}
+                        />
                       ))}
                     </div>
                   </div>
@@ -1763,8 +1775,8 @@ const ClientImagesPage = () => {
             </>
           )}
         </section>
-
-      </div>
+        </div>
+      </main>
 
       {/* Share modal – send public selection URL to contacts / email / SMS */}
       {showShareModal && (
@@ -2002,57 +2014,53 @@ const ClientImagesPage = () => {
       {/* Lightbox - full screen with dark blur overlay */}
       {selectedImage && (
         <div
-          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm transition-opacity duration-200"
+          className="fixed inset-0 z-50 bg-[oklch(0.12_0.02_270/0.97)] backdrop-blur-md"
           role="dialog"
           aria-modal="true"
           aria-label="Image preview"
         >
-          {/* Overlay controls */}
-          <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-3 pointer-events-none">
-            <h3 className="text-sm font-medium text-white/90 truncate max-w-[50%] drop-shadow-lg">
-              {selectedImage.filename}
-            </h3>
-            <div className="flex items-center gap-1 pointer-events-auto">
+          <div className="lumina-lightbox-chrome pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-4 px-4 py-4 sm:px-6">
+            <div className="pointer-events-auto min-w-0 flex-1 pr-4">
+              <p className="truncate text-sm font-semibold text-white">
+                {(activeLightboxImage ?? selectedImage).filename}
+              </p>
+              <p className="mt-0.5 text-xs text-white/55">
+                {formatDate((activeLightboxImage ?? selectedImage).uploadTime)}
+              </p>
+            </div>
+            <div className="lumina-lightbox-pill pointer-events-auto shrink-0">
               <button
                 type="button"
                 onClick={() => {
-                  // Select this image and open share modal
                   const key = getImageKey(selectedImage);
                   setSelectedImageIds(new Set([key]));
                   closeLightbox();
                   setTimeout(() => setShowShareModal(true), 50);
                 }}
-                className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
-                aria-label="Share"
+                aria-label={t('imagesPage.shareLink')}
               >
                 <Share2 className="h-5 w-5" />
               </button>
               <button
                 type="button"
-                onClick={() => handleDownload(selectedImage)}
-                className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+                onClick={() => handleDownload(activeLightboxImage ?? selectedImage)}
                 aria-label="Download"
               >
                 <FiDownload className="h-5 w-5" />
               </button>
-              <button
-                type="button"
-                onClick={closeLightbox}
-                className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
-                aria-label="Close"
-              >
+              <button type="button" onClick={closeLightbox} aria-label="Close">
                 <FaTimes className="h-5 w-5" />
               </button>
             </div>
           </div>
-          <div className="absolute inset-0 pt-14">
+          <div className="absolute inset-0 pt-[4.5rem]">
             {images.length > 1 && (
               <>
                 <button
                   type="button"
                   onClick={handlePrevImage}
                   aria-label="Previous image"
-                  className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 h-11 w-11 rounded-full bg-white/95 text-blue-600 shadow-md hover:shadow-lg hover:scale-105 hover:text-blue-700 transition-all flex items-center justify-center"
+                  className="lumina-nav-btn absolute left-3 top-1/2 z-30 -translate-y-1/2 md:left-6"
                 >
                   <FaChevronLeft className="h-4 w-4" />
                 </button>
@@ -2060,27 +2068,25 @@ const ClientImagesPage = () => {
                   type="button"
                   onClick={handleNextImage}
                   aria-label="Next image"
-                  className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 z-30 h-11 w-11 rounded-full bg-white/95 text-blue-600 shadow-md hover:shadow-lg hover:scale-105 hover:text-blue-700 transition-all flex items-center justify-center"
+                  className="lumina-nav-btn absolute right-3 top-1/2 z-30 -translate-y-1/2 md:right-6"
                 >
                   <FaChevronRight className="h-4 w-4" />
                 </button>
               </>
             )}
-            {isImageType(selectedImage.fileType, selectedImage.filename) ? (
+            {lightboxIsImage && activeLightboxImage ? (
               (() => {
-                const thumbUrl = selectedImage.thumbnailUrl || selectedImage.previewUrl;
-                const previewUrl = selectedImage.previewUrl;
+                const baseUrl =
+                  lightboxProgressive.baseSrc || getBootstrapSrc(activeLightboxImage);
+                const previewUrl = activeLightboxImage.previewUrl;
+                const stopUrl = getUpgradeStopUrl(activeLightboxImage);
                 const hasDistinctPreview =
                   !!previewUrl &&
-                  previewUrl !== thumbUrl &&
+                  previewUrl !== baseUrl &&
+                  (!stopUrl || previewUrl !== stopUrl) &&
                   lightboxPreviewReady &&
                   !lightboxPreviewFailed;
                 const showingPreviewOverlay = hasDistinctPreview && lightboxPreviewVisible;
-                const isLoadingPreview =
-                  !!previewUrl &&
-                  previewUrl !== thumbUrl &&
-                  !lightboxPreviewReady &&
-                  !lightboxPreviewFailed;
                 const isZoomed = lightboxZoom > 1;
                 return (
                   <div
@@ -2108,24 +2114,34 @@ const ClientImagesPage = () => {
                     >
                       <>
                         <img
-                          src={thumbUrl}
-                          alt={selectedImage.filename}
+                          src={baseUrl}
+                          alt={activeLightboxImage.filename}
                           className={`absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-300 ${showingPreviewOverlay ? 'opacity-0' : 'opacity-100'
                             }`}
                           draggable={false}
                         />
-                        {/* {isLoadingPreview && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30">
-                            <LoadingSpinner size="lg" />
-                            <span className="mt-2 text-sm text-white">Loading...</span>
-                          </div>
-                        )} */}
+                        {lightboxProgressive.overlaySrc && (
+                          <img
+                            src={lightboxProgressive.overlaySrc}
+                            alt=""
+                            aria-hidden
+                            className={`absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-[400ms] ease-in-out ${showingPreviewOverlay ? 'opacity-0' : ''}`}
+                            style={{
+                              opacity: showingPreviewOverlay
+                                ? 0
+                                : lightboxProgressive.overlayVisible
+                                  ? 1
+                                  : 0,
+                            }}
+                            draggable={false}
+                          />
+                        )}
                       </>
 
                       {hasDistinctPreview && (
                         <img
                           src={previewUrl}
-                          alt={selectedImage.filename}
+                          alt={activeLightboxImage.filename}
                           className={`absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-300 ${lightboxPreviewVisible ? 'opacity-100' : 'opacity-0'
                             }`}
                           draggable={false}
