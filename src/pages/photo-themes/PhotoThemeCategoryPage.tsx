@@ -13,6 +13,9 @@ import {
   FaFolderOpen,
   FaPalette,
   FaGripVertical,
+  FaArrowLeft,
+  FaChevronRight,
+  FaSpinner,
 } from 'react-icons/fa';
 import api from '../../api/client/axiosInstance';
 import { useAuth } from '../../state/context/AuthContext';
@@ -460,6 +463,169 @@ function fontPresetToStored(preset: FontFamilyPreset): string | undefined {
   return FONT_FAMILY_PRESETS[preset];
 }
 
+type CoverStylePresetId = 'editorial' | 'celebration' | 'heritage' | 'futuristic';
+
+type CoverStylePreset = {
+  id: CoverStylePresetId;
+  labelKey: 'presetEditorial' | 'presetCelebration' | 'presetHeritage' | 'presetFuturistic';
+  previewBg: string;
+  labelClass: string;
+  stylePatch: Partial<NonNullable<EditablePageState['style']>>;
+};
+
+const COVER_STYLE_PRESETS: CoverStylePreset[] = [
+  {
+    id: 'editorial',
+    labelKey: 'presetEditorial',
+    previewBg: 'linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%)',
+    labelClass: 'text-[#4648d4]',
+    stylePatch: {
+      fontFamily: FONT_FAMILY_PRESETS.elegant,
+      fontSize: 26,
+      fontWeight: 700,
+      align: 'center',
+      verticalAlign: 'center',
+      headlineColor: '#0f172a',
+      subheadlineColor: '#475569',
+      descriptionColor: '#64748b',
+      textLeafBgMode: 'gradient',
+      textLeafBgGradient: 'linear-gradient(145deg, #f8fafc 0%, #cbd5e1 50%, #94a3b8 100%)',
+      textPanelGlassColor: '#ffffff',
+      textPanelGlassOpacity: 45,
+      textPanelBlurPx: 18,
+      gradient: 'linear-gradient(to top, rgba(15,23,42,0.45), transparent)',
+      overlayOpacity: 35,
+      vignette: true,
+      textShadow: false,
+      subtleAnimation: false,
+    },
+  },
+  {
+    id: 'celebration',
+    labelKey: 'presetCelebration',
+    previewBg: 'linear-gradient(135deg, #ec4899 0%, #f43f5e 100%)',
+    labelClass: 'text-white',
+    stylePatch: {
+      fontFamily: FONT_FAMILY_PRESETS.display,
+      fontSize: 30,
+      fontWeight: 800,
+      align: 'center',
+      verticalAlign: 'center',
+      headlineColor: '#ffffff',
+      subheadlineColor: '#fce7f3',
+      descriptionColor: '#fdf2f8',
+      textLeafBgMode: 'gradient',
+      textLeafBgGradient: 'linear-gradient(145deg, #ec4899 0%, #f43f5e 45%, #fbbf24 100%)',
+      textPanelGlassColor: '#ffffff',
+      textPanelGlassOpacity: 28,
+      textPanelBlurPx: 22,
+      gradient: 'linear-gradient(to top, rgba(236,72,153,0.55), transparent)',
+      overlayOpacity: 40,
+      vignette: false,
+      textShadow: true,
+      subtleAnimation: true,
+    },
+  },
+  {
+    id: 'heritage',
+    labelKey: 'presetHeritage',
+    previewBg: 'linear-gradient(135deg, #78350f 0%, #b45309 100%)',
+    labelClass: 'text-amber-100',
+    stylePatch: {
+      fontFamily: FONT_FAMILY_PRESETS.serif,
+      fontSize: 24,
+      fontWeight: 700,
+      align: 'center',
+      verticalAlign: 'bottom',
+      headlineColor: '#fef3c7',
+      subheadlineColor: '#fde68a',
+      descriptionColor: '#fef9c3',
+      textLeafBgMode: 'gradient',
+      textLeafBgGradient: 'linear-gradient(145deg, #451a03 0%, #92400e 48%, #b45309 100%)',
+      textPanelGlassColor: '#78350f',
+      textPanelGlassOpacity: 25,
+      textPanelBlurPx: 16,
+      gradient: 'linear-gradient(to top, rgba(69,26,3,0.6), transparent)',
+      overlayOpacity: 45,
+      vignette: true,
+      textShadow: true,
+      subtleAnimation: false,
+    },
+  },
+  {
+    id: 'futuristic',
+    labelKey: 'presetFuturistic',
+    previewBg: 'linear-gradient(135deg, #4648d4 0%, #8b5cf6 100%)',
+    labelClass: 'text-white',
+    stylePatch: {
+      fontFamily: FONT_FAMILY_PRESETS.rounded,
+      fontSize: 28,
+      fontWeight: 800,
+      align: 'left',
+      verticalAlign: 'center',
+      headlineColor: '#ffffff',
+      subheadlineColor: '#c7d2fe',
+      descriptionColor: '#e0e7ff',
+      textLeafBgMode: 'gradient',
+      textLeafBgGradient: 'linear-gradient(145deg, #0f172a 0%, #4648d4 45%, #8b5cf6 100%)',
+      textPanelGlassColor: '#6366f1',
+      textPanelGlassOpacity: 32,
+      textPanelBlurPx: 28,
+      gradient: 'linear-gradient(135deg, rgba(70,72,212,0.5), rgba(139,92,246,0.35))',
+      overlayOpacity: 30,
+      vignette: false,
+      blurBackground: true,
+      textShadow: true,
+      subtleAnimation: true,
+    },
+  },
+];
+
+type ColorSwatchPreset = {
+  id: string;
+  colors: [string, string, string];
+  stylePatch: Partial<NonNullable<EditablePageState['style']>>;
+};
+
+const COLOR_SWATCH_PRESETS: ColorSwatchPreset[] = [
+  {
+    id: 'quantum-rose',
+    colors: ['#4648d4', '#ec4899', '#ffffff'],
+    stylePatch: {
+      headlineColor: '#4648d4',
+      subheadlineColor: '#ec4899',
+      descriptionColor: '#64748b',
+      textPanelGlassColor: '#ffffff',
+      textLeafBgGradient: 'linear-gradient(145deg, #4648d4 0%, #ec4899 55%, #ffffff 100%)',
+      gradient: 'linear-gradient(to top, rgba(70,72,212,0.4), transparent)',
+    },
+  },
+  {
+    id: 'midnight-gold',
+    colors: ['#0c0c12', '#f59e0b', '#f1f5f9'],
+    stylePatch: {
+      headlineColor: '#f1f5f9',
+      subheadlineColor: '#f59e0b',
+      descriptionColor: '#fde68a',
+      textPanelGlassColor: '#0c0c12',
+      textLeafBgGradient: 'linear-gradient(145deg, #0c0c12 0%, #1e293b 40%, #f59e0b 100%)',
+      gradient: 'linear-gradient(to top, rgba(12,12,18,0.65), transparent)',
+    },
+  },
+  {
+    id: 'violet-blush',
+    colors: ['#8b5cf6', '#6366f1', '#fbcfe8'],
+    stylePatch: {
+      headlineColor: '#6366f1',
+      subheadlineColor: '#8b5cf6',
+      descriptionColor: '#a5b4fc',
+      textPanelGlassColor: '#fbcfe8',
+      textLeafBgGradient: 'linear-gradient(145deg, #8b5cf6 0%, #6366f1 50%, #fbcfe8 100%)',
+      gradient: 'linear-gradient(to top, rgba(99,102,241,0.45), transparent)',
+    },
+  },
+];
+
 function appendEmojiToField(prev: string | undefined, emoji: string): string {
   const p = prev ?? '';
   if (!p.trim()) return emoji;
@@ -521,12 +687,17 @@ async function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
+type EditorLayout = 'full' | 'canvas' | 'panel';
+type CanvasViewMode = 'spread' | 'flipbook';
+
 const PageEditorCard: React.FC<{
   kind: PageKind;
   state: EditablePageState;
   onChange: (next: EditablePageState) => void;
   filterImageIds?: number[];
-}> = ({ kind, state, onChange, filterImageIds }) => {
+  layout?: EditorLayout;
+  canvasViewMode?: CanvasViewMode;
+}> = ({ kind, state, onChange, filterImageIds, layout = 'full', canvasViewMode = 'spread' }) => {
   const { t } = useTranslation(undefined, { keyPrefix: 'photoThemeCategoryPage' });
   const isCover = kind === 'cover';
   const title = isCover ? t('frontCover') : t('backCover');
@@ -536,8 +707,37 @@ const PageEditorCard: React.FC<{
   const [showTextLeafBgPicker, setShowTextLeafBgPicker] = React.useState(false);
   const [previewTab, setPreviewTab] = React.useState<'text' | 'photo'>('text');
   type Section = 'text' | 'textLeaf' | 'effects' | 'extras';
+  type StudioTab = 'type' | 'effects' | 'layers';
   const [openSection, setOpenSection] = React.useState<Section | null>('text');
+  const [studioRightTab, setStudioRightTab] = React.useState<StudioTab>('type');
+  const [showStudioGrid, setShowStudioGrid] = React.useState(false);
+  const [canvasZoom, setCanvasZoom] = React.useState(85);
+  const spreadContainerRef = React.useRef<HTMLDivElement>(null);
+  const [spreadTransform, setSpreadTransform] = React.useState('rotateX(8deg) rotateY(-12deg) rotateZ(2deg)');
+  const showCanvas = layout === 'full' || layout === 'canvas';
+  const showPanel = layout === 'full' || layout === 'panel';
   const toggle = (s: Section) => setOpenSection((v) => (v === s ? null : s));
+
+  const handleSpreadPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = spreadContainerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = (y - centerY) / 50;
+    const rotateY = (centerX - x) / 60;
+    setSpreadTransform(`rotateX(${8 + rotateX}deg) rotateY(${-12 + rotateY}deg) rotateZ(2deg)`);
+    const lightX = (x / rect.width) * 100;
+    const lightY = (y / rect.height) * 100;
+    el.style.setProperty('--mouse-x', `${lightX}%`);
+    el.style.setProperty('--mouse-y', `${lightY}%`);
+  };
+
+  const handleSpreadPointerLeave = () => {
+    setSpreadTransform('rotateX(8deg) rotateY(-12deg) rotateZ(2deg)');
+  };
 
   const previewRef = React.useRef<HTMLDivElement>(null);
   const stateRef = React.useRef(state);
@@ -660,72 +860,163 @@ const PageEditorCard: React.FC<{
 
   return (
     <>
-    <div className="relative overflow-hidden rounded-3xl border border-slate-200/60 bg-gradient-to-b from-white to-slate-50/50 p-6 shadow-[0_0_0_1px_rgba(148,163,184,0.06),0_20px_50px_-12px_rgba(15,23,42,0.12),0_0_80px_-20px_rgba(99,102,241,0.15)] backdrop-blur-sm">
-      <div
-        className={`absolute inset-x-0 top-0 h-1.5 shadow-[0_0_20px_-2px_rgba(99,102,241,0.4)] ${
-          isCover
-            ? 'bg-gradient-to-r from-cyan-500 via-indigo-500 to-violet-500'
-            : 'bg-gradient-to-r from-amber-400 via-rose-500 to-fuchsia-500'
-        }`}
-      />
-      <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-bl from-indigo-400/8 to-transparent rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-48 h-48 bg-cyan-400/5 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
-
-      <div className="relative z-10 flex items-center justify-between mb-4">
-        <div>
-          <div className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 mb-2 border border-white/60 shadow-sm ${
-            isCover
-              ? 'bg-gradient-to-r from-cyan-500/15 via-indigo-500/15 to-violet-500/15'
-              : 'bg-gradient-to-r from-amber-500/15 via-rose-500/15 to-fuchsia-500/15'
-          }`}>
-            <span
-              className={`w-2 h-2 rounded-full shadow-sm ${
-                isCover ? 'bg-cyan-400 shadow-cyan-400/50' : 'bg-rose-400 shadow-rose-400/50'
-              }`}
-            />
-            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600">
-              {isCover ? t('frontCoverBadge') : t('backCoverBadge')}
-            </span>
-          </div>
-          <h3 className="text-xl font-bold text-slate-900 tracking-tight">{title}</h3>
-          <p className="text-xs text-slate-500 mt-1 font-medium">{hint}</p>
+    {showCanvas && (
+    <section className={`bg-white ${layout === 'canvas' ? 'flex flex-col min-h-[min(520px,55vh)]' : 'border-b border-slate-200/60 last:border-b-0'}`}>
+      {layout !== 'canvas' && (
+      <div className="px-4 sm:px-6 py-3 border-b border-slate-100 flex items-center gap-3 shrink-0">
+        <div
+          className={`w-2 h-2 rounded-full shrink-0 ${isCover ? 'bg-[#4648d4] quantum-pulse' : 'bg-[#ec4899]'}`}
+        />
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold text-[#0b1c30] tracking-tight">{title}</h3>
+          <p className="text-[11px] text-[#464554] mt-0.5">{hint}</p>
         </div>
+        <span className="ml-auto text-[10px] font-black uppercase tracking-[0.15em] text-[#4648d4] bg-[#4648d4]/10 px-2.5 py-1 rounded-md">
+          {isCover ? t('frontCoverBadge') : t('backCoverBadge')}
+        </span>
       </div>
+      )}
 
-      {/* Preview + forms: keep stacked to avoid narrow text columns (prevents 1-char-per-line wrapping). */}
-      <div className="mt-5 flex flex-col gap-6">
-        <div className="flex flex-col items-center gap-3 w-full">
-          <div className="inline-flex rounded-full border border-slate-200/90 bg-white/95 p-0.5 shadow-sm">
+      <div className={`flex flex-col min-h-0 ${layout === 'canvas' ? 'min-h-[min(480px,50vh)]' : 'xl:flex-row min-h-[min(520px,65vh)]'}`}>
+        <main className="flex-1 flex flex-col min-w-0 studio-mesh-quantum">
+          <div className="h-14 border-b border-slate-200/40 flex items-center justify-between px-4 sm:px-8 bg-white/40 backdrop-blur-xl shrink-0">
+            <div className="flex items-center gap-4 sm:gap-6">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/80 rounded-full border border-slate-200 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setCanvasZoom((z) => Math.max(50, z - 10))}
+                  className="p-1 text-slate-400 hover:text-[#4648d4] text-lg leading-none"
+                  aria-label="Zoom out"
+                >
+                  −
+                </button>
+                <span className="text-[11px] font-black text-slate-500 min-w-[36px] text-center">{canvasZoom}%</span>
+                <button
+                  type="button"
+                  onClick={() => setCanvasZoom((z) => Math.min(120, z + 10))}
+                  className="p-1 text-slate-400 hover:text-[#4648d4] text-lg leading-none"
+                  aria-label="Zoom in"
+                >
+                  +
+                </button>
+              </div>
+              <div className="hidden sm:block h-5 w-px bg-slate-300/40" />
+              <div className="inline-flex rounded-full border border-slate-200/90 bg-white/95 p-0.5 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('text')}
+                  className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all ${
+                    previewTab === 'text' ? 'bg-[#4648d4] text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {t('previewTextSide')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('photo')}
+                  className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all ${
+                    previewTab === 'photo' ? 'bg-[#4648d4] text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {t('previewPhotoSide')}
+                </button>
+              </div>
+            </div>
             <button
               type="button"
-              onClick={() => setPreviewTab('text')}
-              className={`rounded-full px-3.5 py-1.5 text-[11px] font-bold transition-all ${
-                previewTab === 'text'
-                  ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-md'
-                  : 'text-slate-600 hover:bg-slate-50'
+              onClick={() => setShowStudioGrid((g) => !g)}
+              className={`flex items-center gap-2 p-2 px-4 rounded-xl transition-all ${
+                showStudioGrid ? 'text-[#4648d4] bg-[#4648d4]/10' : 'text-slate-500 hover:bg-white hover:text-[#4648d4]'
               }`}
             >
-              {t('previewTextSide')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setPreviewTab('photo')}
-              className={`rounded-full px-3.5 py-1.5 text-[11px] font-bold transition-all ${
-                previewTab === 'photo'
-                  ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-md'
-                  : 'text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {t('previewPhotoSide')}
+              <span className="text-lg leading-none">▦</span>
+              <span className="text-[10px] font-black uppercase tracking-widest hidden lg:inline">{t('grid')}</span>
             </button>
           </div>
-          <p className="text-[10px] text-slate-500 text-center max-w-sm leading-relaxed">{t('previewTabHint')}</p>
 
           <div
-            ref={previewRef}
-            className={`relative w-full max-w-sm aspect-[3/4] rounded-2xl overflow-hidden flex items-center justify-center transition-all duration-500  ring-slate-200/80 ring-offset-2 ring-offset-slate-50 shadow-[0_8px_30px_rgba(15,23,42,0.12),inset_0_1px_0_rgba(255,255,255,0.8)] bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 ${state.style?.subtleAnimation ? 'cover-fade-in' : ''} ${state.style?.darkModeCover ? 'brightness-90' : ''}`}
-            style={state.style?.vignette && previewTab === 'photo' ? { boxShadow: 'inset 0 0 80px rgba(0,0,0,0.35), 0 8px 30px rgba(15,23,42,0.12)' } : undefined}
+            ref={spreadContainerRef}
+            className="flex-1 overflow-auto p-6 sm:p-10 flex flex-col items-center justify-center album-builder-perspective min-h-[320px]"
+            onPointerMove={handleSpreadPointerMove}
+            onPointerLeave={handleSpreadPointerLeave}
           >
+            <p className="text-[10px] text-slate-500 text-center max-w-sm leading-relaxed mb-4">
+              {canvasViewMode === 'flipbook' ? t('flipbookViewHint') : t('previewTabHint')}
+            </p>
+            {canvasViewMode === 'flipbook' ? (
+              <div className="category-flipbook-spread flex items-stretch rounded-sm overflow-hidden border border-white/60 shadow-2xl mx-2">
+                <div
+                  className="relative w-[min(200px,38vw)] sm:w-[240px] aspect-[3/4] album-builder-paper-texture border-r border-slate-200/80 overflow-hidden shrink-0"
+                  style={
+                    textLeafBgMode === 'image' && textLeafBgUrl
+                      ? { backgroundImage: `url(${textLeafBgUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                      : { background: state.style?.textLeafBgGradient || defaultTextLeafGradient }
+                  }
+                >
+                  <div className="absolute inset-0 bg-black/15 pointer-events-none" />
+                  <div className="absolute inset-0 flex items-center p-3">
+                    <div
+                      className="neo-glass-card w-full rounded-2xl px-3 py-3 text-center"
+                      style={{
+                        backdropFilter: `saturate(1.2) blur(${textPanelBlurPx}px)`,
+                        WebkitBackdropFilter: `saturate(1.2) blur(${textPanelBlurPx}px)`,
+                        background: textLeafGlassBg,
+                      }}
+                    >
+                      <p
+                        className="line-clamp-2 font-['Playfair_Display'] text-sm font-bold"
+                        style={{ color: state.style?.headlineColor ?? '#0f172a', fontFamily: state.style?.fontFamily }}
+                      >
+                        {state.headline || t('previewPlaceholderTitle')}
+                      </p>
+                      <p
+                        className="line-clamp-2 mt-1 text-[10px]"
+                        style={{ color: state.style?.subheadlineColor ?? '#334155', fontFamily: state.style?.fontFamily }}
+                      >
+                        {state.subheadline || t('previewPlaceholderSubtitle')}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="absolute top-2 left-2 text-[8px] font-black uppercase tracking-widest text-white/80 bg-black/30 px-2 py-0.5 rounded-full">
+                    {t('previewTextSide')}
+                  </span>
+                </div>
+                <div className="w-3 sm:w-4 album-builder-book-spine shrink-0 self-stretch opacity-70" />
+                <div className="relative w-[min(200px,38vw)] sm:w-[240px] aspect-[3/4] album-builder-paper-texture overflow-hidden shrink-0">
+                  {state.imageDataUrl ? (
+                    <img
+                      src={state.imageDataUrl}
+                      alt={`${title} preview`}
+                      className={`absolute inset-0 w-full h-full object-cover ${state.style?.blurBackground ? 'blur-sm' : ''}`}
+                      style={{ transform: `scale(${state.style?.imageScale ?? 1})`, transformOrigin: 'center center' }}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-200/90 px-3 text-center">
+                      <FaImages className="text-2xl text-slate-400" />
+                      <span className="text-[10px] text-slate-500 font-medium">{t('previewPhotoEmpty')}</span>
+                    </div>
+                  )}
+                  {state.style?.gradient && (
+                    <div className="absolute inset-0 pointer-events-none" style={{ background: state.style.gradient, opacity: (state.style?.overlayOpacity ?? 40) / 100 }} />
+                  )}
+                  <span className="absolute top-2 right-2 text-[8px] font-black uppercase tracking-widest text-white/90 bg-black/35 px-2 py-0.5 rounded-full">
+                    {t('previewPhotoSide')}
+                  </span>
+                </div>
+              </div>
+            ) : (
+            <>
+            <div
+              className="album-builder-spread-3d quantum-3d-shadow relative"
+              style={{ transform: spreadTransform, zoom: canvasZoom / 100 }}
+            >
+              <div
+                ref={previewRef}
+                className={`relative w-[min(300px,80vw)] sm:w-[340px] lg:w-[380px] aspect-[3/4] rounded-sm overflow-hidden flex items-center justify-center transition-all duration-500 album-builder-paper-texture border border-white/20 shadow-inner ${state.style?.subtleAnimation ? 'cover-fade-in' : ''} ${state.style?.darkModeCover ? 'brightness-90' : ''}`}
+                style={state.style?.vignette && previewTab === 'photo' ? { boxShadow: 'inset 0 0 80px rgba(0,0,0,0.35)' } : undefined}
+              >
+                <div className={`absolute inset-0 z-40 grid-system-quantum ${showStudioGrid ? 'active' : ''}`} />
+                <div className="album-builder-dynamic-light" />
             {previewTab === 'text' ? (
               <>
                 <div
@@ -751,7 +1042,7 @@ const PageEditorCard: React.FC<{
                   }`}
                 >
                   <div
-                    className={`w-full max-w-[95%] mx-auto rounded-2xl border border-white/25 px-4 py-4 shadow-lg ${
+                    className={`neo-glass-card relative w-full max-w-[95%] mx-auto rounded-[3rem] px-5 py-5 overflow-hidden ${
                       state.style?.align === 'center'
                         ? 'text-center'
                         : state.style?.align === 'right'
@@ -766,7 +1057,12 @@ const PageEditorCard: React.FC<{
                     }}
                   >
                     <div
-                      className="line-clamp-3"
+                      className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${
+                        isCover ? 'from-[#ec4899] via-[#4648d4] to-[#f43f5e]' : 'from-amber-400 via-rose-500 to-fuchsia-500'
+                      }`}
+                    />
+                    <div
+                      className="line-clamp-3 font-['Playfair_Display']"
                       style={{
                         fontSize: state.style?.fontSize ?? 20,
                         fontWeight: state.style?.fontWeight ?? 700,
@@ -970,26 +1266,69 @@ const PageEditorCard: React.FC<{
                 )}
               </>
             )}
-          </div>
-
-          {previewTab === 'text' && (
-            <div className="w-full max-w-sm rounded-2xl border-2 border-cyan-400/50 bg-gradient-to-r from-cyan-50 via-white to-indigo-50 px-3 py-3 shadow-md flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <p className="text-[11px] text-slate-700 font-medium leading-snug">{t('floatingTextBarHint')}</p>
-              <button
-                type="button"
-                onClick={addTextSideOverlay}
-                className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl border-2 border-cyan-500 bg-gradient-to-r from-cyan-500 to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:from-cyan-600 hover:to-indigo-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-cyan-400/50 transition-all"
-              >
-                + {t('floatingTextAdd')}
-              </button>
+              </div>
             </div>
-          )}
-        </div>
+            {previewTab === 'text' && canvasViewMode === 'spread' && (
+              <div className="w-full max-w-sm mt-4 rounded-2xl border border-[#4648d4]/20 bg-white/90 backdrop-blur px-3 py-3 shadow-md flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <p className="text-[11px] text-slate-600 font-medium leading-snug">{t('floatingTextBarHint')}</p>
+                <button
+                  type="button"
+                  onClick={addTextSideOverlay}
+                  className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#4648d4] px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-[#3d3fc0] transition-all"
+                >
+                  + {t('floatingTextAdd')}
+                </button>
+              </div>
+            )}
+            </>
+            )}
+      </div>
+        </main>
+      </div>
+    </section>
+    )}
 
+    {showPanel && (
+        <div className={`category-editor-panel flex flex-col flex-1 min-h-0 h-full overflow-hidden border-slate-100 bg-white ${
+          layout === 'panel' ? 'w-full' : 'w-full xl:w-[420px] shrink-0 border-t xl:border-t-0 xl:border-l max-h-[50vh] xl:max-h-none'
+        }`}>
+          <div className="flex border-b border-slate-100 h-14 shrink-0 p-1 gap-1 bg-slate-50/80">
+            {(
+              [
+                ['layers', t('tabLayers')],
+                ['type', t('tabType')],
+                ['effects', t('tabEffects')],
+              ] as const
+            ).map(([tab, label]) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => {
+                  setStudioRightTab(tab);
+                  if (tab === 'type') setOpenSection('text');
+                  else if (tab === 'layers') setOpenSection('textLeaf');
+                  else setOpenSection('effects');
+                }}
+                className={`flex-1 text-[10px] font-black tracking-[0.2em] uppercase rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  studioRightTab === tab
+                    ? 'text-[#4648d4] bg-[#4648d4]/10 border border-[#4648d4]/20'
+                    : 'text-slate-500 hover:text-slate-800 border border-transparent'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="category-editor-panel-scroll flex-1 overflow-y-auto overscroll-y-contain p-5 sm:p-6 space-y-8 min-h-0">
+        <section className="space-y-5">
+          <div className="flex items-center justify-between px-1">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">{t('canvasMastery')}</h4>
+          </div>
+          <div className="neo-glass rounded-2xl p-4 space-y-4 border border-slate-100">
         <div className="space-y-4 w-full min-w-0">
           <div className="grid grid-cols-1 gap-3">
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+              <label className="category-editor-label block text-[10px] font-black uppercase tracking-widest mb-1.5">
                 {t('headline')}
               </label>
               <EmojiInsertRow
@@ -999,9 +1338,7 @@ const PageEditorCard: React.FC<{
                 onPick={(emoji) => onChange({ ...state, headline: appendEmojiToField(state.headline, emoji) })}
               />
               <input
-                className={`mt-2 w-full rounded-xl border border-slate-200/80 px-3.5 py-2.5 text-sm outline-none focus:ring-2 bg-white/80 shadow-sm transition-all ${
-                  isCover ? 'focus:border-cyan-500 focus:ring-cyan-500/20' : 'focus:border-rose-500 focus:ring-rose-500/20'
-                }`}
+                className="category-editor-field mt-2 w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#4648d4]/30 focus:border-[#4648d4]/50 transition-all font-['Playfair_Display'] text-lg"
                 placeholder={isCover ? t('placeholderHeadlineCover') : t('placeholderHeadlineBack')}
                 value={state.headline}
                 onChange={(e) => onChange({ ...state, headline: e.target.value })}
@@ -1009,7 +1346,7 @@ const PageEditorCard: React.FC<{
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+              <label className="category-editor-label block text-[10px] font-black uppercase tracking-widest mb-1.5">
                 {t('subheadline')}
               </label>
               <EmojiInsertRow
@@ -1019,9 +1356,7 @@ const PageEditorCard: React.FC<{
                 onPick={(emoji) => onChange({ ...state, subheadline: appendEmojiToField(state.subheadline, emoji) })}
               />
               <input
-                className={`mt-2 w-full rounded-xl border border-slate-200/80 px-3.5 py-2.5 text-sm outline-none focus:ring-2 bg-white/80 shadow-sm transition-all ${
-                  isCover ? 'focus:border-cyan-500 focus:ring-cyan-500/20' : 'focus:border-rose-500 focus:ring-rose-500/20'
-                }`}
+                className="category-editor-field mt-2 w-full rounded-xl border px-3.5 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4648d4]/30 focus:border-[#4648d4]/50 transition-all"
                 placeholder={isCover ? t('placeholderSubCover') : t('placeholderSubBack')}
                 value={state.subheadline}
                 onChange={(e) => onChange({ ...state, subheadline: e.target.value })}
@@ -1029,7 +1364,7 @@ const PageEditorCard: React.FC<{
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+              <label className="category-editor-label block text-[10px] font-black uppercase tracking-widest mb-1.5">
                 {t('descriptionOptional')}
               </label>
               <EmojiInsertRow
@@ -1040,9 +1375,7 @@ const PageEditorCard: React.FC<{
               />
               <textarea
                 rows={3}
-                className={`mt-2 w-full rounded-xl border border-slate-200/80 px-3.5 py-2 text-sm outline-none focus:ring-2 resize-none bg-white/80 shadow-sm transition-all ${
-                  isCover ? 'focus:border-cyan-500 focus:ring-cyan-500/20' : 'focus:border-rose-500 focus:ring-rose-500/20'
-                }`}
+                className="category-editor-field mt-2 w-full rounded-xl border px-3.5 py-2 text-sm outline-none focus:ring-2 resize-none focus:ring-[#4648d4]/30 focus:border-[#4648d4]/50 transition-all"
                 style={descriptionFieldStyle}
                 placeholder={t('placeholderDescription')}
                 value={state.description}
@@ -1080,13 +1413,13 @@ const PageEditorCard: React.FC<{
             </div>
           </div>
 
-          {/* Settings: same accordion for both front and back cover */}
-          <div className="mt-5 rounded-2xl border border-slate-200/80 bg-white/90 shadow-[0_4px_20px_rgba(15,23,42,0.06)] overflow-hidden backdrop-blur-sm">
+          {/* Settings accordion */}
+          <div className="mt-2 rounded-2xl border border-slate-200 bg-white overflow-hidden">
             <>
                 <button
                   type="button"
                   onClick={() => toggle('text')}
-                  className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-gradient-to-r hover:from-cyan-50/50 hover:to-indigo-50/50 transition-all"
+                  className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-slate-50 transition-all"
                 >
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-700">{t('textLayout')}</span>
                   <span className="text-slate-400 text-[10px]">{openSection === 'text' ? '▼' : '▶'}</span>
@@ -1721,7 +2054,7 @@ const PageEditorCard: React.FC<{
                 <button
                   type="button"
                   onClick={() => toggle('textLeaf')}
-                  className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-gradient-to-r hover:from-cyan-50/50 hover:to-indigo-50/50 transition-all"
+                  className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-slate-50 transition-all"
                 >
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-700">{t('textLeafSection')}</span>
                   <span className="text-slate-400 text-[10px]">{openSection === 'textLeaf' ? '▼' : '▶'}</span>
@@ -1851,7 +2184,7 @@ const PageEditorCard: React.FC<{
                 <button
                   type="button"
                   onClick={() => toggle('effects')}
-                  className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-gradient-to-r hover:from-cyan-50/50 hover:to-indigo-50/50 transition-all"
+                  className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-slate-50 transition-all"
                 >
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-700">{t('pageEffects')}</span>
                   <span className="text-slate-400 text-[10px]">{openSection === 'effects' ? '▼' : '▶'}</span>
@@ -1910,7 +2243,7 @@ const PageEditorCard: React.FC<{
                 <button
                   type="button"
                   onClick={() => toggle('extras')}
-                  className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-gradient-to-r hover:from-cyan-50/50 hover:to-indigo-50/50 transition-all"
+                  className="w-full flex items-center justify-between px-4 py-3.5 text-left border-b border-slate-100 hover:bg-slate-50 transition-all"
                 >
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-700">{t('backgroundLogo')}</span>
                   <span className="text-slate-400 text-[10px]">{openSection === 'extras' ? '▼' : '▶'}</span>
@@ -2024,8 +2357,17 @@ const PageEditorCard: React.FC<{
               </>
           </div>
         </div>
-      </div>
-    </div>
+          </div>
+        </section>
+          </div>
+          <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{t('quantum')} v8.4.2</span>
+            <button type="button" className="text-[9px] font-black text-[#4648d4] uppercase tracking-widest bg-[#4648d4]/10 px-3 py-1.5 rounded-lg">
+              Logs
+            </button>
+          </div>
+        </div>
+    )}
 
     {showAlbumPicker && createPortal(
       <div
@@ -2180,6 +2522,28 @@ const PageEditorCard: React.FC<{
     </>
   );
 };
+
+const EDITOR_PANEL_WIDTH_KEY = 'photo-theme-category-editor-panel-width';
+const EDITOR_PANEL_WIDTH_DEFAULT = 420;
+const EDITOR_PANEL_WIDTH_MIN = 300;
+const EDITOR_PANEL_WIDTH_MAX = 720;
+
+function clampEditorPanelWidth(width: number): number {
+  return Math.min(EDITOR_PANEL_WIDTH_MAX, Math.max(EDITOR_PANEL_WIDTH_MIN, width));
+}
+
+function readStoredEditorPanelWidth(): number {
+  try {
+    const stored = localStorage.getItem(EDITOR_PANEL_WIDTH_KEY);
+    if (stored) {
+      const parsed = Number(stored);
+      if (Number.isFinite(parsed)) return clampEditorPanelWidth(parsed);
+    }
+  } catch {
+    /* ignore */
+  }
+  return EDITOR_PANEL_WIDTH_DEFAULT;
+}
 
 const PhotoThemeCategoryPage: React.FC = () => {
   const { categorySlug = '' } = useParams<{ categorySlug: string }>();
@@ -2340,6 +2704,152 @@ const PhotoThemeCategoryPage: React.FC = () => {
   const [isLoadingAlbums, setIsLoadingAlbums] = React.useState(false);
   const [isDeletingAlbum, setIsDeletingAlbum] = React.useState<number | null>(null);
   const [albumListVersion, setAlbumListVersion] = React.useState(0);
+  const [activeEditSide, setActiveEditSide] = React.useState<'cover' | 'last'>('cover');
+  const [canvasViewMode, setCanvasViewMode] = React.useState<'spread' | 'flipbook'>('spread');
+  const [editorPanelWidth, setEditorPanelWidth] = React.useState(readStoredEditorPanelWidth);
+  const [isResizingPanel, setIsResizingPanel] = React.useState(false);
+  const panelResizeRef = React.useRef<{ startX: number; startWidth: number } | null>(null);
+  const editorPanelWidthRef = React.useRef(editorPanelWidth);
+  editorPanelWidthRef.current = editorPanelWidth;
+
+  const handlePanelResizeStart = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    panelResizeRef.current = { startX: e.clientX, startWidth: editorPanelWidthRef.current };
+    setIsResizingPanel(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, []);
+
+  const handlePanelResizeMove = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!panelResizeRef.current) return;
+    const delta = panelResizeRef.current.startX - e.clientX;
+    setEditorPanelWidth(clampEditorPanelWidth(panelResizeRef.current.startWidth + delta));
+  }, []);
+
+  const finishPanelResize = React.useCallback((target: HTMLDivElement, pointerId: number) => {
+    if (!panelResizeRef.current) return;
+    panelResizeRef.current = null;
+    setIsResizingPanel(false);
+    try {
+      localStorage.setItem(EDITOR_PANEL_WIDTH_KEY, String(editorPanelWidthRef.current));
+    } catch {
+      /* ignore */
+    }
+    if (target.hasPointerCapture(pointerId)) {
+      target.releasePointerCapture(pointerId);
+    }
+  }, []);
+
+  const handlePanelResizeEnd = React.useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    finishPanelResize(e.currentTarget, e.pointerId);
+  }, [finishPanelResize]);
+
+  React.useEffect(() => {
+    if (!isResizingPanel) return;
+    document.body.classList.add('category-editor-panel-resizing');
+    return () => document.body.classList.remove('category-editor-panel-resizing');
+  }, [isResizingPanel]);
+
+  const activePageState = activeEditSide === 'cover' ? coverPage : lastPage;
+  const setActivePageState = activeEditSide === 'cover' ? setCoverPage : setLastPage;
+  const [activeStylePreset, setActiveStylePreset] = React.useState<CoverStylePresetId | null>('editorial');
+  const [activeSwatchId, setActiveSwatchId] = React.useState<string | null>(null);
+
+  const mergeActivePageStyle = React.useCallback(
+    (stylePatch: Partial<NonNullable<EditablePageState['style']>>) => {
+      const merge = (prev: EditablePageState): EditablePageState => ({
+        ...prev,
+        style: {
+          ...prev.style,
+          ...stylePatch,
+          textLeafBgMode: stylePatch.textLeafBgMode ?? 'gradient',
+        },
+      });
+      if (activeEditSide === 'cover') setCoverPage(merge);
+      else setLastPage(merge);
+    },
+    [activeEditSide],
+  );
+
+  const applyStylePreset = React.useCallback(
+    (presetId: CoverStylePresetId) => {
+      const preset = COVER_STYLE_PRESETS.find((p) => p.id === presetId);
+      if (!preset) return;
+      setActiveStylePreset(presetId);
+      setActiveSwatchId(null);
+      mergeActivePageStyle(preset.stylePatch);
+    },
+    [mergeActivePageStyle],
+  );
+
+  const applyColorSwatch = React.useCallback(
+    (swatchId: string) => {
+      const swatch = COLOR_SWATCH_PRESETS.find((s) => s.id === swatchId);
+      if (!swatch) return;
+      setActiveSwatchId(swatchId);
+      setActiveStylePreset(null);
+      mergeActivePageStyle(swatch.stylePatch);
+    },
+    [mergeActivePageStyle],
+  );
+
+  React.useEffect(() => {
+    setActiveStylePreset(null);
+    setActiveSwatchId(null);
+  }, [activeEditSide]);
+
+  type WorkspaceSection = 'assets' | 'layouts' | 'albums';
+  const presetGalleryRef = React.useRef<HTMLDivElement>(null);
+  const albumsListRef = React.useRef<HTMLDivElement>(null);
+  const [workspaceSection, setWorkspaceSection] = React.useState<WorkspaceSection>('layouts');
+  const [showWorkspaceAssetsPicker, setShowWorkspaceAssetsPicker] = React.useState(false);
+  const [projectAssetCount, setProjectAssetCount] = React.useState(0);
+
+  React.useEffect(() => {
+    if (studioAlbumImageIds?.length) {
+      setProjectAssetCount(studioAlbumImageIds.length);
+      return;
+    }
+    const token = getStoredToken();
+    if (!token) {
+      setProjectAssetCount(0);
+      return;
+    }
+    api
+      .get('/api/images/user/all', { params: { token } })
+      .then((res) => setProjectAssetCount(res.data?.totalImages ?? res.data?.images?.length ?? 0))
+      .catch(() => setProjectAssetCount(0));
+  }, [studioAlbumImageIds, albumListVersion]);
+
+  const workspaceNavClass = (section: WorkspaceSection) =>
+    workspaceSection === section
+      ? 'w-full flex items-center gap-4 p-4 bg-[#4648d4]/5 text-[#4648d4] rounded-xl font-bold border border-[#4648d4]/10 text-sm transition-colors'
+      : 'w-full flex items-center gap-4 p-4 text-[#464554] hover:bg-slate-50 hover:text-[#4648d4] rounded-xl text-sm transition-colors';
+
+  const handleWorkspaceAssets = () => {
+    setWorkspaceSection('assets');
+    setShowWorkspaceAssetsPicker(true);
+  };
+
+  const handleWorkspaceLayouts = () => {
+    setWorkspaceSection('layouts');
+    presetGalleryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const handleWorkspaceAlbums = () => {
+    setWorkspaceSection('albums');
+    albumsListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+
+  const handleWorkspaceAssetPick = async (picked: { name: string; dataUrl: string; imageId?: number }) => {
+    const imgUrl = picked.imageId ? buildPreviewUrl(picked.imageId) : picked.dataUrl;
+    const patch = { imageDataUrl: imgUrl, imageId: picked.imageId };
+    if (activeEditSide === 'cover') {
+      setCoverPage((prev) => ({ ...prev, ...patch }));
+    } else {
+      setLastPage((prev) => ({ ...prev, ...patch }));
+    }
+    setShowWorkspaceAssetsPicker(false);
+  };
 
   // Fetch all albums for this category
   React.useEffect(() => {
@@ -2887,251 +3397,283 @@ const PhotoThemeCategoryPage: React.FC = () => {
     }
   };
 
-  return (
-    <div className="space-y-8 w-full">
-      {/* Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl p-8 text-white shadow-2xl">
-        <div className="absolute inset-0 bg-black opacity-10" />
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -translate-y-32 translate-x-32" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full translate-y-24 -translate-x-24" />
+  const suiteGradientClass =
+    categorySlug === 'birthday'
+      ? 'bg-gradient-to-br from-[#ec4899] to-[#f43f5e]'
+      : categorySlug === 'wedding'
+        ? 'bg-gradient-to-br from-[#8b5cf6] to-[#6366f1]'
+        : categorySlug === 'anniversary'
+          ? 'bg-gradient-to-br from-[#ef4444] to-[#ec4899]'
+          : `bg-gradient-to-br ${meta.color}`;
 
-        <div className="relative z-10 flex items-center space-x-4">
-          <div className="w-16 h-16 bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-            <Icon className="h-8 w-8 text-white" />
+  return (
+    <div className="category-quantum-studio -m-2 lg:-m-3 flex flex-col min-h-[calc(100dvh-4.5rem)]">
+      <header className="sticky top-0 z-30 flex justify-between items-center px-4 sm:px-8 h-16 bg-white/90 backdrop-blur-2xl border-b border-slate-200/60 shrink-0">
+        <div className="flex items-center gap-4 sm:gap-10 min-w-0">
+          <button type="button" onClick={() => navigate('/photo-themes')} className="shrink-0 rounded-lg p-2 text-slate-500 hover:text-[#4648d4] lg:hidden" aria-label={t('backToThemes')}>
+            <FaArrowLeft className="w-4 h-4" />
+          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="font-['Playfair_Display'] text-xl sm:text-2xl font-bold text-[#4648d4] tracking-tight">StudioPro</span>
+            <span className="px-2 py-0.5 bg-[#4648d4] text-white text-[9px] font-black uppercase tracking-widest rounded leading-none">{t('quantum')}</span>
           </div>
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-1 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
-              {meta.title}
-            </h1>
-            <p className="text-sm md:text-base text-blue-100">{meta.subtitle}</p>
+          <nav className="hidden md:flex gap-8 ml-2">
+            <button type="button" onClick={() => navigate('/photo-themes')} className="text-[#464554] text-sm font-semibold hover:text-[#4648d4]">{t('backToThemes')}</button>
+            <span className="text-[#4648d4] text-sm font-bold">{t('editorNav')}</span>
+          </nav>
+          <div className="min-w-0 hidden lg:block">
+            <h1 className="text-sm font-bold text-[#0b1c30] truncate">{meta.title}</h1>
+            <p className="text-xs text-[#464554] truncate">{meta.subtitle}</p>
           </div>
         </div>
-      </div>
-
-      {/* ── My Albums section ────────────────────────── */}
-      <section className="rounded-2xl border border-slate-200/80 bg-white shadow-md overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
-              <FaImages className="h-4 w-4" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-slate-800">{t('myAlbums')}</h2>
-              <p className="text-[11px] text-slate-400">
-                {t('albumsCount', { count: myAlbums.length })} · <span className="capitalize">{categorySlug}</span>
-              </p>
-            </div>
+        <div className="flex items-center gap-3 sm:gap-6 shrink-0">
+          <div className="hidden sm:flex items-center gap-3 px-4 py-1.5 bg-slate-50 rounded-full border border-slate-100">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 quantum-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">{t('quantumSync')}</span>
           </div>
-          <button
-            type="button"
-            onClick={handleCreateNewAlbum}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-sm shadow-indigo-500/25 hover:from-indigo-600 hover:to-indigo-700 transition-all"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
-            {t('newAlbum')}
+          <button type="button" onClick={handleSaveCovers} disabled={isSaving} className="px-4 sm:px-6 py-2.5 bg-[#4648d4] text-white font-bold rounded-xl shadow-lg shadow-[#4648d4]/20 text-sm flex items-center gap-2 disabled:opacity-50">
+            {isSaving ? <FaSpinner className="animate-spin w-4 h-4" /> : null}
+            {t('export')}
           </button>
         </div>
+      </header>
 
-        <div className="p-4">
+      <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
+      <aside className="hidden lg:flex w-72 shrink-0 bg-white border-r border-slate-100 flex-col p-6 overflow-y-auto lg:sticky lg:top-16 lg:self-start lg:max-h-[calc(100dvh-9rem)]">
+        <div className="flex items-center gap-4 p-5 mb-6 bg-slate-50 rounded-2xl border border-slate-100 shrink-0">
+          <div className={`w-10 h-10 rounded-xl ${suiteGradientClass} flex items-center justify-center text-white shadow-lg shrink-0`}>
+            <Icon className="text-lg" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-bold text-sm text-[#0b1c30] truncate">{meta.title}</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{t('projectVersion')}</p>
+          </div>
+        </div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 mb-3">{t('workspace')}</p>
+        <nav className="space-y-1 shrink-0">
+          <button type="button" onClick={handleWorkspaceAssets} className={workspaceNavClass('assets')}>
+            <FaFolderOpen className="text-[22px] shrink-0" />
+            <span className="font-semibold">{t('projectAssets')}</span>
+            <span className="ml-auto text-[10px] font-bold text-slate-400">{projectAssetCount}</span>
+          </button>
+          <button type="button" onClick={handleWorkspaceLayouts} className={workspaceNavClass('layouts')}>
+            <FaPalette className="text-[22px] shrink-0" />
+            <span>{t('layoutsNav')}</span>
+          </button>
+          <button type="button" onClick={handleWorkspaceAlbums} className={workspaceNavClass('albums')}>
+            <FaImages className="text-[22px] shrink-0" />
+            <span className="font-semibold">{t('myProjects')}</span>
+            <span className="ml-auto text-[10px] font-bold text-slate-400">{myAlbums.length}</span>
+          </button>
+        </nav>
+        <div ref={albumsListRef} className="flex-1 overflow-y-auto mt-4 space-y-2 min-h-0">
+          <div className="flex items-center justify-between px-1 mb-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('myAlbums')}</p>
+            <button type="button" onClick={handleCreateNewAlbum} className="text-[10px] font-bold text-[#4648d4] hover:underline">
+              + {t('newAlbum')}
+            </button>
+          </div>
           {isLoadingAlbums ? (
-            <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-500">
-              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              {t('loadingAlbums')}
-            </div>
+            <p className="text-xs text-slate-500 py-2 text-center">{t('loadingAlbums')}</p>
           ) : myAlbums.length === 0 ? (
-            <div className="text-center py-10">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 text-indigo-400 mb-3">
-                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-              </div>
-              <p className="text-sm font-semibold text-slate-700">{t('startFirstAlbum')}</p>
-              <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">{t('startFirstAlbumHint')}</p>
-            </div>
+            <p className="text-xs text-slate-500 py-2 text-center">{t('startFirstAlbum')}</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {myAlbums.map((album) => {
-                const isActive = photobookId === album.id;
-                const isDeleting = isDeletingAlbum === album.id;
-                const dateStr = album.updatedAt
-                  ? new Date(album.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-                  : '';
-                const progressPct = album.pageCount > 0 ? Math.round((album.savedPagesCount / album.pageCount) * 100) : 0;
-                return (
-                  <div
-                    key={album.id}
-                    className={`group relative rounded-xl border p-4 transition-all ${
-                      isActive
-                        ? 'border-indigo-400 bg-gradient-to-br from-indigo-50/80 to-white  ring-indigo-200 shadow-md'
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
-                    }`}
-                  >
-                    {isActive && (
-                      <span className="absolute -top-2 right-3 text-[9px] font-bold uppercase tracking-wider bg-indigo-600 text-white rounded-full px-2.5 py-0.5 shadow-sm">
-                        {t('active')}
-                      </span>
-                    )}
-                    <div className="mb-3">
-                      <h3 className="text-sm font-bold text-slate-800 line-clamp-1">
-                        {album.title || t('untitledAlbum')}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <span className={`text-[10px] font-semibold uppercase tracking-wide rounded-full px-2 py-0.5 ${
-                          album.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-                          album.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-700' :
-                          'bg-slate-100 text-slate-500'
-                        }`}>
-                          {album.status?.replace('_', ' ') || t('draft')}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {t('pagesLabel', { count: album.pageCount })}
-                        </span>
-                      </div>
-                      {/* Progress bar */}
-                      <div className="mt-2 flex items-center gap-2">
-                        <div className="flex-1 h-1 rounded-full bg-slate-100 overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-500"
-                            style={{
-                              width: `${progressPct}%`,
-                              background: progressPct === 100 ? 'linear-gradient(90deg, #10b981, #059669)' : 'linear-gradient(90deg, #6366f1, #818cf8)',
-                            }}
-                          />
-                        </div>
-                        <span className="text-[9px] text-slate-400 font-medium">{progressPct}%</span>
-                      </div>
-                      {dateStr && (
-                        <p className="text-[10px] text-slate-400 mt-1.5">{t('lastEdited', { date: dateStr })}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleContinueAlbum(album)}
-                        className="flex-1 rounded-lg bg-gradient-to-r from-indigo-500 to-indigo-600 px-3 py-2 text-xs font-bold text-white shadow-sm shadow-indigo-500/20 hover:from-indigo-600 hover:to-indigo-700 transition-all"
-                      >
-                        {album.hasCovers ? t('continue') : t('editCovers')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/photo-themes/${categorySlug}/album`, {
-                          state: { dbTemplateId: album.templateId, photobookId: album.id },
-                        })}
-                        disabled={!album.hasCovers}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {t('open')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteAlbum(album.id)}
-                        disabled={isDeleting}
-                        className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 disabled:opacity-50 transition-all opacity-0 group-hover:opacity-100"
-                        title={t('deleteAlbumTitle')}
-                      >
-                        {isDeleting ? (
-                          <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                        ) : (
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+            myAlbums.map((album) => (
+            <button key={album.id} type="button" onClick={() => handleContinueAlbum(album)} className={`w-full text-left rounded-xl border p-3 text-xs ${photobookId === album.id ? 'border-[#4648d4]/40 bg-[#4648d4]/5' : 'border-slate-200 hover:border-slate-300'}`}>
+              <span className="font-bold text-slate-800 line-clamp-1 block">{album.title || t('untitledAlbum')}</span>
+            </button>
+          )))}
+        </div>
+        <div className="mt-auto pt-6 border-t border-slate-100 shrink-0">
+          <div className="p-4 bg-slate-50 rounded-2xl">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{t('cloudStorage')}</span>
+              <span className="text-[10px] font-black text-[#4648d4]">84%</span>
             </div>
-          )}
-        </div>
-      </section>
-
-      {/* Loading indicator */}
-      {isLoadingCovers && (
-        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 flex items-center gap-2">
-          <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span>{t('loadingSavedCovers')}</span>
-        </div>
-      )}
-
-      {/* Editors for first & last page */}
-      <div className="space-y-6">
-        {activeTemplateId && (
-          <div className="flex items-center justify-between">
-            <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1">
-              <span className="w-2 h-2 rounded-full bg-indigo-500" />
-              <span className="text-xs font-medium text-indigo-700">
-                {photobookId ? t('editingAlbum', { id: photobookId }) : t('creatingNewAlbum')}
-              </span>
-              {isLoadingSelectedTheme && (
-                <span className="ml-2 text-[10px] text-indigo-500">{t('loading')}</span>
-              )}
+            <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div className="w-[84%] h-full bg-[#4648d4] rounded-full" />
             </div>
           </div>
+        </div>
+      </aside>
+
+      <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-y-auto pb-24 xl:pb-20 order-first lg:order-none">
+        {isLoadingCovers && (
+          <div className="mx-4 mt-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs text-blue-800 flex items-center gap-2 shrink-0">
+            <FaSpinner className="animate-spin w-4 h-4" />{t('loadingSavedCovers')}
+          </div>
         )}
-        <PageEditorCard kind="cover" state={coverPage} onChange={setCoverPage} filterImageIds={studioAlbumImageIds} />
-        <PageEditorCard kind="last" state={lastPage} onChange={setLastPage} filterImageIds={studioAlbumImageIds} />
-      </div>
-
-      {/* Save success message - Visible above button */}
-      {saveSuccess && (
-        <div className="rounded-xl border-2 border-green-400 bg-green-100 px-6 py-4 text-base font-semibold text-green-900 flex items-center gap-3 shadow-lg">
-          <svg className="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
-          <span>✅ {t('coversSavedRedirect')}</span>
+        {(saveSuccess || saveError) && (
+          <div className={`mx-4 mt-2 rounded-xl px-4 py-2 text-xs shrink-0 ${saveSuccess ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-amber-50 text-amber-900 border border-amber-200'}`}>
+            {saveSuccess ? t('coversSavedRedirect') : saveError}
+          </div>
+        )}
+        {activeTemplateId && (
+          <div className="px-4 sm:px-8 py-2 border-b border-slate-100/80 bg-white/50 shrink-0">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#4648d4]">{photobookId ? t('editingAlbum', { id: photobookId }) : t('creatingNewAlbum')}</span>
+          </div>
+        )}
+        <div className="h-14 border-b border-slate-200/40 flex items-center justify-between px-4 sm:px-8 bg-white/60 backdrop-blur-xl shrink-0">
+          <div className="flex items-center gap-4 sm:gap-8">
+            <div className="inline-flex rounded-full border border-slate-200 bg-white p-0.5 shadow-sm">
+              <button type="button" onClick={() => setActiveEditSide('cover')} className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wider ${activeEditSide === 'cover' ? 'bg-[#4648d4] text-white' : 'text-slate-500'}`}>{t('editFrontCover')}</button>
+              <button type="button" onClick={() => setActiveEditSide('last')} className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wider ${activeEditSide === 'last' ? 'bg-[#4648d4] text-white' : 'text-slate-500'}`}>{t('editBackCover')}</button>
+            </div>
+            <div className="hidden sm:block h-6 w-px bg-slate-200" />
+            <div className="hidden sm:flex items-center gap-6">
+              <button type="button" onClick={() => setCanvasViewMode('spread')} className={`text-[11px] font-black uppercase tracking-widest ${canvasViewMode === 'spread' ? 'text-[#4648d4]' : 'text-slate-400'}`}>{t('spread')}</button>
+              <button type="button" onClick={() => setCanvasViewMode('flipbook')} className={`text-[11px] font-black uppercase tracking-widest ${canvasViewMode === 'flipbook' ? 'text-[#4648d4]' : 'text-slate-400'}`}>{t('flipbook')}</button>
+            </div>
+          </div>
         </div>
-      )}
-
-      {/* Save error message */}
-      {saveError && (
-        <div className="rounded-xl border-2 border-yellow-400 bg-yellow-100 px-6 py-4 text-base font-semibold text-yellow-900">
-          ⚠️ {saveError}
+        <div className="flex flex-col studio-mesh-quantum relative">
+          <PageEditorCard key={`canvas-${activeEditSide}`} layout="canvas" kind={activeEditSide} state={activePageState} onChange={setActivePageState} filterImageIds={studioAlbumImageIds} canvasViewMode={canvasViewMode} />
+          <div ref={presetGalleryRef} className="px-4 sm:px-8 pb-4 pt-2 shrink-0 relative z-10">
+            <div className="neo-glass p-5 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] flex flex-col lg:flex-row gap-8 border-white">
+              <div className="flex-[1.5] min-w-0">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3"><FaStar className="text-[#4648d4]" /><h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{t('presetGallery')}</h4></div>
+                  <span className="text-[9px] font-black text-[#4648d4] bg-[#4648d4]/5 px-3 py-1 rounded-full">{t('aiCore')}</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {COVER_STYLE_PRESETS.map((preset) => {
+                    const selected = activeStylePreset === preset.id;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => applyStylePreset(preset.id)}
+                        aria-pressed={selected}
+                        title={t('applyPresetHint', { name: t(preset.labelKey) })}
+                        className={`aspect-video rounded-2xl border relative overflow-hidden transition-all hover:scale-[1.02] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#4648d4]/40 ${
+                          selected ? 'border-2 border-[#4648d4] ring-4 ring-[#4648d4]/5' : 'border border-slate-100 hover:border-[#4648d4]/30'
+                        }`}
+                        style={{ background: preset.previewBg }}
+                      >
+                        <span className={`absolute bottom-2 left-3 text-[9px] font-black uppercase drop-shadow-sm ${preset.labelClass}`}>
+                          {t(preset.labelKey)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="hidden lg:block w-px bg-slate-100" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-4"><FaPalette className="text-[#8127cf]" /><h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{t('legendarySwatches')}</h4></div>
+                <div className="flex gap-3">
+                  {COLOR_SWATCH_PRESETS.map((swatch) => {
+                    const selected = activeSwatchId === swatch.id;
+                    return (
+                      <button
+                        key={swatch.id}
+                        type="button"
+                        onClick={() => applyColorSwatch(swatch.id)}
+                        aria-pressed={selected}
+                        title={t('applySwatchHint')}
+                        className={`flex-1 h-14 rounded-2xl flex overflow-hidden border shadow-sm hover:scale-105 transition-all focus:outline-none focus:ring-2 focus:ring-[#4648d4]/40 ${
+                          selected ? 'border-2 border-[#4648d4] ring-2 ring-[#4648d4]/20' : 'border-slate-200'
+                        }`}
+                      >
+                        <div className="w-1/2" style={{ background: swatch.colors[0] }} />
+                        <div className="w-1/4" style={{ background: swatch.colors[1] }} />
+                        <div className="flex-1" style={{ background: swatch.colors[2] }} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
+      </main>
 
-      {/* Next step: go to multi-page album builder */}
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={handleSaveCovers}
-          disabled={isSaving}
-          className="inline-flex items-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      <aside
+        className="hidden xl:flex shrink-0 bg-white border-l border-slate-100 flex-col sticky top-16 self-start h-[calc(100dvh-9rem)] max-h-[calc(100dvh-9rem)] overflow-hidden relative"
+        style={{ width: editorPanelWidth }}
+      >
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t('resizePanel')}
+          aria-valuemin={EDITOR_PANEL_WIDTH_MIN}
+          aria-valuemax={EDITOR_PANEL_WIDTH_MAX}
+          aria-valuenow={editorPanelWidth}
+          className={`category-editor-panel-resize-handle ${isResizingPanel ? 'is-dragging' : ''}`}
+          onPointerDown={handlePanelResizeStart}
+          onPointerMove={handlePanelResizeMove}
+          onPointerUp={handlePanelResizeEnd}
+          onPointerCancel={handlePanelResizeEnd}
         >
-          {isSaving ? (
-            <>
-              <svg
-                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              {t('savingCovers')}
-            </>
-          ) : (
-            photobookId ? t('saveContinueAlbum') : t('saveCreateAlbum')
-          )}
-        </button>
+          {isResizingPanel ? (
+            <span className="category-editor-panel-resize-tooltip" aria-hidden="true">
+              {t('resizePanelWidth', { width: editorPanelWidth })}
+            </span>
+          ) : null}
+        </div>
+        <PageEditorCard key={activeEditSide} layout="panel" kind={activeEditSide} state={activePageState} onChange={setActivePageState} filterImageIds={studioAlbumImageIds} />
+      </aside>
       </div>
-      {/* "Your saved themes" section removed as per request */}
+
+      <aside className="xl:hidden border-t border-slate-200 bg-white max-h-[45vh] overflow-hidden flex flex-col shrink-0">
+        <PageEditorCard key={`mobile-${activeEditSide}`} layout="panel" kind={activeEditSide} state={activePageState} onChange={setActivePageState} filterImageIds={studioAlbumImageIds} />
+      </aside>
+
+      {showWorkspaceAssetsPicker && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+          onClick={() => setShowWorkspaceAssetsPicker(false)}
+          onKeyDown={(e) => e.key === 'Escape' && setShowWorkspaceAssetsPicker(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="workspace-assets-title"
+        >
+          <div
+            className="bg-white rounded-2xl shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_25px_60px_-12px_rgba(15,23,42,0.25)] max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col border border-slate-200/80"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
+              <h3 id="workspace-assets-title" className="text-lg font-bold text-slate-900 tracking-tight">
+                {t('chooseProjectAssetsTitle')}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowWorkspaceAssetsPicker(false)}
+                className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-[#4648d4]/30"
+                aria-label={t('close')}
+              >
+                <span className="text-xl leading-none">×</span>
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              <p className="text-xs text-slate-500 mb-4">{t('chooseProjectAssetsHint')}</p>
+              <FileVaultImagePicker
+                filterImageIds={studioAlbumImageIds}
+                onPick={handleWorkspaceAssetPick}
+              />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      <footer className="sticky bottom-0 z-30 bg-white border-t border-slate-100 h-20 flex items-center justify-between px-6 sm:px-12 shadow-[0_-4px_24px_rgba(0,0,0,0.04)] shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 quantum-pulse" />
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 hidden sm:inline">{t('legendaryActive')}</span>
+        </div>
+        <div className="flex items-center gap-3 sm:gap-6">
+          <button type="button" onClick={handleSaveCovers} disabled={isSaving} className="px-5 sm:px-6 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl border border-slate-200 text-sm disabled:opacity-50">{t('saveDraft')}</button>
+          <button type="button" onClick={handleSaveCovers} disabled={isSaving} className="px-6 sm:px-10 py-3 bg-[#4648d4] text-white font-black rounded-xl shadow-lg shadow-[#4648d4]/25 hover:scale-[1.02] transition-all flex items-center gap-3 text-xs uppercase tracking-widest disabled:opacity-50">
+            {isSaving ? <FaSpinner className="animate-spin w-4 h-4" /> : null}
+            {isSaving ? t('savingCovers') : t('confirmFinalize')}
+            {!isSaving && <FaChevronRight className="w-4 h-4" />}
+          </button>
+        </div>
+      </footer>
     </div>
   );
+
 };
 
 export default PhotoThemeCategoryPage;

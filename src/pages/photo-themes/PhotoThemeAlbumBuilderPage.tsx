@@ -20,6 +20,7 @@ import {
   FaTrash,
   FaImages,
   FaPalette,
+  FaStar,
 } from 'react-icons/fa';
 import { getPhotoBookTemplate } from '../../templates/photobookTemplates';
 import { FileVaultImagePicker } from '../../components/PhotoBook/FileVaultImagePicker';
@@ -2958,6 +2959,43 @@ const customLayoutGeometry = useMemo(() => {
   const [libraryFilter, setLibraryFilter] = useState<'all' | 'recent'>('all');
   const [canvasZoom, setCanvasZoom] = useState(100);
   const [pendingLibraryImage, setPendingLibraryImage] = useState<{ url: string; imageId?: number } | null>(null);
+  const [showStudioGrid, setShowStudioGrid] = useState(false);
+  const [studioRightTab, setStudioRightTab] = useState<'layers' | 'type' | 'effects'>('layers');
+  const [canvasViewMode, setCanvasViewMode] = useState<'spread' | 'page'>('page');
+  const spreadContainerRef = React.useRef<HTMLDivElement>(null);
+  const [spreadTransform, setSpreadTransform] = React.useState(
+    'rotateX(5deg) rotateY(-8deg) rotateZ(1deg)'
+  );
+
+  const handleSpreadPointerMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = spreadContainerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = (y - centerY) / 30;
+    const rotateY = (centerX - x) / 40;
+    setSpreadTransform(
+      `rotateX(${5 + rotateX}deg) rotateY(${-8 + rotateY}deg) rotateZ(1deg)`
+    );
+    el.style.setProperty('--mouse-x', `${(x / rect.width) * 100}%`);
+    el.style.setProperty('--mouse-y', `${(y / rect.height) * 100}%`);
+  }, []);
+
+  const handleSpreadPointerLeave = useCallback(() => {
+    setSpreadTransform('rotateX(5deg) rotateY(-8deg) rotateZ(1deg)');
+  }, []);
+
+  const categorySuiteGradient =
+    categorySlug === 'birthday'
+      ? 'from-[#ec4899] to-[#f43f5e]'
+      : categorySlug === 'wedding'
+        ? 'from-[#8b5cf6] to-[#6366f1]'
+        : categorySlug === 'anniversary'
+          ? 'from-[#ef4444] to-[#ec4899]'
+          : 'from-[#4648d4] to-[#8127cf]';
 
   if (!template) {
     return (
@@ -2970,7 +3008,7 @@ const customLayoutGeometry = useMemo(() => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-gradient-to-b from-slate-50/80 to-white">
+    <div className="album-builder-studio flex flex-col min-h-[calc(100vh-4rem)] w-full pb-24">
       {/* Print styles */}
       <style>{`
         @media print {
@@ -3021,73 +3059,132 @@ const customLayoutGeometry = useMemo(() => {
         </div>
       )}
 
-      {/* 1. Top Navigation Bar */}
-      <header className="no-print sticky top-0 z-30 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4 px-3 sm:px-4 py-2 sm:py-3 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
-        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+      {/* StudioPro top bar */}
+      <header className="no-print sticky top-0 z-30 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between px-4 sm:px-8 py-3 bg-white/80 backdrop-blur-3xl border-b border-slate-200/60">
+        <div className="flex items-center gap-4 min-w-0">
           <button
             type="button"
             onClick={() => navigate(`/photo-themes/${categorySlug}`, { state: { templateId: dbTemplateId, photobookId } })}
-            className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+            className="shrink-0 rounded-xl p-2 text-slate-500 hover:bg-[#4648d4]/5 hover:text-[#4648d4] transition-colors"
             aria-label={t('backAria')}
           >
             <FaArrowLeft className="w-5 h-5" />
           </button>
-          <div className="min-w-0">
-            <h1 className="text-sm sm:text-base font-bold text-slate-900 truncate">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-['Playfair_Display'] text-xl sm:text-2xl font-bold text-[#4648d4] tracking-tight shrink-0">
+              {t('studioPro')}
+            </span>
+            <span className="hidden sm:inline px-2 py-0.5 bg-[#4648d4]/10 text-[#4648d4] text-[10px] font-black uppercase tracking-widest rounded-md leading-none">
+              {t('ultraPro')}
+            </span>
+          </div>
+          <div className="hidden md:block h-6 w-px bg-slate-200 mx-1" />
+          <div className="min-w-0 hidden sm:block">
+            <h1 className="text-sm font-bold text-[#0b1c30] truncate">
               {studioAlbumName || template?.name || t('myAlbum')}
             </h1>
-            <p className="text-xs text-slate-500 truncate">
+            <p className="text-xs text-[#464554] truncate">
               {template?.name} · {t('pagesCount', { count: albumPages.length })}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap shrink-0">
-          <div className="hidden sm:flex items-center gap-1 rounded-lg bg-slate-100 p-1" title={t('undoRedoSoon')}>
-            <button type="button" className="rounded-md px-2 py-1 text-[10px] font-semibold text-slate-400" disabled>{t('undo')}</button>
-            <button type="button" className="rounded-md px-2 py-1 text-[10px] font-semibold text-slate-400" disabled>{t('redo')}</button>
+        <div className="flex items-center gap-2 sm:gap-4 flex-wrap shrink-0">
+          <div className="hidden sm:flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">{t('liveSync')}</span>
           </div>
-          <div className="w-24 h-2 rounded-full bg-slate-200 overflow-hidden" title={t('pagesFilled', { filled: albumPages.filter((p) => pageImages[p.index]?.imageDataUrl || (pageImages[p.index]?.imageDataUrls?.length ?? 0) > 0).length, total: albumPages.length })}>
+          <div
+            className="w-20 sm:w-24 h-2 rounded-full bg-slate-200 overflow-hidden"
+            title={t('pagesFilled', {
+              filled: albumPages.filter(
+                (p) => pageImages[p.index]?.imageDataUrl || (pageImages[p.index]?.imageDataUrls?.length ?? 0) > 0
+              ).length,
+              total: albumPages.length,
+            })}
+          >
             <div
-              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-300"
-              style={{ width: `${Math.round((albumPages.filter((p) => pageImages[p.index]?.imageDataUrl || (pageImages[p.index]?.imageDataUrls?.length ?? 0) > 0).length / Math.max(1, albumPages.length)) * 100)}%` }}
+              className="h-full rounded-full bg-gradient-to-r from-[#4648d4] to-[#8127cf] transition-all duration-300"
+              style={{
+                width: `${Math.round(
+                  (albumPages.filter(
+                    (p) => pageImages[p.index]?.imageDataUrl || (pageImages[p.index]?.imageDataUrls?.length ?? 0) > 0
+                  ).length /
+                    Math.max(1, albumPages.length)) *
+                    100
+                )}%`,
+              }}
             />
           </div>
           <button
             type="button"
             onClick={handleOpenFlipBook}
-            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+            className="px-4 py-2 text-[#4648d4] font-bold hover:bg-[#4648d4]/5 rounded-xl transition-all text-sm"
           >
-            <FaImages className="w-3.5 h-3.5" /> {t('preview')}
+            {t('preview')}
           </button>
           <button
             type="button"
             onClick={handleSaveAlbum}
             disabled={isSaving}
-            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm"
+            className="px-5 py-2 rounded-xl border border-slate-200 text-sm font-bold text-[#0b1c30] hover:bg-slate-50 disabled:opacity-50 transition-all"
           >
-            {isSaving ? <FaSpinner className="w-3.5 h-3.5 animate-spin" /> : <FaSave className="w-3.5 h-3.5" />}
-            {t('save')}
+            {isSaving ? <FaSpinner className="w-4 h-4 animate-spin inline" /> : t('saveDraft')}
           </button>
           <button
             type="button"
             onClick={handleDownloadPdf}
             disabled={isGeneratingPdf}
-            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
+            className="px-6 py-2.5 bg-[#4648d4] text-white font-bold rounded-xl shadow-[0_10px_20px_-5px_rgba(70,72,212,0.4)] hover:shadow-[0_15px_25px_-5px_rgba(70,72,212,0.5)] transition-all text-sm flex items-center gap-2 disabled:opacity-50"
           >
-            {isGeneratingPdf ? <FaSpinner className="w-3.5 h-3.5 animate-spin" /> : <FaDownload className="w-3.5 h-3.5" />}
+            {isGeneratingPdf ? <FaSpinner className="w-4 h-4 animate-spin" /> : <FaDownload className="w-4 h-4" />}
             {t('export')}
           </button>
         </div>
       </header>
 
-      {/* 2. Main workspace: Left sidebar | Center canvas | Right sidebar */}
-      <div className="album-pages-section flex-1 flex flex-col md:flex-row min-h-0 no-print">
-        {/* Left Sidebar — Photo Library */}
-        <aside className="hidden md:flex md:w-56 lg:w-64 shrink-0 border-r border-slate-200/80 bg-white flex-col overflow-hidden">
-          <div className="p-3 border-b border-slate-100">
-            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-              <FaImages className="w-3.5 h-3.5 text-indigo-500" />
+      {/* Main workspace: left library | center canvas | right studio panel */}
+      <div className="album-pages-section flex-1 flex flex-col lg:flex-row min-h-0 no-print">
+        {/* Left — workspace + photo library */}
+        <aside className="hidden lg:flex lg:w-72 shrink-0 border-r border-slate-100 bg-white flex-col overflow-hidden">
+          <div className="p-6 border-b border-slate-100">
+            <div className="flex items-center gap-4 p-4 mb-6 bg-gradient-to-br from-slate-50 to-white rounded-2xl border border-slate-100 shadow-sm">
+              <div
+                className={`w-12 h-12 rounded-xl bg-gradient-to-br ${categorySuiteGradient} flex items-center justify-center text-white shadow-xl rotate-3 shrink-0`}
+              >
+                <FaStar className="text-2xl" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-bold text-sm text-[#0b1c30] truncate">{template?.name || categorySlug}</h3>
+                <p className="text-[10px] text-[#4648d4] font-bold uppercase tracking-[0.15em]">{t('suiteProEditor')}</p>
+              </div>
+            </div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-3">{t('projectAssets')}</p>
+            <nav className="space-y-1 mb-6">
+              <div className="w-full flex items-center gap-4 p-3 text-[#4648d4] bg-[#4648d4]/5 rounded-2xl font-bold border border-[#4648d4]/10 shadow-sm text-sm">
+                <FaImages className="text-xl shrink-0" />
+                <span>{t('photoLibrary')}</span>
+                <span className="ml-auto bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded-full font-black">
+                  {libraryPhotoUrls.length}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStudioRightTab('layers')}
+                className={`w-full flex items-center gap-4 p-3 rounded-2xl transition-all text-sm font-bold ${
+                  studioRightTab === 'layers'
+                    ? 'text-[#4648d4] bg-[#4648d4]/5 border border-[#4648d4]/10'
+                    : 'text-[#464554] hover:bg-[#4648d4]/5 hover:text-[#4648d4]'
+                }`}
+              >
+                <FaPalette className="text-xl shrink-0" />
+                {t('layoutsNav')}
+              </button>
+            </nav>
+          </div>
+          <div className="px-4 pb-3 border-b border-slate-100">
+            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-2">
+              <FaImages className="w-3.5 h-3.5 text-[#4648d4]" />
               {t('photoLibrary')}
             </h2>
             <div className="mt-2 relative">
@@ -3272,108 +3369,225 @@ const customLayoutGeometry = useMemo(() => {
 
           return (
             <>
-              {/* 3. Center — Album Canvas */}
-              <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-gradient-to-b from-slate-50/50 to-white p-2 sm:p-4">
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className={`text-xs font-semibold uppercase tracking-wider rounded-lg px-3 py-1.5 ${isCover ? 'bg-amber-100 text-amber-900' : isLast ? 'bg-stone-100 text-stone-800' : 'bg-slate-100 text-slate-700'
-                    }`}>
-                    {isCover ? t('cover') : isLast ? t('back') : t('pageLabel', { n: page.index + 1 })}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {/* Zoom preset sizes: Small / Medium / Large */}
-                    <div className="hidden sm:flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
-                      <button
-                        type="button"
-                        onClick={() => setCanvasZoom(70)}
-                        className={`rounded-md px-2 py-1 text-[10px] font-semibold ${canvasZoom <= 80 ? 'bg-white text-slate-800' : 'text-slate-500 hover:bg-white/70'
-                          }`}
-                      >
-                        S
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCanvasZoom(100)}
-                        className={`rounded-md px-2 py-1 text-[10px] font-semibold ${canvasZoom > 80 && canvasZoom < 120 ? 'bg-white text-slate-800' : 'text-slate-500 hover:bg-white/70'
-                          }`}
-                      >
-                        M
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCanvasZoom(130)}
-                        className={`rounded-md px-2 py-1 text-[10px] font-semibold ${canvasZoom >= 120 ? 'bg-white text-slate-800' : 'text-slate-500 hover:bg-white/70'
-                          }`}
-                      >
-                        L
-                      </button>
-                    </div>
-                    {/* Fine zoom control */}
-                    <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-0.5">
+              {/* Center — Studio canvas */}
+              <main className="flex-1 flex flex-col min-w-0 min-h-0 album-builder-studio-mesh">
+                <div className="h-14 border-b border-slate-200/40 flex items-center justify-between px-4 sm:px-8 bg-white/40 backdrop-blur-xl shrink-0">
+                  <div className="flex items-center gap-4 sm:gap-6">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white/80 rounded-full border border-slate-200 shadow-sm">
                       <button
                         type="button"
                         onClick={() => setCanvasZoom((z) => Math.max(50, z - 10))}
-                        className="rounded-md px-2 py-1 text-xs font-bold text-slate-600 hover:bg-white"
+                        className="p-1 hover:text-[#4648d4] transition-colors text-slate-500"
+                        aria-label="Zoom out"
                       >
                         −
                       </button>
-                      <span className="text-[10px] font-semibold text-slate-500 min-w-[2.5rem] text-center">
-                        {canvasZoom}%
-                      </span>
+                      <span className="text-[11px] font-black text-slate-500 min-w-[40px] text-center">{canvasZoom}%</span>
                       <button
                         type="button"
                         onClick={() => setCanvasZoom((z) => Math.min(150, z + 10))}
-                        className="rounded-md px-2 py-1 text-xs font-bold text-slate-600 hover:bg-white"
+                        className="p-1 hover:text-[#4648d4] transition-colors text-slate-500"
+                        aria-label="Zoom in"
                       >
                         +
                       </button>
                     </div>
+                    <div className="hidden sm:block h-6 w-px bg-slate-300/40" />
+                    <div className="flex items-center gap-4 sm:gap-6">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isCover || isLast) setCanvasViewMode('spread');
+                        }}
+                        disabled={!isCover && !isLast}
+                        className={`text-[11px] sm:text-xs font-black tracking-wider uppercase flex items-center gap-2 transition-colors ${
+                          canvasViewMode === 'spread' && (isCover || isLast)
+                            ? 'text-[#4648d4]'
+                            : 'text-slate-400 hover:text-[#4648d4] disabled:opacity-40'
+                        }`}
+                      >
+                        {t('spreadView')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCanvasViewMode('page');
+                          handleOpenFlipBook();
+                        }}
+                        className="text-[11px] sm:text-xs font-black text-slate-400 hover:text-[#4648d4] tracking-wider uppercase flex items-center gap-2"
+                      >
+                        {t('flipbookView')}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowStudioGrid((g) => !g)}
+                      className={`p-2 rounded-xl transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${
+                        showStudioGrid ? 'text-[#4648d4] bg-white shadow-sm' : 'text-slate-400 hover:text-[#4648d4] hover:bg-white/80'
+                      }`}
+                    >
+                      <span className="hidden lg:inline">{t('gridSystem')}</span>
+                      ⊞
+                    </button>
+                    <span
+                      className={`text-[10px] font-black uppercase tracking-wider rounded-lg px-2.5 py-1 hidden md:inline ${
+                        isCover
+                          ? 'bg-amber-100 text-amber-900'
+                          : isLast
+                            ? 'bg-stone-100 text-stone-800'
+                            : 'bg-white/80 text-slate-700 border border-slate-200'
+                      }`}
+                    >
+                      {isCover ? t('cover') : isLast ? t('back') : t('pageLabel', { n: page.index + 1 })}
+                    </span>
                   </div>
                 </div>
-                <div className="flex-1 flex items-center justify-center min-h-0 gap-2">
+
+                <div
+                  ref={spreadContainerRef}
+                  className="flex-1 overflow-auto p-4 sm:p-8 flex items-center justify-center album-builder-no-scrollbar album-builder-perspective min-h-0"
+                  onMouseMove={handleSpreadPointerMove}
+                  onMouseLeave={handleSpreadPointerLeave}
+                >
                   <button
                     type="button"
                     disabled={safeStep === 0}
                     onClick={() => setCurrentStep((s) => Math.max(0, s - 1))}
-                    className="shrink-0 w-10 h-10 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="shrink-0 w-10 h-10 rounded-2xl bg-white border border-slate-200 shadow-lg flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 z-10"
                     aria-label={t('previousPage')}
                   >
                     <FaChevronLeft className="w-4 h-4" />
                   </button>
-                  <div
-                    className="flex-1 flex items-center justify-center min-h-0 max-w-4xl"
-                    style={{ transform: `scale(${canvasZoom / 100})`, transformOrigin: 'center center' }}
-                    onWheel={(e) => {
-                      // Allow zooming the page with the mouse wheel.
-                      // Scroll up = zoom in, scroll down = zoom out.
-                      e.preventDefault();
-                      const delta = e.deltaY < 0 ? 10 : -10;
-                      setCanvasZoom((z) => {
-                        const next = z + delta;
-                        return Math.min(150, Math.max(50, next));
-                      });
-                    }}
-                  >
+
+                  {(isCover || isLast) && canvasViewMode === 'spread' ? (
                     <div
-                      className="relative w-full rounded-xl overflow-hidden bg-white border border-slate-200/80 shadow-lg"
-                      style={{
-                        aspectRatio: '4/3',
-                        maxHeight: 'calc(100vh - 320px)',
-                        boxShadow: '0 0 0 1px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.08)',
+                      className="album-builder-spread-3d relative cursor-crosshair mx-4"
+                      style={{ transform: spreadTransform }}
+                    >
+                      <div className="flex rounded-sm overflow-hidden relative border border-white/60 shadow-2xl">
+                        <div
+                          className={`absolute inset-0 z-40 album-builder-grid-overlay ${showStudioGrid ? 'active' : ''}`}
+                        />
+                        <div className="album-builder-dynamic-light" />
+                        <div className="w-[min(280px,38vw)] sm:w-[320px] h-[min(380px,52vh)] bg-white album-builder-paper-texture relative border-r border-slate-100 flex-shrink-0">
+                          <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-slate-50/70">
+                            <FaImages className="text-5xl text-slate-200/80 mb-4" />
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('back')}</p>
+                            <p className="text-sm font-semibold text-slate-600 mt-2 line-clamp-2">
+                              {effectiveLast?.headline || t('thankYou')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="absolute left-[min(268px,37vw)] sm:left-[308px] top-0 bottom-0 w-12 album-builder-book-spine z-20 pointer-events-none opacity-60" />
+                        <div className="w-[min(280px,38vw)] sm:w-[320px] h-[min(380px,52vh)] bg-white album-builder-paper-texture relative z-10 flex-shrink-0 overflow-hidden">
+                          {effectiveCover?.imageDataUrl ? (
+                            <img
+                              src={effectiveCover.imageDataUrl}
+                              alt=""
+                              className="absolute inset-0 w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 bg-slate-200" />
+                          )}
+                          <div className="absolute inset-0 p-6 sm:p-8 flex flex-col justify-end">
+                            <div className="album-builder-glass-card p-6 sm:p-8 rounded-[2rem] relative">
+                              <div
+                                className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${categorySuiteGradient}`}
+                              />
+                              <h2 className="font-['Playfair_Display'] text-2xl sm:text-3xl text-[#0b1c30] mb-2 leading-tight">
+                                {effectiveCover?.headline || t('defaultBirthdayHeadline')}
+                              </h2>
+                              <p className="text-base text-[#464554] italic opacity-80">
+                                {effectiveCover?.subheadline || ''}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      className="flex-1 flex items-center justify-center min-h-0 max-w-4xl mx-2"
+                      style={{ transform: `scale(${canvasZoom / 100})`, transformOrigin: 'center center' }}
+                      onWheel={(e) => {
+                        e.preventDefault();
+                        const delta = e.deltaY < 0 ? 10 : -10;
+                        setCanvasZoom((z) => Math.min(150, Math.max(50, z + delta)));
                       }}
                     >
-                      {renderPageInner(page, 'preview', { editable: true, onCropChange: onCrop, forceWhiteBackground: true })}
+                      <div
+                        className={`relative w-full rounded-2xl overflow-hidden bg-white border border-slate-200/80 shadow-xl ${
+                          showStudioGrid ? 'ring-2 ring-[#4648d4]/20' : ''
+                        }`}
+                        style={{
+                          aspectRatio: '4/3',
+                          maxHeight: 'calc(100vh - 280px)',
+                        }}
+                      >
+                        {showStudioGrid && (
+                          <div className="absolute inset-0 z-10 album-builder-grid-overlay active pointer-events-none" />
+                        )}
+                        {renderPageInner(page, 'preview', {
+                          editable: true,
+                          onCropChange: onCrop,
+                          forceWhiteBackground: true,
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
+
                   <button
                     type="button"
                     disabled={safeStep >= albumPages.length - 1}
                     onClick={() => setCurrentStep((s) => Math.min(albumPages.length - 1, s + 1))}
-                    className="shrink-0 w-10 h-10 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="shrink-0 w-10 h-10 rounded-2xl bg-white border border-slate-200 shadow-lg flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 z-10"
                     aria-label={t('nextPage')}
                   >
                     <FaChevronRight className="w-4 h-4" />
                   </button>
                 </div>
+
+                {/* Pro preset strip (cover pages) */}
+                {(isCover || isLast) && (
+                  <div className="px-4 sm:px-8 pb-4 shrink-0">
+                    <div className="album-builder-glass-card rounded-[2rem] p-4 sm:p-6 flex flex-col lg:flex-row gap-6">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                            {t('proPresetGallery')}
+                          </h4>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {(
+                            [
+                              ['birthday', () => setEffectiveCover(buildThemeDefaultCover('birthday', t))],
+                              ['wedding', () => setEffectiveCover(buildThemeDefaultCover('wedding', t))],
+                              ['anniversary', () => setEffectiveCover(buildThemeDefaultCover('anniversary', t))],
+                              ['minimal', () => setEffectiveCover(buildMinimalPresetCover(t))],
+                            ] as const
+                          ).map(([key, fn]) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={fn}
+                              className="rounded-xl border border-slate-200 bg-white/80 py-4 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:border-[#4648d4]/40 hover:shadow-md transition-all"
+                            >
+                              {key === 'birthday'
+                                ? t('presetBirthday')
+                                : key === 'wedding'
+                                  ? t('presetWedding')
+                                  : key === 'anniversary'
+                                    ? t('presetAnniversary')
+                                    : t('presetMinimal')}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {showLayoutCreator && createPortal(
                   <div className="fixed inset-0 z-[10001] bg-slate-950/80 backdrop-blur-xl p-3 sm:p-6 flex items-center justify-center">
                     <div className="w-full max-w-6xl h-[92vh] rounded-[2rem] overflow-hidden bg-white shadow-2xl border border-white/20 flex flex-col">
@@ -3721,25 +3935,46 @@ const customLayoutGeometry = useMemo(() => {
                 )}
               </main>
 
-              {/* 4. Right Sidebar — Layout & Settings */}
-              <aside className="w-full md:w-[22rem] shrink-0 border-t md:border-t-0 md:border-l border-slate-200/80 bg-white flex flex-col overflow-y-auto max-h-[50vh] md:max-h-none">
-                <div className="p-3 border-b border-slate-100">
-                  <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                    <FaPalette className="w-3.5 h-3.5 text-indigo-500" />
-                    {t('layoutSettings')}
-                  </h2>
+              {/* Right — Studio control panel */}
+              <aside className="w-full lg:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-white/10 album-builder-studio-panel flex flex-col overflow-hidden max-h-[50vh] lg:max-h-none">
+                <div className="flex border-b border-white/10 h-14 shrink-0">
+                  {(
+                    [
+                      ['layers', t('layoutsNav')],
+                      ['type', t('coverTextPanel')],
+                      ['effects', t('theme')],
+                    ] as const
+                  ).map(([tab, label]) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setStudioRightTab(tab)}
+                      className={`flex-1 text-[10px] font-black tracking-[0.15em] uppercase border-b-2 transition-all ${
+                        studioRightTab === tab
+                          ? 'border-[#4648d4] text-white bg-white/[0.04]'
+                          : 'border-transparent text-slate-500 hover:text-white'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
-                <div className="p-3 space-y-4">
+                <div className="flex-grow overflow-y-auto album-builder-no-scrollbar p-4 sm:p-6 space-y-6">
+                  {studioRightTab === 'layers' && (
+                <div className="space-y-4">
                   <div>
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{t('photoCount')}</p>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('photoCount')}</p>
                     <div className="flex flex-wrap gap-1">
                       {([1, 2, 3, 4, 5, 6, 'all'] as const).map((n) => (
                         <button
                           key={n}
                           type="button"
                           onClick={() => setLayoutQuickFilter(n === 'all' ? 'all' : n)}
-                          className={`rounded-lg px-2 py-1 text-[10px] font-semibold transition-colors ${layoutQuickFilter === n ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                            }`}
+                          className={`rounded-lg px-2 py-1 text-[10px] font-semibold transition-colors ${
+                            layoutQuickFilter === n
+                              ? 'bg-[#4648d4]/20 text-white border border-[#4648d4]/30'
+                              : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-transparent'
+                          }`}
                         >
                           {n === 'all' ? t('all') : n}
                         </button>
@@ -3803,6 +4038,7 @@ const customLayoutGeometry = useMemo(() => {
                       })}
                     </div>
                   </div>
+                  {/* legacy layout grid duplicate removed */}
                   {/* <div>
                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{t('pageLayout')}</p>
                     <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto">
@@ -3830,36 +4066,8 @@ const customLayoutGeometry = useMemo(() => {
                       })}
                     </div>
                   </div> */}
-                  {categorySlug === 'anniversary' && (
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{t('theme')}</p>
-                      <select
-                        className="w-full rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                        value={selectedColorTheme}
-                        onChange={(e) => setSelectedColorTheme(e.target.value)}
-                      >
-                        {anniversaryColorThemes.map((theme) => (
-                          <option key={theme.id} value={theme.id}>{theme.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  {categorySlug === 'wedding' && (
-                    <div>
-                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{t('background')}</p>
-                      <select
-                        className="w-full rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                        value={selectedWeddingBackground}
-                        onChange={(e) => setSelectedWeddingBackground(e.target.value)}
-                      >
-                        {weddingBackgroundThemes.map((theme) => (
-                          <option key={theme.id} value={theme.id}>{theme.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
                   <div>
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{t('photoSlots')}</p>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('photoSlots')}</p>
                     <DndContext sensors={slotDndSensors} onDragEnd={handleSlotDragEnd}>
                       <div className="flex flex-wrap gap-2">
                         {Array.from({ length: slotCount }).map((_, si) => {
@@ -3932,7 +4140,7 @@ const customLayoutGeometry = useMemo(() => {
                   </div>
                   {!isCover && !isLast && (
                     <div>
-                      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">{t('captions')}</p>
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('captions')}</p>
                       <div className="space-y-2">
                         {Array.from({ length: slotCount }).map((_, si) => (
                           <input
@@ -3947,7 +4155,9 @@ const customLayoutGeometry = useMemo(() => {
                       </div>
                     </div>
                   )}
-                  {(isCover || isLast) && (() => {
+                </div>
+                  )}
+                  {studioRightTab === 'type' && (isCover || isLast) && (() => {
                     const side = isCover ? effectiveCover : effectiveLast;
                     const merge = (patch: Partial<EditablePageState>) => {
                       const def = isCover ? buildThemeDefaultCover(categorySlug, t) : buildThemeDefaultLast(categorySlug, t);
@@ -3962,10 +4172,10 @@ const customLayoutGeometry = useMemo(() => {
                     };
                     const fs = side?.style?.fontSize ?? 26;
                     return (
-                      <div className="rounded-xl border border-indigo-100 bg-gradient-to-b from-indigo-50/90 to-white p-3 space-y-3 shadow-sm">
+                      <div className="album-builder-studio-panel-inner rounded-3xl p-4 space-y-4">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider">{t('coverTextPanel')}</p>
-                          <span className="text-[9px] font-semibold text-indigo-600/80">{isCover ? t('frontCover') : t('backCover')}</span>
+                          <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">{t('coverTextPanel')}</p>
+                          <span className="text-[9px] font-semibold text-[#4648d4]">{isCover ? t('frontCover') : t('backCover')}</span>
                         </div>
                         {/* <div className="flex flex-wrap gap-1">
                           {([
@@ -4106,12 +4316,12 @@ const customLayoutGeometry = useMemo(() => {
                             </select>
                           </label>
                         </div> */}
-                        <p className="text-[10px] text-slate-600 leading-snug">
+                        <p className="text-[10px] text-slate-400 leading-snug">
                           {t('editIn')}{' '}
                           <button
                             type="button"
                             onClick={() => navigate(`/photo-themes/${categorySlug}`, { state: { templateId: dbTemplateId, photobookId } })}
-                            className="font-semibold text-indigo-700 underline decoration-indigo-300 underline-offset-2"
+                            className="font-semibold text-[#4648d4] underline underline-offset-2"
                           >
                             {t('coverEditorLink')}
                           </button>
@@ -4119,6 +4329,44 @@ const customLayoutGeometry = useMemo(() => {
                       </div>
                     );
                   })()}
+                  {studioRightTab === 'effects' && (
+                    <div className="space-y-4">
+                      {categorySlug === 'anniversary' && (
+                        <div>
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('theme')}</p>
+                          <select
+                            className="w-full rounded-xl border border-white/10 bg-[#14141d] px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#4648d4]/30"
+                            value={selectedColorTheme}
+                            onChange={(e) => setSelectedColorTheme(e.target.value)}
+                          >
+                            {anniversaryColorThemes.map((theme) => (
+                              <option key={theme.id} value={theme.id}>{theme.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {categorySlug === 'wedding' && (
+                        <div>
+                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('background')}</p>
+                          <select
+                            className="w-full rounded-xl border border-white/10 bg-[#14141d] px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#4648d4]/30"
+                            value={selectedWeddingBackground}
+                            onChange={(e) => setSelectedWeddingBackground(e.target.value)}
+                          >
+                            {weddingBackgroundThemes.map((theme) => (
+                              <option key={theme.id} value={theme.id}>{theme.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {categorySlug !== 'anniversary' && categorySlug !== 'wedding' && (
+                        <p className="text-xs text-slate-500">{t('layoutSettings')}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="p-4 border-t border-white/10 flex items-center justify-between shrink-0">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('legendaryEngine')}</span>
                 </div>
               </aside>
             </>
@@ -4126,8 +4374,61 @@ const customLayoutGeometry = useMemo(() => {
         })()}
       </div>
 
-      {/* 5. Bottom Filmstrip — page thumbnails, add/delete page */}
-      <div className="no-print border-t border-slate-200/80 bg-white flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 overflow-x-auto shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+      {/* Studio footer CTA */}
+      <footer className="no-print fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-3xl border-t border-slate-200/60 h-20 flex items-center justify-between px-6 sm:px-12 lg:pl-80 lg:pr-80">
+        <div className="flex items-center gap-4 sm:gap-8">
+          <div className="flex items-center gap-3">
+            <div className="relative w-3 h-3">
+              <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.6)]" />
+              <div className="absolute inset-0 w-3 h-3 rounded-full bg-emerald-500 animate-ping opacity-75" />
+            </div>
+            <span className="font-black uppercase tracking-[0.15em] text-[10px] sm:text-[11px] text-slate-500 hidden sm:inline">
+              {t('legendaryEngine')}
+            </span>
+          </div>
+          <div className="hidden md:flex gap-2">
+            <button
+              type="button"
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-[#4648d4] hover:bg-slate-50 border border-transparent hover:border-slate-200"
+              title={t('undo')}
+              disabled
+            >
+              ↶
+            </button>
+            <button
+              type="button"
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-[#4648d4] hover:bg-slate-50 border border-transparent hover:border-slate-200"
+              title={t('redo')}
+              disabled
+            >
+              ↷
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 sm:gap-5">
+          <button
+            type="button"
+            onClick={handleSaveAlbum}
+            disabled={isSaving}
+            className="px-5 sm:px-8 py-3 font-bold text-slate-600 hover:bg-slate-50 rounded-2xl border border-slate-200 text-sm disabled:opacity-50"
+          >
+            {t('saveDraft')}
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveAlbum}
+            disabled={isSaving}
+            className="px-6 sm:px-10 py-3.5 bg-[#4648d4] text-white font-black rounded-2xl shadow-[0_25px_50px_-12px_rgba(70,72,212,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 text-xs sm:text-sm uppercase tracking-[0.12em] disabled:opacity-50"
+          >
+            {isSaving ? <FaSpinner className="animate-spin" /> : null}
+            {t('confirmFinalize')}
+            <FaChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </footer>
+
+      {/* Bottom filmstrip — page thumbnails */}
+      <div className="no-print border-t border-slate-200/80 bg-white flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 overflow-x-auto shadow-[0_-4px_12px_rgba(0,0,0,0.04)] mb-20">
         <div ref={stepperRef} className="flex items-center gap-2 overflow-x-auto scroll-smooth flex-1 min-w-0" style={{ scrollPaddingInline: '8px' }}>
           {albumPages.map((p, i) => {
             const pState = pageImages[p.index] ?? {};

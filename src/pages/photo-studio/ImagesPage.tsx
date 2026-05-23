@@ -1489,7 +1489,7 @@ const ClientImagesPage = () => {
                   onClick={() => {
                     window.location.href = '/upload';
                   }}
-                  className="lumina-btn-primary lumina-primary-glow"
+                  className="lumina-btn-primary lumina-primary-glow bg-[var(--header-background)]"
                 >
                   <Upload className="h-5 w-5" />
                   {t('imagesPage.uploadFile')}
