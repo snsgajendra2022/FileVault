@@ -7,35 +7,48 @@ import {
   FaStar,
   FaHeart,
   FaUsers,
-  FaCalendarAlt,
-  FaBriefcase,
-  FaCloud,
-  FaImages,
-  FaFolderOpen,
   FaPalette,
-  FaSpinner,
+  FaImages,
+  FaCloud,
 } from 'react-icons/fa';
 import { ThemeCardSkeleton } from '../../components/common/skeletons';
 import { getStoredToken, getStoredUserData } from '../../utils/authUtils';
 import { User } from '../../types/user';
 
 interface ThemeCategory {
-  id: string; // used as categorySlug
+  id: string;
   title: string;
   subtitle: string;
   icon: React.ComponentType<{ className?: string }>;
   color: string;
   gradient: string;
-  templateId?: number; // Backend template ID from API
+  templateId?: number;
 }
 
-// Local default metadata for mapping API templates -> UI cards.
-// Codes come from /api/photobook-templates (e.g. ANNIVERSARY_THEMES).
-// Icons / colors / gradients chosen with reasonable defaults.
+const FEATURED_THEME_IDS = ['wedding', 'baby-kids'] as const;
+
+const FEATURED_WEDDING_IMAGE =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuBO1LU2aMGOy2EtV3afHLsbSTf6CN7uQj5_tlFSbELIUkiZFIUwM4IhgYdZrsPBMO1OsZjRg6uzKXuR5ZnfiqBPrcN_g1PwOY7mIdePIqokcTuI9QZE-CXpBp44iwZzR1R25shyu5ZskEs3UDiskmqqAescb3itcoQIESrX_CDBRDXhtPFU0KEOEGNT96qaGJdzsj3bF94u613-QUGqbZiAgJx-LHMvVFs8yUQufcJd1XgwJuuJpFg_T7zI0KSov2zK0Slgn2twPg5B';
+
+const FEATURED_BABY_IMAGE =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuB3L8HSRWIURonY42oRVLcnZA3hQI3zparzpNQisI0gFZia3Nsmq_LhMA5S6fb3_UG9VsFPcWrQfK6nUGXxmE76WqGOccfB2zd_y5wBrKO2jFnsnkspmym5hybAVlT53YHIaLIxUgBDqsndEAk9E33Qr-QyU8dx9ctrqmrGH3i6eB1PNS0-gV6fJtUWLwdkoxPSQsmC6_OykN-GxER2G6zNAvmSKkjABo_r5tsMGARjB7GkWn7ri-KLPxoMEIr_PV23lJnoInwKu2QM';
+
+const RING_RADIUS = 42;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+const LAYOUT_COUNTS: Record<string, number> = {
+  birthday: 18,
+  anniversary: 16,
+  wedding: 24,
+  'baby-kids': 20,
+  vacation: 14,
+  portfolio: 12,
+};
+
 const templateMetaByCode: Record<
   string,
   {
-    id: string; // categorySlug used in routes
+    id: string;
     icon: React.ComponentType<{ className?: string }>;
     color: string;
     gradient: string;
@@ -43,37 +56,30 @@ const templateMetaByCode: Record<
 > = {
   BIRTHDAY_THEMES: {
     id: 'birthday',
-    // Celebratory star icon + warm pink gradient
     icon: FaStar,
     color: 'from-pink-500 via-rose-500 to-pink-600',
     gradient: 'bg-gradient-to-br from-pink-50 to-rose-50',
   },
   ANNIVERSARY_THEMES: {
     id: 'anniversary',
-    // Heart icon + romantic red/pink gradient
     icon: FaHeart,
     color: 'from-red-500 via-pink-500 to-red-600',
     gradient: 'bg-gradient-to-br from-red-50 to-pink-50',
   },
   WEDDING_THEMES: {
     id: 'wedding',
-    // Elegant star icon + royal purple gradient
     icon: FaStar,
-    color: 'from-purple-500 via-indigo-500 to-purple-600',
-    gradient: 'bg-gradient-to-br from-purple-50 to-indigo-50',
+    color: 'from-amber-600 via-rose-500 to-amber-700',
+    gradient: 'bg-gradient-to-br from-amber-50 via-rose-50 to-orange-50',
   },
   BABY_KIDS_THEMES: {
     id: 'baby-kids',
-    // People icon + soft blue/cyan gradient
     icon: FaUsers,
-    color: 'from-blue-500 via-cyan-500 to-blue-600',
-    gradient: 'bg-gradient-to-br from-blue-50 to-cyan-50',
+    color: 'from-sky-400 via-blue-400 to-indigo-400',
+    gradient: 'bg-gradient-to-br from-sky-50 via-blue-50 to-indigo-50',
   },
 };
 
-// Fallback static themes if API fails or is unavailable.
-// NOTE: Icon / color / gradient are now derived dynamically from templateMetaByCode
-//       instead of being hard-coded here.
 const fallbackTemplates = [
   {
     code: 'BIRTHDAY_THEMES',
@@ -121,91 +127,195 @@ type PhotobookProgress = {
   title?: string;
 };
 
-const ThemeCard: React.FC<{
+function layoutCountForTheme(themeId: string): number {
+  return LAYOUT_COUNTS[themeId] ?? 12;
+}
+
+function categoryShortTitle(theme: ThemeCategory): string {
+  const labels: Record<string, string> = {
+    birthday: 'Birthday',
+    anniversary: 'Anniversary',
+    wedding: 'Wedding',
+    'baby-kids': 'Baby & Kids',
+    vacation: 'Vacation',
+    portfolio: 'Portfolio',
+  };
+  if (labels[theme.id]) return labels[theme.id];
+  return theme.title.replace(/\s*themes?\s*/i, '').trim() || theme.title;
+}
+
+function categoryGridStyle(theme: ThemeCategory): {
+  gradient: string;
+  icon: React.ComponentType<{ className?: string }>;
+} {
+  const presets: Record<string, { gradient: string; icon: React.ComponentType<{ className?: string }> }> = {
+    birthday: { gradient: 'from-[#ec4899] to-[#f43f5e]', icon: FaStar },
+    anniversary: { gradient: 'from-[#ef4444] to-[#ec4899]', icon: FaHeart },
+    wedding: { gradient: 'from-[#8b5cf6] to-[#6366f1]', icon: FaStar },
+    'baby-kids': { gradient: 'from-[#06b6d4] to-[#8b5cf6]', icon: FaUsers },
+    vacation: { gradient: 'from-[#06b6d4] to-[#8b5cf6]', icon: FaCloud },
+    portfolio: { gradient: 'from-slate-900 to-slate-800', icon: FaImages },
+  };
+  return presets[theme.id] ?? { gradient: theme.color, icon: theme.icon };
+}
+
+function projectStepProgress(
+  step: string | undefined,
+  t: (key: string) => string
+): { percent: number; stepNum: number; label: string } {
+  if (step === 'ALBUM') {
+    return { percent: 66, stepNum: 2, label: t('stepLayouts') };
+  }
+  if (step === 'PREVIEW') {
+    return { percent: 90, stepNum: 3, label: t('stepOrdering') };
+  }
+  if (step === 'DONE') {
+    return { percent: 100, stepNum: 3, label: t('stepDone') };
+  }
+  return { percent: 33, stepNum: 1, label: t('stepPhotos') };
+}
+
+const ProgressRing: React.FC<{ percent: number }> = ({ percent }) => {
+  const offset = RING_CIRCUMFERENCE * (1 - Math.min(100, Math.max(0, percent)) / 100);
+  return (
+    <div className="relative w-16 h-16 flex-shrink-0">
+      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100" aria-hidden>
+        <circle
+          className="text-slate-100"
+          cx="50"
+          cy="50"
+          r={RING_RADIUS}
+          fill="transparent"
+          stroke="currentColor"
+          strokeWidth="8"
+        />
+        <circle
+          className="text-[#4648d4]"
+          cx="50"
+          cy="50"
+          r={RING_RADIUS}
+          fill="transparent"
+          stroke="currentColor"
+          strokeWidth="8"
+          strokeDasharray={RING_CIRCUMFERENCE}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tracking-wide text-[#4648d4]">
+        {percent}%
+      </span>
+    </div>
+  );
+};
+
+const ResumeProjectCard: React.FC<{
+  title: string;
+  stepText: string;
+  percent: number;
+  onResume: () => void;
+}> = ({ title, stepText, percent, onResume }) => (
+  <button type="button" onClick={onResume} className="photo-themes-glass-card p-4 flex items-center gap-4 text-left w-full">
+    <ProgressRing percent={percent} />
+    <div className="min-w-0">
+      <h3 className="text-sm font-medium text-[#0b1c30] truncate">{title}</h3>
+      <p className="text-[#464554] text-xs font-medium mt-0.5">{stepText}</p>
+    </div>
+  </button>
+);
+
+const FeaturedThemeCard: React.FC<{
   theme: ThemeCategory;
-  onNewAlbum: (theme: ThemeCategory) => void;
-  onResume: (theme: ThemeCategory, pb: PhotobookProgress) => void;
-  progressList?: PhotobookProgress[];
-}> = ({ theme, onNewAlbum, onResume, progressList }) => {
+  onStart: () => void;
+}> = ({ theme, onStart }) => {
   const { t } = useTranslation(undefined, { keyPrefix: 'photoThemesPage' });
-  const stepLabel = (step?: string) =>
-    step === 'ALBUM' ? t('stepAlbum')
-    : step === 'PREVIEW' ? t('stepPreview')
-    : step === 'DONE' ? t('stepDone')
-    : t('stepCover');
-  const Icon = theme.icon;
-  const albumList = progressList ?? [];
+  const isWedding = theme.id === 'wedding';
+  const isBaby = theme.id === 'baby-kids';
+  const imageSrc = isWedding ? FEATURED_WEDDING_IMAGE : isBaby ? FEATURED_BABY_IMAGE : undefined;
+
+  const badge = isWedding
+    ? t('featuredMatrimonyBadge')
+    : isBaby
+      ? t('featuredNewbornBadge')
+      : t('featuredDefaultEyebrow');
+  const headline = isWedding
+    ? t('featuredMatrimonySubtitle')
+    : isBaby
+      ? t('featuredNewbornSubtitle')
+      : theme.title;
+  const description = isWedding
+    ? t('featuredMatrimonyDesc')
+    : isBaby
+      ? t('featuredNewbornDesc')
+      : theme.subtitle;
+  const cta = isWedding ? t('featuredWeddingCta') : isBaby ? t('featuredBabyCta') : t('startNewAlbum');
 
   return (
-    <div
-      className="group relative bg-white/95 rounded-2xl p-5 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_18px_40px_-16px_rgba(15,23,42,0.35)] border border-slate-200/80 overflow-hidden backdrop-blur-sm flex flex-col"
-    >
-      <div
-        className={`absolute inset-0 bg-gradient-to-br ${theme.color} opacity-[0.03]`}
-      ></div>
-
-      <div className="relative z-10 flex flex-col h-full">
-        <div
-          className={`w-14 h-14 bg-gradient-to-br ${theme.color} rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-slate-900/20`}
-        >
-          <Icon className="h-8 w-8 text-white" />
-        </div>
-
-        <h3 className="text-lg font-bold text-slate-900 mb-1.5">
-          {theme.title}
-        </h3>
-        <p className="text-xs text-slate-500 mb-4 line-clamp-2">{theme.subtitle}</p>
-
-        <div className="flex-1" />
-
-        {/* Albums for this theme (from API by category) */}
-        {albumList.length > 0 && (
-          <div className="mb-3 space-y-2">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">{t('yourAlbums')}</div>
-            {albumList.map((pb) => (
-              <button
-                key={pb.id}
-                type="button"
-                onClick={() => onResume(theme, pb)}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-gradient-to-r from-cyan-50 to-indigo-50 border border-cyan-200/60 hover:border-cyan-400 hover:shadow-md transition-all duration-200 cursor-pointer"
-              >
-                <div className="flex flex-col items-start min-w-0">
-                  <span className="text-xs font-semibold text-slate-800 truncate w-full">
-                    {pb.title || t('albumNumber', { id: pb.id })}
-                  </span>
-                  <span className="flex items-center gap-1.5 mt-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    <span className="text-[10px] text-slate-500">{stepLabel(pb.currentStep)}</span>
-                    {pb.hasCovers && <span className="text-[9px] rounded-full bg-green-100 text-green-700 px-1.5 py-0.5">{t('covers')}</span>}
-                    {pb.savedPagesCount > 0 && <span className="text-[9px] rounded-full bg-indigo-100 text-indigo-700 px-1.5 py-0.5">{t('pages', { count: pb.savedPagesCount })}</span>}
-                  </span>
-                </div>
-                <span className="text-xs font-bold text-cyan-600 shrink-0 flex items-center gap-1">
-                  {t('continue')}
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-                  </svg>
-                </span>
-              </button>
-            ))}
-          </div>
+    <article className="photo-themes-glass-card overflow-hidden flex flex-col md:flex-row group">
+      <div className="md:w-1/2 h-64 md:h-auto min-h-[16rem] overflow-hidden bg-slate-100">
+        {imageSrc ? (
+          <img
+            alt={headline}
+            src={imageSrc}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+          />
+        ) : (
+          <div className={`w-full h-full bg-gradient-to-br ${theme.color}`} />
         )}
-
-        {/* New album button — always visible */}
+      </div>
+      <div className="md:w-1/2 p-6 sm:p-8 flex flex-col justify-between">
+        <div>
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-semibold tracking-wide mb-4 inline-block ${
+              isBaby ? 'bg-[#8127cf]/10 text-[#8127cf]' : 'bg-[#4648d4]/10 text-[#4648d4]'
+            }`}
+          >
+            {badge}
+          </span>
+          <h3 className="font-['Playfair_Display'] text-3xl sm:text-4xl font-semibold text-slate-900 mb-2 leading-tight">
+            {headline}
+          </h3>
+          <p className="text-[#464554] text-base leading-relaxed mb-6">{description}</p>
+        </div>
         <button
           type="button"
-          onClick={() => onNewAlbum(theme)}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-slate-800 to-slate-900 text-white text-xs font-semibold shadow-lg hover:from-cyan-600 hover:to-indigo-600 hover:shadow-xl transition-all duration-200 cursor-pointer"
+          onClick={onStart}
+          className={
+            isBaby
+              ? 'w-full py-4 rounded-xl border-2 border-[#4648d4] text-[#4648d4] text-sm font-medium hover:bg-[#4648d4] hover:text-white transition-all'
+              : 'w-full py-4 rounded-xl bg-[#4648d4] text-white text-sm font-medium shadow-lg hover:shadow-[#4648d4]/30 transition-all'
+          }
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          {albumList.length > 0 ? t('createNewAlbum') : t('startAlbum')}
+          {cta}
         </button>
       </div>
+    </article>
+  );
+};
 
-      <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-indigo-300 transition-all duration-300" />
-    </div>
+const CategoryBrowseCard: React.FC<{
+  theme: ThemeCategory;
+  onStart: () => void;
+}> = ({ theme, onStart }) => {
+  const { t } = useTranslation(undefined, { keyPrefix: 'photoThemesPage' });
+  const style = categoryGridStyle(theme);
+  const Icon = style.icon;
+  const layouts = layoutCountForTheme(theme.id);
+
+  return (
+    <button
+      type="button"
+      onClick={onStart}
+      className="photo-themes-glass-card p-6 sm:p-8 flex flex-col items-center text-center group w-full"
+    >
+      <div
+        className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${style.gradient} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}
+      >
+        <Icon className="h-8 w-8 text-white" />
+      </div>
+      <h4 className="text-sm font-medium text-[#0b1c30]">{categoryShortTitle(theme)}</h4>
+      <p className="text-[#464554] text-xs font-medium mt-1">{t('layoutCountShort', { count: layouts })}</p>
+    </button>
   );
 };
 
@@ -226,7 +336,6 @@ const PhotoThemesPage: React.FC = () => {
     backHasImage?: boolean;
   } | null>(null);
 
-  // Load templates from backend API and map them to UI themes.
   React.useEffect(() => {
     let isMounted = true;
     const userData: any = getStoredUserData();
@@ -237,7 +346,6 @@ const PhotoThemesPage: React.FC = () => {
         setError(null);
         console.log('🚀 useEffect: Starting template loading process...');
 
-        // Get token dynamically
         const token = getStoredToken();
         console.log('🔑 Getting token:', token ? 'Token found' : 'No token found');
 
@@ -245,9 +353,6 @@ const PhotoThemesPage: React.FC = () => {
           console.warn('⚠️ No token found, API call may fail');
         }
 
-        // Call API with dynamic token
-        // Match curl example: X-API-KEY header only, onlyActive as boolean true
-        // Use axios directly to avoid interceptor adding Authorization: Bearer header
         const baseURL = process.env.REACT_APP_API_URL || '';
         const apiUrl = `${baseURL}/api/photobook-templates`;
 
@@ -255,7 +360,7 @@ const PhotoThemesPage: React.FC = () => {
           url: apiUrl,
           params: {
             userId: user?.id || '',
-            onlyActive: true
+            onlyActive: true,
           },
           headers: {
             'X-API-KEY': token ? `${token.substring(0, 20)}...` : 'MISSING',
@@ -264,22 +369,18 @@ const PhotoThemesPage: React.FC = () => {
 
         console.log('📡 Starting to load templates from API...-------------------------------start');
 
-        // Use axios directly (not api instance) to avoid interceptor adding Authorization header
         const response = await axios.get(apiUrl, {
           params: {
             userId: user?.id || '',
-            onlyActive: true, // Boolean true (as shown in curl example URL)
+            onlyActive: true,
           },
           headers: {
-            // Use only X-API-KEY header (matching curl example)
-            // No Authorization header - API doesn't want it
             'X-API-KEY': token || '',
-            'accept': '*/*',
+            accept: '*/*',
           },
         });
         console.log('📡 Starting to load templates from API...-------------------------------end///////////');
 
-        // Store API response in result variable (exact structure you showed)
         const result: {
           templates: Array<{
             id: number;
@@ -295,7 +396,6 @@ const PhotoThemesPage: React.FC = () => {
 
         const apiTemplates = result?.templates ?? [];
 
-        // Map ALL active templates, including custom ones like SHU
         const mapped: ThemeCategory[] = apiTemplates
           .filter((tpl) => tpl.isActive)
           .map((tpl) => {
@@ -304,7 +404,6 @@ const PhotoThemesPage: React.FC = () => {
 
             const knownMeta = templateMetaByCode[tpl.code];
 
-            // If we know this code, use the predefined meta (birthday, anniversary, etc.)
             if (knownMeta) {
               console.log(`✅ Mapping known template: ${tpl.name} (${tpl.code}) -> ${knownMeta.id}`);
               return {
@@ -318,7 +417,6 @@ const PhotoThemesPage: React.FC = () => {
               };
             }
 
-            // For custom templates (e.g. SHU, user-specific) choose icon/colors smartly
             let icon: React.ComponentType<{ className?: string }> = FaPalette;
             let color = 'from-indigo-500 via-blue-500 to-indigo-600';
             let gradient = 'bg-gradient-to-br from-indigo-50 to-blue-50';
@@ -333,26 +431,31 @@ const PhotoThemesPage: React.FC = () => {
               gradient = 'bg-gradient-to-br from-red-50 to-pink-50';
             } else if (codeLower.includes('wedding') || nameLower.includes('wedding')) {
               icon = FaStar;
-              color = 'from-purple-500 via-indigo-500 to-purple-600';
-              gradient = 'bg-gradient-to-br from-purple-50 to-indigo-50';
-            } else if (codeLower.includes('baby') || codeLower.includes('kids') || nameLower.includes('baby') || nameLower.includes('kids')) {
+              color = 'from-amber-600 via-rose-500 to-amber-700';
+              gradient = 'bg-gradient-to-br from-amber-50 via-rose-50 to-orange-50';
+            } else if (
+              codeLower.includes('baby') ||
+              codeLower.includes('kids') ||
+              nameLower.includes('baby') ||
+              nameLower.includes('kids')
+            ) {
               icon = FaUsers;
-              color = 'from-blue-500 via-cyan-500 to-blue-600';
-              gradient = 'bg-gradient-to-br from-blue-50 to-cyan-50';
+              color = 'from-sky-400 via-blue-400 to-indigo-400';
+              gradient = 'bg-gradient-to-br from-sky-50 via-blue-50 to-indigo-50';
             }
 
             const generatedId = tpl.code?.toLowerCase() || `template-${tpl.id}`;
             console.log(`✨ Mapping custom template: ${tpl.name} (${tpl.code}) -> ${generatedId}`);
 
-          return {
-            id: generatedId, // Will be used in route: /photo-themes/{generatedId}
-            title: tpl.name,
-            subtitle: tpl.description,
-            icon,
-            color,
-            gradient,
-            templateId: tpl.id,
-          };
+            return {
+              id: generatedId,
+              title: tpl.name,
+              subtitle: tpl.description,
+              icon,
+              color,
+              gradient,
+              templateId: tpl.id,
+            };
           });
 
         console.log('🎨 Mapped themes:', mapped.length, 'themes ready');
@@ -363,7 +466,6 @@ const PhotoThemesPage: React.FC = () => {
           return;
         }
 
-        // If API didn't return anything mappable, use fallback so the 4 cards always show
         if (mapped.length > 0) {
           console.log('✅ Setting themes from API:', mapped.length, 'themes');
           setThemes(mapped);
@@ -372,7 +474,6 @@ const PhotoThemesPage: React.FC = () => {
           setThemes(fallbackThemes);
         }
 
-        // Load last saved preview (if any) from localStorage
         try {
           const raw = localStorage.getItem('lastPhotobookThemePreview');
           if (raw) {
@@ -381,22 +482,14 @@ const PhotoThemesPage: React.FC = () => {
               setLastPreview({
                 templateId: Number(parsed.templateId),
                 categorySlug: String(parsed.categorySlug),
-                title: String(
-                  parsed.cover?.headline ||
-                    parsed.themeTitle ||
-                    t('lastDesignTitle')
-                ),
+                title: String(parsed.cover?.headline || parsed.themeTitle || t('lastDesignTitle')),
                 subtitle: String(
                   parsed.cover?.subheadline ||
                     parsed.back?.headline ||
                     parsed.themeSubtitle ||
                     t('lastDesignSubtitle')
                 ),
-                description: String(
-                  parsed.cover?.description ||
-                    parsed.back?.description ||
-                    ''
-                ),
+                description: String(parsed.cover?.description || parsed.back?.description || ''),
                 coverHasImage: !!parsed.cover?.hasImage,
                 backHasImage: !!parsed.back?.hasImage,
               });
@@ -412,7 +505,6 @@ const PhotoThemesPage: React.FC = () => {
         }
         console.error('❌ Error in loadTemplates:', err);
 
-        // Log detailed error information
         const errorDetails = {
           message: err.message,
           status: err.response?.status,
@@ -426,10 +518,12 @@ const PhotoThemesPage: React.FC = () => {
 
         console.error('🔍 Detailed Error Info:', errorDetails);
 
-        // Log the actual error response body if available
         if (err.response?.data) {
           console.error('📋 API Error Response Body:', JSON.stringify(err.response.data, null, 2));
-          console.error('📋 API Error Message:', err.response.data?.message || err.response.data?.error || 'No error message');
+          console.error(
+            '📋 API Error Message:',
+            err.response.data?.message || err.response.data?.error || 'No error message'
+          );
         }
 
         setError(t('errorLoadTemplates'));
@@ -449,9 +543,8 @@ const PhotoThemesPage: React.FC = () => {
       isMounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - only run once on mount
+  }, []);
 
-  // Load albums per theme from API (dynamic: each card gets its list by category)
   React.useEffect(() => {
     const token = getStoredToken();
     if (!token || themes.length === 0) return;
@@ -468,7 +561,7 @@ const PhotoThemesPage: React.FC = () => {
               });
               const list = Array.isArray(res.data) ? res.data : [];
               if (isMounted) map[theme.id] = list;
-            } catch (e) {
+            } catch {
               if (isMounted) map[theme.id] = [];
             }
           })
@@ -479,21 +572,45 @@ const PhotoThemesPage: React.FC = () => {
       }
     };
     loadProgressByCategory();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [themes]);
 
+  const displayFeatured = React.useMemo(() => {
+    const prioritized = FEATURED_THEME_IDS.map((id) => themes.find((th) => th.id === id)).filter(
+      Boolean
+    ) as ThemeCategory[];
+    if (prioritized.length >= 2) return prioritized.slice(0, 2);
+    const used = new Set(prioritized.map((th) => th.id));
+    const rest = themes.filter((th) => !used.has(th.id));
+    return [...prioritized, ...rest].slice(0, 2);
+  }, [themes]);
+
+  const displayCategories = React.useMemo(() => {
+    const featIds = new Set(displayFeatured.map((th) => th.id));
+    return themes.filter((th) => !featIds.has(th.id));
+  }, [themes, displayFeatured]);
+
+  const resumeProjects = React.useMemo(() => {
+    const items: { theme: ThemeCategory; pb: PhotobookProgress }[] = [];
+    for (const theme of themes) {
+      for (const pb of photobookProgress[theme.id] ?? []) {
+        if (pb.currentStep !== 'DONE') {
+          items.push({ theme, pb });
+        }
+      }
+    }
+    return items.sort((a, b) => b.pb.id - a.pb.id);
+  }, [themes, photobookProgress]);
+
   const handleThemeClick = (theme: ThemeCategory) => {
-    // When user clicks "Start Album" / "Create New Album", we want a truly
-    // fresh album (no old covers or pages). Clear any stored photobook
-    // progress for this theme before navigating.
     try {
       const key = `photobook_${theme.id}`;
       localStorage.removeItem(key);
     } catch {
-      // ignore storage errors
+      // ignore
     }
-
-    // Always go to cover page to start a new album for this theme
     navigate(`/photo-themes/${theme.id}`, {
       state: { templateId: theme.templateId },
     });
@@ -518,25 +635,23 @@ const PhotoThemesPage: React.FC = () => {
     });
   };
 
+  const showResumeSection = resumeProjects.length > 0 || !!lastPreview;
+
   if (loading) {
     return (
-      <div className="space-y-5 sm:space-y-8 w-full">
-        {/* Header - Show even during loading */}
-        <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-4 sm:p-6 md:p-7 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_22px_60px_-20px_rgba(15,23,42,0.4)]">
-          <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-cyan-500 via-indigo-500 to-violet-500 rounded-t-3xl" />
-          <div className="relative z-10 flex items-center gap-3 sm:gap-4">
-            <div className="w-10 h-10 sm:w-14 sm:h-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-slate-900/40 shrink-0">
-              <FaPalette className="h-5 w-5 sm:h-8 sm:w-8 text-cyan-300" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
-                {t('title')}
-              </h1>
-              <p className="text-xs sm:text-sm md:text-base text-slate-500 mt-0.5 sm:mt-1">
-                {t('subtitleLoading')}
-              </p>
-            </div>
-          </div>
+      <div className="photo-themes-hub w-full max-w-[1280px] mx-auto pb-16 px-5 sm:px-12">
+        <section className="text-center mb-16 pt-4">
+          <div className="h-12 w-64 mx-auto bg-slate-200/80 rounded-lg animate-pulse" />
+          <div className="h-5 w-96 max-w-full mx-auto mt-4 bg-slate-100 rounded animate-pulse" />
+        </section>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-24 rounded-3xl bg-white/60 animate-pulse border border-slate-200" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-20">
+          <div className="h-80 rounded-3xl bg-white/60 animate-pulse border border-slate-200" />
+          <div className="h-80 rounded-3xl bg-white/60 animate-pulse border border-slate-200" />
         </div>
         <ThemeCardSkeleton count={4} />
       </div>
@@ -544,72 +659,121 @@ const PhotoThemesPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-5 sm:space-y-8 w-full">
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-4 sm:p-6 md:p-7 shadow-[0_0_0_1px_rgba(148,163,184,0.08),0_22px_60px_-20px_rgba(15,23,42,0.4)]">
-        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-cyan-500 via-indigo-500 to-violet-500 rounded-t-3xl" />
-        <div className="absolute top-0 right-0 w-40 h-40 bg-cyan-400/10 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-36 h-36 bg-indigo-400/10 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-            <div className="w-10 h-10 sm:w-14 sm:h-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-slate-900/40 shrink-0">
-              <FaPalette className="h-5 w-5 sm:h-8 sm:w-8 text-cyan-300" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
-                {t('title')}
-              </h1>
-              <p className="text-xs sm:text-sm md:text-base text-slate-500 mt-0.5 sm:mt-1 max-w-xl">
-                {t('subtitleLoaded')}
-              </p>
-            </div>
-          </div>
-          <Link
-            to="/photo-book"
-            className="shrink-0 self-start sm:self-auto rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-          >
-            {t('myPhotoBooks')}
-          </Link>
-        </div>
-      </div>
+    <div className="photo-themes-hub w-full mx-auto pb-20 px-5 sm:px-12">
+      {/* Hero */}
+      <section className="relative text-center mb-16 pt-2">
+        <Link
+          to="/photo-book"
+          className="absolute right-0 top-0 hidden sm:inline-flex items-center justify-center rounded-full border border-slate-200 bg-white/80 px-6 py-2 text-sm font-medium text-[#0b1c30] hover:bg-white transition-all shadow-sm"
+        >
+          {t('myPhotoBooks')}
+        </Link>
+        <h1 className="font-['Playfair_Display'] text-4xl sm:text-5xl lg:text-[3rem] font-bold text-slate-900 tracking-tight mb-4">
+          {t('title')}
+        </h1>
+        <p className="text-lg text-[#464554] max-w-2xl mx-auto leading-relaxed">{t('subtitleLoaded')}</p>
+        <Link
+          to="/photo-book"
+          className="sm:hidden mt-6 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white/80 px-6 py-2 text-sm font-medium text-[#0b1c30]"
+        >
+          {t('myPhotoBooks')}
+        </Link>
+      </section>
 
       {error && (
-        <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-xs text-yellow-800">
+        <div className="mb-8 rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-900">
           {error}
         </div>
       )}
 
-      {/* Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-        {themes.map((theme) => (
-          <ThemeCard
-            key={theme.id}
-            theme={theme}
-            onNewAlbum={handleThemeClick}
-            onResume={handleResumePhotobook}
-            progressList={photobookProgress[theme.id]}
-          />
-        ))}
-      </div>
-
-      {/* Info */}
-      <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-4 sm:p-5 border border-slate-200/80">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm shadow-slate-900/30">
-            <FaPalette className="h-5 w-5 text-cyan-300" />
+      {/* Resume projects */}
+      {showResumeSection && (
+        <section className="mb-20" aria-labelledby="resume-projects-heading">
+          <div className="flex items-center justify-between mb-8">
+            <h2 id="resume-projects-heading" className="text-[1.875rem] font-semibold text-[#0b1c30] tracking-tight">
+              {t('resumeProjects')}
+            </h2>
+            <Link to="/photo-book" className="text-[#4648d4] text-sm font-medium hover:underline">
+              {t('viewAll')}
+            </Link>
           </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 mb-1.5">{t('aboutTitle')}</h3>
-            <p className="text-xs text-slate-600">
-              {t('aboutBody')}
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {lastPreview && (
+              <ResumeProjectCard
+                title={lastPreview.title}
+                percent={50}
+                stepText={t('stepOf3', { step: 2, label: t('stepLayouts') })}
+                onResume={handleLastPreviewClick}
+              />
+            )}
+            {resumeProjects.map(({ theme, pb }) => {
+              const prog = projectStepProgress(pb.currentStep, t);
+              return (
+                <ResumeProjectCard
+                  key={`${theme.id}-${pb.id}`}
+                  title={pb.title || t('albumNumber', { id: pb.id })}
+                  percent={prog.percent}
+                  stepText={t('stepOf3', { step: prog.stepNum, label: prog.label })}
+                  onResume={() => handleResumePhotobook(theme, pb)}
+                />
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Featured themes */}
+      {displayFeatured.length > 0 && (
+        <section className="mb-20" aria-labelledby="featured-themes-heading">
+          <h2 id="featured-themes-heading" className="text-[1.875rem] font-semibold text-[#0b1c30] tracking-tight mb-8">
+            {t('featuredThemes')}
+          </h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {displayFeatured.map((theme) => (
+              <FeaturedThemeCard key={theme.id} theme={theme} onStart={() => handleThemeClick(theme)} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Browse categories */}
+      {displayCategories.length > 0 && (
+        <section className="mb-20" aria-labelledby="browse-categories-heading">
+          <h2 id="browse-categories-heading" className="text-[1.875rem] font-semibold text-[#0b1c30] tracking-tight mb-8">
+            {t('browseCategories')}
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {displayCategories.map((theme) => (
+              <CategoryBrowseCard key={theme.id} theme={theme} onStart={() => handleThemeClick(theme)} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Stats banner */}
+      <section className="mb-8" aria-labelledby="excellence-heading">
+        <div className="photo-themes-glass-card p-6 sm:p-8 overflow-hidden relative">
+          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,#4648d4,transparent_70%)] pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-around gap-8 text-center">
+            <div>
+              <p className="font-['Playfair_Display'] text-4xl font-bold text-[#4648d4]">{t('statThemesValue')}</p>
+              <p className="text-sm font-medium text-[#464554] mt-1">{t('statThemesLabel')}</p>
+            </div>
+            <div className="hidden md:block w-px h-12 bg-slate-200" aria-hidden />
+            <div>
+              <p className="font-['Playfair_Display'] text-4xl font-bold text-[#4648d4]">{t('statBooksValue')}</p>
+              <p className="text-sm font-medium text-[#464554] mt-1">{t('statBooksLabel')}</p>
+            </div>
+            <div className="hidden md:block w-px h-12 bg-slate-200" aria-hidden />
+            <div className="max-w-xs">
+              <p className="text-sm font-bold text-[#0b1c30] mb-2">{t('craftedForExcellence')}</p>
+              <p className="text-base text-[#464554] leading-relaxed">{t('craftedForExcellenceDesc')}</p>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };
 
 export default PhotoThemesPage;
-

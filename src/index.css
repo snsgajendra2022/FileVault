@@ -59,6 +59,27 @@
   .card-hover {
     @apply transition-all duration-300 hover:shadow-2xl hover:-translate-y-1;
   }
+
+  .photo-themes-hub {
+    background-color: #f8f9ff;
+    background-image:
+      radial-gradient(circle at top right, #e1e0ff, transparent 40%),
+      radial-gradient(circle at bottom left, #f0dbff, transparent 40%);
+  }
+
+  .photo-themes-glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid #e2e8f0;
+    border-radius: 1.5rem;
+    box-shadow: 0 35px 60px -15px rgba(15, 23, 42, 0.15);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .photo-themes-glass-card:hover {
+    transform: translateY(-4px);
+  }
   
   .btn-primary {
     @apply bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105;

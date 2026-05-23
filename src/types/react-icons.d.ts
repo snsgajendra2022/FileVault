@@ -119,6 +119,9 @@ declare module 'react-icons/fa' {
   export const FaCheckDouble: ComponentType<IconProps>;
   export const FaExclamationCircle: ComponentType<IconProps>;
   export const FaSync: ComponentType<IconProps>;
+  export const FaLayerGroup: ComponentType<IconProps>;
+  export const FaFont: ComponentType<IconProps>;
+
 }
 
 declare module 'react-icons/fi' {
