@@ -60,7 +60,7 @@ export function useMyImagesGallery(options: UseMyImagesGalleryOptions) {
     refetchInterval: (q) => {
       const pages = q.state.data?.pages ?? [];
       const all = pages.flatMap((p) => p.images ?? []);
-      return variantsNeedPolling(all) ? 4000 : 30000;
+      return variantsNeedPolling(all) ? 4000 : false;
     },
     enabled:
       enabled &&

@@ -1,5 +1,7 @@
 /** Backend variant payload from GET /api/images/user/all */
 
+import type { ProgressiveFinalTarget, ProgressiveStrategy } from './progressiveImageConfig';
+
 export type VariantStatus = 'processing' | 'partial' | 'ready';
 
 export interface VariantTier {
@@ -35,23 +37,126 @@ export interface UserImageWithVariants {
   variants?: ImageVariants;
 }
 
+export { getConnectionHint, getSaveData } from './progressiveImageConfig';
+
 const TIER_KEY_PATTERN = /^s(\d+)$/i;
 
-export function getConnectionHint(): string | undefined {
-  if (typeof navigator === 'undefined') return undefined;
-  const conn = (navigator as Navigator & { connection?: { effectiveType?: string } }).connection;
-  return conn?.effectiveType;
+/** Gallery card: smallest/fastest src only (no variant ladder). */
+export function getThumbnailSrc(image: UserImageWithVariants): string {
+  const v = image.variants;
+  if (v?.thumbnailUrl) return v.thumbnailUrl;
+  if (image.thumbnailUrl) return image.thumbnailUrl;
+  const thumbKey = v?.thumbnailVariant;
+  if (thumbKey && v?.tiers?.[thumbKey]?.available && v.tiers[thumbKey].url) {
+    return v.tiers[thumbKey].url!;
+  }
+  const ordered = getOrderedVariantUrls(image);
+  if (ordered.length > 0) return ordered[0];
+  return image.previewUrl || '';
 }
 
-export function getSaveData(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
-  return conn?.saveData === true;
+/** Lightbox first paint: lowest variant tier (s01). */
+export function getFirstVariantSrc(image: UserImageWithVariants): string {
+  const ordered = getOrderedVariantUrls(image);
+  if (ordered.length > 0) return ordered[0];
+  return getThumbnailSrc(image) || image.previewUrl || '';
 }
 
-/** First paint: always full original. */
+/** Full original (preview) — final step in lightbox ladder when distinct from tiers. */
+export function getOriginalViewSrc(image: UserImageWithVariants): string {
+  return (
+    image.previewUrl ||
+    image.variants?.previewFallbackUrl ||
+    getUpgradeStopUrl(image) ||
+    ''
+  );
+}
+
+/** Lightbox ladder: s01 → s02 → … → final (deduped, in order). */
+export function getProgressiveLadderUrls(
+  image: UserImageWithVariants,
+  finalTarget: 'original' | 'recommended' = 'original'
+): string[] {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  for (const url of getOrderedVariantUrls(image)) {
+    if (url && !seen.has(url)) {
+      seen.add(url);
+      urls.push(url);
+    }
+  }
+  const recommended = image.variants?.recommendedUrl;
+  const original = getOriginalViewSrc(image);
+  const final =
+    finalTarget === 'recommended' && recommended
+      ? recommended
+      : original || recommended;
+  if (final && !seen.has(final)) {
+    urls.push(final);
+  }
+  return urls;
+}
+
+/** Evenly subsample a ladder while keeping first and last. */
+export function subsampleLadderUrls(urls: string[], maxSteps: number): string[] {
+  if (urls.length <= maxSteps || maxSteps < 2) return urls;
+  const first = urls[0];
+  const last = urls[urls.length - 1];
+  const middle = urls.slice(1, -1);
+  const slots = maxSteps - 2;
+  if (middle.length === 0 || slots <= 0) return [first, last];
+
+  const picked: string[] = [];
+  for (let i = 0; i < slots; i++) {
+    const idx = Math.round(((i + 1) / (slots + 1)) * (middle.length - 1));
+    const url = middle[idx];
+    if (url && picked[picked.length - 1] !== url) picked.push(url);
+  }
+  return [first, ...picked, last];
+}
+
+export function buildViewLadder(
+  image: UserImageWithVariants,
+  strategy: ProgressiveStrategy,
+  finalTarget: ProgressiveFinalTarget,
+  maxSteps: number
+): string[] {
+  const full = getProgressiveLadderUrls(image, finalTarget);
+  if (full.length === 0) return full;
+
+  switch (strategy) {
+    case 'quick': {
+      const first = full[0];
+      const last = full[full.length - 1];
+      return first === last ? [first] : [first, last];
+    }
+    case 'step-on-load':
+    case 'full':
+      return subsampleLadderUrls(full, maxSteps);
+    case 'smart':
+    default:
+      return subsampleLadderUrls(full, maxSteps);
+  }
+}
+
+/** Human-readable quality hint for lightbox UI. */
+export function getStepQualityLabel(
+  stepIndex: number,
+  totalSteps: number,
+  isFinal: boolean
+): string {
+  if (totalSteps <= 1) return 'Loading…';
+  if (isFinal) return 'Original';
+  if (stepIndex <= 0) return 'Preview';
+  const pct = Math.round(((stepIndex + 1) / totalSteps) * 100);
+  if (pct < 40) return 'Low';
+  if (pct < 70) return 'Medium';
+  return 'High';
+}
+
+/** @deprecated Use getFirstVariantSrc for lightbox; kept for callers that expect this name. */
 export function getBootstrapSrc(image: UserImageWithVariants): string {
-  return image.previewUrl || image.thumbnailUrl || '';
+  return getFirstVariantSrc(image);
 }
 
 export function sortTierKeys(keys: string[]): string[] {
