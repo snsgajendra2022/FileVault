@@ -15,7 +15,8 @@ import {
   FaUserFriends,
   FaTrash,
   FaDownload,
-  FaSpinner
+  FaSpinner,
+  FaPlay
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -28,7 +29,15 @@ import ShareAlbumModal from './ShareAlbumModal';
 import PublicShareModal from '../../components/modals/PublicShareModal';
 import { downloadSingleImage, downloadImagesAsZip as downloadZip } from '../../utils/downloadUtils';
 import Lightbox, { LightboxItem } from '../../components/lightbox/Lightbox';
+import ProgressiveImage from '../../components/photo-studio/ProgressiveImage';
+import AlbumGalleryThumb from '../../components/photo-studio/AlbumGalleryThumb';
 import { getImagePreloadManager } from '../../utils/imagePreloader/ImagePreloadManager';
+import {
+  getAlbumThumbnailUrl,
+  toProgressiveImage,
+} from '../../utils/albumImageVariants';
+import type { ImageVariants } from '../../utils/progressiveImageVariants';
+import { getConnectionHint, getSaveData } from '../../utils/progressiveImageConfig';
 
 interface Album {
   id: number;
@@ -70,6 +79,7 @@ interface AlbumImage {
   thumbnailUrl?: string;
   downloadUrl?: string;
   fileType?: string;
+  variants?: ImageVariants;
   [key: string]: any;
 }
 
@@ -88,9 +98,50 @@ function extractAlbumImages(album: Album): AlbumImage[] {
 }
 
 function getThumbnailUrl(image: AlbumImage): string | null {
-  if (image.thumbnailUrl) return image.thumbnailUrl;
-  if (image.previewUrl) return image.previewUrl;
-  if (image.downloadUrl) return image.downloadUrl;
+  return getAlbumThumbnailUrl(image, getFileTypeFromAlbumImage(image));
+}
+
+function getFileTypeFromAlbumImage(image: AlbumImage): string {
+  const filename = image.originalFilename || image.filename || '';
+  const extension = filename.split('.').pop()?.toLowerCase() || '';
+  return extension || image.fileType || 'unknown';
+}
+
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp']);
+const VIDEO_EXTENSIONS = new Set(['mov', 'mp4', 'avi', 'mkv', 'webm', 'm4v']);
+
+function isAlbumImageType(image: AlbumImage): boolean {
+  const fileType = getFileTypeFromAlbumImage(image);
+  if (IMAGE_EXTENSIONS.has(fileType.toLowerCase())) return true;
+  const filename = image.originalFilename || image.filename || '';
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  return IMAGE_EXTENSIONS.has(ext);
+}
+
+function isAlbumVideoType(image: AlbumImage): boolean {
+  const fileType = getFileTypeFromAlbumImage(image);
+  if (VIDEO_EXTENSIONS.has(fileType.toLowerCase())) return true;
+  const filename = image.originalFilename || image.filename || '';
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  return VIDEO_EXTENSIONS.has(ext);
+}
+
+function filterAlbumImagesOnly(images: AlbumImage[]): AlbumImage[] {
+  return images.filter(isAlbumImageType);
+}
+
+/** Album list card cover: explicit cover if it is a photo, else latest photo (never video). */
+function pickAlbumCoverImage(images: AlbumImage[], album: Album): AlbumImage | null {
+  const photos = filterAlbumImagesOnly(images);
+  if (album.coverImageId != null) {
+    const fromPhotos = photos.find((img) => img.id === album.coverImageId);
+    if (fromPhotos) return fromPhotos;
+    const fromAll = images.find((img) => img.id === album.coverImageId);
+    if (fromAll && isAlbumImageType(fromAll)) return fromAll;
+  }
+  if (photos.length > 0) return photos[0];
+  const apiCover = images[0];
+  if (apiCover && isAlbumImageType(apiCover)) return apiCover;
   return null;
 }
 
@@ -305,12 +356,18 @@ const PhotoStudioAlbum: React.FC = () => {
   const [menuOpenAlbumId, setMenuOpenAlbumId] = useState<number | null>(null);
   const [albumSort, setAlbumSort] = useState<'name' | 'date'>('date');
   const ALBUMS_PAGE_SIZE = 20;
+  const ALBUM_IMAGES_PAGE_SIZE = 40;
   const USER_IMAGES_PAGE_SIZE = 20;
   const loadMoreAlbumsRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreAlbumImagesRef = useRef<HTMLDivElement | null>(null);
   const addImagesModalSentinelRef = useRef<HTMLDivElement | null>(null);
+  const fullVariantCacheRef = useRef<Map<number, AlbumImage>>(new Map());
+  const lightboxVariantInflight = useRef<Set<number>>(new Set());
+  const prefetchLightboxTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [variantCacheTick, setVariantCacheTick] = useState(0);
   const [albumImages, setAlbumImages] = useState<Map<number, AlbumImage[]>>(new Map());
   const [coverImageErrors, setCoverImageErrors] = useState<Set<number>>(new Set());
-  const [fullScreenImage, setFullScreenImage] = useState<{ image: AlbumImage; albumId: number; index: number } | null>(null);
+  const [viewingVideo, setViewingVideo] = useState<AlbumImage | null>(null);
   // Lightbox state
   const [lbIndex, setLbIndex] = useState<number>(0);
   const [lbAlbumId, setLbAlbumId] = useState<number | null>(null);
@@ -364,15 +421,11 @@ const PhotoStudioAlbum: React.FC = () => {
 
   const userId = user?.id;
 
-  const albumsInfiniteDefaults = useMemo(
-    () => ({ pages: [] as { albums: Album[]; page?: number; totalPages?: number }[], pageParams: [0] as number[] }),
-    []
-  );
-
   const {
     data: albumsData,
     isLoading,
     isFetching,
+    isFetched,
     isError,
     refetch,
     isFetchingNextPage: isFetchingMoreAlbums,
@@ -381,10 +434,16 @@ const PhotoStudioAlbum: React.FC = () => {
   } = useInfiniteQuery({
     queryKey: ['albums'],
     enabled: !authLoading,
-    queryFn: async ({ pageParam }): Promise<{ albums: Album[]; page: number; totalPages: number }> => {
+    queryFn: async ({ pageParam }): Promise<{ albums: Album[]; page: number; totalPages: number; total?: number }> => {
       try {
         const response = await api.get('/api/albums', {
-          params: { page: pageParam, size: ALBUMS_PAGE_SIZE },
+          params: {
+            page: pageParam,
+            size: ALBUMS_PAGE_SIZE,
+            includeImages: false,
+            connection: getConnectionHint(),
+            saveData: getSaveData(),
+          },
         });
         const data = response?.data;
         const fallback = { albums: [] as Album[], page: 0, totalPages: 1 };
@@ -397,24 +456,24 @@ const PhotoStudioAlbum: React.FC = () => {
           page = Number(pageParam) || 0;
           totalPages = 1;
         } else {
-          const raw = data as { albums?: Album[]; page?: number; totalPages?: number };
+          const raw = data as { albums?: Album[]; page?: number; totalPages?: number; total?: number };
           albums = Array.isArray(raw.albums) ? raw.albums.map((a: Album) => ({ ...a, images: Array.isArray(a?.images) ? a.images : [] })) : [];
           page = Number(raw.page ?? pageParam);
           totalPages = Number(raw.totalPages ?? 1);
           if (!Number.isFinite(totalPages) || totalPages < 1) totalPages = 1;
           if (!Number.isFinite(page)) page = Number(pageParam) || 0;
         }
-        return { albums, page, totalPages };
-      } catch {
-        return { albums: [], page: Number(pageParam) || 0, totalPages: 1 };
+        const total = Array.isArray(data)
+          ? albums.length
+          : Number((data as { total?: number })?.total ?? albums.length);
+        return { albums, page, totalPages, total };
+      } catch (err) {
+        console.error('Failed to load albums:', err);
+        throw err;
       }
     },
     initialPageParam: 0,
-    initialData: () => albumsInfiniteDefaults,
-    placeholderData: (prev) => {
-      if (prev && Array.isArray(prev?.pages) && Array.isArray(prev?.pageParams)) return prev;
-      return albumsInfiniteDefaults;
-    },
+    refetchOnMount: false,
     getNextPageParam: (lastPage: unknown): number | undefined => {
       if (lastPage == null || typeof lastPage !== 'object') return undefined;
       const p = lastPage as { page?: number; totalPages?: number };
@@ -425,11 +484,126 @@ const PhotoStudioAlbum: React.FC = () => {
     },
     retry: 1,
     refetchOnWindowFocus: false,
+    staleTime: 300_000,
+    gcTime: 600_000,
+  });
+
+  const albumImagesConnectionKey = getConnectionHint();
+  const albumImagesSaveDataKey = getSaveData();
+
+  const {
+    data: albumImagesData,
+    isLoading: albumImagesLoading,
+    isFetching: albumImagesFetching,
+    isFetchingNextPage: isFetchingMoreAlbumImages,
+    hasNextPage: hasMoreAlbumImages,
+    fetchNextPage: fetchMoreAlbumImages,
+  } = useInfiniteQuery({
+    queryKey: ['albumImages', viewingAlbumId, albumImagesConnectionKey, albumImagesSaveDataKey],
+    enabled: viewingAlbumId != null,
+    queryFn: async ({ pageParam }): Promise<{
+      images: AlbumImage[];
+      total: number;
+      page: number;
+      totalPages: number;
+    }> => {
+      if (viewingAlbumId == null) {
+        return { images: [], total: 0, page: 0, totalPages: 1 };
+      }
+      try {
+        const response = await api.get(`/api/albums/${viewingAlbumId}/images`, {
+          params: {
+            page: pageParam,
+            size: ALBUM_IMAGES_PAGE_SIZE,
+            variantDetail: 'full',
+            connection: albumImagesConnectionKey,
+            saveData: albumImagesSaveDataKey,
+          },
+        });
+        const raw = response?.data ?? {};
+        const images = Array.isArray(raw.images) ? raw.images : [];
+        const total = Number(raw.total ?? images.length);
+        const page = Number(raw.page ?? pageParam);
+        let totalPages = Number(raw.totalPages ?? 1);
+        if (!Number.isFinite(totalPages) || totalPages < 1) totalPages = 1;
+        return { images, total, page, totalPages };
+      } catch (err) {
+        console.error('Failed to load album images:', err);
+        throw err;
+      }
+    },
+    initialPageParam: 0,
+    refetchOnMount: false,
+    getNextPageParam: (lastPage) => {
+      const totalPages = Number(lastPage?.totalPages ?? 1);
+      const page = Number(lastPage?.page ?? 0);
+      return page + 1 < totalPages ? page + 1 : undefined;
+    },
+    retry: 1,
+    refetchOnWindowFocus: false,
+    staleTime: 120_000,
+    gcTime: 300_000,
   });
 
   useEffect(() => {
+    if (viewingAlbumId == null || !albumImagesData?.pages?.length) return;
+    const merged = dedupeAlbumImages(albumImagesData.pages.flatMap((p) => p.images ?? []));
+    setAlbumImages((prev) => {
+      const next = new Map(prev);
+      next.set(viewingAlbumId, merged);
+      return next;
+    });
+  }, [viewingAlbumId, albumImagesData]);
+
+  useEffect(() => {
     setAlbumDateFilter('');
+    fullVariantCacheRef.current.clear();
   }, [viewingAlbumId]);
+
+  /** First page+ from API — avoids flashing a single list-cover image before the full grid loads. */
+  const viewingAlbumFetchedImages = useMemo((): AlbumImage[] => {
+    if (viewingAlbumId == null || !albumImagesData?.pages?.length) return [];
+    return dedupeAlbumImages(albumImagesData.pages.flatMap((p) => p.images ?? []));
+  }, [viewingAlbumId, albumImagesData]);
+
+  // As soon as any page of album images arrives, eagerly preload every thumbnail
+  // into the browser cache so the first lightbox click is instant.
+  useEffect(() => {
+    if (!viewingAlbumFetchedImages.length) return;
+    for (const img of viewingAlbumFetchedImages) {
+      const url =
+        getAlbumThumbnailUrl(img, getFileTypeFromAlbumImage(img)) ||
+        img.thumbnailUrl ||
+        img.previewUrl ||
+        null;
+      if (url) {
+        const el = new Image();
+        el.fetchPriority = 'low';
+        el.src = url;
+      }
+    }
+  }, [viewingAlbumFetchedImages]);
+
+  const viewingAlbumDetailPending =
+    viewingAlbumId != null &&
+    viewingAlbumFetchedImages.length === 0 &&
+    (albumImagesLoading || albumImagesFetching);
+
+  const openViewingAlbum = useCallback((albumId: number) => {
+    setViewingAlbumId(albumId);
+    setSelectedPhotoIds(new Set());
+    setMenuOpenAlbumId(null);
+    setAlbumDateFilter('');
+    setShareAlbums([]);
+    setSelectedShareAlbumId(null);
+    setShareRecipients([]);
+    setSharedImageIds(new Set());
+    setIsEditingSharedImages(false);
+    setShareManageLoading(false);
+    setShareManageError(null);
+  }, []);
+
+  const viewingAlbumSourceImages = viewingAlbumFetchedImages;
 
   // Log query state
   useEffect(() => {
@@ -451,7 +625,13 @@ const PhotoStudioAlbum: React.FC = () => {
       try {
         const token = localStorage.getItem('token');
         const response = await api.get('/api/images/user/all', {
-          params: { token, page: pageParam, size: USER_IMAGES_PAGE_SIZE },
+          params: {
+            token,
+            page: pageParam,
+            size: USER_IMAGES_PAGE_SIZE,
+            connection: getConnectionHint(),
+            saveData: getSaveData(),
+          },
         });
         const data = response?.data;
         const fallback: UserImagesResponse = { totalImages: 0, images: [], page: 0, totalPages: 1 };
@@ -486,7 +666,7 @@ const PhotoStudioAlbum: React.FC = () => {
     },
     retry: 2,
     refetchInterval: 300000,
-    enabled: true,
+    enabled: showAddImagesModal !== null,
   });
 
   const albums = useMemo(() => {
@@ -495,11 +675,11 @@ const PhotoStudioAlbum: React.FC = () => {
     return pages.flatMap((p) => (p && (p as { albums?: Album[] }).albums) ?? []);
   }, [albumsData]);
 
-  /** initialData makes isLoading often false; show skeleton until first page has loaded when list is still empty */
   const showAlbumsSkeleton = useMemo(() => {
     if (isError) return false;
-    return isLoading || (isFetching && albums.length === 0 && !isFetchingMoreAlbums);
-  }, [isError, isLoading, isFetching, albums.length, isFetchingMoreAlbums]);
+    if (!isFetched) return true;
+    return (isLoading || isFetching) && albums.length === 0 && !isFetchingMoreAlbums;
+  }, [isError, isFetched, isLoading, isFetching, albums.length, isFetchingMoreAlbums]);
 
   const albumsTotal = useMemo(() => {
     const pages = albumsData?.pages;
@@ -547,58 +727,177 @@ const PhotoStudioAlbum: React.FC = () => {
     return `${selected.length} Albums`;
   }, [albums, selectedAlbums]);
 
-  // Populate album images from album data when albums are loaded
-  useEffect(() => {
-    if (albums?.length > 0) {
-      albums.forEach((album: Album) => {
-        if (album?.images && Array.isArray(album?.images) && album.images?.length > 0) {
-          setAlbumImages((prev) => {
-            if (!prev.has(album.id)) {
-              const next = new Map(prev);
-              next.set(album.id, album.images || []);
-              return next;
-            }
-            return prev;
-          });
-        }
-      });
-    }
-  }, [albums]);
-
-  // Open lightbox at a specific index
-  const openLightbox = useCallback((albumId: number, index: number, images: AlbumImage[]) => {
-    const manager = getImagePreloadManager({ preloadNext: 2, preloadPrev: 1, maxCacheSize: 20 });
-    const urls = images.map((img) => getImageUrl(img) || getThumbnailUrl(img)).filter(Boolean) as string[];
-    setLbAlbumId(albumId);
-    setLbIndex(index);
-    setFullScreenImage({ image: images[index], albumId, index });
-    // Kick off preload window immediately
-    manager.preloadForIndex(index, urls).catch(() => {});
+  const mergeFullVariantIntoAlbum = useCallback((albumId: number, full: AlbumImage) => {
+    fullVariantCacheRef.current.set(full.id, full);
+    setAlbumImages((prev) => {
+      const list = prev.get(albumId);
+      if (!list?.length) return prev;
+      const next = new Map(prev);
+      next.set(
+        albumId,
+        list.map((img) => (img.id === full.id ? { ...img, ...full, variants: full.variants ?? img.variants } : img))
+      );
+      return next;
+    });
   }, []);
 
-  // Handle keyboard navigation for full-screen image viewer
-  useEffect(() => {
-    if (!fullScreenImage) return;
-    const { albumId, index } = fullScreenImage;
-    const raw = albumImages.get(albumId) || extractAlbumImages(albums.find(a => a.id === albumId) || {} as Album);
-    const images = dedupeAlbumImages(raw);
-    const total = images.length;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (total === 0) return;
-      if (e.key === 'Escape') setFullScreenImage(null);
-      else if (e.key === 'ArrowLeft') {
-        const prev = (index - 1 + total) % total;
-        setLbIndex(prev);
-        setFullScreenImage({ image: images[prev], albumId, index: prev });
-      } else if (e.key === 'ArrowRight') {
-        const next = (index + 1) % total;
-        setLbIndex(next);
-        setFullScreenImage({ image: images[next], albumId, index: next });
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [fullScreenImage, albumImages, albums]);
+  /** Lightbox-only variant cache — avoids re-rendering the whole album grid on every arrow key. */
+  const cacheVariantForLightbox = useCallback((full: AlbumImage) => {
+    fullVariantCacheRef.current.set(full.id, full);
+    setVariantCacheTick((t) => t + 1);
+  }, []);
+
+  const fetchFullImageVariants = useCallback(
+    async (image: AlbumImage): Promise<AlbumImage> => {
+      const tiers = image.variants?.tiers;
+      if (tiers && Object.keys(tiers).length > 0) return image;
+      const cached = fullVariantCacheRef.current.get(image.id);
+      if (cached?.variants?.tiers && Object.keys(cached.variants.tiers).length > 0) return cached;
+      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') || '' : '';
+      const res = await api.get(`/api/images/${image.id}`, {
+        params: {
+          token,
+          connection: getConnectionHint(),
+          saveData: getSaveData(),
+        },
+      });
+      const data = res.data ?? {};
+      return {
+        ...image,
+        previewUrl: data.previewUrl ?? image.previewUrl,
+        thumbnailUrl: data.thumbnailUrl ?? image.thumbnailUrl,
+        downloadUrl: data.downloadUrl ?? image.downloadUrl,
+        variants: data.variants ?? image.variants,
+      };
+    },
+    []
+  );
+
+  // Open image-only lightbox (videos use separate player)
+  const getLightboxImagesForAlbum = useCallback(
+    (albumId: number): AlbumImage[] => {
+      const raw =
+        (albumId === viewingAlbumId && viewingAlbumFetchedImages.length > 0
+          ? viewingAlbumFetchedImages
+          : null) ||
+        albumImages.get(albumId) ||
+        extractAlbumImages(albums.find((a) => a.id === albumId) || ({} as Album));
+      return filterAlbumImagesOnly(dedupeAlbumImages(raw));
+    },
+    [viewingAlbumId, viewingAlbumFetchedImages, albumImages, albums]
+  );
+
+  const prefetchLightboxVariants = useCallback(
+    (index: number, albumId: number) => {
+      const images = getLightboxImagesForAlbum(albumId);
+      const prefetchOne = (img?: AlbumImage) => {
+        if (!img) return;
+        const tiers = img.variants?.tiers;
+        if (tiers && Object.keys(tiers).length > 0) return;
+        const cached = fullVariantCacheRef.current.get(img.id);
+        if (cached?.variants?.tiers && Object.keys(cached.variants.tiers).length > 0) return;
+        if (lightboxVariantInflight.current.has(img.id)) return;
+        lightboxVariantInflight.current.add(img.id);
+        void fetchFullImageVariants(img)
+          .then((enriched) => {
+            if (enriched !== img) cacheVariantForLightbox(enriched);
+          })
+          .finally(() => lightboxVariantInflight.current.delete(img.id));
+      };
+      prefetchOne(images[index]);
+      prefetchOne(images[index + 1]);
+      prefetchOne(images[index - 1]);
+    },
+    [getLightboxImagesForAlbum, fetchFullImageVariants, cacheVariantForLightbox]
+  );
+
+  const openLightbox = useCallback(
+    (albumId: number, index: number, imageOnlyList: AlbumImage[]) => {
+      const base = imageOnlyList[index];
+      if (!base || !isAlbumImageType(base)) return;
+      if (prefetchLightboxTimer.current) clearTimeout(prefetchLightboxTimer.current);
+      setLbAlbumId(albumId);
+      setLbIndex(index);
+      const manager = getImagePreloadManager({ preloadNext: 2, preloadPrev: 1, maxCacheSize: 20 });
+      const start = Math.max(0, index - 1);
+      const end = Math.min(imageOnlyList.length, index + 3);
+      const urls = imageOnlyList
+        .slice(start, end)
+        .map(
+          (img) =>
+            getAlbumThumbnailUrl(img, getFileTypeFromAlbumImage(img)) ||
+            getThumbnailUrl(img) ||
+            img.previewUrl ||
+            getImageUrl(img)
+        )
+        .filter(Boolean) as string[];
+      manager.preloadForIndex(index - start, urls).catch(() => {});
+      prefetchLightboxVariants(index, albumId);
+    },
+    [prefetchLightboxVariants]
+  );
+
+  const openVideoPlayer = useCallback((image: AlbumImage) => {
+    if (!isAlbumVideoType(image)) return;
+    const url = image.previewUrl || image.downloadUrl || getImageUrl(image);
+    if (!url) {
+      toast.error('Video preview not available');
+      return;
+    }
+    setViewingVideo({ ...image, previewUrl: url });
+  }, []);
+
+  const albumImagesApiTotal = useMemo(() => {
+    const first = albumImagesData?.pages?.[0];
+    if (first?.total == null) return null;
+    const n = Number(first.total);
+    return Number.isFinite(n) ? n : null;
+  }, [albumImagesData]);
+
+  const handleLightboxNavigate = useCallback(
+    (index: number) => {
+      if (lbAlbumId == null) return;
+      if (prefetchLightboxTimer.current) clearTimeout(prefetchLightboxTimer.current);
+      prefetchLightboxTimer.current = setTimeout(() => {
+        prefetchLightboxVariants(index, lbAlbumId);
+      }, 80);
+    },
+    [lbAlbumId, prefetchLightboxVariants]
+  );
+
+  const handleLightboxLoadMore = useCallback(() => {
+    if (lbAlbumId !== viewingAlbumId) return;
+    if (hasMoreAlbumImages && !isFetchingMoreAlbumImages) {
+      fetchMoreAlbumImages();
+    }
+  }, [lbAlbumId, viewingAlbumId, hasMoreAlbumImages, isFetchingMoreAlbumImages, fetchMoreAlbumImages]);
+
+  const lightboxItems = useMemo((): LightboxItem[] => {
+    if (lbAlbumId == null) return [];
+    const images = getLightboxImagesForAlbum(lbAlbumId);
+    return images.map((img) => {
+      const resolved = fullVariantCacheRef.current.get(img.id) ?? img;
+      const fileType = getFileTypeFromAlbumImage(resolved);
+      const progressive = toProgressiveImage(resolved, fileType);
+      const thumb =
+        getAlbumThumbnailUrl(resolved, fileType) ||
+        getThumbnailUrl(resolved) ||
+        null;
+      const src =
+        thumb ||
+        resolved.previewUrl ||
+        getImageUrl(resolved) ||
+        null;
+      return {
+        id: resolved.id,
+        src,
+        thumbnailSrc: thumb,
+        alt: getImageFilename(resolved),
+        filename: getImageFilename(resolved),
+        progressiveImage: isAlbumImageType(resolved) ? progressive : undefined,
+      };
+    });
+  }, [lbAlbumId, getLightboxImagesForAlbum, variantCacheTick, viewingAlbumFetchedImages]);
 
   // Infinite scroll: albums list
   useEffect(() => {
@@ -611,6 +910,33 @@ const PhotoStudioAlbum: React.FC = () => {
     observer.observe(el);
     return () => observer.disconnect();
   }, [hasMoreAlbums, isFetchingMoreAlbums, fetchMoreAlbums]);
+
+  // Infinite scroll: photos inside an open album
+  useEffect(() => {
+    if (viewingAlbumId == null) return;
+    const el = loadMoreAlbumImagesRef.current;
+    if (!el || !hasMoreAlbumImages || isFetchingMoreAlbumImages) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0]?.isIntersecting) fetchMoreAlbumImages(); },
+      { rootMargin: '600px', threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [viewingAlbumId, hasMoreAlbumImages, isFetchingMoreAlbumImages, fetchMoreAlbumImages]);
+
+  // As soon as page 1 of album images is available, immediately prefetch page 2
+  // so the user never hits a loading gap when scrolling down.
+  const page1LoadedRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (viewingAlbumId == null) return;
+    if (page1LoadedRef.current === viewingAlbumId) return;
+    const hasPage1 = (albumImagesData?.pages?.length ?? 0) >= 1;
+    if (!hasPage1) return;
+    page1LoadedRef.current = viewingAlbumId;
+    if (hasMoreAlbumImages && !isFetchingMoreAlbumImages) {
+      fetchMoreAlbumImages();
+    }
+  }, [viewingAlbumId, albumImagesData?.pages?.length, hasMoreAlbumImages, isFetchingMoreAlbumImages, fetchMoreAlbumImages]);
 
   // Infinite scroll: Add Images modal (when modal is open)
   useEffect(() => {
@@ -652,9 +978,9 @@ const PhotoStudioAlbum: React.FC = () => {
       const response = await api.post(`/api/albums/${albumId}/images`, { imageIds });
       return response.data;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['albums'] });
-      // Clear cached images for this album so they refresh after albums refetch
+      queryClient.invalidateQueries({ queryKey: ['albumImages', variables.albumId] });
       setAlbumImages((prev) => {
         const next = new Map(prev);
         next.delete(variables.albumId);
@@ -953,14 +1279,32 @@ const PhotoStudioAlbum: React.FC = () => {
     return extension || image.fileType || 'unknown';
   };
 
-  // Cover image: album.coverImageUrl or first image in album
+  const apiBaseUrl = (process.env.REACT_APP_API_URL || '').replace(/\/$/, '');
+
+  // Cover image: photo thumbnail only (never video)
   const getCoverImageUrl = useCallback((album: Album): string | null => {
-    if (album.coverImageUrl && !coverImageErrors.has(album.id)) return album.coverImageUrl;
     const images = albumImages.get(album.id) || extractAlbumImages(album);
-    const first = images[0];
-    if (!first) return null;
-    return getThumbnailUrl(first) || getImageUrl(first);
-  }, [albumImages, coverImageErrors]);
+    const coverPhoto = pickAlbumCoverImage(images, album);
+
+    if (coverPhoto) {
+      const thumb =
+        getAlbumThumbnailUrl(coverPhoto, getFileTypeFromAlbumImage(coverPhoto)) ||
+        getThumbnailUrl(coverPhoto);
+      if (thumb) return thumb;
+      if (!coverImageErrors.has(album.id)) {
+        return getImageUrl(coverPhoto);
+      }
+    }
+
+    if (coverImageErrors.has(album.id)) return null;
+
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') || '' : '';
+    if (coverPhoto?.id != null && token && apiBaseUrl) {
+      return `${apiBaseUrl}/api/images/${coverPhoto.id}/thumbnail?token=${encodeURIComponent(token)}`;
+    }
+
+    return null;
+  }, [albumImages, coverImageErrors, apiBaseUrl]);
 
   // Share link: images from selected albums (for building public URLs)
   const shareLinkSelectedImages = useMemo((): AlbumImage[] => {
@@ -1075,7 +1419,7 @@ const PhotoStudioAlbum: React.FC = () => {
   // When we create a DB-backed share album for selected albums, tag it with sourceAlbumId if exactly one album selected.
   // (this enables “manage share from inside album” UX)
 
-  // When viewing a single studio album, load its latest share album (if any) and recipients.
+  // When viewing a single studio album, load share info after gallery first page (less jank on open).
   useEffect(() => {
     if (viewingAlbumId == null) {
       setShareAlbums([]);
@@ -1086,6 +1430,7 @@ const PhotoStudioAlbum: React.FC = () => {
       setShareManageError(null);
       return;
     }
+    if (viewingAlbumDetailPending) return;
     let cancelled = false;
     setShareManageLoading(true);
     setShareManageError(null);
@@ -1121,7 +1466,7 @@ const PhotoStudioAlbum: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [viewingAlbumId]);
+  }, [viewingAlbumId, viewingAlbumDetailPending]);
 
   // When selected share link changes, load its recipients and current shared images.
   useEffect(() => {
@@ -1376,14 +1721,6 @@ const PhotoStudioAlbum: React.FC = () => {
     setSelectedPhotoIds(new Set());
   }, []);
 
-  // Build public URL for selected photos (images-display for view-only, no payment)
-  const viewingAlbumSourceImages = useMemo((): AlbumImage[] => {
-    if (viewingAlbumId == null) return [];
-    const album = albums.find((a) => a.id === viewingAlbumId);
-    if (!album) return [];
-    return dedupeAlbumImages(albumImages.get(viewingAlbumId) || extractAlbumImages(album));
-  }, [viewingAlbumId, albums, albumImages]);
-
   const viewingAlbumBaseImages = useMemo((): AlbumImage[] => {
     if (sharedImagesOnly) {
       return viewingAlbumSourceImages.filter((img) => sharedImageIds.has(img.id));
@@ -1405,10 +1742,27 @@ const PhotoStudioAlbum: React.FC = () => {
     return viewingAlbumBaseImages.filter((img) => uploadDayKey(img.uploadTime) === albumDateFilter);
   }, [viewingAlbumBaseImages, albumDateFilter]);
 
+  /** Photos only — lightbox slider skips videos. */
+  const viewingAlbumImageOnly = useMemo(
+    () => filterAlbumImagesOnly(viewingAlbumDisplayImages),
+    [viewingAlbumDisplayImages]
+  );
+
   const viewingAlbumPhotosByDay = useMemo(
     () => groupAlbumImagesByDay(viewingAlbumDisplayImages),
     [viewingAlbumDisplayImages]
   );
+
+  const viewingAlbumThumbEagerIndex = useMemo(() => {
+    const m = new Map<number, number>();
+    let i = 0;
+    for (const group of viewingAlbumPhotosByDay) {
+      for (const img of group.items) {
+        m.set(img.id, i++);
+      }
+    }
+    return m;
+  }, [viewingAlbumPhotosByDay]);
 
   const selectedPhotoImages = useMemo((): AlbumImage[] => {
     return viewingAlbumDisplayImages.filter((img) => selectedPhotoIds.has(img.id));
@@ -1861,7 +2215,8 @@ const PhotoStudioAlbum: React.FC = () => {
                 </div>
               </div>
 
-              {/* Share management panel (one link shared to many recipients) */}
+              {/* Share panel loads after first photo page to avoid layout thrash on open */}
+              {!viewingAlbumDetailPending && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 flex-wrap">
                   <div>
@@ -2115,9 +2470,24 @@ const PhotoStudioAlbum: React.FC = () => {
                   </div>
                 )}
               </div>
+              )}
 
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                {viewingAlbumSourceImages.length > 0 ? (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 min-h-[280px]">
+                {viewingAlbumDetailPending ? (
+                  <div aria-busy="true" aria-label={t('photoStudioAlbumPage.loadingPhotos') || 'Loading photos'}>
+                    <div className="h-5 w-36 rounded-lg bg-gray-200 animate-pulse mb-4" />
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4">
+                      {Array.from({ length: 15 }, (_, i) => (
+                        <div key={i} className="aspect-square rounded-xl bg-gray-100 overflow-hidden">
+                          <div className="h-full w-full bg-gray-200 animate-pulse" />
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-center text-sm text-gray-500 mt-6">
+                      {t('photoStudioAlbumPage.loadingPhotos') || 'Loading photos…'}
+                    </p>
+                  </div>
+                ) : viewingAlbumSourceImages.length > 0 ? (
                   <>
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                       <p className="text-sm text-gray-500">
@@ -2184,14 +2554,20 @@ const PhotoStudioAlbum: React.FC = () => {
                     </div>
                     {viewingAlbumDisplayImages.length === 0 ? (
                       <div className="text-center py-12 text-gray-500">
-                        <p className="text-sm mb-3">{t('imagesPage.noDateMatches')}</p>
-                        <button
-                          type="button"
-                          onClick={() => setAlbumDateFilter('')}
-                          className="text-sm font-medium text-[#2731db] hover:underline"
-                        >
-                          {t('imagesPage.clearDateFilter')}
-                        </button>
+                        {albumDateFilter ? (
+                          <>
+                            <p className="text-sm mb-3">{t('imagesPage.noDateMatches')}</p>
+                            <button
+                              type="button"
+                              onClick={() => setAlbumDateFilter('')}
+                              className="text-sm font-medium text-[#2731db] hover:underline"
+                            >
+                              {t('imagesPage.clearDateFilter')}
+                            </button>
+                          </>
+                        ) : (
+                          <p className="text-sm">{t('photoStudioAlbumPage.noPhotosInAlbum') || 'No photos in this album yet.'}</p>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-8">
@@ -2207,14 +2583,21 @@ const PhotoStudioAlbum: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4">
                               {group.items.map((image) => {
-                                const imageUrl = getImageUrl(image);
-                                const thumbUrl = getThumbnailUrl(image);
-                                const fileType = getFileType(image);
+                                const fileType = getFileTypeFromAlbumImage(image);
                                 const filename = getImageFilename(image);
-                                const canViewFullScreen = (thumbUrl || imageUrl) && fileType.match(/^(png|jpg|jpeg|gif|webp)$/i);
+                                const thumbUrl =
+                                  getAlbumThumbnailUrl(image, fileType) ||
+                                  getThumbnailUrl(image) ||
+                                  image.thumbnailUrl ||
+                                  image.previewUrl ||
+                                  null;
+                                const isPhoto = isAlbumImageType(image);
+                                const isVideo = isAlbumVideoType(image);
+                                const canOpenPhoto = isPhoto && !!(thumbUrl || image.previewUrl || image.downloadUrl);
+                                const canOpenVideo = isVideo && !!(image.previewUrl || image.downloadUrl || getImageUrl(image));
                                 const isPhotoSelected = selectedPhotoIds.has(image.id);
                                 const isShared = sharedImageIds.has(image.id);
-                                const downloadUrl = image.downloadUrl || image.previewUrl || imageUrl;
+                                const downloadUrl = image.downloadUrl || image.previewUrl || getImageUrl(image);
                                 return (
                                   <div
                                     key={image.id}
@@ -2255,32 +2638,51 @@ const PhotoStudioAlbum: React.FC = () => {
                                       </button>
                                     )}
                                     <div
-                                      className={`aspect-square bg-gray-100 overflow-hidden relative ${canViewFullScreen ? 'cursor-pointer' : ''}`}
+                                      className={`aspect-square bg-gray-100 overflow-hidden relative ${canOpenPhoto || canOpenVideo ? 'cursor-pointer' : ''}`}
                                       onClick={() => {
-                                        if (canViewFullScreen) {
-                                          const lbIndex = viewingAlbumSourceImages.findIndex((i) => i.id === image.id);
+                                        if (canOpenPhoto) {
+                                          const lbIndex = viewingAlbumImageOnly.findIndex((i) => i.id === image.id);
                                           if (lbIndex >= 0) {
-                                            openLightbox(album.id, lbIndex, viewingAlbumSourceImages);
+                                            openLightbox(album.id, lbIndex, viewingAlbumImageOnly);
                                           }
+                                        } else if (canOpenVideo) {
+                                          openVideoPlayer(image);
                                         }
                                       }}
                                     >
-                                      {canViewFullScreen ? (
-                                        <>
-                                          <img
-                                            src={(thumbUrl || imageUrl)!}
-                                            alt={filename}
-                                            loading="lazy"
-                                            decoding="async"
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                          />
-                                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                                            <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium">{t('photoStudioAlbumPage.view')}</span>
-                                          </div>
-                                        </>
+                                      {isPhoto && thumbUrl ? (
+                                        <AlbumGalleryThumb
+                                          image={image}
+                                          fileType={fileType}
+                                          alt={filename}
+                                          eager={(viewingAlbumThumbEagerIndex.get(image.id) ?? 99) < 30}
+                                        />
+                                      ) : thumbUrl ? (
+                                        <img
+                                          src={thumbUrl}
+                                          alt={filename}
+                                          loading="lazy"
+                                          decoding="async"
+                                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                        />
                                       ) : (
-                                        <div className="flex items-center justify-center h-full text-gray-500 text-xs">{fileType.toUpperCase() || t('photoStudioAlbumPage.file')}</div>
+                                        <div className="flex items-center justify-center h-full text-gray-500 text-xs">
+                                          {fileType.toUpperCase() || t('photoStudioAlbumPage.file')}
+                                        </div>
+                                      )}
+                                      {isVideo && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/25 pointer-events-none">
+                                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow">
+                                            <FaPlay className="h-4 w-4 text-gray-800 ml-0.5" />
+                                          </span>
+                                        </div>
+                                      )}
+                                      {isPhoto && (
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center pointer-events-none">
+                                          <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-sm font-medium">
+                                            {t('photoStudioAlbumPage.view')}
+                                          </span>
+                                        </div>
                                       )}
                                     </div>
                                     <div className="p-2 bg-white">
@@ -2292,6 +2694,13 @@ const PhotoStudioAlbum: React.FC = () => {
                             </div>
                           </div>
                         ))}
+                        {(hasMoreAlbumImages || isFetchingMoreAlbumImages) && (
+                          <div ref={loadMoreAlbumImagesRef} className="flex justify-center py-6">
+                            {isFetchingMoreAlbumImages && (
+                              <LoadingSpinner size="md" text={t('photoStudioAlbumPage.loadingPhotos') || 'Loading more…'} />
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </>
@@ -2554,26 +2963,60 @@ const PhotoStudioAlbum: React.FC = () => {
                         key={album.id}
                         className="group relative bg-white rounded-2xl border border-gray-100 shadow-sm overflow-visible hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
                       >
+                        {/* 3-dot menu — outside main card button (valid HTML) */}
+                        <div className="absolute top-2 right-2 z-20 flex flex-col items-end">
+                          <button
+                            type="button"
+                            onClick={() => setMenuOpenAlbumId((id) => (id === album.id ? null : album.id))}
+                            className="p-2 rounded-full bg-white/90 hover:bg-white shadow-sm text-gray-700"
+                            aria-label={t('photoStudioAlbumPage.menu')}
+                            aria-expanded={isMenuOpen}
+                          >
+                            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 16 16" aria-hidden><circle cx="8" cy="2" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="8" cy="14" r="1.5" /></svg>
+                          </button>
+                          {isMenuOpen && (
+                            <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] py-1 bg-white rounded-xl shadow-lg border border-gray-200">
+                              <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={() => openViewingAlbum(album.id)}><FaFolderOpen className="h-4 w-4" /> {t('photoStudioAlbumPage.viewAlbum')}</button>
+                              <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={() => { setSelectedImages(new Set()); setShowAddImagesModal(album.id); setMenuOpenAlbumId(null); }}><FaPlus className="h-4 w-4" /> {t('photoStudioAlbumPage.uploadImagesMenu')}</button>
+                              <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={() => { handleEditAlbum(album); setMenuOpenAlbumId(null); }}><FaEdit className="h-4 w-4" /> {t('photoStudioAlbumPage.renameAlbum')}</button>
+                              <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2" onClick={() => { if (window.confirm(t('photoStudioAlbumPage.deleteAlbumConfirm', { name: album.name }))) deleteAlbumMutation.mutate(album.id); setMenuOpenAlbumId(null); }}><FaTrash className="h-4 w-4" /> {t('photoStudioAlbumPage.deleteAlbum')}</button>
+                              <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={() => { handleShareAlbum(album); setMenuOpenAlbumId(null); }}><FaShare className="h-4 w-4" /> {t('photoStudioAlbumPage.shareAlbum')}</button>
+                            </div>
+                          )}
+                        </div>
+                        {/* Selection checkbox */}
+                        <div className="absolute top-2 left-2 z-20">
+                          <button
+                            type="button"
+                            onClick={() => toggleAlbumSelection(album.id)}
+                            className="p-1.5 rounded-lg bg-white/90 hover:bg-white shadow-sm"
+                            title={selectedAlbums.has(album.id) ? t('photoStudioAlbumPage.unselect') : t('photoStudioAlbumPage.select')}
+                          >
+                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${selectedAlbums.has(album.id) ? 'border-[#2731db] bg-[#2731db]' : 'border-gray-400 bg-white'}`}>
+                              {selectedAlbums.has(album.id) && <FaCheck className="h-2.5 w-2.5 text-white" />}
+                            </div>
+                          </button>
+                        </div>
+                        {isMenuOpen && (
+                          <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setMenuOpenAlbumId(null)}
+                            aria-hidden
+                          />
+                        )}
                         {/* Card click → open album detail */}
                         <button
                           type="button"
                           className="w-full text-left block"
-                          onClick={() => {
-                            setAlbumImages((prev) => {
-                              const next = new Map(prev);
-                              next.set(album.id, extractAlbumImages(album));
-                              return next;
-                            });
-                            setViewingAlbumId(album.id);
-                            setMenuOpenAlbumId(null);
-                          }}
+                          onClick={() => openViewingAlbum(album.id)}
                         >
-                          {/* Cover with gradient overlay */}
                           <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden rounded-t-2xl">
                             {coverUrl ? (
                               <img
                                 src={coverUrl}
                                 alt={album.name}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                 onError={() => setCoverImageErrors((prev) => new Set(prev).add(album.id))}
                               />
@@ -2582,58 +3025,16 @@ const PhotoStudioAlbum: React.FC = () => {
                                 <FaFolder className="text-5xl text-gray-300" />
                               </div>
                             )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                            {/* 3-dot menu (stops propagation) */}
-                            <div className="absolute top-2 right-2 flex flex-col items-end">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  e.preventDefault();
-                                  setMenuOpenAlbumId((id) => (id === album.id ? null : album.id));
-                                }}
-                                className="p-2 rounded-full bg-white/90 hover:bg-white shadow-sm text-gray-700"
-                                aria-label={t('photoStudioAlbumPage.menu')}
-                              >
-                                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 16 16" aria-hidden><circle cx="8" cy="2" r="1.5" /><circle cx="8" cy="8" r="1.5" /><circle cx="8" cy="14" r="1.5" /></svg>
-                              </button>
-                              {isMenuOpen && (
-                                <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] py-1 bg-white rounded-xl shadow-lg border border-gray-200">
-                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); setAlbumImages((prev) => { const n = new Map(prev); n.set(album.id, extractAlbumImages(album)); return n; }); setViewingAlbumId(album.id); setMenuOpenAlbumId(null); }}><FaFolderOpen className="h-4 w-4" /> {t('photoStudioAlbumPage.viewAlbum')}</button>
-                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); setSelectedImages(new Set()); setShowAddImagesModal(album.id); setMenuOpenAlbumId(null); }}><FaPlus className="h-4 w-4" /> {t('photoStudioAlbumPage.uploadImagesMenu')}</button>
-                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); handleEditAlbum(album); setMenuOpenAlbumId(null); }}><FaEdit className="h-4 w-4" /> {t('photoStudioAlbumPage.renameAlbum')}</button>
-                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); if (window.confirm(t('photoStudioAlbumPage.deleteAlbumConfirm', { name: album.name }))) deleteAlbumMutation.mutate(album.id); setMenuOpenAlbumId(null); }}><FaTrash className="h-4 w-4" /> {t('photoStudioAlbumPage.deleteAlbum')}</button>
-                                  <button type="button" className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2" onClick={(e) => { e.stopPropagation(); handleShareAlbum(album); setMenuOpenAlbumId(null); }}><FaShare className="h-4 w-4" /> {t('photoStudioAlbumPage.shareAlbum')}</button>
-                                </div>
-                              )}
-                            </div>
-                            {/* Selection checkbox (for Transfer/Share) */}
-                            <div className="absolute top-2 left-2" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleAlbumSelection(album.id);
-                                }}
-                                className="p-1.5 rounded-lg bg-white/90 hover:bg-white shadow-sm"
-                                title={selectedAlbums.has(album.id) ? t('photoStudioAlbumPage.unselect') : t('photoStudioAlbumPage.select')}
-                              >
-                                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${selectedAlbums.has(album.id) ? 'border-[#2731db] bg-[#2731db]' : 'border-gray-400 bg-white'}`}>
-                                  {selectedAlbums.has(album.id) && <FaCheck className="h-2.5 w-2.5 text-white" />}
-                                </div>
-                              </button>
-                            </div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
                           </div>
                           <div className="p-4">
-                          <h3 className="font-semibold text-gray-900 truncate capitalize">{album.name}</h3>
-                          <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
-                            <FaImages className="h-3.5 w-3 shrink-0" />
-                            {count} {count === 1 ? t('photoStudioAlbumPage.photo') : t('photoStudioAlbumPage.photos')}
-                          </p>
-                        </div>
+                            <h3 className="font-semibold text-gray-900 truncate capitalize">{album.name}</h3>
+                            <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
+                              <FaImages className="h-3.5 w-3 shrink-0" />
+                              {count} {count === 1 ? t('photoStudioAlbumPage.photo') : t('photoStudioAlbumPage.photos')}
+                            </p>
+                          </div>
                         </button>
-                        {/* Backdrop to close menu when open (for mobile tap-outside) */}
-                        {isMenuOpen && <div className="fixed inset-0 z-30" onClick={() => setMenuOpenAlbumId(null)} aria-hidden />}
                       </div>
                     );
                         })}
@@ -2948,12 +3349,23 @@ const PhotoStudioAlbum: React.FC = () => {
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
-                        <div className="h-32 bg-gray-100 overflow-hidden">
+                        <div className="relative h-32 bg-gray-100 overflow-hidden">
                           {image.fileType.toLowerCase().match(/^(png|jpg|jpeg|gif|webp)$/) ? (
-                            <img
-                              src={image.previewUrl}
+                            <ProgressiveImage
+                              image={{
+                                id: image.id,
+                                previewUrl: image.previewUrl,
+                                filename: image.filename,
+                                downloadUrl: image.downloadUrl,
+                                thumbnailUrl: image.thumbnailUrl || image.previewUrl,
+                                uploadTime: (image as { uploadTime?: string }).uploadTime || '',
+                                fileType: image.fileType,
+                                variants: (image as { variants?: ImageVariants }).variants,
+                              }}
+                              enabled
+                              mode="thumbnail"
                               alt={image.filename}
-                              className="w-full h-full object-cover pointer-events-none"
+                              className="h-full w-full object-cover pointer-events-none"
                             />
                           ) : (
                             <div className="flex items-center justify-center h-full text-gray-500 text-xs">
@@ -3092,30 +3504,60 @@ const PhotoStudioAlbum: React.FC = () => {
       )}
 
       {/* Full Screen Image Viewer — powered by ImagePreloadManager */}
-      {fullScreenImage && lbAlbumId !== null && (() => {
-        const raw = albumImages.get(lbAlbumId) || extractAlbumImages(albums.find(a => a.id === lbAlbumId) || {} as Album);
-        const images = dedupeAlbumImages(raw);
-        const lbItems: LightboxItem[] = images.map((img) => ({
-          id: img.id,
-          src: getImageUrl(img),
-          thumbnailSrc: getThumbnailUrl(img),
-          alt: getImageFilename(img),
-          filename: getImageFilename(img),
-        }));
-        return (
-          <Lightbox
-            items={lbItems}
-            initialIndex={lbIndex}
-            isOpen={true}
-            onClose={() => setFullScreenImage(null)}
-            onDownload={async (item) => {
-              const url = item.src;
-              if (!url) throw new Error('No URL');
-              await downloadSingleImage(url, item.filename || item.alt);
-            }}
-          />
-        );
-      })()}
+      {viewingVideo && (
+        <div
+          className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/90 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setViewingVideo(null)}
+        >
+          <div
+            className="relative w-full max-w-4xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setViewingVideo(null)}
+              className="absolute -top-10 right-0 text-white/80 hover:text-white text-sm"
+            >
+              Close
+            </button>
+            <video
+              src={viewingVideo.previewUrl || viewingVideo.downloadUrl || ''}
+              controls
+              autoPlay
+              playsInline
+              className="w-full max-h-[80vh] rounded-lg bg-black"
+            />
+            <p className="mt-2 text-center text-sm text-white/70 truncate">
+              {getImageFilename(viewingVideo)}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {lbAlbumId !== null && lightboxItems.length > 0 && (
+        <Lightbox
+          items={lightboxItems}
+          initialIndex={lbIndex}
+          isOpen={true}
+          loop={false}
+          totalCount={albumImagesApiTotal ?? lightboxItems.length}
+          hasMoreItems={lbAlbumId === viewingAlbumId && hasMoreAlbumImages}
+          isLoadingMore={lbAlbumId === viewingAlbumId && hasMoreAlbumImages && isFetchingMoreAlbumImages}
+          onLoadMore={handleLightboxLoadMore}
+          onIndexChange={handleLightboxNavigate}
+          onClose={() => {
+            if (prefetchLightboxTimer.current) clearTimeout(prefetchLightboxTimer.current);
+            setLbAlbumId(null);
+          }}
+          onDownload={async (item) => {
+            const url = item.src;
+            if (!url) throw new Error('No URL');
+            await downloadSingleImage(url, item.filename || item.alt);
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -3126,8 +3568,15 @@ function PhotoStudioAlbumWrapper() {
   const [cacheReady, setCacheReady] = useState(false);
   const queryClient = useQueryClient();
   useLayoutEffect(() => {
-    queryClient.setQueryData(['albums'], normalizeInfiniteCache);
-    queryClient.setQueryData(['userImages-gallery'], normalizeInfiniteCache);
+    // Only fix malformed cache — do not seed empty pages (that blocks the real fetch).
+    const albumsCache = queryClient.getQueryData(['albums']);
+    if (albumsCache != null) {
+      queryClient.setQueryData(['albums'], normalizeInfiniteCache);
+    }
+    const galleryCache = queryClient.getQueryData(['userImages-gallery']);
+    if (galleryCache != null) {
+      queryClient.setQueryData(['userImages-gallery'], normalizeInfiniteCache);
+    }
     setCacheReady(true);
   }, [queryClient]);
   if (!cacheReady) {

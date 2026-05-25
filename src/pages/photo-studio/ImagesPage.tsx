@@ -48,6 +48,7 @@ import {
 } from 'lucide-react';
 import './imagesPageTheme.css';
 import ProgressiveImage from '../../components/photo-studio/ProgressiveImage';
+import { LIGHTBOX_PROGRESSIVE_OPTIONS } from '../../utils/progressiveImageConfig';
 import type { ImageVariants } from '../../utils/progressiveImageVariants';
 import { useProgressiveImageSrc } from '../../hooks/useProgressiveImageSrc';
 import {
@@ -679,7 +680,7 @@ const ClientImagesPage = () => {
     },
     lightboxIsImage,
     'progressive',
-    { strategy: 'smart', finalTarget: 'original', preloadParallel: true }
+    LIGHTBOX_PROGRESSIVE_OPTIONS
   );
 
   const selectedImages = useMemo(
@@ -1319,7 +1320,14 @@ const ClientImagesPage = () => {
             <div className="lumina-page-body flex h-14 items-center">
               <div className="lumina-top-search flex-1 sm:flex-none">
                 <Search className="h-5 w-5 shrink-0 text-[#7b7487]" />
-                <input disabled placeholder={t('imagesPage.searchPlaceholder')} />
+                <input
+                  type="search"
+                  value=""
+                  readOnly
+                  disabled
+                  placeholder={t('imagesPage.searchPlaceholder')}
+                  aria-hidden
+                />
               </div>
             </div>
           </header>
@@ -1349,7 +1357,7 @@ const ClientImagesPage = () => {
               <Search className="h-5 w-5 shrink-0 text-[#7b7487]" />
               <input
                 type="search"
-                value={gallerySearch}
+                value={gallerySearch ?? ''}
                 onChange={(e) => setGallerySearch(e.target.value)}
                 placeholder={t('imagesPage.searchPlaceholder')}
                 aria-label={t('imagesPage.searchPlaceholder')}
@@ -2078,7 +2086,7 @@ const ClientImagesPage = () => {
                               src={lightboxProgressive.overlaySrc}
                               alt=""
                               aria-hidden
-                              className="absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-200 ease-in-out"
+                              className="absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-300 ease-in-out"
                               style={{ opacity: lightboxProgressive.overlayVisible ? 1 : 0 }}
                               draggable={false}
                             />
