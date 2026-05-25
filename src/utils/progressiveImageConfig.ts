@@ -93,6 +93,24 @@ export function resolveProgressiveViewOptions(
   return base;
 }
 
+/**
+ * Lightbox / full-screen view:
+ * thumb (instant) → ~3 mid-quality steps → original
+ * With preloadParallel=true all tiers download at once (backgrounded),
+ * so each crossfade fires as soon as the next URL is in cache.
+ * maxSteps=5 subsamples ~13 tiers to 5 key steps:
+ *   [thumb, s03, s06, s09, original] → 4 crossfades × 150 ms ≈ 600 ms to full quality.
+ */
+export const LIGHTBOX_PROGRESSIVE_OPTIONS: Partial<ProgressiveViewOptions> = {
+  strategy: 'full',
+  finalTarget: 'original',
+  preloadParallel: true,
+  crossfadeMs: 150,
+  minStepMs: 0,
+  maxSteps: 5,
+  connectionAware: false,
+};
+
 export function strategyLabel(strategy: ProgressiveStrategy): string {
   switch (strategy) {
     case 'step-on-load':

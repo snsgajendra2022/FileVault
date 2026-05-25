@@ -311,9 +311,6 @@ export class ImagePreloadManager {
       }
     }
 
-    if (removed > 0) {
-      console.log(`[ImagePreloadManager] Cleaned up ${removed} cached images`);
-    }
   }
 
   /**

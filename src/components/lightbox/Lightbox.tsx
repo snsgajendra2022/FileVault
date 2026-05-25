@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   FaTimes,
@@ -10,7 +10,9 @@ import {
   FaExclamationTriangle,
 } from 'react-icons/fa';
 import LightboxImage from './LightboxImage';
+import LightboxProgressiveView from './LightboxProgressiveView';
 import { getImagePreloadManager } from '../../utils/imagePreloader/ImagePreloadManager';
+import type { UserImageWithVariants } from '../../utils/progressiveImageVariants';
 
 export interface LightboxItem {
   id: number | string;
@@ -18,6 +20,8 @@ export interface LightboxItem {
   thumbnailSrc?: string | null;
   alt: string;
   filename?: string;
+  /** When set (with variants from API), lightbox steps s01 → … → original. */
+  progressiveImage?: UserImageWithVariants;
 }
 
 interface LightboxProps {
@@ -28,6 +32,17 @@ interface LightboxProps {
   /** Called to perform the actual download. Should return a Promise. */
   onDownload?: (item: LightboxItem) => Promise<void>;
   renderActions?: (item: LightboxItem) => React.ReactNode;
+  /** Fired when the visible slide changes (arrows, swipe, thumb strip). */
+  onIndexChange?: (index: number) => void;
+  /** Server-side total when known (e.g. album image count). */
+  totalCount?: number;
+  /** More items exist beyond the current `items` array. */
+  hasMoreItems?: boolean;
+  /** Request the next page (e.g. album infinite query). */
+  onLoadMore?: () => void;
+  isLoadingMore?: boolean;
+  /** When false, navigation stops at first/last instead of wrapping. Default false. */
+  loop?: boolean;
 }
 
 type DownloadState = 'idle' | 'downloading' | 'done' | 'error';
@@ -36,6 +51,9 @@ const PRELOAD_NEXT = 2;
 const PRELOAD_PREV = 1;
 const MAX_CACHE = 100;
 
+const LOAD_MORE_THRESHOLD = 2;
+const THUMB_STRIP_RADIUS = 12;
+
 const Lightbox: React.FC<LightboxProps> = ({
   items,
   initialIndex,
@@ -43,12 +61,23 @@ const Lightbox: React.FC<LightboxProps> = ({
   onClose,
   onDownload,
   renderActions,
+  onIndexChange,
+  totalCount,
+  hasMoreItems = false,
+  onLoadMore,
+  isLoadingMore = false,
+  loop = false,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [dlState, setDlState] = useState<DownloadState>('idle');
   const doneTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const preloadNeighborTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+  const onIndexChangeRef = useRef(onIndexChange);
+  onIndexChangeRef.current = onIndexChange;
+  const onLoadMoreRef = useRef(onLoadMore);
+  onLoadMoreRef.current = onLoadMore;
 
   const manager = getImagePreloadManager({
     preloadNext: PRELOAD_NEXT,
@@ -67,24 +96,94 @@ const Lightbox: React.FC<LightboxProps> = ({
     if (doneTimerRef.current) clearTimeout(doneTimerRef.current);
   }, [currentIndex]);
 
-  // Cleanup timer on unmount
-  useEffect(() => () => { if (doneTimerRef.current) clearTimeout(doneTimerRef.current); }, []);
+  // Cleanup timers on unmount
+  useEffect(() => () => {
+    if (doneTimerRef.current) clearTimeout(doneTimerRef.current);
+    if (preloadNeighborTimerRef.current) clearTimeout(preloadNeighborTimerRef.current);
+  }, []);
 
-  // Preload sliding window
+  // Preload only neighbors — debounced so rapid navigation doesn't flood requests
   useEffect(() => {
     if (!isOpen || items.length === 0) return;
-    const urls = items.map((i) => i.src).filter(Boolean) as string[];
-    manager.preloadForIndex(currentIndex, urls).catch(() => { });
+    if (preloadNeighborTimerRef.current) clearTimeout(preloadNeighborTimerRef.current);
+    preloadNeighborTimerRef.current = setTimeout(() => {
+      const start = Math.max(0, currentIndex - PRELOAD_PREV);
+      const end = Math.min(items.length, currentIndex + PRELOAD_NEXT + 1);
+      const urls = items
+        .slice(start, end)
+        .map((i) => i.thumbnailSrc || i.src)
+        .filter(Boolean) as string[];
+      manager.preloadForIndex(currentIndex - start, urls).catch(() => {});
+    }, 100);
+    return () => {
+      if (preloadNeighborTimerRef.current) clearTimeout(preloadNeighborTimerRef.current);
+    };
   }, [currentIndex, items, isOpen]);
 
-  const goTo = useCallback((index: number) => {
+  const maybeLoadMore = useCallback(
+    (index: number) => {
+      if (!hasMoreItems || isLoadingMore) return;
+      if (index >= items.length - LOAD_MORE_THRESHOLD) onLoadMoreRef.current?.();
+    },
+    [hasMoreItems, isLoadingMore, items.length]
+  );
+
+  const notifyIndexChange = useCallback(
+    (next: number) => {
+      requestAnimationFrame(() => {
+        onIndexChangeRef.current?.(next);
+        maybeLoadMore(next);
+      });
+    },
+    [maybeLoadMore]
+  );
+
+  const goTo = useCallback(
+    (index: number) => {
+      const total = items.length;
+      if (!total) return;
+      let next: number;
+      if (loop) {
+        next = (index + total) % total;
+      } else {
+        next = Math.max(0, Math.min(index, total - 1));
+      }
+      if (next === currentIndex) return;
+      setCurrentIndex(next);
+      notifyIndexChange(next);
+    },
+    [items.length, loop, currentIndex, notifyIndexChange]
+  );
+
+  const goPrev = useCallback(() => {
     const total = items.length;
     if (!total) return;
-    setCurrentIndex((index + total) % total);
-  }, [items.length]);
+    if (currentIndex <= 0) {
+      if (loop) goTo(total - 1);
+      return;
+    }
+    goTo(currentIndex - 1);
+  }, [currentIndex, goTo, loop, items.length]);
 
-  const goPrev = useCallback(() => goTo(currentIndex - 1), [currentIndex, goTo]);
-  const goNext = useCallback(() => goTo(currentIndex + 1), [currentIndex, goTo]);
+  const goNext = useCallback(() => {
+    const total = items.length;
+    if (!total) return;
+    if (currentIndex >= total - 1) {
+      if (hasMoreItems) {
+        onLoadMoreRef.current?.();
+      } else if (loop) {
+        goTo(0);
+      }
+      return;
+    }
+    goTo(currentIndex + 1);
+  }, [currentIndex, goTo, loop, items.length, hasMoreItems]);
+
+  // Prefetch next API page when opening or navigating near the end of the loaded set
+  useEffect(() => {
+    if (!isOpen || items.length === 0) return;
+    maybeLoadMore(currentIndex);
+  }, [isOpen, currentIndex, items.length, maybeLoadMore]);
 
   // Keyboard nav
   useEffect(() => {
@@ -132,10 +231,19 @@ const Lightbox: React.FC<LightboxProps> = ({
     }
   }, [onDownload, dlState, items, currentIndex]);
 
+  const total = items.length;
+  const thumbStripSlice = useMemo(() => {
+    if (total <= 1) return { items: [] as LightboxItem[], offset: 0 };
+    const start = Math.max(0, currentIndex - THUMB_STRIP_RADIUS);
+    const end = Math.min(total, currentIndex + THUMB_STRIP_RADIUS + 1);
+    return { items: items.slice(start, end), offset: start };
+  }, [items, currentIndex, total]);
+
   if (!isOpen || items.length === 0) return null;
   const current = items[currentIndex];
   if (!current) return null;
-  const total = items.length;
+  const displayTotal = totalCount != null && totalCount > total ? totalCount : total;
+  const atEndLoading = hasMoreItems && isLoadingMore && currentIndex >= total - 1;
 
   // ── Download button appearance ──────────────────────────────────────────
   const dlConfig = {
@@ -157,7 +265,8 @@ const Lightbox: React.FC<LightboxProps> = ({
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 bg-black/50">
         <p className="text-white/60 text-sm tabular-nums shrink-0">
-          {currentIndex + 1} / {total}
+          {currentIndex + 1} / {displayTotal}
+          {hasMoreItems && total < displayTotal ? '+' : ''}
         </p>
         <p className="text-white text-sm font-medium truncate mx-4 flex-1 text-center">
           {current.filename || current.alt}
@@ -202,12 +311,25 @@ const Lightbox: React.FC<LightboxProps> = ({
           </button>
         )}
 
-        <div className="w-full h-full">
-          <LightboxImage
-            src={current.src}
-            thumbnailSrc={current.thumbnailSrc}
-            alt={current.alt}
-          />
+        <div className="w-full h-full relative">
+          {current.progressiveImage ? (
+            <LightboxProgressiveView
+              image={current.progressiveImage}
+              alt={current.alt}
+            />
+          ) : (
+            <LightboxImage
+              src={current.src}
+              thumbnailSrc={current.thumbnailSrc}
+              alt={current.alt}
+            />
+          )}
+          {atEndLoading && (
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-sm text-white/90">
+              <FaSpinner className="animate-spin" />
+              Loading more…
+            </div>
+          )}
         </div>
 
         {total > 1 && (
@@ -232,9 +354,13 @@ const Lightbox: React.FC<LightboxProps> = ({
 
       {/* ── Thumbnail strip ── */}
       {total > 1 && (
-        <div className="flex-shrink-0 flex gap-2 overflow-x-auto px-4 py-3 bg-black/50"
+        <div className="flex-shrink-0 flex gap-2 overflow-x-auto px-4 py-3 bg-black/50 items-center"
           style={{ scrollbarWidth: 'none' }}>
-          {items.map((item, idx) => {
+          {thumbStripSlice.offset > 0 && (
+            <span className="text-white/40 text-xs px-1 shrink-0">+{thumbStripSlice.offset}</span>
+          )}
+          {thumbStripSlice.items.map((item, localIdx) => {
+            const idx = thumbStripSlice.offset + localIdx;
             const thumb = item.thumbnailSrc || item.src;
             const isActive = idx === currentIndex;
             return (
@@ -247,12 +373,17 @@ const Lightbox: React.FC<LightboxProps> = ({
                 aria-label={`Go to image ${idx + 1}`}
               >
                 {thumb
-                  ? <img src={thumb} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  ? <img src={thumb} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                   : <div className="w-full h-full bg-white/20 flex items-center justify-center text-white text-xs">{idx + 1}</div>
                 }
               </button>
             );
           })}
+          {thumbStripSlice.offset + thumbStripSlice.items.length < total && (
+            <span className="text-white/40 text-xs px-1 shrink-0">
+              +{total - thumbStripSlice.offset - thumbStripSlice.items.length}
+            </span>
+          )}
         </div>
       )}
 

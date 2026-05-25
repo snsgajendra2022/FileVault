@@ -73,6 +73,8 @@ declare module 'react-icons/fa' {
   export const FaCopy: ComponentType<IconProps>;
   export const FaBarcode: ComponentType<IconProps>;
   export const FaVideo: ComponentType<IconProps>;
+  export const FaPlay: ComponentType<IconProps>;
+  export const FaPlayCircle: ComponentType<IconProps>;
   export const FaFolder: ComponentType<IconProps>;
   export const FaFolderOpen: ComponentType<IconProps>;
   export const FaChevronLeft: ComponentType<IconProps>;

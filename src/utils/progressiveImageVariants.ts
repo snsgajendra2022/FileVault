@@ -52,6 +52,7 @@ export function getThumbnailSrc(image: UserImageWithVariants): string {
   }
   const ordered = getOrderedVariantUrls(image);
   if (ordered.length > 0) return ordered[0];
+  if (v?.recommendedUrl) return v.recommendedUrl;
   return image.previewUrl || '';
 }
 
@@ -72,13 +73,18 @@ export function getOriginalViewSrc(image: UserImageWithVariants): string {
   );
 }
 
-/** Lightbox ladder: s01 → s02 → … → final (deduped, in order). */
+/** Lightbox ladder: thumb → s01 → … → recommended → final (deduped, in order). */
 export function getProgressiveLadderUrls(
   image: UserImageWithVariants,
   finalTarget: 'original' | 'recommended' = 'original'
 ): string[] {
   const urls: string[] = [];
   const seen = new Set<string>();
+  const thumb = getThumbnailSrc(image);
+  if (thumb) {
+    seen.add(thumb);
+    urls.push(thumb);
+  }
   for (const url of getOrderedVariantUrls(image)) {
     if (url && !seen.has(url)) {
       seen.add(url);
@@ -86,6 +92,10 @@ export function getProgressiveLadderUrls(
     }
   }
   const recommended = image.variants?.recommendedUrl;
+  if (recommended && !seen.has(recommended)) {
+    seen.add(recommended);
+    urls.push(recommended);
+  }
   const original = getOriginalViewSrc(image);
   const final =
     finalTarget === 'recommended' && recommended

@@ -106,11 +106,22 @@ export function useProgressiveImageSrc(
   const applyStep = useCallback(
     async (url: string, index: number, total: number, signal: { cancelled: boolean }) => {
       const opts = optionsRef.current;
-      if (opts.crossfadeMs > 0 && displaySrcRef.current && displaySrcRef.current !== url) {
+      if (!url || signal.cancelled) return;
+
+      const sameAsDisplay = displaySrcRef.current === url;
+      const useCrossfade =
+        opts.crossfadeMs > 0 && displaySrcRef.current && !sameAsDisplay;
+
+      if (useCrossfade) {
+        const loaded = await preloadImageUrl(url, signal);
+        if (signal.cancelled || !loaded) return;
         if (crossfadeTimeoutRef.current) clearTimeout(crossfadeTimeoutRef.current);
         setOverlaySrc(url);
         setOverlayVisible(false);
-        await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+        await new Promise<void>((r) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => r()))
+        );
+        if (signal.cancelled) return;
         setOverlayVisible(true);
         await delay(opts.crossfadeMs);
         if (signal.cancelled) return;
@@ -118,10 +129,13 @@ export function useProgressiveImageSrc(
         setBaseSrc(url);
         setOverlaySrc(null);
         setOverlayVisible(false);
-      } else {
+      } else if (!sameAsDisplay) {
+        const loaded = await preloadImageUrl(url, signal);
+        if (signal.cancelled || !loaded) return;
         displaySrcRef.current = url;
         setBaseSrc(url);
       }
+
       setStepIndex(index);
       setTotalSteps(total);
       setIsUpgrading(index < total - 1);
@@ -184,6 +198,11 @@ export function useProgressiveImageSrc(
     const signal = { cancelled: false };
 
     const runLadder = async () => {
+      // Debounce: if the user navigates away within 130 ms, do not fire any
+      // variant requests for this image — thumbnail is already visible.
+      await delay(130);
+      if (signal.cancelled || ladderRunRef.current !== runId) return;
+
       if (ladder.length <= 1) {
         const only = getOriginalViewSrc(currentImage) || fallbackStaticSrc(currentImage);
         if (only && only !== first && (await preloadImageUrl(only, signal))) {
@@ -195,7 +214,7 @@ export function useProgressiveImageSrc(
         return;
       }
 
-      if (!canStartVariantLadder(currentImage)) {
+      if (!canStartVariantLadder(currentImage) && ladder.length <= 1) {
         const original = getOriginalViewSrc(currentImage) || first;
         if (original !== first && (await preloadImageUrl(original, signal))) {
           if (!signal.cancelled && ladderRunRef.current === runId) {
@@ -206,8 +225,13 @@ export function useProgressiveImageSrc(
         return;
       }
 
+      // Preload steps in background while sequential display runs.
+      // Start with the next 2 steps immediately (high priority), then the rest.
       if (opts.preloadParallel) {
-        preloadManyParallel(ladder.slice(1), signal);
+        preloadManyParallel(ladder.slice(1, 3), signal); // steps 1-2 first (most urgent)
+        setTimeout(() => {
+          if (!signal.cancelled) preloadManyParallel(ladder.slice(3), signal); // rest low-priority
+        }, 80);
       }
 
       for (let i = 1; i < ladder.length; i++) {
