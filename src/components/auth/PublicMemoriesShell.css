@@ -1,0 +1,96 @@
+/* Ambient background for public memories / auth pages */
+
+.om-public-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+html.dark .om-public-grain {
+  opacity: 0.04;
+}
+
+.om-public-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+}
+
+.om-public-orb-violet {
+  width: 24rem;
+  height: 24rem;
+  top: -10rem;
+  right: -10rem;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.22), transparent 70%);
+  animation: om-float-a 25s infinite ease-in-out;
+}
+
+.om-public-orb-fuchsia {
+  width: 20rem;
+  height: 20rem;
+  top: 50%;
+  left: -8rem;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.14), transparent 70%);
+  animation: om-float-b 22s infinite ease-in-out;
+}
+
+.om-public-orb-indigo {
+  width: 16rem;
+  height: 16rem;
+  bottom: 0;
+  right: 25%;
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.12), transparent 70%);
+  animation: om-float-c 30s infinite ease-in-out;
+}
+
+html.dark .om-public-orb-violet {
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.35), transparent 70%);
+}
+
+html.dark .om-public-orb-fuchsia {
+  background: radial-gradient(circle, rgba(192, 38, 211, 0.22), transparent 70%);
+}
+
+html.dark .om-public-orb-indigo {
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.18), transparent 70%);
+}
+
+@keyframes om-float-a {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-4vw, 6vh);
+  }
+}
+
+@keyframes om-float-b {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(6vw, -4vh);
+  }
+}
+
+@keyframes om-float-c {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-5vw, -6vh);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .om-public-orb {
+    animation: none !important;
+  }
+}

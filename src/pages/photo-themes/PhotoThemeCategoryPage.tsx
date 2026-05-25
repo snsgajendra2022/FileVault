@@ -764,9 +764,23 @@ const PageEditorCard: React.FC<{
   const logoX = state.style?.logoPositionX ?? getLogoPreset(state.style?.logoPosition).x;
   const logoY = state.style?.logoPositionY ?? getLogoPreset(state.style?.logoPosition).y;
 
+  const startOverlayDrag = React.useCallback(
+    (id: string, clientX: number, clientY: number, startPX: number, startPY: number) => {
+      setOverlayDrag({ id, startX: clientX, startY: clientY, startPX, startPY });
+    },
+    [],
+  );
+
+  const startLogoDrag = React.useCallback(
+    (clientX: number, clientY: number, startPX: number, startPY: number) => {
+      setLogoDrag({ startX: clientX, startY: clientY, startPX, startPY });
+    },
+    [],
+  );
+
   React.useEffect(() => {
     if (!logoDrag) return;
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       const el = previewRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
@@ -778,17 +792,19 @@ const PageEditorCard: React.FC<{
       onChangeRef.current({ ...s, style: { ...s.style, logoPositionX: newX, logoPositionY: newY } });
     };
     const onUp = () => setLogoDrag(null);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
     return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
     };
   }, [logoDrag]);
 
   React.useEffect(() => {
     if (!overlayDrag) return;
-    const onMove = (e: MouseEvent) => {
+    const onMove = (e: PointerEvent) => {
       const el = previewRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
@@ -807,11 +823,13 @@ const PageEditorCard: React.FC<{
       });
     };
     const onUp = () => setOverlayDrag(null);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
     return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
     };
   }, [overlayDrag]);
 
@@ -1015,8 +1033,8 @@ const PageEditorCard: React.FC<{
                 className={`relative w-[min(300px,80vw)] sm:w-[340px] lg:w-[380px] aspect-[3/4] rounded-sm overflow-hidden flex items-center justify-center transition-all duration-500 album-builder-paper-texture border border-white/20 shadow-inner ${state.style?.subtleAnimation ? 'cover-fade-in' : ''} ${state.style?.darkModeCover ? 'brightness-90' : ''}`}
                 style={state.style?.vignette && previewTab === 'photo' ? { boxShadow: 'inset 0 0 80px rgba(0,0,0,0.35)' } : undefined}
               >
-                <div className={`absolute inset-0 z-40 grid-system-quantum ${showStudioGrid ? 'active' : ''}`} />
-                <div className="album-builder-dynamic-light" />
+                <div className={`absolute inset-0 z-40 grid-system-quantum pointer-events-none ${showStudioGrid ? 'active' : ''}`} />
+                <div className="album-builder-dynamic-light pointer-events-none" />
             {previewTab === 'text' ? (
               <>
                 <div
@@ -1111,7 +1129,7 @@ const PageEditorCard: React.FC<{
                 </div>
                 {state.style?.logoDataUrl && (
                   <div
-                    className="absolute z-10 select-none"
+                    className="absolute z-50 select-none touch-none"
                     style={{
                       left: `${logoX}%`,
                       top: `${logoY}%`,
@@ -1120,15 +1138,12 @@ const PageEditorCard: React.FC<{
                       height: state.style?.logoSize ?? 60,
                       cursor: logoDrag ? 'grabbing' : 'grab',
                     }}
-                    onMouseDown={(e) => {
+                    onPointerDown={(e) => {
                       if (e.button !== 0) return;
                       e.preventDefault();
-                      setLogoDrag({
-                        startX: e.clientX,
-                        startY: e.clientY,
-                        startPX: logoX,
-                        startPY: logoY,
-                      });
+                      e.stopPropagation();
+                      startLogoDrag(e.clientX, e.clientY, logoX, logoY);
+                      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                     }}
                   >
                     <img
@@ -1142,36 +1157,39 @@ const PageEditorCard: React.FC<{
                 {(state.style?.textSideOverlays ?? []).map((o) => (
                   <div
                     key={o.id}
-                    className="absolute z-20 flex max-w-[min(92%,280px)] flex-col items-stretch gap-0.5"
+                    className="absolute z-50 flex max-w-[min(92%,280px)] flex-col items-stretch gap-0.5 touch-none"
                     style={{
                       left: `${o.x}%`,
                       top: `${o.y}%`,
                       transform: 'translate(-50%, -50%)',
+                      cursor: overlayDrag?.id === o.id ? 'grabbing' : 'grab',
+                    }}
+                    onPointerDown={(e) => {
+                      if (e.button !== 0) return;
+                      if ((e.target as HTMLElement).closest('textarea')) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      startOverlayDrag(o.id, e.clientX, e.clientY, o.x, o.y);
+                      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                     }}
                   >
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        className={`flex h-6 shrink-0 items-center justify-center rounded-md border border-white/40 bg-black/30 text-white/90 shadow backdrop-blur-sm ${
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/40 bg-black/40 text-white/90 shadow backdrop-blur-sm ${
                           overlayDrag?.id === o.id ? 'cursor-grabbing' : 'cursor-grab'
                         }`}
                         aria-label={t('dragFloatingHint')}
-                        onMouseDown={(e) => {
+                        onPointerDown={(e) => {
                           if (e.button !== 0) return;
                           e.preventDefault();
                           e.stopPropagation();
-                          setOverlayDrag({
-                            id: o.id,
-                            startX: e.clientX,
-                            startY: e.clientY,
-                            startPX: o.x,
-                            startPY: o.y,
-                          });
+                          startOverlayDrag(o.id, e.clientX, e.clientY, o.x, o.y);
+                          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                         }}
                       >
-                        <FaGripVertical className="h-3 w-3" aria-hidden />
+                        <FaGripVertical className="h-3.5 w-3.5" aria-hidden />
                       </button>
-                      {/* type="textarea" */}
                       <textarea
                         value={o.text}
                         onChange={(e) => {
@@ -1186,8 +1204,8 @@ const PageEditorCard: React.FC<{
                             },
                           });
                         }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        className="min-w-0 flex-1 rounded-lg border border-white/35 bg-black/30 px-2 py-1 text-[11px] text-white shadow-md backdrop-blur-sm placeholder:text-white/45 focus:border-white/60 focus:outline-none focus:ring-1 focus:ring-white/40"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        className="min-w-0 flex-1 rounded-lg border border-white/35 bg-black/30 px-2 py-1 text-[11px] text-white shadow-md backdrop-blur-sm placeholder:text-white/45 focus:border-white/60 focus:outline-none focus:ring-1 focus:ring-white/40 cursor-text"
                         style={{
                           fontSize: o.fontSize ?? 13,
                           color: o.color ?? '#f8fafc',
@@ -1236,7 +1254,7 @@ const PageEditorCard: React.FC<{
                 )}
                 {state.style?.logoDataUrl && (
                   <div
-                    className="absolute z-10 select-none"
+                    className="absolute z-50 select-none touch-none"
                     style={{
                       left: `${logoX}%`,
                       top: `${logoY}%`,
@@ -1245,15 +1263,12 @@ const PageEditorCard: React.FC<{
                       height: state.style?.logoSize ?? 60,
                       cursor: logoDrag ? 'grabbing' : 'grab',
                     }}
-                    onMouseDown={(e) => {
+                    onPointerDown={(e) => {
                       if (e.button !== 0) return;
                       e.preventDefault();
-                      setLogoDrag({
-                        startX: e.clientX,
-                        startY: e.clientY,
-                        startPX: logoX,
-                        startPY: logoY,
-                      });
+                      e.stopPropagation();
+                      startLogoDrag(e.clientX, e.clientY, logoX, logoY);
+                      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                     }}
                   >
                     <img

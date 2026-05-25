@@ -6,6 +6,24 @@ import { useAuth } from '../../state/context/AuthContext';
 import toast from 'react-hot-toast';
 import { FaEye, FaEyeSlash, FaUser, FaEnvelope, FaPhone, FaBuilding, FaBriefcase, FaShieldAlt, FaArrowRight, FaArrowLeft, FaSave, FaStar } from 'react-icons/fa';
 import api from '../../api/client/axiosInstance';
+import PublicMemoriesShell from '../../components/auth/PublicMemoriesShell';
+import {
+  omBadge,
+  omCard,
+  omCardTitle,
+  omCtaSolid,
+  omHeading,
+  omHeroTitle,
+  omInput,
+  omInputPlain,
+  omLabel,
+  omLead,
+  omLinkAccent,
+  omLoadingPage,
+  omMuted,
+  omNavLink,
+  omPrimaryBtn,
+} from '../../components/auth/publicMemoriesTheme';
 
 interface RegistrationData {
   username: string;
@@ -46,10 +64,10 @@ const RegisterPage = () => {
   const { register, user, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  const inputBase =
-    'w-full rounded-xl border bg-white/5 px-4 py-3.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/25 transition-all duration-200';
-  const inputWithIcon =
-    'w-full rounded-xl border bg-white/5 py-3.5 pl-12 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/25 transition-all duration-200';
+  const inputBase = `${omInputPlain} duration-200`;
+  const inputWithIcon = `${omInput} duration-200`;
+  const inputErr = 'border-rose-400/70';
+  const inputOk = 'border-slate-200 dark:border-white/10';
 
   // Handle redirect based on user type after successful registration or if already authenticated
   useEffect(() => {
@@ -227,29 +245,29 @@ const RegisterPage = () => {
   // Show loading spinner while checking authentication
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0c] flex flex-col items-center justify-center gap-4">
+      <div className={omLoadingPage}>
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-lg font-black text-white shadow-lg shadow-violet-500/30 animate-pulse">
           OM
         </div>
-        <div className="h-1.5 w-24 rounded-full bg-white/10 overflow-hidden">
+        <div className="h-1.5 w-24 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
           <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 animate-pulse" />
         </div>
-        <p className="text-xs text-slate-500">{t('registerPage.creatingAccount')}</p>
+        <p className={`text-xs ${omMuted}`}>{t('registerPage.creatingAccount')}</p>
       </div>
     );
   }
 
   const renderStep1 = () => (
     <div className="space-y-6">
-      <h3 className="text-lg font-bold text-white">{t('registerPage.personalInformation')}</h3>
+      <h3 className={`text-lg font-bold ${omHeading}`}>{t('registerPage.personalInformation')}</h3>
       
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">{t('registerPage.labelFirstName')}</label>
+          <label className={`block ${omLabel}`}>{t('registerPage.labelFirstName')}</label>
           <input
             type="text"
             required
-            className={`${inputBase} ${errors.firstName ? 'border-rose-400/70' : 'border-white/10'}`}
+            className={`${inputBase} ${errors.firstName ? inputErr : inputOk}`}
             placeholder={t('registerPage.placeholderFirstName')}
             value={formData.firstName}
             onChange={(e) => handleFieldChange('firstName', e.target.value)}
@@ -258,11 +276,11 @@ const RegisterPage = () => {
           {errors.firstName && <p className="text-sm text-rose-400">{errors.firstName}</p>}
         </div>
         <div className="space-y-2">
-          <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">{t('registerPage.labelLastName')}</label>
+          <label className={`block ${omLabel}`}>{t('registerPage.labelLastName')}</label>
           <input
             type="text"
             required
-            className={`${inputBase} ${errors.lastName ? 'border-rose-400/70' : 'border-white/10'}`}
+            className={`${inputBase} ${errors.lastName ? inputErr : inputOk}`}
             placeholder={t('registerPage.placeholderLastName')}
             value={formData.lastName}
             onChange={(e) => handleFieldChange('lastName', e.target.value)}
@@ -273,7 +291,7 @@ const RegisterPage = () => {
       </div>
 
       <div className="space-y-2">
-        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">{t('registerPage.labelUsername')}</label>
+        <label className={`block ${omLabel}`}>{t('registerPage.labelUsername')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <FaUser className="h-4 w-4 text-slate-500 group-focus-within:text-violet-300 transition-colors" />
@@ -281,7 +299,7 @@ const RegisterPage = () => {
           <input
             type="text"
             required
-            className={`${inputWithIcon} ${errors.username ? 'border-rose-400/70' : 'border-white/10'}`}
+            className={`${inputWithIcon} ${errors.username ? inputErr : inputOk}`}
             placeholder={t('registerPage.placeholderUsername')}
             value={formData.username}
             onChange={(e) => handleFieldChange('username', e.target.value)}
@@ -292,7 +310,7 @@ const RegisterPage = () => {
       </div>
 
       <div className="space-y-2">
-        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">{t('registerPage.labelEmail')}</label>
+        <label className={`block ${omLabel}`}>{t('registerPage.labelEmail')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <FaEnvelope className="h-4 w-4 text-slate-500 group-focus-within:text-violet-300 transition-colors" />
@@ -300,7 +318,7 @@ const RegisterPage = () => {
           <input
             type="email"
             required
-            className={`${inputWithIcon} ${errors.email ? 'border-rose-400/70' : 'border-white/10'}`}
+            className={`${inputWithIcon} ${errors.email ? inputErr : inputOk}`}
             placeholder={t('registerPage.placeholderEmail')}
             value={formData.email}
             onChange={(e) => handleFieldChange('email', e.target.value)}
@@ -311,14 +329,14 @@ const RegisterPage = () => {
       </div>
 
       <div className="space-y-2">
-        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">{t('registerPage.labelPhone')}</label>
+        <label className={`block ${omLabel}`}>{t('registerPage.labelPhone')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <FaPhone className="h-4 w-4 text-slate-500 group-focus-within:text-violet-300 transition-colors" />
           </div>
           <input
             type="tel"
-            className={`${inputWithIcon} ${errors.phone ? 'border-rose-400/70' : 'border-white/10'}`}
+            className={`${inputWithIcon} ${errors.phone ? inputErr : inputOk}`}
             placeholder={t('registerPage.placeholderPhone')}
             value={formData.phone}
             onChange={(e) => handleFieldChange('phone', e.target.value)}
@@ -329,7 +347,7 @@ const RegisterPage = () => {
       </div>
 
       <div className="space-y-2">
-        <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400">{t('registerPage.labelPassword')}</label>
+        <label className={`block ${omLabel}`}>{t('registerPage.labelPassword')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <FaShieldAlt className="h-4 w-4 text-slate-500 group-focus-within:text-violet-300 transition-colors" />
@@ -337,7 +355,7 @@ const RegisterPage = () => {
           <input
             type={showPassword ? 'text' : 'password'}
             required
-            className={`${inputWithIcon} pr-12 ${errors.password ? 'border-rose-400/70' : 'border-white/10'}`}
+            className={`${inputWithIcon} pr-12 ${errors.password ? inputErr : inputOk}`}
             placeholder={t('registerPage.placeholderPassword')}
             value={formData.password}
             onChange={(e) => handleFieldChange('password', e.target.value)}
@@ -346,7 +364,7 @@ const RegisterPage = () => {
           <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
             <button
               type="button"
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-colors"
               onClick={() => setShowPassword(!showPassword)}
             >
               {showPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
@@ -354,14 +372,14 @@ const RegisterPage = () => {
           </div>
         </div>
         {errors.password && <p className="text-sm text-rose-400">{errors.password}</p>}
-        <div className="text-xs text-slate-500 mt-2">{t('registerPage.passwordRulesHint')}</div>
+        <div className={`text-xs mt-2 ${omMuted}`}>{t('registerPage.passwordRulesHint')}</div>
       </div>
 
       <div className="pt-4">
         <button
           type="button"
           onClick={nextStep}
-          className="group relative w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-violet-500/25 transition-all hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:ring-offset-2 focus:ring-offset-[#0a0a0c]"
+          className={omPrimaryBtn}
         >
           {t('registerPage.next')}
           <FaArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -375,79 +393,67 @@ const RegisterPage = () => {
       <h3 className="text-2xl font-bold text-white/90 mb-6">{t('registerPage.businessInformation')}</h3>
       
       <div className="space-y-2">
-        <label className="block text-sm font-semibold text-white/90">{t('registerPage.labelAccountType')}</label>
+        <label className={`block text-sm font-semibold ${omHeading}`}>{t('registerPage.labelAccountType')}</label>
         <select
-          className="w-full px-4 py-4 bg-black border border-white/20 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none"
+          className={`${inputBase} py-4 rounded-2xl appearance-none`}
           value={formData.accountType}
           onChange={(e) => handleFieldChange('accountType', e.target.value)}
           style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
         >
-          <option value="FREE" className="bg-gray-800 text-white">
+          <option value="FREE">
             {t('registerPage.accountTypeFree')}
           </option>
         </select>
       </div>
 
       <div className="space-y-2">
-        <label className="block text-sm font-semibold text-white/90">{t('registerPage.labelCompany')}</label>
+        <label className={`block text-sm font-semibold ${omHeading}`}>{t('registerPage.labelCompany')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <FaBuilding className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
+            <FaBuilding className="h-5 w-5 text-slate-500 group-focus-within:text-violet-600 dark:group-focus-within:text-violet-300 transition-colors" />
           </div>
           <input
             type="text"
-            className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
-              errors.company ? 'border-red-400' : 'border-white/20'
-            }`}
+            className={`${inputWithIcon} py-4 rounded-2xl ${errors.company ? inputErr : inputOk}`}
             placeholder={t('registerPage.placeholderCompany')}
             value={formData.company}
             onChange={(e) => handleFieldChange('company', e.target.value)}
             style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
           />
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10"></div>
         </div>
-        {errors.company && <p className="text-sm text-red-300">{errors.company}</p>}
+        {errors.company && <p className="text-sm text-rose-500 dark:text-rose-400">{errors.company}</p>}
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-white/90">{t('registerPage.labelRole')}</label>
+          <label className={`block text-sm font-semibold ${omHeading}`}>{t('registerPage.labelRole')}</label>
           <div className="relative group">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <FaBriefcase className="h-5 w-5 text-white group-focus-within:text-white transition-colors drop-shadow-sm text-icon" />
+              <FaBriefcase className="h-5 w-5 text-slate-500 group-focus-within:text-violet-600 dark:group-focus-within:text-violet-300 transition-colors" />
             </div>
             <select
-              className={`w-full pl-12 pr-4 py-4 bg-white/10 border rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
-                errors.role ? 'border-red-400' : 'border-white/20'
-              }`}
+              className={`${inputWithIcon} py-4 rounded-2xl appearance-none ${errors.role ? inputErr : inputOk}`}
               value={formData.role}
               onChange={(e) => handleFieldChange('role', e.target.value)}
               style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
             >
-              <option value="USERS" className="bg-gray-800 text-white">
-                {t('registerPage.roleRegular')}
-              </option>
-              <option value="STUDIO" className="bg-gray-800 text-white">
-                {t('registerPage.roleStudio')}
-              </option>
+              <option value="USERS">{t('registerPage.roleRegular')}</option>
+              <option value="STUDIO">{t('registerPage.roleStudio')}</option>
             </select>
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10"></div>
           </div>
-          {errors.role && <p className="text-sm text-red-300">{errors.role}</p>}
+          {errors.role && <p className="text-sm text-rose-500 dark:text-rose-400">{errors.role}</p>}
         </div>
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-white/90">{t('registerPage.labelDepartment')}</label>
+          <label className={`block text-sm font-semibold ${omHeading}`}>{t('registerPage.labelDepartment')}</label>
           <input
             type="text"
-            className={`w-full px-4 py-4 bg-white/10 border rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent backdrop-blur-sm transition-all duration-300 appearance-none ${
-              errors.department ? 'border-red-400' : 'border-white/20'
-            }`}
+            className={`${inputBase} py-4 rounded-2xl ${errors.department ? inputErr : inputOk}`}
             placeholder={t('registerPage.placeholderDepartment')}
             value={formData.department}
             onChange={(e) => handleFieldChange('department', e.target.value)}
             style={{ WebkitAppearance: 'none', MozAppearance: 'none' }}
           />
-          {errors.department && <p className="text-sm text-red-300">{errors.department}</p>}
+          {errors.department && <p className="text-sm text-rose-500 dark:text-rose-400">{errors.department}</p>}
         </div>
       </div>
 
@@ -455,7 +461,7 @@ const RegisterPage = () => {
         <button
           type="button"
           onClick={prevStep}
-          className="flex-1 group flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-white bg-white/10 border border-white/20 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all duration-300 backdrop-blur-sm"
+          className="flex-1 group flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-slate-800 dark:text-white bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/20 hover:bg-slate-200 dark:hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-300"
         >
           <div className="flex items-center">
             <FaArrowLeft className="mr-2 h-5 w-5 group-hover:-translate-x-1 transition-transform" />
@@ -466,7 +472,7 @@ const RegisterPage = () => {
           type="button"
           onClick={handleSubmit}
           disabled={loading}
-          className="flex-1 group flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
+          className={`flex-1 group flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-violet-500/20`}
         >
           {loading ? (
             <div className="flex items-center">
@@ -485,55 +491,30 @@ const RegisterPage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-slate-100 selection:bg-violet-500/40">
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-violet-600/20 blur-[100px]" />
-        <div className="absolute top-1/2 -left-32 h-80 w-80 rounded-full bg-fuchsia-600/15 blur-[90px]" />
-        <div className="absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-violet-500/10 blur-[80px]" />
-      </div>
-
-      <header className="relative z-10 border-b border-white/5 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <Link to="/memories" className="flex min-w-0 items-center gap-3 group">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-sm font-black text-white shadow-lg shadow-violet-500/30 transition-transform group-hover:scale-[1.02]">
-              OM
-            </div>
-            <div className="min-w-0">
-              <span className="block truncate text-sm font-semibold tracking-[0.2em] uppercase text-violet-300/90">
-                {t('brand.ourMemories')}
-              </span>
-              <span className="block truncate text-[10px] text-slate-500">{t('login.omFooterProduct')}</span>
-            </div>
+    <PublicMemoriesShell
+      showBrandBlock
+      headerActions={
+        <>
+          <Link to="/memories" className={`hidden sm:inline ${omNavLink}`}>
+            {t('login.omExplore')}
           </Link>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <Link
-              to="/memories"
-              className="hidden text-sm font-medium text-slate-300 hover:text-white transition-colors sm:inline"
-            >
-              {t('login.omExplore')}
-            </Link>
-            <Link
-              to="/login"
-              className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-100 transition-colors sm:px-4 sm:text-sm"
-            >
-              {t('memoriesPlatform.signIn')}
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 sm:pt-14 lg:pb-24">
+          <Link to="/login" className={`${omCtaSolid} px-3 py-2 text-xs sm:px-4 sm:text-sm`}>
+            {t('memoriesPlatform.signIn')}
+          </Link>
+        </>
+      }
+    >
         <div className="grid gap-12 lg:grid-cols-[1fr_min(32rem,100%)] lg:items-start lg:gap-16">
           <div className="hidden lg:block">
-            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-violet-200/90">
-              <FaStar className="h-3 w-3 text-amber-300" />
+            <p className={`mb-4 ${omBadge}`}>
+              <FaStar className="h-3 w-3 text-amber-500 dark:text-amber-300" />
               {t('memoriesPlatform.badge')}
             </p>
-            <h1 className="text-4xl font-bold tracking-tight md:text-5xl bg-gradient-to-br from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+            <h1 className={`text-4xl font-bold tracking-tight md:text-5xl ${omHeroTitle}`}>
               {t('registerPage.joinTitle')}
             </h1>
-            <p className="mt-5 max-w-md text-lg text-slate-400 leading-relaxed">{t('registerPage.omJoinLead')}</p>
-            <p className="mt-6 text-sm text-slate-500">{t('registerPage.joinSubtitle')}</p>
+            <p className={`mt-5 max-w-md text-lg leading-relaxed ${omLead}`}>{t('registerPage.omJoinLead')}</p>
+            <p className={`mt-6 text-sm ${omMuted}`}>{t('registerPage.joinSubtitle')}</p>
           </div>
 
           <div className="w-full max-w-2xl mx-auto lg:mx-0 lg:max-w-none">
@@ -541,37 +522,36 @@ const RegisterPage = () => {
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-base font-black text-white shadow-lg shadow-violet-500/30">
                 OM
               </div>
-              <h1 className="text-2xl font-bold text-white">{t('registerPage.joinTitle')}</h1>
-              <p className="mt-2 text-sm text-slate-400">{t('registerPage.joinSubtitle')}</p>
-              <p className="mt-1 text-xs text-slate-500">{t('registerPage.stepOf', { current: step, total: 2 })}</p>
+              <h1 className={`text-2xl font-bold ${omHeading}`}>{t('registerPage.joinTitle')}</h1>
+              <p className={`mt-2 text-sm ${omLead}`}>{t('registerPage.joinSubtitle')}</p>
+              <p className={`mt-1 text-xs ${omMuted}`}>{t('registerPage.stepOf', { current: step, total: 2 })}</p>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl shadow-black/40 backdrop-blur-sm sm:p-8">
+            <div className={`${omCard} p-6 sm:p-8`}>
               {step === 1 && renderStep1()}
               {step === 2 && renderStep2()}
             </div>
 
-            <p className="mt-8 text-center text-sm text-slate-500">
+            <p className={`mt-8 text-center text-sm ${omMuted}`}>
               {t('registerPage.alreadyHaveAccount')}{' '}
-              <Link to="/login" className="font-semibold text-violet-300 hover:text-violet-200 transition-colors">
+              <Link to="/login" className={omLinkAccent}>
                 {t('registerPage.signInHere')}
               </Link>
             </p>
 
-            <p className="mt-6 text-center text-xs text-slate-500 leading-relaxed">
+            <p className={`mt-6 text-center text-xs leading-relaxed ${omMuted}`}>
               {t('login.termsPrefix')}{' '}
-              <Link to="/privacy-policy" className="text-violet-400/90 hover:text-violet-300 underline-offset-2 hover:underline">
+              <Link to="/privacy-policy" className={`${omLinkAccent} underline-offset-2 hover:underline`}>
                 {t('login.termsOfService')}
               </Link>{' '}
               {t('login.and')}{' '}
-              <Link to="/privacy-policy" className="text-violet-400/90 hover:text-violet-300 underline-offset-2 hover:underline">
+              <Link to="/privacy-policy" className={`${omLinkAccent} underline-offset-2 hover:underline`}>
                 {t('login.privacyPolicy')}
               </Link>
             </p>
           </div>
         </div>
-      </main>
-    </div>
+    </PublicMemoriesShell>
   );
 };
 

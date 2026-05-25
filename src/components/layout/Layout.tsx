@@ -3,13 +3,13 @@ import { Outlet } from 'react-router-dom';
 import Header from '../../components/layout/Header';
 import Navigation from '../../components/layout/Navigation';
 import Sidebar from '../../components/layout/Sidebar';
-import { applyDocumentTheme, getStoredTheme, type DocumentTheme } from '../../utils/documentTheme';
+import { applyDocumentTheme, syncDocumentThemeFromStorage, type DocumentTheme } from '../../utils/documentTheme';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    applyDocumentTheme(getStoredTheme());
+    syncDocumentThemeFromStorage();
     const onStorage = (e: StorageEvent) => {
       if (e.key === 'filevault-theme' && (e.newValue === 'dark' || e.newValue === 'light')) {
         applyDocumentTheme(e.newValue);

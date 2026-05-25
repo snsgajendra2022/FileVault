@@ -1,92 +1,104 @@
 import React from 'react';
 import { IconBaseProps } from 'react-icons';
-import { FaCamera, FaImages, FaUsers, FaFolder } from 'react-icons/fa';
+import { FaCamera, FaImages, FaFolder, FaSync } from 'react-icons/fa';
 import './DashboardLoading.css';
 
-interface LoadingFeature {
+export interface LoadingFeature {
   icon: React.ComponentType<IconBaseProps>;
   label: string;
 }
 
-interface DashboardLoadingProps {
+export interface DashboardLoadingProps {
   title?: string;
   subtitle?: string;
   icon?: React.ComponentType<IconBaseProps>;
   features?: LoadingFeature[];
   showFeatures?: boolean;
   showProgress?: boolean;
+  /** Footer line under the card (StudioPro branding). */
+  brandLine?: string;
 }
 
+const DEFAULT_FEATURES: LoadingFeature[] = [
+  { icon: FaSync, label: 'Syncing Clients' },
+  { icon: FaImages, label: 'Optimizing Photos' },
+  { icon: FaFolder, label: 'Indexing Albums' },
+];
+
 const DashboardLoading: React.FC<DashboardLoadingProps> = ({
-  title = 'Loading...',
-  subtitle = 'Preparing your content...',
+  title = 'Initializing Studio Pro',
+  subtitle = 'Preparing your creative workspace...',
   icon: Icon = FaCamera,
   features,
   showFeatures = true,
   showProgress = true,
+  brandLine = 'StudioPro Creative Engine v4.0',
 }) => {
-  // Default features if none provided
-  const defaultFeatures: LoadingFeature[] = [
-    { icon: FaUsers, label: 'Clients' },
-    { icon: FaImages, label: 'Photos' },
-    { icon: FaFolder, label: 'Albums' },
-  ];
-
-  const displayFeatures = features || defaultFeatures;
+  const displayFeatures = features ?? DEFAULT_FEATURES;
 
   return (
     <div className="dashboard-loading-modern" role="status" aria-live="polite" aria-busy="true">
-      <div className="loading-background">
-        <div className="gradient-orb orb-1"></div>
-        <div className="gradient-orb orb-2"></div>
-        <div className="gradient-orb orb-3"></div>
+      <div className="dl-grain" aria-hidden="true" />
+
+      <div className="dl-scene" aria-hidden="true">
+        <div className="dl-orb dl-orb-violet" />
+        <div className="dl-orb dl-orb-fuchsia" />
+        <div className="dl-orb dl-orb-indigo" />
       </div>
-      
-      <div className="loading-content">
-        <div className="loading-icon-container">
-          <div className="icon-ring">
-            <Icon className="loading-icon" />
-          </div>
-          <div className="pulse-ring ring-1"></div>
-          <div className="pulse-ring ring-2"></div>
-          <div className="pulse-ring ring-3"></div>
-        </div>
-        
-        <div className="loading-text-container">
-          <h2 className="loading-title">{title}</h2>
-          <p className="loading-subtitle">{subtitle}</p>
-        </div>
-        
-        {showProgress && (
-          <div className="loading-progress">
-            <div className="progress-bar">
-              <div className="progress-fill"></div>
-            </div>
-            <div className="progress-dots">
-              <span className="dot dot-1"></span>
-              <span className="dot dot-2"></span>
-              <span className="dot dot-3"></span>
+
+      <main className="dl-main">
+        <div className="dl-panel">
+          <div className="dl-icon-wrap">
+            <div className="dl-pulse-ring dl-pulse-ring-1" aria-hidden="true" />
+            <div className="dl-pulse-ring dl-pulse-ring-2" aria-hidden="true" />
+            <div className="dl-pulse-ring dl-pulse-ring-3" aria-hidden="true" />
+            <div className="dl-pulse-ring dl-pulse-ring-4" aria-hidden="true" />
+            <div className="dl-icon-core">
+              <Icon className="dl-icon" aria-hidden="true" />
             </div>
           </div>
-        )}
-        
-        {showFeatures && displayFeatures.length > 0 && (
-          <div className="loading-features">
-            {displayFeatures.map((feature, index) => {
-              const FeatureIcon = feature.icon;
-              return (
-                <div key={index} className="feature-item" style={{ animationDelay: `${index * 0.2}s` }}>
-                  <FeatureIcon className="feature-icon" />
-                  <span>{feature.label}</span>
-                </div>
-              );
-            })}
+
+          <div className="dl-text">
+            <h1 className="dl-title">{title}</h1>
+            <p className="dl-subtitle">{subtitle}</p>
           </div>
-        )}
-      </div>
+
+          {showProgress && (
+            <div className="dl-progress">
+              <div className="dl-shimmer-bar" aria-hidden="true" />
+              <div className="dl-dots" aria-hidden="true">
+                <span className="dl-dot dl-dot-1" />
+                <span className="dl-dot dl-dot-2" />
+                <span className="dl-dot dl-dot-3" />
+              </div>
+            </div>
+          )}
+
+          {showFeatures && displayFeatures.length > 0 && (
+            <div className="dl-features">
+              {displayFeatures.map((feature, index) => {
+                const FeatureIcon = feature.icon;
+                return (
+                  <div
+                    key={`${feature.label}-${index}`}
+                    className="dl-chip"
+                    style={{ animationDelay: `${0.6 + index * 0.1}s` }}
+                  >
+                    <FeatureIcon className="dl-chip-icon" aria-hidden="true" />
+                    <span className="dl-chip-label">{feature.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {brandLine ? (
+          <p className="dl-brand">{brandLine}</p>
+        ) : null}
+      </main>
     </div>
   );
 };
 
 export default DashboardLoading;
-

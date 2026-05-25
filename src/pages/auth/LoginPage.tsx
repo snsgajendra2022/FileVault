@@ -17,6 +17,25 @@ import {
   FaShieldAlt,
 } from 'react-icons/fa';
 import api from '../../api/client/axiosInstance';
+import PublicMemoriesShell from '../../components/auth/PublicMemoriesShell';
+import {
+  omAltBtn,
+  omCard,
+  omCardTitle,
+  omDivider,
+  omHeading,
+  omInput,
+  omInputPlain,
+  omLabel,
+  omLead,
+  omLinkAccent,
+  omLoadingPage,
+  omMuted,
+  omNavLink,
+  omCtaSolid,
+  omPrimaryBtn,
+  omBadge,
+} from '../../components/auth/publicMemoriesTheme';
 
 const LoginPage = () => {
   const { t } = useTranslation();
@@ -134,28 +153,22 @@ const LoginPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0c] flex flex-col items-center justify-center gap-4">
+      <div className={omLoadingPage}>
         <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-lg font-black text-white shadow-lg shadow-violet-500/30 animate-pulse">
           <img src="/favicon.svg" alt={t('brand.ourMemories')} className="h-10 w-10" />
         </div>
-        <div className="h-1.5 w-24 rounded-full bg-white/10 overflow-hidden">
+        <div className="h-1.5 w-24 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
           <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 animate-pulse" />
         </div>
-        <p className="text-xs text-slate-500">{t('login.signingIn')}</p>
+        <p className={`text-xs ${omMuted}`}>{t('login.signingIn')}</p>
       </div>
     );
   }
 
-  const inputClass =
-    'w-full rounded-xl border border-white/10 bg-white/5 py-3.5 pl-12 pr-4 text-sm text-white placeholder:text-slate-500 focus:border-violet-500/40 focus:outline-none focus:ring-2 focus:ring-violet-500/25 transition-all';
-  const otpInputClass =
-    'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm text-white placeholder:text-slate-500 focus:border-violet-500/40 focus:outline-none focus:ring-2 focus:ring-violet-500/25 transition-all';
-
-  const primaryBtn =
-    'group relative w-full flex justify-center items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-violet-500/25 transition-all hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-violet-500/50 focus:ring-offset-2 focus:ring-offset-[#0a0a0c] disabled:cursor-not-allowed disabled:opacity-50';
-
-  const altOptionBtn =
-    'flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-[11px] font-medium leading-snug text-slate-200 transition-colors hover:border-violet-500/30 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-violet-500/30';
+  const inputClass = omInput;
+  const otpInputClass = omInputPlain;
+  const primaryBtn = omPrimaryBtn;
+  const altOptionBtn = omAltBtn;
 
   const switchMode = (mode: 'password' | 'emailOtp' | 'phoneOtp') => {
     setLoginMode(mode);
@@ -189,61 +202,36 @@ const LoginPage = () => {
         : t('login.phoneOtpCardSubtitle');
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-slate-100 selection:bg-violet-500/40">
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-violet-600/20 blur-[100px]" />
-        <div className="absolute top-1/2 -left-32 h-80 w-80 rounded-full bg-fuchsia-600/15 blur-[90px]" />
-        <div className="absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-violet-500/10 blur-[80px]" />
-      </div>
-
-      <header className="relative z-10 border-b border-white/5 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <Link to="/memories" className="flex min-w-0 items-center gap-3 group">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-sm font-black text-white shadow-lg shadow-violet-500/30 transition-transform group-hover:scale-[1.02]">
-              <img src="/favicon.svg" alt={t('brand.ourMemories')} className="h-7 w-7" />
-            </div>
-            <div className="min-w-0">
-              <span className="block truncate text-sm font-semibold tracking-[0.2em] uppercase text-violet-300/90">
-                {t('brand.ourMemories')}
-              </span>
-              <span className="block truncate text-[10px] text-slate-500">{t('login.omFooterProduct')}</span>
-            </div>
+    <PublicMemoriesShell
+      showBrandBlock
+      headerActions={
+        <>
+          <Link to="/memories" className={`hidden sm:inline ${omNavLink}`}>
+            {t('login.omExplore')}
           </Link>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <Link
-              to="/memories"
-              className="hidden text-sm font-medium text-slate-300 hover:text-white transition-colors sm:inline"
-            >
-              {t('login.omExplore')}
-            </Link>
-            <Link
-              to="/register"
-              className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-slate-100 transition-colors sm:px-4 sm:text-sm"
-            >
-              {t('memoriesPlatform.getStarted')}
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 sm:pt-14 lg:pb-24">
+          <Link to="/register" className={`${omCtaSolid} px-3 py-2 text-xs sm:px-4 sm:text-sm`}>
+            {t('memoriesPlatform.getStarted')}
+          </Link>
+        </>
+      }
+    >
         <div className="grid gap-12 lg:grid-cols-[1fr_min(28rem,100%)] lg:items-center lg:gap-16">
         
           
           <div className="hidden lg:block max-w-lg xl:max-w-xl">
-            <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-violet-200/90">
-              <FaStar className="h-3 w-3 text-amber-300" />
+            <p className={`mb-5 ${omBadge} text-[11px] uppercase tracking-[0.2em] px-3.5 py-1.5`}>
+              <FaStar className="h-3 w-3 text-amber-500 dark:text-amber-300" />
               {t('memoriesPlatform.badge')}
             </p>
-            <h1 className="text-4xl font-semibold tracking-tight text-white xl:text-[2.75rem] xl:leading-[1.1]">
+            <h1 className={`text-4xl font-semibold tracking-tight xl:text-[2.75rem] xl:leading-[1.1] ${omHeading}`}>
               {t('login.omSignInTitle')}
             </h1>
-            <p className="mt-6 text-base leading-relaxed text-slate-400 xl:text-lg">{t('login.omSignInLead')}</p>
-            <p className="mt-4 text-sm text-slate-500">{t('login.signInSubtitle')}</p>
+            <p className={`mt-6 text-base leading-relaxed xl:text-lg ${omLead}`}>{t('login.omSignInLead')}</p>
+            <p className={`mt-4 text-sm ${omMuted}`}>{t('login.signInSubtitle')}</p>
 
             <div className="mt-11">
-              <div className="rounded-[1.75rem] bg-gradient-to-br from-violet-500/35 via-fuchsia-500/20 to-violet-600/10 p-px shadow-[0_0_0_1px_rgba(255,255,255,0.06)]">
-                <div className="overflow-hidden rounded-[1.7rem] bg-[#070708]">
+              <div className="rounded-[1.75rem] bg-gradient-to-br from-violet-500/25 via-fuchsia-500/15 to-violet-600/10 dark:from-violet-500/35 dark:via-fuchsia-500/20 p-px shadow-[0_0_0_1px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06)]">
+                <div className="overflow-hidden rounded-[1.7rem] bg-slate-100 dark:bg-[#070708]">
                   <div className="relative aspect-[16/10] w-full overflow-hidden" aria-hidden>
                     <div className="absolute inset-0 bg-[conic-gradient(from_200deg_at_65%_15%,#5b21b6,#be185d,#0f172a,#6d28d9)] opacity-[0.92]" />
                     <div className="absolute inset-0 bg-[radial-gradient(ellipse_90%_70%_at_50%_120%,rgba(0,0,0,0.88),transparent_65%)]" />
@@ -274,7 +262,7 @@ const LoginPage = () => {
                   </div>
                 </div>
               </div>
-              <p className="mt-5 max-w-md text-xs leading-relaxed text-slate-500">{t('memoriesPlatform.heroSubtitle')}</p>
+              <p className={`mt-5 max-w-md text-xs leading-relaxed ${omMuted}`}>{t('memoriesPlatform.heroSubtitle')}</p>
             </div>
           </div>
 
@@ -283,20 +271,20 @@ const LoginPage = () => {
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-base font-black text-white shadow-lg shadow-violet-500/30">
                 <img src="/favicon.svg" alt={t('brand.ourMemories')} className="h-10 w-10" />
               </div>
-              <h1 className="text-2xl font-bold text-white">{t('login.omSignInTitle')}</h1>
-              <p className="mt-2 text-sm text-slate-400">{t('login.omSignInLead')}</p>
+              <h1 className={`text-2xl font-bold ${omHeading}`}>{t('login.omSignInTitle')}</h1>
+              <p className={`mt-2 text-sm ${omLead}`}>{t('login.omSignInLead')}</p>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl shadow-black/40 backdrop-blur-sm sm:p-8">
+            <div className={`${omCard} p-6 sm:p-8`}>
               <div className="mb-6 text-center sm:text-left">
-                <h2 className="text-xl font-bold tracking-tight text-white">{cardTitle}</h2>
-                <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">{cardSubtitle}</p>
+                <h2 className={omCardTitle}>{cardTitle}</h2>
+                <p className={`mt-1.5 text-sm leading-relaxed ${omMuted}`}>{cardSubtitle}</p>
               </div>
 
               {loginMode === 'password' && (
                 <form className="space-y-5" onSubmit={handleSubmit}>
                   <div>
-                    <label htmlFor="username" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    <label htmlFor="username" className={`mb-1.5 block ${omLabel}`}>
                       {t('login.username')}
                     </label>
                     <div className="relative">
@@ -316,7 +304,7 @@ const LoginPage = () => {
                   </div>
 
                   <div>
-                    <label htmlFor="password" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    <label htmlFor="password" className={`mb-1.5 block ${omLabel}`}>
                       {t('login.password')}
                     </label>
                     <div className="relative">
@@ -334,7 +322,7 @@ const LoginPage = () => {
                       />
                       <button
                         type="button"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-colors"
                         onClick={() => setShowPassword(!showPassword)}
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
@@ -344,16 +332,16 @@ const LoginPage = () => {
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                    <label className="flex cursor-pointer items-center gap-2 text-slate-400">
+                    <label className={`flex cursor-pointer items-center gap-2 ${omLead}`}>
                       <input
                         id="remember-me"
                         name="remember-me"
                         type="checkbox"
-                        className="h-4 w-4 rounded border-white/20 bg-white/5 text-violet-600 focus:ring-violet-500/40"
+                        className="h-4 w-4 rounded border-slate-300 dark:border-white/20 bg-white dark:bg-white/5 text-violet-600 focus:ring-violet-500/40"
                       />
                       <span>{t('login.rememberMe')}</span>
                     </label>
-                    <Link to="/forgot-password" className="font-medium text-violet-300 hover:text-violet-200 transition-colors">
+                    <Link to="/forgot-password" className={omLinkAccent}>
                       {t('login.forgotPassword')}
                     </Link>
                   </div>
@@ -377,7 +365,7 @@ const LoginPage = () => {
               {loginMode === 'emailOtp' && (
                 <form className="space-y-5" onSubmit={otpRequested ? handleVerifyOtp : handleRequestOtp}>
                   <div>
-                    <label htmlFor="email-login" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    <label htmlFor="email-login" className={`mb-1.5 block ${omLabel}`}>
                       {t('login.email')}
                     </label>
                     <div className="relative">
@@ -399,7 +387,7 @@ const LoginPage = () => {
 
                   {otpRequested && (
                     <div>
-                      <label htmlFor="otp-email" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      <label htmlFor="otp-email" className={`mb-1.5 block ${omLabel}`}>
                         {t('login.verificationOtp')}
                       </label>
                       <input
@@ -435,7 +423,7 @@ const LoginPage = () => {
                     <button
                       type="button"
                       onClick={() => setOtpRequested(false)}
-                      className="w-full py-2 text-sm text-slate-400 hover:text-white transition-colors"
+                      className={`w-full py-2 text-sm ${omLead} hover:text-slate-900 dark:hover:text-white transition-colors`}
                     >
                       {t('login.changeEmail')}
                     </button>
@@ -446,7 +434,7 @@ const LoginPage = () => {
               {loginMode === 'phoneOtp' && (
                 <form className="space-y-5" onSubmit={otpRequested ? handleVerifyOtp : handleRequestOtp}>
                   <div>
-                    <label htmlFor="phone-login" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    <label htmlFor="phone-login" className={`mb-1.5 block ${omLabel}`}>
                       {t('login.mobileNumber')}
                     </label>
                     <div className="relative">
@@ -468,7 +456,7 @@ const LoginPage = () => {
 
                   {otpRequested && (
                     <div>
-                      <label htmlFor="otp-phone" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      <label htmlFor="otp-phone" className={`mb-1.5 block ${omLabel}`}>
                         {t('login.verificationOtp')}
                       </label>
                       <input
@@ -504,7 +492,7 @@ const LoginPage = () => {
                     <button
                       type="button"
                       onClick={() => setOtpRequested(false)}
-                      className="w-full py-2 text-sm text-slate-400 hover:text-white transition-colors"
+                      className={`w-full py-2 text-sm ${omLead} hover:text-slate-900 dark:hover:text-white transition-colors`}
                     >
                       {t('login.changeMobile')}
                     </button>
@@ -513,8 +501,8 @@ const LoginPage = () => {
               )}
 
               {hasAlternateOptions && (
-                <div className="mt-8 border-t border-white/10 pt-6">
-                  <p className="mb-4 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <div className={`mt-8 ${omDivider} pt-6`}>
+                  <p className={`mb-4 text-center text-xs font-semibold uppercase tracking-wide ${omMuted}`}>
                     {t('login.otherSignInOptions')}
                   </p>
                   <div className={alternateOptionsGridClass}>
@@ -540,29 +528,28 @@ const LoginPage = () => {
                 </div>
               )}
 
-              <p className="mt-8 text-center text-sm text-slate-500">
+              <p className={`mt-8 text-center text-sm ${omMuted}`}>
                 {t('login.noAccount')}{' '}
-                <Link to="/register" className="font-semibold text-violet-300 hover:text-violet-200">
+                <Link to="/register" className={omLinkAccent}>
                   {t('login.signUpHere')}
                 </Link>
               </p>
             </div>
 
-            <p className="mt-8 text-center text-xs text-slate-500 leading-relaxed">
+            <p className={`mt-8 text-center text-xs leading-relaxed ${omMuted}`}>
               {t('login.termsPrefix')}{' '}
-              <Link to="/privacy-policy" className="text-violet-400/90 hover:text-violet-300 underline-offset-2 hover:underline">
+              <Link to="/privacy-policy" className={`${omLinkAccent} underline-offset-2 hover:underline`}>
                 {t('login.termsOfService')}
               </Link>
               {' '}
               {t('login.and')}{' '}
-              <Link to="/privacy-policy" className="text-violet-400/90 hover:text-violet-300 underline-offset-2 hover:underline">
+              <Link to="/privacy-policy" className={`${omLinkAccent} underline-offset-2 hover:underline`}>
                 {t('login.privacyPolicy')}
               </Link>
             </p>
           </div>
         </div>
-      </main>
-    </div>
+    </PublicMemoriesShell>
   );
 };
 

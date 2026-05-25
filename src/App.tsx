@@ -11,6 +11,7 @@ import { SkeletonTheme, SKELETON_BASE_COLOR, SKELETON_HIGHLIGHT } from './compon
 import { clearNavigationState } from './utils/navigation';
 import { enableInspectBlock } from './utils/blockInspect';
 import './index.css';
+import { syncDocumentThemeFromStorage } from './utils/documentTheme';
 
 // auth pages
 import LoginPage from './pages/auth/LoginPage';
@@ -288,6 +289,16 @@ function App() {
   // Clear any problematic navigation state on app start
   React.useEffect(() => {
     clearNavigationState();
+  }, []);
+
+  React.useEffect(() => {
+    syncDocumentThemeFromStorage();
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onSystemChange = () => {
+      if (!localStorage.getItem('filevault-theme')) syncDocumentThemeFromStorage();
+    };
+    mq.addEventListener('change', onSystemChange);
+    return () => mq.removeEventListener('change', onSystemChange);
   }, []);
 
   // Enable inspect blocking (controlled by REACT_APP_BLOCK_INSPECT env variable)

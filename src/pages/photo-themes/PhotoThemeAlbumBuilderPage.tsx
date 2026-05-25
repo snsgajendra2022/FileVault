@@ -3951,8 +3951,8 @@ const customLayoutGeometry = useMemo(() => {
                       onClick={() => setStudioRightTab(tab)}
                       className={`flex-1 text-[10px] font-black tracking-[0.15em] uppercase border-b-2 transition-all ${
                         studioRightTab === tab
-                          ? 'border-[#4648d4] text-white bg-white/[0.04]'
-                          : 'border-transparent text-slate-500 hover:text-white'
+                          ? 'border-[#4648d4] text-blue-500 bg-white/[0.04]'
+                          : 'border-transparent text-slate-500 hover:text-blue-300'
                       }`}
                     >
                       {label}
