@@ -1,26 +1,39 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  applyThemePreference,
+  cycleThemePreference,
   getStoredTheme,
-  setStoredTheme,
-  toggleStoredTheme,
+  getThemePreference,
+  setThemePreference,
   type DocumentTheme,
+  type ThemePreference,
 } from '../utils/documentTheme';
 
-/** Subscribe to `filevault-theme` / storage and return current light|dark. */
 export function useDocumentTheme(): {
   theme: DocumentTheme;
+  preference: ThemePreference;
+  setPreference: (mode: ThemePreference) => void;
   setTheme: (mode: DocumentTheme) => void;
-  toggleTheme: () => DocumentTheme;
+  cycleTheme: () => ThemePreference;
+  /** @deprecated Use cycleTheme */
+  toggleTheme: () => ThemePreference;
 } {
-  const [theme, setThemeState] = useState<DocumentTheme>(() => getStoredTheme());
+  const read = () => ({
+    theme: getStoredTheme(),
+    preference: getThemePreference(),
+  });
+  const [state, setState] = useState(read);
 
   useEffect(() => {
-    const sync = () => setThemeState(getStoredTheme());
+    const sync = () => setState(read());
     window.addEventListener('filevault-theme', sync);
     window.addEventListener('storage', sync);
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const onMq = () => {
-      if (!localStorage.getItem('filevault-theme')) sync();
+      if (getThemePreference() === 'system') {
+        applyThemePreference('system');
+        sync();
+      }
     };
     mq.addEventListener('change', onMq);
     return () => {
@@ -30,16 +43,27 @@ export function useDocumentTheme(): {
     };
   }, []);
 
-  const setTheme = useCallback((mode: DocumentTheme) => {
-    setStoredTheme(mode);
-    setThemeState(mode);
+  const setPreference = useCallback((mode: ThemePreference) => {
+    setThemePreference(mode);
+    setState({ preference: mode, theme: getStoredTheme() });
   }, []);
 
-  const toggleTheme = useCallback(() => {
-    const next = toggleStoredTheme();
-    setThemeState(next);
+  const setTheme = useCallback((mode: DocumentTheme) => {
+    setPreference(mode);
+  }, [setPreference]);
+
+  const cycleTheme = useCallback(() => {
+    const next = cycleThemePreference();
+    setState({ preference: next, theme: getStoredTheme() });
     return next;
   }, []);
 
-  return { theme, setTheme, toggleTheme };
+  return {
+    theme: state.theme,
+    preference: state.preference,
+    setPreference,
+    setTheme,
+    cycleTheme,
+    toggleTheme: cycleTheme,
+  };
 }

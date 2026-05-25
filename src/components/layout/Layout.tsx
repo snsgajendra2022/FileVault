@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Header from '../../components/layout/Header';
 import Navigation from '../../components/layout/Navigation';
 import Sidebar from '../../components/layout/Sidebar';
-import { applyDocumentTheme, syncDocumentThemeFromStorage, type DocumentTheme } from '../../utils/documentTheme';
+import { syncDocumentThemeFromStorage } from '../../utils/documentTheme';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -11,13 +11,10 @@ const Layout = () => {
   useEffect(() => {
     syncDocumentThemeFromStorage();
     const onStorage = (e: StorageEvent) => {
-      if (e.key === 'filevault-theme' && (e.newValue === 'dark' || e.newValue === 'light')) {
-        applyDocumentTheme(e.newValue);
-      }
+      if (e.key === 'filevault-theme') syncDocumentThemeFromStorage();
     };
-    const onTheme = (ev: Event) => {
-      const ce = ev as CustomEvent<DocumentTheme>;
-      if (ce.detail === 'dark' || ce.detail === 'light') applyDocumentTheme(ce.detail);
+    const onTheme = () => {
+      syncDocumentThemeFromStorage();
     };
     window.addEventListener('storage', onStorage);
     window.addEventListener('filevault-theme', onTheme);
