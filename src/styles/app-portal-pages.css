@@ -171,3 +171,9 @@ html.dark .portal-page-surface .portal-card {
 html.dark .portal-page-surface .portal-header-bar {
   @apply bg-slate-900 border-slate-800;
 }
+
+/* ── Studio Albums + Client Images (scoped in page CSS) ── */
+html.dark .studio-albums-scope,
+html.dark .images-library-scope {
+  color-scheme: dark;
+}

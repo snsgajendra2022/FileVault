@@ -21,6 +21,24 @@
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--lumina-bg);
   color: var(--lumina-on-surface);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark .images-library-scope {
+  --lumina-bg: #0f172a;
+  --lumina-surface: #1e293b;
+  --lumina-on-surface: #f1f5f9;
+  --lumina-on-surface-variant: #94a3b8;
+  --lumina-primary: #a78bfa;
+  --lumina-on-primary: #0f172a;
+  --lumina-primary-container: #8b5cf6;
+  --lumina-secondary-container: #6366f1;
+  --lumina-outline-variant: #475569;
+  --lumina-surface-container: #334155;
+  --lumina-surface-container-high: #3f4f63;
+  --lumina-surface-container-low: #1e293b;
+  --lumina-inverse-surface: #f1f5f9;
+  --lumina-inverse-on-surface: #0f172a;
 }
 
 @media (min-width: 768px) {
@@ -33,6 +51,10 @@
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+}
+
+html.dark .images-library-scope .lumina-glass {
+  background: rgba(30, 41, 59, 0.82);
   border: 1px solid rgba(255, 255, 255, 0.35);
 }
 
@@ -92,6 +114,28 @@
   pointer-events: none;
 }
 
+html.dark .images-library-scope .lumina-hero-glow {
+  background: rgba(139, 92, 246, 0.15);
+}
+
+/* Tailwind arbitrary colors in ImagesPage.tsx */
+html.dark .images-library-scope .text-\[\#191c1e\] {
+  color: var(--lumina-on-surface) !important;
+}
+
+html.dark .images-library-scope .text-\[\#4a4455\],
+html.dark .images-library-scope .text-\[\#7b7487\] {
+  color: var(--lumina-on-surface-variant) !important;
+}
+
+html.dark .images-library-scope .text-\[\#630ed4\] {
+  color: var(--lumina-primary) !important;
+}
+
+html.dark .images-library-scope .bg-\[\#eceef0\] {
+  background-color: var(--lumina-surface-container) !important;
+}
+
 /* Toolbar */
 .images-library-scope .lumina-view-toggle {
   display: flex;
@@ -100,6 +144,11 @@
   border-radius: 0.75rem;
   border: 1px solid rgba(204, 195, 216, 0.35);
   background: rgba(255, 255, 255, 0.5);
+}
+
+html.dark .images-library-scope .lumina-view-toggle {
+  border-color: rgba(71, 85, 105, 0.5);
+  background: rgba(30, 41, 59, 0.6);
 }
 
 .images-library-scope .lumina-view-toggle button {
@@ -130,6 +179,10 @@
 
 .images-library-scope .lumina-btn-secondary:hover {
   background: #d8dadc;
+}
+
+html.dark .images-library-scope .lumina-btn-secondary:hover {
+  background: var(--lumina-surface-container-high);
 }
 
 .images-library-scope .lumina-btn-primary {
@@ -316,6 +369,11 @@
   background: rgba(247, 249, 251, 0.88);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+html.dark .images-library-scope .lumina-top-bar {
+  border-bottom-color: rgba(71, 85, 105, 0.6);
+  background: rgba(15, 23, 42, 0.9);
 }
 
 .images-library-scope .lumina-top-search {
