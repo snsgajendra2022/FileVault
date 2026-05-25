@@ -34,6 +34,12 @@
     --header-box-shadow: '0 10px 40px rgba(15,23,42,0.08)';
     --header-avatar-shadow: 0 4px 14px rgba(92, 121, 246, 0.56);
   }
+
+  html.dark {
+    --header-background: linear-gradient(135deg, #1e293b 0%, #0f172a 35%, #020617 100%);
+    --header-border: 1px solid rgba(51, 65, 85, 0.8);
+    --header-box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  }
 }
 @layer components {
   .glass-effect {
@@ -73,7 +79,7 @@
   }
   
   .input-modern {
-    @apply w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 bg-white/50 backdrop-blur-sm;
+    @apply w-full px-4 py-3 border border-gray-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-300 bg-white/50 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 backdrop-blur-sm;
   }
   
   .sidebar-item {
@@ -85,11 +91,11 @@
   }
   
   .stat-card {
-    @apply bg-white rounded-2xl p-6 shadow-lg border border-gray-100 card-hover;
+    @apply bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-slate-700 card-hover text-slate-900 dark:text-slate-100;
   }
   
   .stat-card-gradient {
-    @apply bg-gradient-to-br from-white to-gray-50 rounded-2xl p-6 shadow-lg border border-gray-100 card-hover;
+    @apply bg-gradient-to-br from-white to-gray-50 dark:from-slate-900 dark:to-slate-950 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-slate-700 card-hover text-slate-900 dark:text-slate-100;
   }
 
   /* PhotoBook backgrounds */
@@ -248,3 +254,5 @@ input:-internal-autofill-selected {
     animation: loader-glow 2s ease-in-out infinite;
   }
 }
+
+@import './styles/app-portal-pages.css';

@@ -148,7 +148,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
 
   if (!service) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-200 p-4">
         <div className="max-w-4xl mx-auto">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
             <FaExclamationTriangle className="h-4 w-4 text-red-500 mr-2" />
@@ -172,7 +172,7 @@ const ServiceConfigPage: React.FC<ServiceConfigPageProps> = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-200 p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">

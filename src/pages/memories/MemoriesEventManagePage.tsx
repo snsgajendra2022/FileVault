@@ -608,7 +608,7 @@ const MemoriesEventManagePage: React.FC = () => {
   const showManageEventDetails = Boolean(manageDetailDescription || manageDetailPhotobookMsg);
 
   return (
-    <div className="min-h-screen bg-[#f6f4fb] font-memories-body text-slate-800">
+    <div className="min-h-screen bg-[#f6f4fb] dark:bg-slate-950 font-memories-body text-slate-800 dark:text-slate-100 transition-colors duration-200">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -top-32 right-[10%] h-[min(480px,50vw)] w-[min(480px,50vw)] rounded-full bg-violet-500/[0.12] blur-[100px]" />
         <div className="absolute bottom-[-80px] left-[-40px] h-[360px] w-[360px] rounded-full bg-fuchsia-500/[0.10] blur-[90px]" />

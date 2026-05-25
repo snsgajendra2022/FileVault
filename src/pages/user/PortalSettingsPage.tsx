@@ -781,19 +781,19 @@ export default function PortalSettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f6f4fb] px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#f6f4fb] dark:bg-slate-950 px-4 py-6 text-slate-900 dark:text-slate-100 sm:px-6 lg:px-8 transition-colors duration-200">
       <div className="mx-auto max-w-7xl">
-        <header className="mb-6 overflow-hidden rounded-[2rem] border border-white/80 bg-white/80 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+        <header className="mb-6 overflow-hidden rounded-[2rem] border border-slate-200/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-900/80 p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] dark:shadow-[0_20px_70px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-violet-100 bg-violet-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-violet-700">
+              <div className="inline-flex items-center gap-2 rounded-full border border-violet-100 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/50 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
                 <FaSlidersH className="h-3 w-3" />
                 {t("portalSettingsPage.badge")}
               </div>
 
-              <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">{t("portalSettingsPage.title")}</h1>
+              <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-4xl">{t("portalSettingsPage.title")}</h1>
 
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{t("portalSettingsPage.subtitle")}</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">{t("portalSettingsPage.subtitle")}</p>
             </div>
 
             <div className="flex flex-wrap gap-3">

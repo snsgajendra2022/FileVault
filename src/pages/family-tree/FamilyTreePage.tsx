@@ -320,11 +320,11 @@ export default function FamilyTree() {
   return (
     <div
       ref={containerRef}
-      className="fixed top-16 left-0 lg:left-64 right-0 bottom-0 bg-[#f8fafc]"
+      className="fixed top-16 left-0 lg:left-64 right-0 bottom-0 bg-[#f8fafc] dark:bg-slate-950 transition-colors duration-200"
       style={{ zIndex: 10 }}
     >
       {loading && <FamilyTreeLoadingOverlay />}
-      <div className="absolute inset-0 bg-white overflow-hidden">
+      <div className="absolute inset-0 bg-white dark:bg-slate-900 overflow-hidden transition-colors duration-200">
         <svg ref={svgRef} className="w-full h-full block select-none" aria-label={t("ariaFamilyTree")}>
           <defs>
             <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -392,7 +392,7 @@ export default function FamilyTree() {
       </div>
 
       {selected && (
-        <aside className="fixed right-4 top-16 bottom-4 w-80 rounded-2xl bg-white ring-1 ring-gray-200 shadow-lg p-4 flex flex-col z-50">
+        <aside className="fixed right-4 top-16 bottom-4 w-80 rounded-2xl bg-white dark:bg-slate-900 ring-1 ring-gray-200 dark:ring-slate-700 shadow-lg p-4 flex flex-col z-50 transition-colors duration-200">
           <div className="flex items-center gap-3 border-b pb-3">
             <div className="w-10 h-10 rounded-full bg-gray-100 grid place-items-center text-gray-600">
               <svg viewBox="0 0 24 24" width="20" height="20">{AVATAR_SILHOUETTE}</svg>

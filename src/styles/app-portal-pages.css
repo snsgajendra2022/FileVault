@@ -1,0 +1,173 @@
+/* Portal routes: light/dark via html.dark (filevault-theme) */
+
+/* ── Studio Dashboard ── */
+.premium-dashboard {
+  --sd-page-bg: #f8fafc;
+  --sd-text: #0f172a;
+  --sd-text-muted: #64748b;
+  --sd-text-secondary: #475569;
+  --sd-card: #ffffff;
+  --sd-card-border: #dbeafe;
+  --sd-hero: linear-gradient(135deg, #eef4ff 0%, #e7f0ff 35%, #f5f9ff 100%);
+  --sd-hero-border: #e9eaf0;
+  --sd-chip-bg: rgba(255, 255, 255, 0.72);
+  --sd-accent-soft: #eff6ff;
+  --sd-shadow: 0 10px 40px rgba(15, 23, 42, 0.08);
+}
+
+html.dark .premium-dashboard {
+  --sd-page-bg: #0f172a;
+  --sd-text: #f1f5f9;
+  --sd-text-muted: #94a3b8;
+  --sd-text-secondary: #cbd5e1;
+  --sd-card: #1e293b;
+  --sd-card-border: #334155;
+  --sd-hero: linear-gradient(135deg, #1e293b 0%, #0f172a 35%, #020617 100%);
+  --sd-hero-border: #334155;
+  --sd-chip-bg: rgba(30, 41, 59, 0.85);
+  --sd-accent-soft: #1e3a5f;
+  --sd-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+
+.premium-dashboard {
+  background: var(--sd-page-bg) !important;
+  color: var(--sd-text);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.premium-dashboard .bg-white {
+  background-color: var(--sd-card) !important;
+  border-color: var(--sd-card-border);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.premium-dashboard .sd-hero-panel {
+  background: var(--sd-hero) !important;
+  border-color: var(--sd-hero-border) !important;
+  box-shadow: var(--sd-shadow) !important;
+}
+
+.premium-dashboard .sd-chip {
+  border-color: var(--sd-card-border) !important;
+  background: var(--sd-chip-bg) !important;
+  color: var(--sd-text) !important;
+}
+
+.premium-dashboard .sd-icon-well {
+  background: var(--sd-accent-soft) !important;
+  border-color: var(--sd-card-border) !important;
+}
+
+/* ── Upload Family Images ── */
+.upload-family-page {
+  --uf-bg: #faf8ff;
+  --uf-text: #191b23;
+  --uf-muted: #505f76;
+  --uf-border: #c3c6d7;
+  --uf-surface: #ffffff;
+  --uf-surface-soft: #f3f3fe;
+  --uf-accent: #004ac6;
+  --uf-accent-soft: #d0e1fb;
+  --uf-tab-track: #e7e7f3;
+}
+
+html.dark .upload-family-page {
+  --uf-bg: #0f172a;
+  --uf-text: #e2e8f0;
+  --uf-muted: #94a3b8;
+  --uf-border: #475569;
+  --uf-surface: #1e293b;
+  --uf-surface-soft: #334155;
+  --uf-accent: #60a5fa;
+  --uf-accent-soft: #1e3a5f;
+  --uf-tab-track: #1e293b;
+}
+
+.upload-family-page {
+  background-color: var(--uf-bg) !important;
+  color: var(--uf-text);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.upload-family-page .uf-card {
+  border-color: color-mix(in srgb, var(--uf-border) 80%, transparent);
+  background: color-mix(in srgb, var(--uf-surface) 70%, transparent);
+}
+
+.upload-family-page .uf-surface {
+  background-color: var(--uf-surface) !important;
+  border-color: var(--uf-border) !important;
+  color: var(--uf-text);
+}
+
+.upload-family-page .uf-tab-track {
+  background-color: var(--uf-tab-track) !important;
+}
+
+.upload-family-page .uf-tab-active {
+  background-color: var(--uf-surface) !important;
+  color: var(--uf-accent) !important;
+}
+
+.upload-family-page .uf-footer-bar {
+  background: color-mix(in srgb, var(--uf-surface) 90%, transparent) !important;
+  border-color: var(--uf-border) !important;
+}
+
+/* ── Photo Themes hub ── */
+.photo-themes-hub {
+  --pt-text: #0b1c30;
+  --pt-muted: #464554;
+  --pt-card: rgba(255, 255, 255, 0.85);
+  --pt-card-border: #e2e8f0;
+}
+
+html.dark .photo-themes-hub {
+  --pt-text: #f1f5f9;
+  --pt-muted: #94a3b8;
+  --pt-card: rgba(30, 41, 59, 0.9);
+  --pt-card-border: #475569;
+}
+
+.photo-themes-hub {
+  color: var(--pt-text);
+}
+
+.photo-themes-hub .pt-stat-card {
+  background: var(--pt-card);
+  border-color: var(--pt-card-border);
+}
+
+.photo-themes-glass-card {
+  @apply rounded-3xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md transition-colors duration-200;
+}
+
+html.dark .photo-themes-glass-card {
+  @apply border-slate-700 bg-slate-900/90;
+}
+
+.photo-themes-hub h2,
+.photo-themes-hub .pt-section-title {
+  color: var(--pt-text);
+}
+
+.photo-themes-hub .pt-muted {
+  color: var(--pt-muted);
+}
+
+/* ── Portal list pages (phonebook, invitations, services) ── */
+.portal-page-surface .portal-card {
+  @apply rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors duration-200;
+}
+
+html.dark .portal-page-surface .portal-card {
+  @apply border-slate-700 bg-slate-900;
+}
+
+.portal-page-surface .portal-header-bar {
+  @apply bg-white border-b border-slate-200 transition-colors duration-200;
+}
+
+html.dark .portal-page-surface .portal-header-bar {
+  @apply bg-slate-900 border-slate-800;
+}

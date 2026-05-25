@@ -743,15 +743,10 @@ const StudioDashboard: React.FC = () => {
   const firstName = user?.firstName ?? 'there';
 
   return (
-    <div className="studio-dashboard premium-dashboard" style={{ background: '#F8FAFC', color: THEME.textPrimary }}>
+    <div className="studio-dashboard premium-dashboard" style={{ color: 'var(--sd-text)' }}>
       <main className="relative w-full px-4 py-6 sm:px-6 sm:py-8">
         {/* 1. Welcome Hero */}
-        <section className="relative overflow-hidden rounded-2xl mb-6"
-          style={{
-            background: 'linear-gradient(135deg, #EEF4FF 0%, #E7F0FF 35%, #F5F9FF 100%)',
-            border: '1px solid #E9EAF0',
-            boxShadow: '0 10px 40px rgba(15,23,42,0.08)',
-          }}>
+        <section className="sd-hero-panel relative overflow-hidden rounded-2xl mb-6 border">
           {/* Soft mesh light */}
           <div className="pointer-events-none absolute inset-0"
             style={{ background: 'radial-gradient(ellipse 80% 60% at 70% 40%, rgba(37,99,235,0.08) 0%, transparent 70%)' }} />
@@ -762,27 +757,27 @@ const StudioDashboard: React.FC = () => {
             {/* Left — text + badges */}
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl sm:text-[28px] font-extrabold tracking-tight leading-tight"
-                style={{ color: THEME.textPrimary }}>
+                style={{ color: 'var(--sd-text)' }}>
                 {t('dashboard.welcome', { name: firstName })} 
               </h1>
-              <p className="mt-1.5 text-[13px] font-normal" style={{ color: THEME.textSecondary }}>
+              <p className="mt-1.5 text-[13px] font-normal" style={{ color: 'var(--sd-text-secondary)' }}>
                 {t('dashboard.welcomeSummary')}
               </p>
 
               {/* Stat badges */}
               <div className="flex flex-wrap items-center gap-2 mt-4">
-                <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium"
-                  style={{ border: '1px solid #DBEAFE', background: 'rgba(255,255,255,0.72)', color: THEME.textPrimary, backdropFilter: 'none' }}>
+                <span className="sd-chip inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium border"
+                  style={{ backdropFilter: 'none' }}>
                   <FaImages className="h-3 w-3 text-[#2563EB]" />
                   {photosCount.toLocaleString()} {t('dashboard.photosUploaded')}
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium"
-                  style={{ border: '1px solid #DBEAFE', background: 'rgba(255,255,255,0.72)', color: THEME.textPrimary, backdropFilter: 'none' }}>
+                <span className="sd-chip inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium border"
+                  style={{ backdropFilter: 'none' }}>
                   <FaUsers className="h-3 w-3 text-[#2563EB]" />
                   {(typeof stats.totalMember === 'number' ? stats.totalMember : 0)} {t('dashboard.activeClients')}
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium"
-                  style={{ border: '1px solid #DBEAFE', background: 'rgba(255,255,255,0.72)', color: THEME.textPrimary, backdropFilter: 'none' }}>
+                <span className="sd-chip inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium border"
+                  style={{ backdropFilter: 'none' }}>
                   <FaFolder className="h-3 w-3 text-[#2563EB]" />
                   {(stats.totalAlbums ?? 0)} {t('dashboard.albumsCreated')}
                 </span>

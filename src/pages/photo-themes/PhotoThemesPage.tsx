@@ -664,17 +664,17 @@ const PhotoThemesPage: React.FC = () => {
       <section className="relative text-center mb-16 pt-2">
         <Link
           to="/photo-book"
-          className="absolute right-0 top-0 hidden sm:inline-flex items-center justify-center rounded-full border border-slate-200 bg-white/80 px-6 py-2 text-sm font-medium text-[#0b1c30] hover:bg-white transition-all shadow-sm"
+          className="absolute right-0 top-0 hidden sm:inline-flex items-center justify-center rounded-full border border-slate-200 dark:border-slate-600 bg-white/80 dark:bg-slate-800/80 px-6 py-2 text-sm font-medium text-[#0b1c30] dark:text-slate-100 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm"
         >
           {t('myPhotoBooks')}
         </Link>
-        <h1 className="font-['Playfair_Display'] text-4xl sm:text-5xl lg:text-[3rem] font-bold text-slate-900 tracking-tight mb-4">
+        <h1 className="font-['Playfair_Display'] text-4xl sm:text-5xl lg:text-[3rem] font-bold text-slate-900 dark:text-slate-100 tracking-tight mb-4">
           {t('title')}
         </h1>
-        <p className="text-lg text-[#464554] max-w-2xl mx-auto leading-relaxed">{t('subtitleLoaded')}</p>
+        <p className="text-lg text-[#464554] dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">{t('subtitleLoaded')}</p>
         <Link
           to="/photo-book"
-          className="sm:hidden mt-6 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white/80 px-6 py-2 text-sm font-medium text-[#0b1c30]"
+          className="sm:hidden mt-6 inline-flex items-center justify-center rounded-full border border-slate-200 dark:border-slate-600 bg-white/80 dark:bg-slate-800/80 px-6 py-2 text-sm font-medium text-[#0b1c30] dark:text-slate-100"
         >
           {t('myPhotoBooks')}
         </Link>
@@ -690,7 +690,7 @@ const PhotoThemesPage: React.FC = () => {
       {showResumeSection && (
         <section className="mb-20" aria-labelledby="resume-projects-heading">
           <div className="flex items-center justify-between mb-8">
-            <h2 id="resume-projects-heading" className="text-[1.875rem] font-semibold text-[#0b1c30] tracking-tight">
+            <h2 id="resume-projects-heading" className="pt-section-title text-[1.875rem] font-semibold tracking-tight">
               {t('resumeProjects')}
             </h2>
             <Link to="/photo-book" className="text-[#4648d4] text-sm font-medium hover:underline">
@@ -725,7 +725,7 @@ const PhotoThemesPage: React.FC = () => {
       {/* Featured themes */}
       {displayFeatured.length > 0 && (
         <section className="mb-20" aria-labelledby="featured-themes-heading">
-          <h2 id="featured-themes-heading" className="text-[1.875rem] font-semibold text-[#0b1c30] tracking-tight mb-8">
+          <h2 id="featured-themes-heading" className="pt-section-title text-[1.875rem] font-semibold tracking-tight mb-8">
             {t('featuredThemes')}
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -739,7 +739,7 @@ const PhotoThemesPage: React.FC = () => {
       {/* Browse categories */}
       {displayCategories.length > 0 && (
         <section className="mb-20" aria-labelledby="browse-categories-heading">
-          <h2 id="browse-categories-heading" className="text-[1.875rem] font-semibold text-[#0b1c30] tracking-tight mb-8">
+          <h2 id="browse-categories-heading" className="pt-section-title text-[1.875rem] font-semibold tracking-tight mb-8">
             {t('browseCategories')}
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -757,17 +757,17 @@ const PhotoThemesPage: React.FC = () => {
           <div className="relative z-10 flex flex-col md:flex-row items-center justify-around gap-8 text-center">
             <div>
               <p className="font-['Playfair_Display'] text-4xl font-bold text-[#4648d4]">{t('statThemesValue')}</p>
-              <p className="text-sm font-medium text-[#464554] mt-1">{t('statThemesLabel')}</p>
+              <p className="pt-muted text-sm font-medium mt-1">{t('statThemesLabel')}</p>
             </div>
-            <div className="hidden md:block w-px h-12 bg-slate-200" aria-hidden />
+            <div className="hidden md:block w-px h-12 bg-slate-200 dark:bg-slate-600" aria-hidden />
             <div>
               <p className="font-['Playfair_Display'] text-4xl font-bold text-[#4648d4]">{t('statBooksValue')}</p>
-              <p className="text-sm font-medium text-[#464554] mt-1">{t('statBooksLabel')}</p>
+              <p className="pt-muted text-sm font-medium mt-1">{t('statBooksLabel')}</p>
             </div>
-            <div className="hidden md:block w-px h-12 bg-slate-200" aria-hidden />
+            <div className="hidden md:block w-px h-12 bg-slate-200 dark:bg-slate-600" aria-hidden />
             <div className="max-w-xs">
-              <p className="text-sm font-bold text-[#0b1c30] mb-2">{t('craftedForExcellence')}</p>
-              <p className="text-base text-[#464554] leading-relaxed">{t('craftedForExcellenceDesc')}</p>
+              <p className="pt-section-title text-sm font-bold mb-2">{t('craftedForExcellence')}</p>
+              <p className="pt-muted text-base leading-relaxed">{t('craftedForExcellenceDesc')}</p>
             </div>
           </div>
         </div>

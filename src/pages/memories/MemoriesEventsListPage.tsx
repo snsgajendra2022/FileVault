@@ -22,6 +22,7 @@ import type { MemoriesEvent, MemoriesPrivacy } from '../../features/memories/typ
 import { listMemoriesEvents, updateMemoriesEvent } from '../../api/services/memoriesService';
 import { listPhotobookTemplates } from '../../api/services/photobookTemplatesService';
 import { MemoriesEventCardSkeleton } from '../../components/common/skeletons';
+import { appPageGradient } from '../../components/common/appPageTheme';
 import MemoriesPhotobookSettingsModal, {
   type MemoriesPhotobookFormValues,
 } from './components/MemoriesPhotobookSettingsModal';
@@ -162,7 +163,7 @@ const MemoriesEventsListPage: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-violet-50/60 via-white to-white">
+    <div className={appPageGradient}>
       <MemoriesPhotobookSettingsModal
         open={Boolean(photobookForEvent)}
         onClose={() => setPhotobookForEvent(null)}
@@ -175,9 +176,8 @@ const MemoriesEventsListPage: React.FC = () => {
           await photobookSaveMutation.mutateAsync({ id: photobookForEvent.id, values });
         }}
       />
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
 <section
-  className="relative overflow-hidden rounded-2xl mb-4 md:mb-6 border border-white/60"
+  className="relative overflow-hidden rounded-2xl mb-4 md:mb-6 border border-slate-200/80 dark:border-slate-700/60"
   style={{
     background: "var(--header-background)",
     boxShadow:
@@ -206,18 +206,18 @@ const MemoriesEventsListPage: React.FC = () => {
     <div className="relative max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       {/* Left — copy */}
       <div className="min-w-0">
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-0.5 mb-2 backdrop-blur-md border border-blue-200/70">
-          <Sparkles className="h-3 w-3 text-blue-600" />
-          <span className="text-[10px] font-semibold tracking-[0.16em] uppercase text-blue-700">
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-white/70 dark:bg-slate-800/70 px-2.5 py-0.5 mb-2 backdrop-blur-md border border-blue-200/70 dark:border-blue-500/30">
+          <Sparkles className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+          <span className="text-[10px] font-semibold tracking-[0.16em] uppercase text-blue-700 dark:text-blue-300">
             {t('memories')}
           </span>
         </div>
 
-        <h1 className="text-xl sm:text-2xl font-semibold leading-tight tracking-tight text-slate-900">
+        <h1 className="text-xl sm:text-2xl font-semibold leading-tight tracking-tight text-slate-900 dark:text-slate-100">
           {t('yourEvents')}
         </h1>
 
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
           {t('captureOrganizeShare')}
         </p>
       </div>
@@ -249,7 +249,7 @@ const MemoriesEventsListPage: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search your memories…"
-            className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pl-12 pr-10 text-base font-medium text-slate-800 shadow-lg placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition-all"
+            className="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 py-3.5 pl-12 pr-10 text-base font-medium text-slate-800 dark:text-slate-100 shadow-lg placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition-all"
           />
           {searchQuery && (
             <button
@@ -262,7 +262,7 @@ const MemoriesEventsListPage: React.FC = () => {
           )}
         </div>
         {searchQuery && (
-          <p className="mt-3 text-sm text-slate-600 pl-1">
+          <p className="mt-3 text-sm text-slate-600 dark:text-slate-400 pl-1">
             {filteredEvents.length === 0
               ? 'No events found'
               : `${filteredEvents.length} event${filteredEvents.length !== 1 ? 's' : ''} found`}
@@ -274,7 +274,7 @@ const MemoriesEventsListPage: React.FC = () => {
 {/* sfsdg */}
       <main className="max-w-6xl mx-auto px-4 py-12 sm:px-8">
         {isLoading ? (
-          <div className="rounded-2xl border border-slate-200 bg-white px-8 py-20 text-center">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-8 py-20 text-center">
             <Loader2 className="h-12 w-12 text-blue-600 mx-auto mb-4 animate-spin" />
             <p className="text-lg font-semibold text-slate-700">{t('loadingEvents')}</p>
           </div>
@@ -439,7 +439,6 @@ const MemoriesEventsListPage: React.FC = () => {
 
         )}
       </main>
-    </div>
     </div>
   );
 };

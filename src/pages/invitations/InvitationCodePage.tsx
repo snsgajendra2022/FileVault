@@ -38,7 +38,7 @@ const InvitationCodePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 py-8 px-4 transition-colors duration-200">
       <div className="max-w-xl mx-auto space-y-6">
         <header className="space-y-2">
           <h1 className="text-2xl font-bold text-slate-900">{t('invitationCodePage.title')}</h1>
@@ -47,7 +47,7 @@ const InvitationCodePage: React.FC = () => {
           </p>
         </header>
 
-        <main className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-5">
+        <main className="portal-card rounded-2xl p-6 space-y-5">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold text-slate-900">{t('invitationCodePage.sectionTitle')}</h2>

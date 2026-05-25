@@ -81,7 +81,7 @@ const PhoneBookListPage: React.FC = () => {
       className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
         active
           ? 'border-violet-300 bg-violet-50 text-violet-800 shadow-sm'
-          : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+          : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-500'
       }`}
     >
       {label}
@@ -93,7 +93,7 @@ const PhoneBookListPage: React.FC = () => {
     const type = c.meta?.contactType || 'Other';
     const isFav = favoriteContactIds.has(c.id);
     return (
-      <div className="group relative overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-4 shadow-sm transition-all hover:border-violet-200 hover:shadow-md">
+      <div className="portal-card group relative overflow-hidden rounded-3xl p-4 transition-all hover:border-violet-200 dark:hover:border-violet-700 hover:shadow-md">
         <Link
           to={`/phonebook/${encodeURIComponent(c.id)}`}
           className="absolute inset-0"
@@ -149,15 +149,15 @@ const PhoneBookListPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[calc(100dvh-4rem)] bg-slate-50 text-slate-900">
+    <div className="portal-page-surface min-h-[calc(100dvh-4rem)] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <div className="mx-auto max-w-5xl px-4 py-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-600">{t('phoneBookListPage.eyebrow')}</p>
-            <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+            <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">
               {t('phoneBookListPage.title')}
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-600">{t('phoneBookListPage.subtitle')}</p>
+            <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">{t('phoneBookListPage.subtitle')}</p>
           </div>
           <Link
             to="/phonebook/new"
@@ -169,13 +169,13 @@ const PhoneBookListPage: React.FC = () => {
         </div>
 
         <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_auto]">
-          <div className="flex items-center gap-3 rounded-3xl border border-slate-200/90 bg-white px-4 py-3 shadow-sm">
+          <div className="portal-card flex items-center gap-3 rounded-3xl px-4 py-3">
             <FaSearch className="h-4 w-4 shrink-0 text-slate-400" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('phoneBookListPage.searchPlaceholder')}
-              className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+              className="w-full bg-transparent text-sm text-slate-900 dark:text-slate-100 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
             />
           </div>
 

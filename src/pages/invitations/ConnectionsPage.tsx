@@ -14,7 +14,7 @@ const ConnectionsPage: React.FC = () => {
   const dash = t('connectionsPage.dash');
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 py-8 px-4 transition-colors duration-200">
       <div className="max-w-5xl mx-auto space-y-6">
         <header className="space-y-2">
           <h1 className="text-2xl font-bold text-slate-900">{t('connectionsPage.title')}</h1>
@@ -23,7 +23,7 @@ const ConnectionsPage: React.FC = () => {
           </p>
         </header>
 
-        <main className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+        <main className="portal-card rounded-2xl p-6 space-y-4">
           {isLoading ? (
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin" />

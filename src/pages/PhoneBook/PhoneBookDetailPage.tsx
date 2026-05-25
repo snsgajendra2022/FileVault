@@ -39,7 +39,7 @@ const PhoneBookDetailPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
         <div className="mx-auto max-w-3xl px-4 py-8">
           <div className="animate-pulse rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Loading…</div>
         </div>
@@ -49,7 +49,7 @@ const PhoneBookDetailPage: React.FC = () => {
 
   if (isError || !c) {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-900">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
         <div className="mx-auto max-w-3xl px-4 py-8">
           <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-800">Contact not found.</div>
           <Link
@@ -73,7 +73,7 @@ const PhoneBookDetailPage: React.FC = () => {
   const type = c.meta?.contactType || 'Other';
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <div className="mx-auto max-w-3xl px-4 py-8">
         <div className="flex items-center justify-between gap-4">
           <Link
@@ -118,7 +118,7 @@ const PhoneBookDetailPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-5 overflow-hidden rounded-3xl border border-slate-200/90 bg-white shadow-[0_24px_60px_-40px_rgba(124,58,237,0.35)]">
+        <div className="portal-card mt-5 overflow-hidden rounded-3xl shadow-[0_24px_60px_-40px_rgba(124,58,237,0.35)] dark:shadow-[0_24px_60px_-40px_rgba(0,0,0,0.45)]">
           <div className="relative p-6 sm:p-8">
             <div className="pointer-events-none absolute inset-0">
               <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-violet-200/40 blur-[80px]" />

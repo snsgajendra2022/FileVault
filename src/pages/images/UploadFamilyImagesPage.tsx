@@ -1326,7 +1326,7 @@ const UploadFamilyImagesPage = () => {
   };
 
   const glassCard =
-    'rounded-xl border border-[#c3c6d7]/80 bg-white/70 p-6 shadow-sm backdrop-blur-[10px] transition-shadow duration-200 hover:shadow-md';
+    'uf-card rounded-xl border p-6 shadow-sm backdrop-blur-[10px] transition-shadow duration-200 hover:shadow-md';
   const stepBadge =
     'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#dbe1ff] text-sm font-bold text-[#00174b]';
 
@@ -1463,7 +1463,7 @@ const UploadFamilyImagesPage = () => {
 
   if (userLoading) {
     return (
-      <div className="min-h-full w-full min-w-0 overflow-x-hidden bg-[#faf8ff]">
+      <div className="upload-family-page min-h-full w-full min-w-0 overflow-x-hidden">
         <div className="mx-auto w-full min-w-0 max-w-7xl space-y-6 px-4 py-10 md:px-8">
           <div className="h-8 w-48 animate-pulse rounded-lg bg-[#e7e7f3]" />
           <FamilyMemberSkeleton count={3} />
@@ -1474,7 +1474,7 @@ const UploadFamilyImagesPage = () => {
 
   if (userError) {
     return (
-      <div className="flex min-h-[60vh] w-full min-w-0 items-center justify-center bg-[#faf8ff] px-4 py-12">
+      <div className="upload-family-page flex min-h-[60vh] w-full min-w-0 items-center justify-center px-4 py-12">
         <div className={`${glassCard} w-full max-w-md text-center`}>
           <FaExclamationTriangle className="mx-auto mb-4 h-10 w-10 text-[#ba1a1a]" />
           <h1 className="mb-2 text-xl font-semibold text-[#191b23]">{t('uploadFamilyPage.profileErrorTitle')}</h1>
@@ -1489,7 +1489,7 @@ const UploadFamilyImagesPage = () => {
 
   if (!canUpload()) {
     return (
-      <div className="flex min-h-[60vh] w-full min-w-0 items-center justify-center bg-[#faf8ff] px-4 py-12">
+      <div className="upload-family-page flex min-h-[60vh] w-full min-w-0 items-center justify-center px-4 py-12">
         <div className={`${glassCard} w-full max-w-md text-center`}>
           <FaExclamationTriangle className="mx-auto mb-4 h-10 w-10 text-[#943700]" />
           <h1 className="mb-2 text-xl font-semibold text-[#191b23]">{t('uploadFamilyPage.uploadNotAvailable')}</h1>
@@ -1500,7 +1500,7 @@ const UploadFamilyImagesPage = () => {
   }
 
   return (
-    <div className="upload-family-page min-h-full w-full min-w-0 overflow-x-hidden bg-[#faf8ff] pb-28 text-[#191b23]">
+    <div className="upload-family-page min-h-full w-full min-w-0 overflow-x-hidden pb-28">
       <style>{`
         @keyframes upload-stripes {
           0% { background-position: 0 0; }
@@ -1546,13 +1546,13 @@ const UploadFamilyImagesPage = () => {
                 <span className={stepBadge}>1</span>
                 <h2 className="text-xl font-semibold text-[#191b23]">{t('uploadFamilyPage.uploadToLabel')}</h2>
               </div>
-              <div className="mb-6 flex rounded-lg bg-[#e7e7f3] p-1">
+              <div className="uf-tab-track mb-6 flex rounded-lg p-1">
                 <button
                   type="button"
                   onClick={() => setDefaultUploadDestination('my-account')}
                   className={`flex-1 rounded-md py-2 text-sm font-medium transition-all ${
                     defaultUploadDestination === 'my-account'
-                      ? 'bg-white text-[#004ac6] shadow-sm'
+                      ? 'uf-tab-active shadow-sm'
                       : 'text-[#505f76] hover:text-[#191b23]'
                   }`}
                 >
@@ -1564,7 +1564,7 @@ const UploadFamilyImagesPage = () => {
                   disabled={uploadTargetAccounts.length === 0}
                   className={`flex-1 rounded-md py-2 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
                     defaultUploadDestination === 'family-account'
-                      ? 'bg-white text-[#004ac6] shadow-sm'
+                      ? 'uf-tab-active shadow-sm'
                       : 'text-[#505f76] hover:text-[#191b23]'
                   }`}
                 >
@@ -1885,7 +1885,7 @@ const UploadFamilyImagesPage = () => {
       </div>
 
       {queueState.items.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#c3c6d7] bg-white/90 px-4 py-4 backdrop-blur-md lg:left-[240px]">
+        <div className="uf-footer-bar fixed bottom-0 left-0 right-0 z-40 border-t px-4 py-4 backdrop-blur-md lg:left-[240px]">
           <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 md:flex-row">
             <p className="shrink-0 text-sm font-medium text-[#191b23]">
               <span className="font-bold text-[#004ac6]">

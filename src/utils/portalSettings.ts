@@ -163,8 +163,11 @@ function fallbackPermissionRows(): Record<RoleType, RoleMenuPermission[]> {
     { role: 'users', labelKey: 'nav.studio.uploadFamily', href: '/upload-family-images', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.myImages', href: '/client-images', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.album', href: '/studio/albums', group: 'users', enabled: true, actions: regularActions },
-    { role: 'users', labelKey: 'nav.studio.ourMemories', href: '/memories/events', group: 'studio', enabled: true, actions: regularActions },
-    { role: 'users', labelKey: 'nav.studio.createMembers', href: '/invitations', group: 'studio', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.ourMemories', href: '/memories/events', group: 'users', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.createMembers', href: '/invitations', group: 'users', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.phoneBook', href: '/phonebook', group: 'users', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.membersTree', href: '/family-tree', group: 'users', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.photoThemes', href: '/photo-themes', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.services', href: '/services', group: 'users', enabled: true, actions: regularActions },
     { role: 'admin', labelKey: 'nav.studio.settings', href: '/portal-settings', group: 'admin', enabled: true, actions: regularActions },
   ];

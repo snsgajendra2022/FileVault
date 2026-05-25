@@ -103,7 +103,7 @@ const RegisterForm = () => {
     'group flex flex-1 min-w-0 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-3.5 text-sm font-semibold text-white transition-all hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:ring-offset-2 focus:ring-offset-[#0a0a0c]';
 
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-slate-100 selection:bg-violet-500/40">
+    <div className="min-h-screen bg-[#f8f9ff] dark:bg-[#0a0a0c] text-slate-900 dark:text-slate-100 selection:bg-violet-500/30 dark:selection:bg-violet-500/40 transition-colors duration-200">
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-violet-600/20 blur-[100px]" />
         <div className="absolute top-1/2 -left-32 h-80 w-80 rounded-full bg-fuchsia-600/15 blur-[90px]" />

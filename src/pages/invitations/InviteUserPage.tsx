@@ -34,7 +34,7 @@ const InviteUserPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 py-8 px-4 transition-colors duration-200">
       <div className="max-w-xl mx-auto space-y-6">
         <header className="space-y-2">
           <h1 className="text-2xl font-bold text-slate-900">{t('inviteUserPage.title')}</h1>
@@ -43,7 +43,7 @@ const InviteUserPage: React.FC = () => {
           </p>
         </header>
 
-        <main className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <main className="portal-card rounded-2xl p-6">
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1.5">

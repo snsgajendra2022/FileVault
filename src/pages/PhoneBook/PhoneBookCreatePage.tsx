@@ -45,7 +45,7 @@ const PhoneBookCreatePage: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <div className="mx-auto max-w-3xl px-4 py-8">
         <Link
           to="/phonebook"
@@ -55,7 +55,7 @@ const PhoneBookCreatePage: React.FC = () => {
           Back
         </Link>
 
-        <div className="mt-5 rounded-3xl border border-slate-200/90 bg-white p-6 shadow-[0_24px_60px_-40px_rgba(124,58,237,0.35)] sm:p-8">
+        <div className="portal-card mt-5 rounded-3xl p-6 shadow-[0_24px_60px_-40px_rgba(124,58,237,0.35)] dark:shadow-[0_24px_60px_-40px_rgba(0,0,0,0.45)] sm:p-8">
           <h1 className="text-xl font-extrabold text-slate-900 sm:text-2xl">Add new contact</h1>
           <p className="mt-2 text-sm text-slate-600">
             This contact will appear in invite/share pickers (events, galleries, QR links).

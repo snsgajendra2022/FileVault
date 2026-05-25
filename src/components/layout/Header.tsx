@@ -2,14 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../state/context/AuthContext';
 import { FaBars, FaBell, FaUser, FaSignOutAlt, FaCrown, FaGlobe } from 'react-icons/fa';
-import { IoMoon, IoSunny } from 'react-icons/io5';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import {
-  getStoredTheme,
-  toggleStoredTheme,
-  type DocumentTheme,
-} from '../../utils/documentTheme';
+import { getStoredTheme, type DocumentTheme } from '../../utils/documentTheme';
+import ThemeToggleButton from '../auth/ThemeToggleButton';
 
 interface HeaderProps {
   setSidebarOpen: (open: boolean) => void;
@@ -59,14 +55,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
 
         {/* Right side - User controls */}
         <div className="flex items-center space-x-3 sm:space-x-4">
-          {/* <button
-            type="button"
-            onClick={() => setColorMode(toggleStoredTheme())}
-            className="p-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-amber-300 dark:hover:text-amber-200 dark:hover:bg-slate-800 transition-colors"
-            aria-label={colorMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {colorMode === 'dark' ? <IoSunny className="h-5 w-5" /> : <IoMoon className="h-5 w-5" />}
-          </button> */}
+          <ThemeToggleButton />
           {/* Language (next to notifications) */}
           <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 px-2 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <FaGlobe className="h-4 w-4 text-slate-500 shrink-0 hidden sm:block" aria-hidden />

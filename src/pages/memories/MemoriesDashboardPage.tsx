@@ -26,8 +26,8 @@ const MemoriesDashboardPage: React.FC = () => {
     <div className="max-w-5xl mx-auto px-4 py-8 sm:px-6">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">{t('dashboardTitle')}</h1>
-          <p className="mt-1 text-slate-500 text-sm">{t('dashboardSubtitle')}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">{t('dashboardTitle')}</h1>
+          <p className="mt-1 text-slate-500 dark:text-slate-400 text-sm">{t('dashboardSubtitle')}</p>
         </div>
         <Link
           to="/memories/events/new"
@@ -41,7 +41,7 @@ const MemoriesDashboardPage: React.FC = () => {
       {isLoading ? (
         <>
           <MemoriesStatsSkeleton />
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-8 shadow-sm">
+          <div className="rounded-2xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 p-8 shadow-sm">
             <MemoriesEventCardSkeleton count={3} />
           </div>
         </>

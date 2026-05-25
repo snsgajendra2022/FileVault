@@ -202,7 +202,7 @@ const MemoriesCreateEventPage: React.FC = () => {
   if (isEditMode && !eventForForm && loadingEvent) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 sm:px-6 font-memories-body flex justify-center">
-        <div className="rounded-3xl border border-violet-200/60 bg-white px-10 py-14 shadow-sm">
+        <div className="rounded-3xl border border-violet-200/60 dark:border-violet-800/60 bg-white dark:bg-slate-900 px-10 py-14 shadow-sm">
           <LoadingSpinner size="lg" text={t('refresh')} />
         </div>
       </div>
@@ -240,10 +240,10 @@ const MemoriesCreateEventPage: React.FC = () => {
         <FaArrowLeft className="h-3 w-3" />
         {t('backToEvents')}
       </Link>
-      <h1 className="font-memories-display text-3xl sm:text-4xl font-semibold text-slate-900 tracking-tight mb-2">
+      <h1 className="font-memories-display text-3xl sm:text-4xl font-semibold text-slate-900 dark:text-slate-100 tracking-tight mb-2">
         {isEditMode ? t('editEventTitle') : t('createTitle')}
       </h1>
-      <p className="text-sm text-slate-600 mb-8">{isEditMode ? t('editEventSubtitle') : t('createSubtitle')}</p>
+      <p className="text-sm text-slate-600 dark:text-slate-400 mb-8">{isEditMode ? t('editEventSubtitle') : t('createSubtitle')}</p>
 
       <MemoriesPhotobookSettingsModal
         open={photobookOpen}
@@ -259,7 +259,7 @@ const MemoriesCreateEventPage: React.FC = () => {
 
       <form onSubmit={submit} className="space-y-5">
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">{t('fieldName')}</label>
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">{t('fieldName')}</label>
           <input
             className="input-modern w-full"
             value={name}
@@ -269,7 +269,7 @@ const MemoriesCreateEventPage: React.FC = () => {
           />
         </div>
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">{t('fieldDate')}</label>
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">{t('fieldDate')}</label>
           <input
             type="datetime-local"
             className="input-modern w-full"
@@ -278,7 +278,7 @@ const MemoriesCreateEventPage: React.FC = () => {
           />
         </div>
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">{t('fieldLocation')}</label>
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">{t('fieldLocation')}</label>
           <input
             className="input-modern w-full"
             value={locationField}
@@ -287,7 +287,7 @@ const MemoriesCreateEventPage: React.FC = () => {
           />
         </div>
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">{t('fieldCoverImageUrl')}</label>
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">{t('fieldCoverImageUrl')}</label>
           <input
             className="input-modern w-full"
             value={coverImageUrl}
@@ -344,7 +344,7 @@ const MemoriesCreateEventPage: React.FC = () => {
           </div>
         </div>
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">{t('fieldSummary')}</label>
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">{t('fieldSummary')}</label>
           <input
             className="input-modern w-full"
             value={summary}
@@ -353,7 +353,7 @@ const MemoriesCreateEventPage: React.FC = () => {
           />
         </div>
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">{t('fieldDescription')}</label>
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">{t('fieldDescription')}</label>
           <textarea
             className="input-modern w-full min-h-[120px] resize-y"
             value={description}

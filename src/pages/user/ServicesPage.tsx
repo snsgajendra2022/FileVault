@@ -416,13 +416,13 @@ const ServicesPage = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="portal-page-surface min-h-full p-6 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       {/* Header */}
       <div className="text-center mb-10">
         <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
           {t('servicesPage.headerTitle')}
         </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+        <p className="text-xl text-gray-600 dark:text-slate-400 max-w-3xl mx-auto leading-relaxed">
           {t('servicesPage.headerSubtitle')}
         </p>
       </div>
@@ -430,11 +430,11 @@ const ServicesPage = () => {
       {/* Stats Overview */}
       {userServices?.summary && (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-10">
-          <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-2xl p-8 border border-blue-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+          <div className="portal-card bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 rounded-2xl p-8 border border-blue-100/50 dark:border-slate-700 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium mb-2">{t('servicesPage.statTotal')}</p>
-                <p className="text-3xl font-bold text-gray-800">{userServices.summary.totalSubscriptions}</p>
+                <p className="text-gray-600 dark:text-slate-400 text-sm font-medium mb-2">{t('servicesPage.statTotal')}</p>
+                <p className="text-3xl font-bold text-gray-800 dark:text-slate-100">{userServices.summary.totalSubscriptions}</p>
               </div>
               <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
                 <FaCloud className="h-6 w-6 text-white" />
@@ -442,11 +442,11 @@ const ServicesPage = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/30 rounded-2xl p-8 border border-green-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+          <div className="portal-card bg-gradient-to-br from-white via-green-50/30 to-emerald-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 rounded-2xl p-8 border border-green-100/50 dark:border-slate-700 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium mb-2">{t('servicesPage.statEnabled')}</p>
-                <p className="text-3xl font-bold text-gray-800">{userServices.summary.enabledSubscriptions}</p>
+                <p className="text-gray-600 dark:text-slate-400 text-sm font-medium mb-2">{t('servicesPage.statEnabled')}</p>
+                <p className="text-3xl font-bold text-gray-800 dark:text-slate-100">{userServices.summary.enabledSubscriptions}</p>
               </div>
               <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
                 <FaCheck className="h-6 w-6 text-white" />
@@ -454,11 +454,11 @@ const ServicesPage = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-white via-yellow-50/30 to-orange-50/30 rounded-2xl p-8 border border-yellow-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+          <div className="portal-card bg-gradient-to-br from-white via-yellow-50/30 to-orange-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 rounded-2xl p-8 border border-yellow-100/50 dark:border-slate-700 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium mb-2">{t('servicesPage.statConfigured')}</p>
-                <p className="text-3xl font-bold text-gray-800">{userServices.summary.configuredSubscriptions}</p>
+                <p className="text-gray-600 dark:text-slate-400 text-sm font-medium mb-2">{t('servicesPage.statConfigured')}</p>
+                <p className="text-3xl font-bold text-gray-800 dark:text-slate-100">{userServices.summary.configuredSubscriptions}</p>
               </div>
               <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
                 <FaCog className="h-6 w-6 text-white" />
@@ -466,11 +466,11 @@ const ServicesPage = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/30 rounded-2xl p-8 border border-blue-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+          <div className="portal-card bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 rounded-2xl p-8 border border-blue-100/50 dark:border-slate-700 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium mb-2">{t('servicesPage.statConnected')}</p>
-                <p className="text-3xl font-bold text-gray-800">{userServices.summary.connectedServices}</p>
+                <p className="text-gray-600 dark:text-slate-400 text-sm font-medium mb-2">{t('servicesPage.statConnected')}</p>
+                <p className="text-3xl font-bold text-gray-800 dark:text-slate-100">{userServices.summary.connectedServices}</p>
               </div>
               <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
                 <FaCheck className="h-6 w-6 text-white" />
@@ -478,11 +478,11 @@ const ServicesPage = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-br from-white via-red-50/30 to-pink-50/30 rounded-2xl p-8 border border-red-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+          <div className="portal-card bg-gradient-to-br from-white via-red-50/30 to-pink-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 rounded-2xl p-8 border border-red-100/50 dark:border-slate-700 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium mb-2">{t('servicesPage.statFailed')}</p>
-                <p className="text-3xl font-bold text-gray-800">{userServices.summary.failedConnections}</p>
+                <p className="text-gray-600 dark:text-slate-400 text-sm font-medium mb-2">{t('servicesPage.statFailed')}</p>
+                <p className="text-3xl font-bold text-gray-800 dark:text-slate-100">{userServices.summary.failedConnections}</p>
               </div>
               <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
                 <FaExclamationTriangle className="h-6 w-6 text-white" />
@@ -498,7 +498,7 @@ const ServicesPage = () => {
           const serviceConfig = getServiceConfig(userService.serviceType);
 
           return (
-            <div key={userService.id} className="bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 rounded-3xl shadow-2xl border border-blue-100/50 overflow-hidden hover:shadow-3xl transition-all duration-300 transform hover:scale-105">
+            <div key={userService.id} className="portal-card bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 rounded-3xl shadow-2xl border border-blue-100/50 dark:border-slate-700 overflow-hidden hover:shadow-3xl transition-all duration-300 transform hover:scale-105">
               {/* Service Header */}
               <div className="p-8 shadow-lg" style={{ background: 'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)' }}>
                 <div className="flex items-center justify-between">
@@ -618,7 +618,7 @@ const ServicesPage = () => {
             const isConfigured = userServices?.subscriptions.some(s => s.serviceType === service.serviceType);
 
             return (
-              <div key={service.serviceType} className="bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 rounded-3xl shadow-2xl border border-blue-100/50 overflow-hidden hover:shadow-3xl transition-all duration-300 transform hover:scale-105">
+              <div key={service.serviceType} className="portal-card bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 rounded-3xl shadow-2xl border border-blue-100/50 dark:border-slate-700 overflow-hidden hover:shadow-3xl transition-all duration-300 transform hover:scale-105">
                 {/* Service Header */}
                 <div className="p-8 shadow-lg" style={{ background: 'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)' }}>
                   <div className="flex items-center space-x-4">
@@ -714,7 +714,7 @@ const ServicesPage = () => {
       {/* Service Details Modal */}
       {showDetailsModal && selectedUserService && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-transparent dark:border-slate-700">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">
@@ -810,7 +810,7 @@ const ServicesPage = () => {
       {/* Configuration Modal */}
       {showConfigModal && selectedService && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-transparent dark:border-slate-700">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">
