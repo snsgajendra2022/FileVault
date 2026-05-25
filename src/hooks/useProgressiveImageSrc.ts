@@ -1,36 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  resolveProgressiveViewOptions,
+  type ProgressiveViewOptions,
+} from '../utils/progressiveImageConfig';
+import { preloadImageUrl, preloadManyParallel } from '../utils/progressiveImagePreload';
 import type { UserImageWithVariants } from '../utils/progressiveImageVariants';
 import {
+  buildViewLadder,
   canStartVariantLadder,
   fallbackStaticSrc,
-  getBootstrapSrc,
-  getOrderedVariantUrls,
-  getUpgradeStopUrl,
+  getFirstVariantSrc,
+  getOriginalViewSrc,
+  getStepQualityLabel,
+  getThumbnailSrc,
   getVariantsFingerprint,
 } from '../utils/progressiveImageVariants';
 
-const CROSSFADE_MS = 400;
-const TIER_STEP_DELAY_MS = 80;
+export type ProgressiveDisplayMode = 'thumbnail' | 'progressive';
 
-function preloadImage(url: string, signal: { cancelled: boolean }): Promise<boolean> {
-  return new Promise((resolve) => {
-    if (!url || signal.cancelled) {
-      resolve(false);
-      return;
-    }
-    const img = new Image();
-    const finish = (ok: boolean) => {
-      img.onload = null;
-      img.onerror = null;
-      resolve(ok);
-    };
-    img.onload = () => finish(!signal.cancelled);
-    img.onerror = () => finish(false);
-    img.src = url;
-    if (img.complete && img.naturalWidth > 0) {
-      finish(!signal.cancelled);
-    }
-  });
+export interface UseProgressiveImageSrcResult {
+  baseSrc: string;
+  overlaySrc: string | null;
+  overlayVisible: boolean;
+  /** 0-based index in the view ladder */
+  stepIndex: number;
+  totalSteps: number;
+  isUpgrading: boolean;
+  qualityLabel: string;
+  strategy: string;
+  markLoaded: () => void;
+  markError: () => void;
 }
 
 function imageKey(image: UserImageWithVariants): string {
@@ -38,60 +37,104 @@ function imageKey(image: UserImageWithVariants): string {
   return image.previewUrl || image.filename;
 }
 
-export interface UseProgressiveImageSrcResult {
-  baseSrc: string;
-  overlaySrc: string | null;
-  overlayVisible: boolean;
-  markLoaded: () => void;
-  markError: () => void;
+function delay(ms: number): Promise<void> {
+  return new Promise((r) => window.setTimeout(r, ms));
 }
 
 /**
- * Starts on previewUrl; when variants are ready, preloads and crossfades through tiers silently.
+ * Gallery: thumbnail only.
+ * Lightbox: configurable ladder (smart / step-on-load / quick / full).
  */
 export function useProgressiveImageSrc(
   image: UserImageWithVariants,
-  enabled: boolean
+  enabled: boolean,
+  mode: ProgressiveDisplayMode = 'progressive',
+  options?: Partial<ProgressiveViewOptions>
 ): UseProgressiveImageSrcResult {
-  const boot = getBootstrapSrc(image) || fallbackStaticSrc(image);
+  const viewOptions = useMemo(
+    () => resolveProgressiveViewOptions(options),
+    [
+      options?.strategy,
+      options?.finalTarget,
+      options?.preloadParallel,
+      options?.crossfadeMs,
+      options?.minStepMs,
+      options?.maxSteps,
+      options?.connectionAware,
+    ]
+  );
+
+  const boot =
+    mode === 'thumbnail'
+      ? getThumbnailSrc(image) || fallbackStaticSrc(image)
+      : getFirstVariantSrc(image) || fallbackStaticSrc(image);
+
   const [baseSrc, setBaseSrc] = useState(boot);
   const [overlaySrc, setOverlaySrc] = useState<string | null>(null);
   const [overlayVisible, setOverlayVisible] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [totalSteps, setTotalSteps] = useState(1);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+
   const displaySrcRef = useRef(boot);
   const ladderRunRef = useRef(0);
   const imageIdRef = useRef(imageKey(image));
   const crossfadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const imageRef = useRef(image);
   imageRef.current = image;
+  const optionsRef = useRef(viewOptions);
+  optionsRef.current = viewOptions;
 
   const variantsFingerprint = getVariantsFingerprint(image);
   const currentImageKey = imageKey(image);
 
-  const applyCrossfade = useCallback((nextUrl: string) => {
-    if (!nextUrl) return;
-    if (crossfadeTimeoutRef.current) {
-      clearTimeout(crossfadeTimeoutRef.current);
-      crossfadeTimeoutRef.current = null;
+  const qualityLabel = useMemo(
+    () => getStepQualityLabel(stepIndex, totalSteps, stepIndex >= totalSteps - 1 && !isUpgrading),
+    [stepIndex, totalSteps, isUpgrading]
+  );
+
+  const commitDisplay = useCallback((url: string, index: number, total: number, upgrading: boolean) => {
+    if (url && displaySrcRef.current !== url) {
+      displaySrcRef.current = url;
+      setBaseSrc(url);
     }
-    setOverlaySrc(nextUrl);
-    setOverlayVisible(false);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => setOverlayVisible(true));
-    });
-    crossfadeTimeoutRef.current = setTimeout(() => {
-      crossfadeTimeoutRef.current = null;
-      displaySrcRef.current = nextUrl;
-      setBaseSrc(nextUrl);
-      setOverlaySrc(null);
-      setOverlayVisible(false);
-    }, CROSSFADE_MS);
+    setStepIndex(index);
+    setTotalSteps(total);
+    setIsUpgrading(upgrading);
   }, []);
+
+  const applyStep = useCallback(
+    async (url: string, index: number, total: number, signal: { cancelled: boolean }) => {
+      const opts = optionsRef.current;
+      if (opts.crossfadeMs > 0 && displaySrcRef.current && displaySrcRef.current !== url) {
+        if (crossfadeTimeoutRef.current) clearTimeout(crossfadeTimeoutRef.current);
+        setOverlaySrc(url);
+        setOverlayVisible(false);
+        await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+        setOverlayVisible(true);
+        await delay(opts.crossfadeMs);
+        if (signal.cancelled) return;
+        displaySrcRef.current = url;
+        setBaseSrc(url);
+        setOverlaySrc(null);
+        setOverlayVisible(false);
+      } else {
+        displaySrcRef.current = url;
+        setBaseSrc(url);
+      }
+      setStepIndex(index);
+      setTotalSteps(total);
+      setIsUpgrading(index < total - 1);
+      if (opts.minStepMs > 0 && index < total - 1) {
+        await delay(opts.minStepMs);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     return () => {
-      if (crossfadeTimeoutRef.current) {
-        clearTimeout(crossfadeTimeoutRef.current);
-      }
+      if (crossfadeTimeoutRef.current) clearTimeout(crossfadeTimeoutRef.current);
     };
   }, []);
 
@@ -100,69 +143,107 @@ export function useProgressiveImageSrc(
     if (imageIdRef.current !== key) {
       imageIdRef.current = key;
       ladderRunRef.current += 1;
-      const nextBoot = getBootstrapSrc(imageRef.current) || fallbackStaticSrc(imageRef.current);
+      const nextBoot =
+        mode === 'thumbnail'
+          ? getThumbnailSrc(imageRef.current) || fallbackStaticSrc(imageRef.current)
+          : getFirstVariantSrc(imageRef.current) || fallbackStaticSrc(imageRef.current);
       displaySrcRef.current = nextBoot;
       setBaseSrc(nextBoot);
       setOverlaySrc(null);
       setOverlayVisible(false);
+      setStepIndex(0);
+      setTotalSteps(1);
+      setIsUpgrading(false);
     }
-  }, [currentImageKey]);
+  }, [currentImageKey, mode]);
 
   useEffect(() => {
     if (!enabled) return;
 
     const currentImage = imageRef.current;
+    const opts = optionsRef.current;
 
-    if (!currentImage.variants) {
-      const staticSrc = fallbackStaticSrc(currentImage);
-      if (staticSrc && displaySrcRef.current !== staticSrc) {
-        displaySrcRef.current = staticSrc;
-        setBaseSrc(staticSrc);
-      }
+    if (mode === 'thumbnail') {
+      const thumb = getThumbnailSrc(currentImage) || fallbackStaticSrc(currentImage);
+      if (thumb) commitDisplay(thumb, 0, 1, false);
       return;
     }
 
-    const bootstrap = getBootstrapSrc(currentImage) || fallbackStaticSrc(currentImage);
-    if (!canStartVariantLadder(currentImage)) {
-      if (bootstrap && displaySrcRef.current !== bootstrap) {
-        displaySrcRef.current = bootstrap;
-        setBaseSrc(bootstrap);
-      }
-      return;
-    }
+    const ladder = buildViewLadder(
+      currentImage,
+      opts.strategy,
+      opts.finalTarget,
+      opts.maxSteps
+    );
+    const first = ladder[0] || getFirstVariantSrc(currentImage) || fallbackStaticSrc(currentImage);
+    const total = Math.max(ladder.length, 1);
+
+    commitDisplay(first, 0, total, total > 1);
 
     const runId = ++ladderRunRef.current;
     const signal = { cancelled: false };
 
     const runLadder = async () => {
-      const tiers = getOrderedVariantUrls(currentImage);
-      const stopUrl = getUpgradeStopUrl(currentImage);
-      let current = displaySrcRef.current || bootstrap;
+      if (ladder.length <= 1) {
+        const only = getOriginalViewSrc(currentImage) || fallbackStaticSrc(currentImage);
+        if (only && only !== first && (await preloadImageUrl(only, signal))) {
+          if (!signal.cancelled && ladderRunRef.current === runId) {
+            await applyStep(only, 0, 1, signal);
+            setIsUpgrading(false);
+          }
+        }
+        return;
+      }
 
-      for (const url of tiers) {
+      if (!canStartVariantLadder(currentImage)) {
+        const original = getOriginalViewSrc(currentImage) || first;
+        if (original !== first && (await preloadImageUrl(original, signal))) {
+          if (!signal.cancelled && ladderRunRef.current === runId) {
+            await applyStep(original, total - 1, total, signal);
+            setIsUpgrading(false);
+          }
+        }
+        return;
+      }
+
+      if (opts.preloadParallel) {
+        preloadManyParallel(ladder.slice(1), signal);
+      }
+
+      for (let i = 1; i < ladder.length; i++) {
         if (signal.cancelled || ladderRunRef.current !== runId) return;
-        if (!url || url === current) continue;
-        if (stopUrl && current === stopUrl) break;
+        const url = ladder[i];
+        if (!url) continue;
 
-        const ok = await preloadImage(url, signal);
+        const ok = await preloadImageUrl(url, signal);
         if (signal.cancelled || ladderRunRef.current !== runId) return;
         if (!ok) continue;
 
-        applyCrossfade(url);
-        current = url;
-        await new Promise((r) => window.setTimeout(r, CROSSFADE_MS + TIER_STEP_DELAY_MS));
-        if (stopUrl && current === stopUrl) break;
+        await applyStep(url, i, total, signal);
+      }
+
+      if (!signal.cancelled && ladderRunRef.current === runId) {
+        setIsUpgrading(false);
       }
     };
 
-    const startTimer = window.setTimeout(runLadder, 120);
+    runLadder();
 
     return () => {
       signal.cancelled = true;
-      window.clearTimeout(startTimer);
       ladderRunRef.current += 1;
     };
-  }, [enabled, currentImageKey, variantsFingerprint, applyCrossfade]);
+  }, [
+    enabled,
+    mode,
+    currentImageKey,
+    variantsFingerprint,
+    commitDisplay,
+    applyStep,
+    viewOptions.strategy,
+    viewOptions.finalTarget,
+    viewOptions.maxSteps,
+  ]);
 
   const markLoaded = useCallback(() => {}, []);
   const markError = useCallback(() => {}, []);
@@ -171,6 +252,11 @@ export function useProgressiveImageSrc(
     baseSrc,
     overlaySrc,
     overlayVisible,
+    stepIndex,
+    totalSteps,
+    isUpgrading,
+    qualityLabel,
+    strategy: viewOptions.strategy,
     markLoaded,
     markError,
   };

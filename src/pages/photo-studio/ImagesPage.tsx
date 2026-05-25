@@ -51,10 +51,8 @@ import ProgressiveImage from '../../components/photo-studio/ProgressiveImage';
 import type { ImageVariants } from '../../utils/progressiveImageVariants';
 import { useProgressiveImageSrc } from '../../hooks/useProgressiveImageSrc';
 import {
-  getBootstrapSrc,
   getConnectionHint,
   getSaveData,
-  getUpgradeStopUrl,
   variantsNeedPolling,
 } from '../../utils/progressiveImageVariants';
 const SCROLL_RESTORE_KEY = 'photo-studio-images-scroll';
@@ -359,6 +357,7 @@ const ImageCard = memo(function ImageCard({
               key={imageRetryKey}
               image={image}
               enabled={isVisible}
+              mode="thumbnail"
               alt={image.filename}
               className="h-full w-full object-cover"
               onLoad={handleLoad}
@@ -491,13 +490,8 @@ const ClientImagesPage = () => {
   const { user } = useAuth();
   const [selectedImage, setSelectedImage] = useState<UserImage | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(-1);
-  const [lightboxPreviewReady, setLightboxPreviewReady] = useState(false);
-  const [lightboxPreviewFailed, setLightboxPreviewFailed] = useState(false);
-  const [lightboxPreviewVisible, setLightboxPreviewVisible] = useState(false);
-  const [lightboxImageLoaded, setLightboxImageLoaded] = useState(false);
   const [lightboxZoom, setLightboxZoom] = useState(1);
   const [lightboxPan, setLightboxPan] = useState({ x: 0, y: 0 });
-  const lightboxPreviewUrlRef = useRef<string | null>(null);
   const lightboxZoomContainerRef = useRef<HTMLDivElement | null>(null);
   const lightboxPanStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const lightboxPanRafRef = useRef<number | null>(null);
@@ -581,7 +575,7 @@ const ClientImagesPage = () => {
     refetchInterval: (query) => {
       const pages = query.state.data?.pages ?? [];
       const all = pages.flatMap((p) => (p as UserImagesResponse).images ?? []);
-      return variantsNeedPolling(all) ? 4000 : 30000;
+      return variantsNeedPolling(all) ? 4000 : false;
     },
     enabled: !!user && (viewMode === 'my' || (viewMode === 'invited' && !!selectedUser)),
   });
@@ -683,7 +677,9 @@ const ClientImagesPage = () => {
       uploadTime: '',
       fileType: '',
     },
-    lightboxIsImage
+    lightboxIsImage,
+    'progressive',
+    { strategy: 'smart', finalTarget: 'original', preloadParallel: true }
   );
 
   const selectedImages = useMemo(
@@ -1088,55 +1084,12 @@ const ClientImagesPage = () => {
     setSelectedImageIndex(-1);
   }, []);
 
-  // Lightbox: bootstrap on original, tier ladder via hook, then preload full previewUrl when distinct from recommended stop
   useEffect(() => {
     if (!activeLightboxImage || !lightboxIsImage) return;
-    const bootstrap = getBootstrapSrc(activeLightboxImage);
-    const stopUrl = getUpgradeStopUrl(activeLightboxImage);
-    const preview = activeLightboxImage.previewUrl;
-    setLightboxImageLoaded(false);
     setLightboxZoom(1);
     setLightboxPan({ x: 0, y: 0 });
     setLightboxIsPanning(false);
-    setLightboxPreviewReady(false);
-    setLightboxPreviewFailed(false);
-    setLightboxPreviewVisible(false);
-    if (!preview || preview === bootstrap || (stopUrl && preview === stopUrl)) {
-      setLightboxPreviewReady(true);
-      return;
-    }
-    const url = preview;
-    lightboxPreviewUrlRef.current = url;
-    const img = new Image();
-    const onLoad = () => {
-      if (lightboxPreviewUrlRef.current === url) {
-        setLightboxPreviewReady(true);
-      }
-    };
-    const onError = () => {
-      if (lightboxPreviewUrlRef.current === url) {
-        setLightboxPreviewFailed(true);
-      }
-    };
-    img.onload = onLoad;
-    img.onerror = onError;
-    img.src = url;
-    return () => {
-      lightboxPreviewUrlRef.current = null;
-      img.onload = null;
-      img.onerror = null;
-      img.src = '';
-    };
   }, [activeLightboxImage, lightboxIsImage]);
-
-  // Trigger fade-in after preview is in DOM (avoids no transition on first paint)
-  useEffect(() => {
-    if (!lightboxPreviewReady) return;
-    const id = requestAnimationFrame(() => {
-      setLightboxPreviewVisible(true);
-    });
-    return () => cancelAnimationFrame(id);
-  }, [lightboxPreviewReady]);
 
   useEffect(() => {
     if (!selectedImage) return;
@@ -2076,18 +2029,18 @@ const ClientImagesPage = () => {
             )}
             {lightboxIsImage && activeLightboxImage ? (
               (() => {
-                const baseUrl =
-                  lightboxProgressive.baseSrc || getBootstrapSrc(activeLightboxImage);
-                const previewUrl = activeLightboxImage.previewUrl;
-                const stopUrl = getUpgradeStopUrl(activeLightboxImage);
-                const hasDistinctPreview =
-                  !!previewUrl &&
-                  previewUrl !== baseUrl &&
-                  (!stopUrl || previewUrl !== stopUrl) &&
-                  lightboxPreviewReady &&
-                  !lightboxPreviewFailed;
-                const showingPreviewOverlay = hasDistinctPreview && lightboxPreviewVisible;
+                const displayUrl = lightboxProgressive.baseSrc;
                 const isZoomed = lightboxZoom > 1;
+                const showQuality =
+                  lightboxProgressive.isUpgrading ||
+                  lightboxProgressive.stepIndex < lightboxProgressive.totalSteps - 1;
+                const progressPct =
+                  lightboxProgressive.totalSteps > 1
+                    ? Math.round(
+                        ((lightboxProgressive.stepIndex + 1) / lightboxProgressive.totalSteps) *
+                          100
+                      )
+                    : 100;
                 return (
                   <div
                     ref={lightboxZoomContainerRef}
@@ -2112,42 +2065,46 @@ const ClientImagesPage = () => {
                         transition: lightboxIsPanning ? 'none' : 'transform 0.15s ease-out',
                       }}
                     >
-                      <>
-                        <img
-                          src={baseUrl}
-                          alt={activeLightboxImage.filename}
-                          className={`absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-300 ${showingPreviewOverlay ? 'opacity-0' : 'opacity-100'
-                            }`}
-                          draggable={false}
-                        />
-                        {lightboxProgressive.overlaySrc && (
+                      {displayUrl ? (
+                        <>
                           <img
-                            src={lightboxProgressive.overlaySrc}
-                            alt=""
-                            aria-hidden
-                            className={`absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-[400ms] ease-in-out ${showingPreviewOverlay ? 'opacity-0' : ''}`}
-                            style={{
-                              opacity: showingPreviewOverlay
-                                ? 0
-                                : lightboxProgressive.overlayVisible
-                                  ? 1
-                                  : 0,
-                            }}
+                            src={displayUrl}
+                            alt={activeLightboxImage.filename}
+                            className="absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain"
                             draggable={false}
                           />
-                        )}
-                      </>
-
-                      {hasDistinctPreview && (
-                        <img
-                          src={previewUrl}
-                          alt={activeLightboxImage.filename}
-                          className={`absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-300 ${lightboxPreviewVisible ? 'opacity-100' : 'opacity-0'
-                            }`}
-                          draggable={false}
-                        />
-                      )}
+                          {lightboxProgressive.overlaySrc && (
+                            <img
+                              src={lightboxProgressive.overlaySrc}
+                              alt=""
+                              aria-hidden
+                              className="absolute inset-0 m-auto h-full w-full max-h-full max-w-full object-contain transition-opacity duration-200 ease-in-out"
+                              style={{ opacity: lightboxProgressive.overlayVisible ? 1 : 0 }}
+                              draggable={false}
+                            />
+                          )}
+                        </>
+                      ) : null}
                     </div>
+                    {showQuality && (
+                      <div
+                        className="pointer-events-none absolute bottom-5 left-1/2 z-20 w-[min(280px,88vw)] -translate-x-1/2 rounded-full bg-black/45 px-4 py-2 backdrop-blur-sm"
+                        aria-live="polite"
+                      >
+                        <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-white/90">
+                          <span>{lightboxProgressive.qualityLabel}</span>
+                          <span className="text-white/60">
+                            {lightboxProgressive.stepIndex + 1}/{lightboxProgressive.totalSteps}
+                          </span>
+                        </div>
+                        <div className="h-1 overflow-hidden rounded-full bg-white/20">
+                          <div
+                            className="h-full rounded-full bg-white/85 transition-all duration-300 ease-out"
+                            style={{ width: `${progressPct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
                     {isZoomed && (
                       <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2">
                         <p className="rounded bg-black/50 px-3 py-1.5 text-xs text-white/70">

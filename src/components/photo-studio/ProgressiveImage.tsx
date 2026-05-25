@@ -1,6 +1,10 @@
 import React, { memo } from 'react';
 import type { UserImageWithVariants } from '../../utils/progressiveImageVariants';
-import { useProgressiveImageSrc } from '../../hooks/useProgressiveImageSrc';
+import {
+  useProgressiveImageSrc,
+  type ProgressiveDisplayMode,
+} from '../../hooks/useProgressiveImageSrc';
+import type { ProgressiveViewOptions } from '../../utils/progressiveImageConfig';
 
 export interface ProgressiveImageProps {
   image: UserImageWithVariants;
@@ -9,6 +13,9 @@ export interface ProgressiveImageProps {
   className?: string;
   onLoad?: () => void;
   onError?: () => void;
+  /** Gallery cards use thumbnail only; lightbox uses progressive upgrades. */
+  mode?: ProgressiveDisplayMode;
+  viewOptions?: Partial<ProgressiveViewOptions>;
 }
 
 const ProgressiveImage = memo(function ProgressiveImage({
@@ -18,9 +25,11 @@ const ProgressiveImage = memo(function ProgressiveImage({
   className = 'h-full w-full object-cover',
   onLoad,
   onError,
+  mode = 'thumbnail',
+  viewOptions,
 }: ProgressiveImageProps) {
   const { baseSrc, overlaySrc, overlayVisible, markLoaded, markError } =
-    useProgressiveImageSrc(image, enabled);
+    useProgressiveImageSrc(image, enabled, mode, viewOptions);
 
   const handleLoad = onLoad ?? markLoaded;
   const handleError = onError ?? markError;
