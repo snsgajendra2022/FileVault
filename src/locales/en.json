@@ -1279,6 +1279,7 @@
       "title": "General Settings",
       "description": "Manage basic portal preferences.",
       "portalName": "Portal Name",
+      "portalNamePreview": "Sidebar preview",
       "compactMode": "Compact Mode",
       "compactModeDesc": "Reduce spacing and make portal pages more compact."
     },

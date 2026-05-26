@@ -88,6 +88,13 @@ type PortalSettings = {
 const SETTINGS_STORAGE_KEY = "portal_settings";
 const ROLE_PERMISSIONS_STORAGE_KEY = "portal_role_menu_permissions";
 
+/** Shared field styles — follow html.dark (system / light / dark via filevault-theme). */
+const SETTINGS_LABEL_CLASS = "text-sm font-semibold text-slate-700 dark:text-slate-300";
+const SETTINGS_INPUT_CLASS =
+  "mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-violet-400 dark:focus:ring-violet-500/20";
+const SETTINGS_CARD_CLASS =
+  "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/80";
+
 const defaultSettings: PortalSettings = {
   portalName: "Our Memories Portal",
   language: "en",
@@ -257,17 +264,19 @@ function SettingSwitch({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-slate-900">{label}</p>
-        {description ? <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p> : null}
+        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{label}</p>
+        {description ? (
+          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{description}</p>
+        ) : null}
       </div>
 
       <button
         type="button"
         onClick={() => onChange(!checked)}
         className={`relative inline-flex h-7 w-12 shrink-0 rounded-full transition ${
-          checked ? "bg-violet-600" : "bg-slate-300"
+          checked ? "bg-violet-600 dark:bg-violet-500" : "bg-slate-300 dark:bg-slate-600"
         }`}
         aria-pressed={checked}
       >
@@ -506,13 +515,22 @@ export default function PortalSettingsPage() {
     <section className="space-y-5">
       <SectionHeader title={t("portalSettingsPage.general.title")} description={t("portalSettingsPage.general.description")} />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <label className="text-sm font-semibold text-slate-700">{t("portalSettingsPage.general.portalName")}</label>
+      <div className={SETTINGS_CARD_CLASS}>
+        <label className={SETTINGS_LABEL_CLASS}>{t("portalSettingsPage.general.portalName")}</label>
         <input
           value={settings.portalName}
           onChange={(e) => updateSetting("portalName", e.target.value)}
-          className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+          className={SETTINGS_INPUT_CLASS}
+          placeholder={defaultSettings.portalName}
         />
+        <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/50">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">
+            {t("portalSettingsPage.general.portalNamePreview", { defaultValue: "Sidebar preview" })}
+          </p>
+          <p className="mt-1 text-[15px] font-bold leading-tight text-slate-800 dark:text-slate-100">
+            {settings.portalName.trim() || defaultSettings.portalName}
+          </p>
+        </div>
       </div>
 
       <SettingSwitch
@@ -529,8 +547,8 @@ export default function PortalSettingsPage() {
       <SectionHeader title={t("portalSettingsPage.language.title")} description={t("portalSettingsPage.language.description")} />
 
       <div className="grid gap-5 md:grid-cols-2">
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <label className="text-sm font-semibold text-slate-700">{t("portalSettingsPage.language.languageLabel")}</label>
+        <div className={SETTINGS_CARD_CLASS}>
+          <label className={SETTINGS_LABEL_CLASS}>{t("portalSettingsPage.language.languageLabel")}</label>
           <select
             value={settings.language === "hi" ? "hi" : "en"}
             onChange={(e) => {
@@ -538,19 +556,19 @@ export default function PortalSettingsPage() {
               updateSetting("language", lang);
               void i18n.changeLanguage(lang);
             }}
-            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+            className={SETTINGS_INPUT_CLASS}
           >
             <option value="en">{t("portalSettingsPage.language.langEn")}</option>
             <option value="hi">{t("portalSettingsPage.language.langHi")}</option>
           </select>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <label className="text-sm font-semibold text-slate-700">{t("portalSettingsPage.language.timezone")}</label>
+        <div className={SETTINGS_CARD_CLASS}>
+          <label className={SETTINGS_LABEL_CLASS}>{t("portalSettingsPage.language.timezone")}</label>
           <select
             value={settings.timezone}
             onChange={(e) => updateSetting("timezone", e.target.value)}
-            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+            className={SETTINGS_INPUT_CLASS}
           >
             <option value="Asia/Kolkata">Asia/Kolkata</option>
             <option value="UTC">UTC</option>
@@ -738,12 +756,12 @@ export default function PortalSettingsPage() {
     <section className="space-y-5">
       <SectionHeader title={t("portalSettingsPage.appearance.title")} description={t("portalSettingsPage.appearance.description")} />
 
-      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <label className="text-sm font-semibold text-slate-700">{t("portalSettingsPage.appearance.theme")}</label>
+      <div className={SETTINGS_CARD_CLASS}>
+        <label className={SETTINGS_LABEL_CLASS}>{t("portalSettingsPage.appearance.theme")}</label>
         <select
           value={settings.themeMode}
           onChange={(e) => updateSetting("themeMode", e.target.value as PortalSettings["themeMode"])}
-          className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+          className={SETTINGS_INPUT_CLASS}
         >
           <option value="system">{t("portalSettingsPage.appearance.themeSystem")}</option>
           <option value="light">{t("portalSettingsPage.appearance.themeLight")}</option>
@@ -800,7 +818,7 @@ export default function PortalSettingsPage() {
               <button
                 type="button"
                 onClick={handleReset}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
               >
                 <FaUndo className="h-4 w-4" />
                 {t("portalSettingsPage.reset")}
@@ -810,7 +828,7 @@ export default function PortalSettingsPage() {
                 type="button"
                 onClick={() => void handleSave()}
                 disabled={saving}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 disabled:opacity-60 dark:bg-violet-600 dark:shadow-violet-900/30 dark:hover:bg-violet-500"
               >
                 <FaSave className="h-4 w-4" />
                 {saving ? t("portalSettingsPage.saving") : t("portalSettingsPage.save")}
@@ -819,7 +837,7 @@ export default function PortalSettingsPage() {
           </div>
 
           {savedMessage ? (
-            <div className="mt-5 flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+            <div className="mt-5 flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
               <FaCheck className="h-4 w-4" />
               {savedMessage}
             </div>
@@ -827,7 +845,7 @@ export default function PortalSettingsPage() {
         </header>
 
         <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
-          <aside className="rounded-[2rem] border border-white/80 bg-white/80 p-3 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+          <aside className="rounded-[2rem] border border-white/80 bg-white/80 p-3 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/80 dark:shadow-[0_18px_60px_rgba(0,0,0,0.35)]">
             <nav className="space-y-2">
               {visibleTabs.map((tab) => {
                 const Icon = tab.icon;
@@ -841,13 +859,15 @@ export default function PortalSettingsPage() {
                     className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition ${
                       active
                         ? "bg-violet-600 text-white shadow-lg shadow-violet-500/25"
-                        : "text-slate-600 hover:bg-violet-50 hover:text-violet-700"
+                        : "text-slate-600 hover:bg-violet-50 hover:text-violet-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-violet-300"
                     }`}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
                     <span className="min-w-0">
                       <span className="block text-sm font-bold">{tab.label}</span>
-                      <span className={`block truncate text-xs ${active ? "text-white/75" : "text-slate-400"}`}>
+                      <span
+                        className={`block truncate text-xs ${active ? "text-white/75" : "text-slate-400 dark:text-slate-500"}`}
+                      >
                         {tab.description}
                       </span>
                     </span>
@@ -857,7 +877,7 @@ export default function PortalSettingsPage() {
             </nav>
           </aside>
 
-          <main className="rounded-[2rem] border border-white/80 bg-white/70 p-5 shadow-[0_20px_70px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-7">
+          <main className="rounded-[2rem] border border-white/80 bg-white/70 p-5 shadow-[0_20px_70px_rgba(15,23,42,0.06)] backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-900/70 dark:shadow-[0_20px_70px_rgba(0,0,0,0.35)] sm:p-7">
             {renderContent()}
           </main>
         </div>
@@ -869,8 +889,8 @@ export default function PortalSettingsPage() {
 function SectionHeader({ title, description }: { title: string; description: string }) {
   return (
     <div>
-      <h2 className="text-xl font-black text-slate-950">{title}</h2>
-      <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
+      <h2 className="text-xl font-black text-slate-950 dark:text-slate-50">{title}</h2>
+      <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{description}</p>
     </div>
   );
 }

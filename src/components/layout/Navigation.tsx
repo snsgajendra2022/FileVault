@@ -76,12 +76,11 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
 
       {/* Drawer — same premium style as desktop sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col w-[290px] bg-white border-r border-slate-100
-          shadow-[4px_0_32px_rgba(0,0,0,0.08)] transform transition-transform duration-300 ease-in-out lg:hidden
+        className={`fixed inset-y-0 left-0 z-50 flex w-[290px] flex-col border-r border-slate-100 bg-white shadow-[4px_0_32px_rgba(0,0,0,0.08)] transition-transform duration-300 ease-in-out dark:border-slate-800 dark:bg-slate-900 dark:shadow-[4px_0_32px_rgba(0,0,0,0.45)] lg:hidden
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         {/* ── Brand ──────────────────────────────────────────────────── */}
-        <div className="shrink-0 flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 pb-4 pt-5 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-300 shadow-sm">
               <FaHeart className="h-3.5 w-3.5 text-red-500" />
@@ -98,7 +97,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
             aria-label="Close menu"
           >
             <FaTimes className="h-4 w-4" />

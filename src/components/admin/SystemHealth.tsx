@@ -117,12 +117,12 @@ const SystemHealth = () => {
           <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             <AdminCard title="User health">
               <div className="space-y-4">
-                <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3 dark:border-slate-600 dark:bg-slate-800/30">
                   <div className="flex items-center space-x-3">
                     {getStatusIcon(getHealthStatus(systemHealth.pendingVerifications, 10, 'high'))}
                     <div>
-                      <p className="font-medium text-slate-900">Pending verifications</p>
-                      <p className="text-sm text-slate-500">Users awaiting approval</p>
+                      <p className="font-medium text-slate-900 dark:text-slate-100">Pending verifications</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Users awaiting approval</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -135,12 +135,12 @@ const SystemHealth = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3 dark:border-slate-600 dark:bg-slate-800/30">
                   <div className="flex items-center space-x-3">
                     {getStatusIcon(getHealthStatus(systemHealth.suspendedUsers, 5, 'high'))}
                     <div>
-                      <p className="font-medium text-slate-900">Suspended users</p>
-                      <p className="text-sm text-slate-500">Accounts temporarily disabled</p>
+                      <p className="font-medium text-slate-900 dark:text-slate-100">Suspended users</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Accounts temporarily disabled</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -157,12 +157,12 @@ const SystemHealth = () => {
 
             <AdminCard title="Service health">
               <div className="space-y-4">
-                <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3 dark:border-slate-600 dark:bg-slate-800/30">
                   <div className="flex items-center space-x-3">
                     {getStatusIcon(getHealthStatus(systemHealth.failedServiceConnections, 3, 'high'))}
                     <div>
-                      <p className="font-medium text-slate-900">Failed connections</p>
-                      <p className="text-sm text-slate-500">Service configuration issues</p>
+                      <p className="font-medium text-slate-900 dark:text-slate-100">Failed connections</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Service configuration issues</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -175,12 +175,12 @@ const SystemHealth = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3">
+                <div className="flex items-center justify-between rounded-lg border border-slate-200 p-3 dark:border-slate-600 dark:bg-slate-800/30">
                   <div className="flex items-center space-x-3">
                     {getStatusIcon('healthy')}
                     <div>
-                      <p className="font-medium text-slate-900">Total configurations</p>
-                      <p className="text-sm text-slate-500">Service configurations</p>
+                      <p className="font-medium text-slate-900 dark:text-slate-100">Total configurations</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Service configurations</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -200,7 +200,7 @@ const SystemHealth = () => {
                 <div className="h-24 w-24 mx-auto mb-3 rounded-full bg-blue-100 flex items-center justify-center">
                   <FaUsers className="h-8 w-8 text-blue-600" />
                 </div>
-                <h5 className="font-semibold text-slate-900">User activity</h5>
+                <h5 className="font-semibold text-slate-900 dark:text-slate-100">User activity</h5>
                 <p className="text-2xl font-bold text-blue-600">
                   {systemHealth.activeUsers > 0 ? Math.round((systemHealth.activeUsers / systemHealth.totalUsers) * 100) : 0}%
                 </p>
@@ -211,7 +211,7 @@ const SystemHealth = () => {
                                  <div className="h-24 w-24 mx-auto mb-3 rounded-full bg-green-100 flex items-center justify-center">
                    <FaUsers className="h-8 w-8 text-green-600" />
                  </div>
-                <h5 className="font-semibold text-slate-900">Storage efficiency</h5>
+                <h5 className="font-semibold text-slate-900 dark:text-slate-100">Storage efficiency</h5>
                 <p className="text-2xl font-bold text-green-600">
                   {systemHealth.totalImages > 0 ? Math.round(systemHealth.totalStorageUsedGB / systemHealth.totalImages) : 0}
                 </p>
@@ -222,7 +222,7 @@ const SystemHealth = () => {
                                  <div className="h-24 w-24 mx-auto mb-3 rounded-full bg-purple-100 flex items-center justify-center">
                    <FaUsers className="h-8 w-8 text-purple-600" />
                  </div>
-                <h5 className="font-semibold text-slate-900">Service reliability</h5>
+                <h5 className="font-semibold text-slate-900 dark:text-slate-100">Service reliability</h5>
                 <p className="text-2xl font-bold text-purple-600">
                   {systemHealth.totalServiceConfigurations > 0 ? 
                     Math.round(((systemHealth.totalServiceConfigurations - systemHealth.failedServiceConnections) / systemHealth.totalServiceConfigurations) * 100) : 100}%

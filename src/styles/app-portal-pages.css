@@ -174,6 +174,7 @@ html.dark .portal-page-surface .portal-header-bar {
 
 /* ── Studio Albums + Client Images (scoped in page CSS) ── */
 html.dark .studio-albums-scope,
-html.dark .images-library-scope {
+html.dark .images-library-scope,
+html.dark .admin-scope {
   color-scheme: dark;
 }

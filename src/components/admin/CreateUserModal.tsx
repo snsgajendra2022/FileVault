@@ -138,12 +138,12 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit, is
 
   return (
     <AdminModal open title="Create new user" onClose={onClose} maxWidth="max-w-4xl">
-      <p className="-mt-2 mb-6 text-sm text-slate-600">
+      <p className="-mt-2 mb-6 text-sm text-slate-600 dark:text-slate-400">
         Add a new user with account credentials and settings.
       </p>
       <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-5">
-              <h4 className="mb-4 flex items-center text-sm font-semibold text-slate-900">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-600 dark:bg-slate-800/50">
+              <h4 className="mb-4 flex items-center text-sm font-semibold text-slate-900 dark:text-slate-100">
                 <FaUser className="mr-2 h-4 w-4 text-indigo-600" />
                 Basic information
               </h4>
@@ -232,8 +232,8 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit, is
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-5">
-              <h4 className="mb-4 flex items-center text-sm font-semibold text-slate-900">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-600 dark:bg-slate-800/50">
+              <h4 className="mb-4 flex items-center text-sm font-semibold text-slate-900 dark:text-slate-100">
                 <FaShieldAlt className="mr-2 h-4 w-4 text-emerald-600" />
                 Security
               </h4>
@@ -290,8 +290,8 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit, is
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-5">
-              <h4 className="mb-4 flex items-center text-sm font-semibold text-slate-900">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-5 dark:border-slate-600 dark:bg-slate-800/50">
+              <h4 className="mb-4 flex items-center text-sm font-semibold text-slate-900 dark:text-slate-100">
                 <FaCog className="mr-2 h-4 w-4 text-violet-600" />
                 Account settings
               </h4>
@@ -408,7 +408,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({ onClose, onSubmit, is
               </div>
             </div>*/}
 
-            <div className="flex justify-end gap-3 border-t border-slate-200 pt-6">
+            <div className="flex justify-end gap-3 border-t border-slate-200 pt-6 dark:border-slate-700">
               <button type="button" onClick={onClose} className={adminBtnSecondary} disabled={isLoading}>
                 Cancel
               </button>

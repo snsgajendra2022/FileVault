@@ -197,9 +197,12 @@ const ServiceManagement = () => {
         <AdminCard title="Service type distribution" className="mb-6">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             {Object.entries(serviceStats.serviceTypeCounts).map(([type, count]) => (
-              <div key={type} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-3">
-                <span className="font-medium text-slate-700">{type.replace('_', ' ')}</span>
-                <span className="text-lg font-bold text-slate-900">{count}</span>
+              <div
+                key={type}
+                className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-3 dark:border-slate-600 dark:bg-slate-800/40"
+              >
+                <span className="font-medium text-slate-700 dark:text-slate-300">{type.replace('_', ' ')}</span>
+                <span className="text-lg font-bold text-slate-900 dark:text-slate-100">{count}</span>
               </div>
             ))}
           </div>
@@ -619,7 +622,7 @@ const DynamicServiceModal = ({
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="admin-scope fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 dark:bg-black/70">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-t-3xl">
