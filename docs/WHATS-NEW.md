@@ -13,7 +13,9 @@ Do **not** plan these again—they exist today:
 |------|----------------|
 | **Our Memories** | Events list (filters, month groups), create/edit event, manage event, guest gallery + upload, share modal, guest permissions (`allowImageUpload` / `allowViewEventImages`), photobook modal, shared-with-me page (`/memories/shared`), lightbox, event types, EN/HI |
 | **Photo Studio** | Dashboard, clients, gallery, albums, barcodes + QR, checkout, public selection/checkout, labor sheets, client portal, shared albums/links |
-| **Other** | Phone book, family tree (D3), face filter, photo themes + album builder, photo book editor, upload family images, theme light/dark/system, OpenClaw assistant + WhatsApp config page, admin panel, plans/billing, invitations, portal settings |
+| **Photo Themes (basic today)** | Hub (`/photo-themes`), category cover editor, multi-page album builder, fixed layout grid, jsPDF export, resume by step, templates from API — **not** AI layout, client proofing, print lab, or marketplace |
+| **Phone Book (basic today)** | CRUD contacts, search, type filter, favorites (local), A–Z list, meta in notes (type, tags, WhatsApp, address) — **not** campaigns, RSVP, sync, timeline, or smart segments |
+| **Other** | Family tree (D3), face filter, photo book editor (`/photo-book`), upload family images, theme light/dark/system, OpenClaw assistant + WhatsApp config page, admin panel, plans/billing, invitations, portal settings |
 
 **Gap to close (partial, not “new product”):** likes/comments on memory photos are still **client-only** (`memoriesStore`)—backend persistence is an **upgrade**, not listed below as a new idea.
 
@@ -251,13 +253,11 @@ These use existing modules in **new** ways—not duplicate features.
 
 ---
 
-### 3.4 Phone Book → RSVP list for event ★★ `FE` + `BE`
+### 3.4 Phone Book → RSVP & guest lists ★★ `FE` + `BE`
 
-**New:** Import contacts as **invited / attending / declined**; share link only to “attending”; stats on manage page.
+**New:** See **§11 Phone Book** (RSVP hub, smart segments, bulk invite)—bridge from event manage → filtered contact list.
 
-**Why new:** Phone Book is contacts only—no RSVP state tied to event.
-
-**Not in project:** No RSVP entity.
+**Not in project:** `inviteStatus` in meta exists but no full RSVP workflow UI.
 
 ---
 
@@ -269,13 +269,11 @@ These use existing modules in **new** ways—not duplicate features.
 
 ---
 
-### 3.6 Photo Themes → one-click “print this layout” ★★ `FE` + `BE`
+### 3.6 Photo Themes → Memories / Studio albums ★★★ `FE` + `BE`
 
-**New:** From album builder: **Export print-ready PDF** with bleed, not just JSON preview.
+**New:** See **§10 Photo Themes** (one-click album from event, brand kit, print lab)—pull `imageIds` from Memories event or studio album into builder.
 
-**Why new:** Builder is design-focused; print shops need PDF/X.
-
-**Not in project:** Preview/download JSON exists on PhotoBook preview—not full print pipeline.
+**Not in project:** Manual photo pick only; no “build book from this event” wizard.
 
 ---
 
@@ -359,6 +357,321 @@ These use existing modules in **new** ways—not duplicate features.
 
 ---
 
+## 10. Photo Themes — big ideas (beyond basic templates)
+
+**Today:** Pick category → design cover → fill pages with layouts → save → PDF. Good start, but feels like a **generic editor**. Below turns it into a **pro photobook product** studios can sell.
+
+### What you have now (baseline)
+
+| Step | Route | Limitation |
+|------|--------|------------|
+| Hub | `/photo-themes` | Static/fallback cards; no pricing, no marketplace |
+| Cover | `/photo-themes/:slug` | Front/back only; no brand kit enforcement |
+| Builder | `.../album` | Manual drag layouts; no AI story, no client proofing |
+| Export | jsPDF in browser | No bleed marks, no lab ICC, no order tracking |
+
+---
+
+### 10.1 AI Story Album — “200 photos → finished book in 10 minutes” ★★★ `BE` + `FE`
+
+**New:** Wizard: user selects **Memories event** or **studio album** → AI clusters by time/face/scene → picks hero shots → assigns layouts across spreads → generates draft all pages. User tweaks, not builds from zero.
+
+**User value:** Wedding photographers deliver albums faster; hosts get a book without layout skills.
+
+**Build on:** `PhotoThemeAlbumBuilderPage`, Face Sync, event `imageIds`, OM for caption pass.
+
+**Routes:** `/photo-themes/auto-build` or modal from hub.
+
+---
+
+### 10.2 Studio Brand Kit (locked design system) ★★★ `FE` + `BE`
+
+**New:** Portal settings: **logo, primary/secondary colors, 2 fonts, watermark style**. Every theme inherits kit—covers, spines, page backgrounds cannot break brand.
+
+**User value:** Albums look like *your studio*, not a template farm.
+
+**Build on:** `portalSettings.ts`, `PhotoThemeCategoryPage` cover editor.
+
+---
+
+### 10.3 Client proofing & spread comments ★★★ `FE` + `BE`
+
+**New:** Share **read-only flipbook link** to bride/client. They **approve / request changes** per spread; pin comments on regions. Studio sees queue: “3 spreads need revision”.
+
+**User value:** Professional workflow; fewer WhatsApp screenshot loops.
+
+**Not in project:** No client-facing proofing for photobooks (studio checkout is different).
+
+---
+
+### 10.4 Print Lab Pro — bleed, ICC, order ID ★★★ `BE` + `FE`
+
+**New:** Export profiles: **8×8, 10×10, 12×12, A4** with 3mm bleed, crop marks, 300 DPI, optional ICC (sRGB/Adobe RGB). Submit **order package** (PDF + manifest JSON) to lab API or download ZIP for lab portal.
+
+**User value:** Real money feature—studios pay for “print-ready”, not just PDF.
+
+**Build on:** Existing jsPDF path in `PhotoThemeAlbumBuilderPage.tsx` — replace/extend with server-side render option.
+
+---
+
+### 10.5 Theme Marketplace & designer templates ★★ `BE` + `FE`
+
+**New:** **Marketplace** tab on hub: premium layouts by category (Wedding cinematic, Minimal Indian, Kids playful). Studio purchases or subscribes; revenue share for template authors.
+
+**User value:** Always fresh designs; you become platform, not 4 static categories.
+
+**Admin:** Upload template ZIP + metadata; preview in sandbox.
+
+---
+
+### 10.6 Variable-data guest books (personalized copies) ★★ `BE` + `FE`
+
+**New:** One master design → **50 covers** each with guest name from Phone Book / CSV. Batch render PDFs for favor books or thank-you gifts.
+
+**User value:** High-margin add-on at weddings (“personal album for each family table”).
+
+---
+
+### 10.7 Pricing & package calculator on hub ★★ `FE` + `BE`
+
+**New:** On hub: pick size + page count + cover type → **instant quote** (studio-configured rates). “Send quote to client” → link with approve + pay (tie to checkout).
+
+**User value:** Sales tool, not just design tool.
+
+---
+
+### 10.8 Version history & design branches ★★ `BE` + `FE`
+
+**New:** Photobook snapshots every save; **compare v3 vs v5**; restore spread. Branch: “Client requested changes” fork without losing original.
+
+**User value:** Safety on 40-page books; pros expect this.
+
+---
+
+### 10.9 Video & motion spreads ★★ `BE` + `FE`
+
+**New:** Embed **short video loop** or QR on printed page that opens highlight reel (from Memories or studio reel).
+
+**User value:** Premium wedding albums; differentiation vs Canva static books.
+
+---
+
+### 10.10 Collaborative editing (studio + client) ★★ `FE` + `BE`
+
+**New:** Real-time or async **co-edit**: client moves photos only in allowed zones; studio locks master template. Presence: “Priya is viewing page 12”.
+
+**User value:** Engagement without giving full account access.
+
+---
+
+### 10.11 OM Photobook Copilot ★★★ `FE` + `BE`
+
+**New:** In builder panel: “Write captions for all pages”, “Suggest title for cover”, “Shorten text to fit box”, EN/HI. Uses page context + event type.
+
+**User value:** Removes blank-page paralysis; uses your OM investment.
+
+---
+
+### 10.12 Multi-output from one design ★★ `FE`
+
+**New:** One project → export **print PDF + social carousel ZIP + animated flip MP4** for Instagram.
+
+**User value:** One job, many deliverables.
+
+---
+
+### Photo Themes — suggested build order
+
+```
+Phase PT-1 (revenue)
+  10.4 Print Lab Pro
+  10.7 Pricing calculator
+  10.3 Client proofing
+
+Phase PT-2 (speed)
+  10.1 AI Story Album
+  3.6 Memories → builder import
+  10.2 Brand Kit
+
+Phase PT-3 (platform)
+  10.5 Marketplace
+  10.6 Variable-data books
+  10.11 OM Copilot
+```
+
+**Files:** `src/pages/photo-themes/*`, `src/templates/photobookTemplates.ts`, `docs/PHOTO-THEMES.md`
+
+---
+
+## 11. Phone Book — big ideas (beyond contact list)
+
+**Today:** A nice **Guest Contacts** list with types and favorites. Useful, but still a **digital address book**. Below makes it the **CRM + outreach hub** for weddings and studios.
+
+### What you have now (baseline)
+
+| Feature | Status |
+|---------|--------|
+| List / search / filter by type | ✅ |
+| Favorites (device local store) | ✅ |
+| Contact detail CRUD | ✅ |
+| Meta: WhatsApp, address, tags, `linkedEventIds`, `inviteStatus` | ✅ in `phoneBookService` meta |
+| Bulk SMS campaigns | ❌ |
+| Google contact sync | ❌ |
+| Per-contact activity timeline | ❌ |
+| RSVP dashboard | ❌ |
+| Smart segments | ❌ |
+
+---
+
+### 11.1 Contact Timeline (360° view) ★★★ `FE` + `BE`
+
+**New:** On contact detail: chronological **timeline** — invited to event X, opened gallery, uploaded 3 photos, shared album Y, paid invoice Z, photobook ordered.
+
+**User value:** One screen before calling a client; no digging in three modules.
+
+**Build on:** `PhoneBookDetailPage.tsx`, memories share logs, studio checkout, invitations APIs.
+
+---
+
+### 11.2 Smart Segments & dynamic lists ★★★ `FE` + `BE`
+
+**New:** Saved segments: “All Wedding 2026”, “VIP no upload yet”, “Delhi clients”, “Bride side family”. Filters: type, tags, city, last activity, event linked. Segments **auto-update**.
+
+**User value:** Targeted outreach in one click; real CRM behavior.
+
+---
+
+### 11.3 Bulk campaigns (WhatsApp / SMS / email) ★★★ `BE` + `FE`
+
+**New:** Pick segment → template (“Upload your photos”, “Album ready”) → schedule send → delivery stats (sent, failed, opened if trackable).
+
+**User value:** Replaces manual WhatsApp broadcast lists; ties to §1.5 event reminders.
+
+**Build on:** `InviteContactsModal.tsx`, `public-share/send`, WhatsApp config.
+
+---
+
+### 11.4 RSVP & guest list command center ★★★ `FE` + `BE`
+
+**New:** Per event: import segment → **Invited / Attending / Declined / No response**. Send invite link; scan QR check-in at venue. Manage page shows RSVP funnel chart.
+
+**User value:** Wedding planners live in RSVP; you own the guest list + gallery in one place.
+
+**Build on:** `meta.inviteStatus`, memories event manage share.
+
+---
+
+### 11.5 Google / iCloud contact sync ★★ `BE` + `FE`
+
+**New:** OAuth sync; choose folders; **two-way or import-only**; duplicate detection on merge.
+
+**User value:** No re-typing hundreds of wedding guests.
+
+---
+
+### 11.6 Business card scan (OCR add) ★★ `FE` + `BE`
+
+**New:** Mobile camera scan at meet → parse name, phone, email → create contact + suggest type (Client / Organizer).
+
+**User value:** Studios network at expos; instant capture.
+
+---
+
+### 11.7 Auto-create contact from guest upload ★★★ `FE` + `BE`
+
+**New:** Guest upload form: optional name + phone → **create or match** Phone Book contact → link to event → set `linkedEventIds`.
+
+**User value:** Book grows automatically; better reminders next event.
+
+---
+
+### 11.8 Duplicate merge & data quality ★★ `FE` + `BE`
+
+**New:** “12 possible duplicates” → merge wizard (keep best email/phone, combine tags/events).
+
+**User value:** Clean data before bulk campaigns.
+
+---
+
+### 11.9 Team phone book & permissions ★★ `BE` + `FE`
+
+**New:** Studio staff roles: **view only / edit / campaign send / admin**. Audit who exported or messaged a segment.
+
+**User value:** Multi-photographer studios; enterprise sales.
+
+---
+
+### 11.10 Map & territory view ★★ `FE` + `BE`
+
+**New:** Map pins by city/state from contact address; filter shoots “near Jaipur this month”.
+
+**User value:** Travel wedding planners; regional marketing.
+
+---
+
+### 11.11 Follow-up tasks & pipeline ★★ `FE` + `BE`
+
+**New:** Per contact: tasks (“Call after delivery”, “Send album link”). Pipeline stages: **Lead → Booked → Shot → Delivered → Advocate**.
+
+**User value:** Sales follow-up without separate CRM.
+
+---
+
+### 11.12 Consent & DND compliance ★★ `BE` + `FE`
+
+**New:** Flags: **marketing OK**, **WhatsApp OK**, consent timestamp. Block campaign if DND; export consent log for legal.
+
+**User value:** Required for bulk SMS in India; trust for corporates.
+
+---
+
+### 11.13 Referral tracking per contact ★★ `FE` + `BE`
+
+**New:** “Referred by” link between contacts; report: top referrers, bonus credits.
+
+**User value:** Growth loop for hosts and studios.
+
+---
+
+### 11.14 Favorites & tags cloud-synced ★★ `BE` + `FE`
+
+**New:** Move favorites from `phoneBookPrefsStore` (local only) to **server**; shared tags across devices/staff.
+
+**User value:** Team sees same VIP list; fixes today’s local-only fav limitation.
+
+---
+
+### 11.15 Integration shortcuts on contact card ★★ `FE`
+
+**New:** One-tap: **Create event**, **Start photobook**, **Share album**, **Open in WhatsApp** (deep link), **Add to family tree**.
+
+**User value:** Phone Book becomes **action center**, not static record.
+
+---
+
+### Phone Book — suggested build order
+
+```
+Phase PB-1 (CRM core)
+  11.1 Contact Timeline
+  11.15 Integration shortcuts
+  11.14 Cloud favorites/tags
+
+Phase PB-2 (wedding season)
+  11.4 RSVP command center
+  11.3 Bulk campaigns
+  11.2 Smart Segments
+
+Phase PB-3 (growth & scale)
+  11.5 Contact sync
+  11.7 Auto-create from guest upload
+  11.6 Business card OCR
+```
+
+**Files:** `src/pages/PhoneBook/*`, `src/api/services/phoneBookService.ts`, `phoneBookPrefsStore.ts`
+
+---
+
 ## 6. Recommended build order (all new)
 
 ```
@@ -379,6 +692,18 @@ Phase C — Moat & growth
   3.2 Family tree tags on photos
   4.1 Webhooks
   1.8 Embeddable widget
+
+Phase PT — Photo Themes (pro product)
+  10.4 Print Lab Pro
+  10.1 AI Story Album
+  10.3 Client proofing
+  10.2 Brand Kit
+
+Phase PB — Phone Book (CRM hub)
+  11.1 Contact Timeline
+  11.4 RSVP center
+  11.3 Bulk campaigns
+  11.2 Smart Segments
 ```
 
 ---
@@ -403,6 +728,10 @@ Phase C — Moat & growth
 | AI cull | ↓ hours from upload to client proof |
 | Delivery packages | ↑ jobs marked fully delivered |
 | Face “photos of me” | ↑ guest return visits to link |
+| AI Story Album (§10.1) | ↓ hours per delivered photobook |
+| Print Lab export (§10.4) | ↑ paid print orders |
+| RSVP + campaigns (§11) | ↑ guest upload rate per event |
+| Contact timeline (§11.1) | ↓ support “what did we send them?” |
 
 ---
 
@@ -413,6 +742,8 @@ Phase C — Moat & growth
 | Guest event UX | `src/pages/memories/MemoriesPublicGalleryPage.tsx`, `GuestMemoriesIntro.tsx` |
 | Host manage | `MemoriesEventManagePage.tsx` |
 | Studio jobs | `ClientManagement.tsx`, `PhotoStudioAlbum.tsx`, `labor-sheet/` |
+| **Photo Themes** | `src/pages/photo-themes/PhotoThemesPage.tsx`, `PhotoThemeAlbumBuilderPage.tsx`, `PhotoThemeCategoryPage.tsx`, `docs/PHOTO-THEMES.md` |
+| **Phone Book** | `src/pages/PhoneBook/*`, `phoneBookService.ts`, `InviteContactsModal.tsx` |
 | WhatsApp / OM | `WhatsAppConfigPage.tsx`, OpenClaw tools, `backend.md` |
 | Face + tree | `FilterImagesPage.tsx`, `FamilyTreePage.tsx`, new `services/` |
 | Integrations | `PortalSettingsPage.tsx`, new `api/webhooks` |
