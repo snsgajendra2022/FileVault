@@ -89,17 +89,17 @@ const AdminPage = () => {
 
   if (!user || user.accountType !== 'ADMIN') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+      <div className="admin-scope admin-panel-page flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
         <AdminCard className="max-w-md text-center">
-          <h1 className="text-xl font-bold text-slate-900">{t('adminPage.accessDenied')}</h1>
-          <p className="mt-2 text-sm text-slate-600">{t('adminPage.accessDeniedBody')}</p>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">{t('adminPage.accessDenied')}</h1>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{t('adminPage.accessDeniedBody')}</p>
         </AdminCard>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <div className="admin-scope admin-panel-page min-h-screen bg-slate-50 text-slate-900 transition-colors duration-200 dark:bg-slate-950 dark:text-slate-100">
       {/* <div className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 md:px-6">
           <div className="flex items-center gap-3 border-b border-slate-100 py-4">
@@ -159,17 +159,17 @@ const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void 
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const [userStats, systemHealth, usageStats, serviceStats] = await Promise.allSettled([
-        adminService.getUserStatistics(),
-        adminService.getSystemHealth(),
-        adminService.getUsageStatistics(),
-        adminService.getServiceStatistics(),
+      const [userStats, systemHealth, usageStats, serviceStats] = await Promise.all([
+        adminService.getUserStatisticsOptional(),
+        adminService.getSystemHealthOptional(),
+        adminService.getUsageStatisticsOptional(),
+        adminService.getServiceStatisticsOptional(),
       ]);
       setDashboardData({
-        userStats: userStats.status === 'fulfilled' ? userStats.value : null,
-        systemHealth: systemHealth.status === 'fulfilled' ? systemHealth.value : null,
-        usageStats: usageStats.status === 'fulfilled' ? usageStats.value : null,
-        serviceStats: serviceStats.status === 'fulfilled' ? serviceStats.value : null,
+        userStats,
+        systemHealth,
+        usageStats,
+        serviceStats,
       });
     } catch {
       toast.error(t('adminPage.toastDashboardLoadFailed'));
@@ -223,13 +223,17 @@ const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void 
               key={action.tab}
               type="button"
               onClick={() => setActiveTab(action.tab)}
-              className={`${adminCardClass} p-5 text-left transition hover:border-indigo-200 hover:shadow-md`}
+              className={`${adminCardClass} p-5 text-left transition hover:border-indigo-200 hover:shadow-md dark:hover:border-indigo-700`}
             >
-              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white">
+              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white dark:bg-indigo-500">
                 <Icon className="h-5 w-5" />
               </div>
-              <h3 className="font-semibold text-slate-900">{t(`adminPage.quickActions.${action.tab}`)}</h3>
-              <p className="mt-1 text-xs text-slate-500">{t(`adminPage.quickActionManage.${action.tab}`)}</p>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                {t(`adminPage.quickActions.${action.tab}`)}
+              </h3>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {t(`adminPage.quickActionManage.${action.tab}`)}
+              </p>
             </button>
           );
         })}
@@ -286,17 +290,17 @@ const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void 
           <AdminCard title={t('adminPage.userActivity')}>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-500">{t('adminPage.newUsers30d')}</span>
-                <span className="font-semibold text-slate-900">
+                <span className="text-slate-500 dark:text-slate-400">{t('adminPage.newUsers30d')}</span>
+                <span className="font-semibold text-slate-900 dark:text-slate-100">
                   {dashboardData.userStats.newUsersThisMonth || 0}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">{t('adminPage.pendingVerification')}</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('adminPage.pendingVerification')}</span>
                 <span className="font-semibold">{dashboardData.userStats.pendingVerification || 0}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">{t('adminPage.suspendedUsers')}</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('adminPage.suspendedUsers')}</span>
                 <span className="font-semibold">{dashboardData.userStats.suspendedUsers || 0}</span>
               </div>
             </div>
@@ -304,19 +308,19 @@ const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void 
           <AdminCard title={t('adminPage.storageUsage')}>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-500">{t('adminPage.usedStorage')}</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('adminPage.usedStorage')}</span>
                 <span className="font-semibold">
                   {formatStorage(dashboardData.usageStats?.totalStorageUsed || 0)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">{t('adminPage.available')}</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('adminPage.available')}</span>
                 <span className="font-semibold">
                   {formatStorage(dashboardData.usageStats?.totalStorageAvailable || 0)}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">{t('adminPage.uploads30d')}</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('adminPage.uploads30d')}</span>
                 <span className="font-semibold">{dashboardData.usageStats?.uploadsThisMonth || 0}</span>
               </div>
             </div>
@@ -324,15 +328,15 @@ const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void 
           <AdminCard title={t('adminPage.serviceStatus')}>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-500">{t('adminPage.connectedServices')}</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('adminPage.connectedServices')}</span>
                 <span className="font-semibold">{dashboardData.serviceStats?.connectedServices || 0}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">{t('adminPage.failedConnections')}</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('adminPage.failedConnections')}</span>
                 <span className="font-semibold">{dashboardData.serviceStats?.failedConnections || 0}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">{t('adminPage.lastSync')}</span>
+                <span className="text-slate-500 dark:text-slate-400">{t('adminPage.lastSync')}</span>
                 <span className="font-semibold">{dashboardData.serviceStats?.lastSyncTime || t('adminPage.na')}</span>
               </div>
             </div>

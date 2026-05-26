@@ -139,11 +139,12 @@ html.dark .photo-themes-hub {
 }
 
 .photo-themes-glass-card {
-  @apply rounded-3xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-md transition-colors duration-200;
-}
-
-html.dark .photo-themes-glass-card {
-  @apply border-slate-700 bg-slate-900/90;
+  border-radius: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--pt-card-border) 80%, transparent);
+  background: var(--pt-card);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  backdrop-filter: blur(12px);
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .photo-themes-hub h2,
@@ -155,19 +156,240 @@ html.dark .photo-themes-glass-card {
   color: var(--pt-muted);
 }
 
-/* ── Portal list pages (phonebook, invitations, services) ── */
-.portal-page-surface .portal-card {
-  @apply rounded-2xl border border-slate-200 bg-white shadow-sm transition-colors duration-200;
+/* ── Portal layout shell (all nav routes from portalSettings) ── */
+.portal-page-surface {
+  --pp-bg: #f8fafc;
+  --pp-surface: #ffffff;
+  --pp-surface-muted: #f1f5f9;
+  --pp-text: #0f172a;
+  --pp-text-muted: #475569;
+  --pp-text-faint: #64748b;
+  --pp-border: #e2e8f0;
+  color: var(--pp-text);
+  transition: color 0.2s ease, background-color 0.2s ease;
 }
 
-html.dark .portal-page-surface .portal-card {
-  @apply border-slate-700 bg-slate-900;
+html.dark .portal-page-surface {
+  --pp-bg: #0f172a;
+  --pp-surface: #1e293b;
+  --pp-surface-muted: #334155;
+  --pp-text: #f1f5f9;
+  --pp-text-muted: #cbd5e1;
+  --pp-text-faint: #94a3b8;
+  --pp-border: #475569;
+  color-scheme: dark;
+}
+
+.portal-page-surface .portal-card {
+  border-radius: 1rem;
+  border: 1px solid var(--pp-border);
+  background-color: var(--pp-surface);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .portal-page-surface .portal-header-bar {
-  @apply bg-white border-b border-slate-200 transition-colors duration-200;
+  background-color: var(--pp-surface);
+  border-bottom: 1px solid var(--pp-border);
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
-html.dark .portal-page-surface .portal-header-bar {
-  @apply bg-slate-900 border-slate-800;
+/* Catch pages/components still using light-only Tailwind grays */
+.portal-page-surface .bg-white {
+  background-color: var(--pp-surface) !important;
+}
+
+.portal-page-surface .bg-gray-50,
+.portal-page-surface .bg-slate-50 {
+  background-color: var(--pp-surface-muted) !important;
+}
+
+.portal-page-surface .bg-gray-100,
+.portal-page-surface .bg-slate-100 {
+  background-color: var(--pp-surface-muted) !important;
+}
+
+.portal-page-surface .border-gray-100,
+.portal-page-surface .border-gray-200,
+.portal-page-surface .border-slate-200 {
+  border-color: var(--pp-border) !important;
+}
+
+.portal-page-surface .text-gray-900,
+.portal-page-surface .text-slate-900 {
+  color: var(--pp-text) !important;
+}
+
+.portal-page-surface .text-gray-800,
+.portal-page-surface .text-gray-700,
+.portal-page-surface .text-gray-600,
+.portal-page-surface .text-slate-800,
+.portal-page-surface .text-slate-700,
+.portal-page-surface .text-slate-600 {
+  color: var(--pp-text-muted) !important;
+}
+
+.portal-page-surface .text-gray-500,
+.portal-page-surface .text-gray-400,
+.portal-page-surface .text-gray-300,
+.portal-page-surface .text-slate-500,
+.portal-page-surface .text-slate-400 {
+  color: var(--pp-text-faint) !important;
+}
+
+html.dark .portal-page-surface .hover\:bg-gray-50:hover,
+html.dark .portal-page-surface .hover\:bg-blue-50:hover,
+html.dark .portal-page-surface .hover\:bg-slate-50:hover,
+html.dark .portal-page-surface .hover\:bg-slate-100:hover {
+  background-color: var(--pp-surface-muted) !important;
+}
+
+html.dark .portal-page-surface .hover\:text-gray-700:hover,
+html.dark .portal-page-surface .hover\:text-gray-600:hover {
+  color: var(--pp-text) !important;
+}
+
+.portal-page-surface input,
+.portal-page-surface select,
+.portal-page-surface textarea {
+  background-color: var(--pp-surface);
+  border-color: var(--pp-border);
+  color: var(--pp-text);
+}
+
+.portal-page-surface input::placeholder,
+.portal-page-surface textarea::placeholder {
+  color: var(--pp-text-faint);
+}
+
+html.dark .portal-page-surface select option {
+  background-color: var(--pp-surface);
+  color: var(--pp-text);
+}
+
+/* ── Upload Family — hardcoded hex in JSX ── */
+.upload-family-page .text-\[\#004ac6\] {
+  color: var(--uf-accent) !important;
+}
+
+.upload-family-page .text-\[\#505f76\],
+.upload-family-page .text-\[\#5f6c84\] {
+  color: var(--uf-muted) !important;
+}
+
+.upload-family-page .text-\[\#191b23\],
+.upload-family-page .text-\[\#1a1c24\] {
+  color: var(--uf-text) !important;
+}
+
+.upload-family-page .border-\[\#c3c6d7\],
+.upload-family-page .border-\[\#d5d8e4\] {
+  border-color: var(--uf-border) !important;
+}
+
+.upload-family-page .bg-\[\#f3f3fe\],
+.upload-family-page .bg-\[\#f5f6ff\],
+.upload-family-page .bg-\[\#eef4ff\] {
+  background-color: var(--uf-surface-soft) !important;
+}
+
+.upload-family-page .bg-white {
+  background-color: var(--uf-surface) !important;
+}
+
+.upload-family-page .bg-\[\#004ac6\] {
+  background-color: var(--uf-accent) !important;
+}
+
+.upload-family-page .border-\[\#004ac6\] {
+  border-color: var(--uf-accent) !important;
+}
+
+/* ── Family tree floating panel ── */
+.family-tree-scope .family-tree-panel {
+  background: var(--pp-surface);
+  border-color: var(--pp-border);
+  color: var(--pp-text);
+}
+
+html.dark .family-tree-scope .family-tree-panel {
+  background: var(--pp-surface);
+  border-color: var(--pp-border);
+}
+
+.family-tree-scope .family-tree-panel .text-gray-800,
+.family-tree-scope .family-tree-panel .text-gray-700 {
+  color: var(--pp-text) !important;
+}
+
+.family-tree-scope .family-tree-panel .text-gray-500,
+.family-tree-scope .family-tree-panel .text-gray-400 {
+  color: var(--pp-text-faint) !important;
+}
+
+.family-tree-scope .family-tree-action {
+  border-color: var(--pp-border);
+  color: var(--pp-text-muted);
+}
+
+html.dark .family-tree-scope .family-tree-action:hover {
+  background-color: rgba(37, 99, 235, 0.12) !important;
+  border-color: #60a5fa !important;
+}
+
+/* ── Photo themes category (builder pages) ── */
+.photo-themes-hub,
+.photo-themes-category {
+  color: var(--pt-text);
+}
+
+html.dark .photo-themes-category .text-\[\#0b1c30\],
+html.dark .photo-themes-category .text-\[\#464554\] {
+  color: var(--pt-text) !important;
+}
+
+html.dark .category-quantum-studio {
+  background: #0f172a;
+  color: #f1f5f9;
+}
+
+html.dark .category-quantum-studio .bg-white,
+html.dark .category-quantum-studio .bg-white\/90,
+html.dark .category-quantum-studio .category-editor-panel,
+html.dark .category-quantum-studio footer {
+  background-color: #1e293b !important;
+  border-color: #475569 !important;
+}
+
+html.dark .category-quantum-studio .bg-slate-50,
+html.dark .category-quantum-studio .bg-slate-50\/80 {
+  background-color: #334155 !important;
+}
+
+html.dark .category-quantum-studio .text-\[\#0b1c30\],
+html.dark .category-quantum-studio .text-slate-900,
+html.dark .category-quantum-studio h1,
+html.dark .category-quantum-studio h2,
+html.dark .category-quantum-studio h3 {
+  color: #f1f5f9 !important;
+}
+
+html.dark .category-quantum-studio .text-\[\#464554\],
+html.dark .category-quantum-studio .text-slate-600,
+html.dark .category-quantum-studio .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+html.dark .category-quantum-studio .border-slate-100,
+html.dark .category-quantum-studio .border-slate-200,
+html.dark .category-quantum-studio .border-slate-200\/60 {
+  border-color: #475569 !important;
+}
+
+/* ── Studio Albums + Client Images (scoped in page CSS) ── */
+html.dark .studio-albums-scope,
+html.dark .images-library-scope,
+html.dark .admin-scope,
+html.dark .premium-dashboard {
+  color-scheme: dark;
 }

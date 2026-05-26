@@ -113,7 +113,7 @@ const PlanManagement = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 p-6">
+    <div className="admin-scope admin-panel-page min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 p-6 dark:from-slate-950 dark:via-slate-900/80 dark:to-slate-950">
       {/* Header */}
       <div className="text-center mb-12">
         <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
@@ -148,10 +148,10 @@ const PlanManagement = () => {
         </div>
       ) : !Array.isArray(plans) ? (
         <div className="text-center py-12">
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6 max-w-md mx-auto">
-            <FaTimes className="h-12 w-12 text-red-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Plans</h3>
-            <p className="text-red-600">Invalid data format received from server</p>
+          <div className="mx-auto max-w-md rounded-xl border border-red-200 bg-red-50 p-6 dark:border-red-900 dark:bg-red-950/40">
+            <FaTimes className="mx-auto mb-4 h-12 w-12 text-red-400" />
+            <h3 className="mb-2 text-lg font-semibold text-red-800 dark:text-red-300">Error Loading Plans</h3>
+            <p className="text-red-600 dark:text-red-400">Invalid data format received from server</p>
           </div>
         </div>
       ) : plans.length === 0 ? (
@@ -350,7 +350,7 @@ const CreatePlanModal = ({ onClose, onSubmit, isLoading }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="admin-scope fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm dark:bg-black/70">
       <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6 rounded-t-3xl">
           <div className="flex items-center justify-between">
@@ -602,7 +602,7 @@ const EditPlanModal = ({ plan, onClose, onSubmit, isLoading }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="admin-scope fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm dark:bg-black/70">
       <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 rounded-t-3xl">
           <div className="flex items-center justify-between">

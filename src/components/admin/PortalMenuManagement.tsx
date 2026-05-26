@@ -282,7 +282,7 @@ const PortalMenuManagement = () => {
             {ROLES.map((role) => (
               <label
                 key={role}
-                className="flex cursor-pointer items-center justify-between rounded-lg border border-slate-200 px-4 py-3 hover:bg-slate-50"
+                className="flex cursor-pointer items-center justify-between rounded-lg border border-slate-200 px-4 py-3 hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800/60"
               >
                 <span className="text-sm font-medium capitalize">{roleLabel(role)}</span>
                 <input
@@ -321,7 +321,7 @@ const PortalMenuManagement = () => {
         </div>
 
         <AdminCard className="overflow-hidden p-0">
-          <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
             <input
               type="search"
               value={search}
@@ -499,7 +499,7 @@ const PortalMenuManagement = () => {
           </datalist>
         </AdminCard>
 
-        <p className="mt-4 text-xs text-slate-500">{t('adminPortalMenu.footerHint')}</p>
+        <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{t('adminPortalMenu.footerHint')}</p>
     </AdminShell>
   );
 };

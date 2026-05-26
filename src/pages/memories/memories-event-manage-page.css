@@ -1,0 +1,186 @@
+/* /memories/events/:eventId — manage dashboard theme */
+.memories-event-manage-page {
+  --mem-bg: #f6f4fb;
+  --mem-surface: #ffffff;
+  --mem-surface-muted: #f8fafc;
+  --mem-text: #0f172a;
+  --mem-text-muted: #475569;
+  --mem-text-faint: #64748b;
+  --mem-border: #e2e8f0;
+  --mem-accent: #7c3aed;
+  --mem-accent-soft: #f5f3ff;
+}
+
+html.dark .memories-event-manage-page {
+  --mem-bg: #020617;
+  --mem-surface: #1e293b;
+  --mem-surface-muted: #0f172a;
+  --mem-text: #f1f5f9;
+  --mem-text-muted: #cbd5e1;
+  --mem-text-faint: #94a3b8;
+  --mem-border: #475569;
+  --mem-accent: #a78bfa;
+  --mem-accent-soft: #2e1065;
+}
+
+.memories-event-manage-page {
+  width: 100%;
+  min-height: calc(100dvh - 4.25rem);
+  min-height: calc(100vh - 4.25rem);
+  background-color: var(--mem-bg);
+  color: var(--mem-text);
+}
+
+.memories-event-manage-page .me-manage-inner {
+  width: 100%;
+  max-width: 64rem;
+  margin-inline: auto;
+  padding: clamp(1rem, 3vw, 2rem) clamp(0.75rem, 3vw, 1.5rem) clamp(2rem, 5vw, 5rem);
+}
+
+.memories-event-manage-page .me-manage-back {
+  color: var(--mem-text-faint);
+}
+
+.memories-event-manage-page .me-manage-back:hover {
+  color: var(--mem-accent);
+}
+
+.memories-event-manage-page .me-manage-header,
+.memories-event-manage-page .me-manage-panel {
+  background-color: color-mix(in srgb, var(--mem-surface) 88%, transparent);
+  border: 1px solid var(--mem-border);
+  color: var(--mem-text);
+}
+
+.memories-event-manage-page .me-manage-title {
+  color: var(--mem-text);
+}
+
+.memories-event-manage-page .me-manage-muted {
+  color: var(--mem-text-muted);
+}
+
+.memories-event-manage-page .me-manage-faint {
+  color: var(--mem-text-faint);
+}
+
+.memories-event-manage-page .me-manage-body {
+  color: var(--mem-text-muted);
+}
+
+.memories-event-manage-page .me-manage-chip {
+  background-color: color-mix(in srgb, var(--mem-surface) 95%, transparent);
+  border: 1px solid var(--mem-border);
+  color: var(--mem-text-muted);
+}
+
+.memories-event-manage-page .me-manage-chip-privacy {
+  background-color: color-mix(in srgb, var(--mem-accent-soft) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mem-accent) 35%, var(--mem-border));
+  color: var(--mem-accent);
+}
+
+html.dark .memories-event-manage-page .me-manage-chip-privacy {
+  color: #e9d5ff;
+}
+
+.memories-event-manage-page .me-manage-chip-photos {
+  background-color: var(--mem-surface-muted);
+  border: 1px solid var(--mem-border);
+  color: var(--mem-text-muted);
+}
+
+.memories-event-manage-page .me-manage-chip-photos svg {
+  color: var(--mem-text-faint);
+}
+
+.memories-event-manage-page .me-manage-gallery-scroll {
+  background-color: var(--mem-surface-muted);
+  border: 1px solid var(--mem-border);
+}
+
+.memories-event-manage-page .me-manage-gallery-empty {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--mem-surface-muted) 80%, transparent),
+    var(--mem-surface)
+  );
+  border: 1px dashed var(--mem-border);
+  color: var(--mem-text-muted);
+}
+
+.memories-event-manage-page .me-manage-qr-wrap {
+  background: linear-gradient(
+    to bottom,
+    var(--mem-surface),
+    var(--mem-surface-muted)
+  );
+  border: 1px solid var(--mem-border);
+}
+
+.memories-event-manage-page .me-manage-btn-outline {
+  background-color: var(--mem-surface);
+  border: 1px solid var(--mem-border);
+  color: var(--mem-text);
+}
+
+.memories-event-manage-page .me-manage-btn-outline:hover {
+  border-color: color-mix(in srgb, var(--mem-accent) 40%, var(--mem-border));
+  background-color: var(--mem-surface-muted);
+}
+
+.memories-event-manage-page .me-manage-btn-violet {
+  background-color: color-mix(in srgb, var(--mem-accent-soft) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mem-accent) 30%, var(--mem-border));
+  color: var(--mem-text);
+}
+
+html.dark .memories-event-manage-page .me-manage-btn-violet {
+  color: #ede9fe;
+}
+
+.memories-event-manage-page .me-manage-btn-violet:hover {
+  background-color: color-mix(in srgb, var(--mem-accent-soft) 100%, transparent);
+}
+
+.memories-event-manage-page .me-manage-icon-box {
+  background: linear-gradient(135deg, #ede9fe, #fae8ff);
+  border: 1px solid color-mix(in srgb, var(--mem-accent) 25%, var(--mem-border));
+}
+
+html.dark .memories-event-manage-page .me-manage-icon-box {
+  background: linear-gradient(135deg, #4c1d95, #701a75);
+  border-color: #6b21a8;
+}
+
+.memories-event-manage-page .me-manage-icon-box svg,
+.memories-event-manage-page .me-manage-icon-box .text-violet-600 {
+  color: var(--mem-accent);
+}
+
+.memories-event-manage-page .me-manage-loading-empty {
+  border: 1px dashed color-mix(in srgb, var(--mem-accent) 35%, var(--mem-border));
+  background-color: color-mix(in srgb, var(--mem-accent-soft) 40%, transparent);
+}
+
+.memories-event-manage-page .me-manage-state-shell {
+  background-color: var(--mem-surface);
+  border: 1px solid var(--mem-border);
+  color: var(--mem-text-muted);
+}
+
+.memories-event-manage-page .me-manage-label {
+  color: var(--mem-text-faint);
+}
+
+.memories-event-manage-page .me-manage-share-pending {
+  border: 1px dashed color-mix(in srgb, var(--mem-accent) 45%, var(--mem-border));
+  background-color: color-mix(in srgb, var(--mem-accent-soft) 70%, transparent);
+  color: var(--mem-text-muted);
+}
+
+.memories-event-manage-page .me-manage-cover {
+  background-color: var(--mem-surface-muted);
+  border: 1px solid var(--mem-border);
+}

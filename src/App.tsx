@@ -295,7 +295,9 @@ function App() {
     syncDocumentThemeFromStorage();
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const onSystemChange = () => {
-      if (!localStorage.getItem('filevault-theme')) syncDocumentThemeFromStorage();
+      if (localStorage.getItem('filevault-theme') === 'system' || !localStorage.getItem('filevault-theme')) {
+        syncDocumentThemeFromStorage();
+      }
     };
     mq.addEventListener('change', onSystemChange);
     return () => mq.removeEventListener('change', onSystemChange);

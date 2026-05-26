@@ -48,6 +48,8 @@ export type MemoriesEvent = {
   description?: string;
   /** Short blurb for guest landing */
   summary?: string;
+  /** public | private | invite — guest access level */
+  privacy?: MemoriesPrivacy;
   /** e.g. wedding | birthday | corporate | family | other — drives welcome imagery */
   eventType?: string;
   coverImageUrl?: string;

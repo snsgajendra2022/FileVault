@@ -404,7 +404,7 @@ const MemoriesCreateEventPage: React.FC = () => {
         <button
           type="submit"
           disabled={saving}
-          className="w-full rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-3.5 text-sm font-bold text-white shadow-lg hover:opacity-95 transition-opacity disabled:opacity-50"
+          className="w-full rounded-2xl border border-[var(--header-border)] bg-[var(--header-background)] py-3.5 text-sm font-bold text-slate-800 dark:text-slate-100 shadow-[var(--header-box-shadow)] hover:opacity-95 transition-opacity disabled:opacity-50"
         >
           {saving ? t('shareSending') : isEditMode ? t('editSubmit') : t('createSubmit')}
         </button>

@@ -19,7 +19,7 @@ const UsageAnalytics = () => {
   // Fetch usage statistics
   const { data: usageStats, isLoading } = useQuery({
     queryKey: ['usageStatistics', selectedPeriod],
-    queryFn: () => adminService.getUsageStatistics(selectedPeriod)
+    queryFn: () => adminService.getUsageStatisticsOptional(selectedPeriod)
   });
 
   const formatBytes = (bytes: number) => {
@@ -101,12 +101,15 @@ const UsageAnalytics = () => {
               {Object.entries(usageStats.fileTypeDistribution || {}).map(([type, count]) => {
                 const percentage = Math.round((count / usageStats.totalImages) * 100);
                 return (
-                  <div key={type} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+                  <div
+                    key={type}
+                    className="rounded-lg border border-slate-100 bg-slate-50 p-4 dark:border-slate-600 dark:bg-slate-800/40"
+                  >
                     <div className="mb-2 flex items-center justify-between">
-                      <span className="font-medium text-slate-900">{type.toUpperCase()}</span>
-                      <span className="text-sm text-slate-500">{percentage}%</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{type.toUpperCase()}</span>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">{percentage}%</span>
                     </div>
-                    <div className="h-2 w-full rounded-full bg-slate-200">
+                    <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700">
                       <div
                         className="h-2 rounded-full bg-indigo-600 transition-all"
                         style={{ width: `${percentage}%` }}
@@ -160,7 +163,7 @@ const UsageAnalytics = () => {
                             {percentage}%
                           </td>
                           <td className="whitespace-nowrap px-6 py-4">
-                            <div className="h-2 w-32 rounded-full bg-slate-200">
+                            <div className="h-2 w-32 rounded-full bg-slate-200 dark:bg-slate-700">
                               <div
                                 className="h-2 rounded-full bg-indigo-600"
                                 style={{ width: `${percentage}%` }}
@@ -190,7 +193,7 @@ const UsageAnalytics = () => {
                         <span className="font-medium text-slate-900">User {userId}</span>
                         <span className="text-sm text-slate-500">{percentage}%</span>
                       </div>
-                      <div className="mb-2 h-2 w-full rounded-full bg-slate-200">
+                      <div className="mb-2 h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700">
                         <div
                           className="h-2 rounded-full bg-emerald-600"
                           style={{ width: `${percentage}%` }}

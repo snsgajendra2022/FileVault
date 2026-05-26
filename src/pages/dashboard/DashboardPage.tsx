@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from 'i18next';
 import { useAuth } from '../../state/context/AuthContext';
@@ -22,6 +22,7 @@ import {
 } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api/client/axiosInstance';
+import adminService from '../../api/services/adminService';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, Area, AreaChart, Cell,
@@ -84,52 +85,48 @@ interface UserAnalytics {
   recentActivity: Array<{ user: string; action: string; time: string }>;
 }
 
-// ── Dashboard bottom sections component ──────────────────────────────────────
+function parseClientsFromFamilyResponse(data: unknown): any[] {
+  const fd = (data as { familyData?: { clients?: unknown[] } })?.familyData || {};
+  const clients: any[] = [];
+  const addList = (list: unknown[]) => {
+    if (!Array.isArray(list)) return;
+    list.forEach((m: any) => {
+      if (m?.relation === 'Client' || m?.userId) clients.push(m);
+      if (m?.clients?.length) addList(m.clients);
+    });
+  };
+  addList((fd as { clients?: unknown[] }).clients ?? []);
+  return clients;
+}
+
+function normalizeAlbumsList(data: unknown): any[] {
+  if (Array.isArray(data)) return data;
+  const albums = (data as { albums?: unknown[] })?.albums;
+  return Array.isArray(albums) ? albums : [];
+}
+
+function normalizeImagesList(data: unknown): any[] {
+  if (Array.isArray(data)) return data;
+  const images = (data as { images?: unknown[] })?.images;
+  return Array.isArray(images) ? images : [];
+}
+
+// ── Dashboard bottom sections (data from parent — no duplicate API calls) ───
 function DashboardBottomSections({
   navigate,
-  stats,
+  recentAlbums,
+  recentImages,
+  activeClients,
+  totalImages,
+  storageTotalSize,
 }: {
   navigate: (path: string) => void;
-  stats: any;
+  recentAlbums: any[];
+  recentImages: any[];
+  activeClients: any[];
+  totalImages: number;
+  storageTotalSize?: string;
 }) {
-  const [recentAlbums, setRecentAlbums] = React.useState<any[]>([]);
-  const [recentImages, setRecentImages] = React.useState<any[]>([]);
-  const [activeClients, setActiveClients] = React.useState<any[]>([]);
-  const [totalImages, setTotalImages] = React.useState(0);
-
-  React.useEffect(() => {
-    // Fetch recent albums
-    api.get('/api/albums').then((res) => {
-      const raw = Array.isArray(res.data) ? res.data : (res.data?.albums ?? []);
-      const sorted = [...raw].sort((a: any, b: any) =>
-        new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime()
-      );
-      setRecentAlbums(sorted.slice(0, 3));
-    }).catch(() => {});
-
-    // Fetch recent images
-    const token = localStorage.getItem('token');
-    api.get(`/api/images/user/all?token=${token}`).then((res) => {
-      const imgs = Array.isArray(res.data) ? res.data : (res.data?.images ?? []);
-      setTotalImages(imgs.length);
-      setRecentImages(imgs.slice(0, 5));
-    }).catch(() => {});
-
-    // Fetch clients
-    api.get('/api/simple-invitations/family-relationships').then((res) => {
-      const fd = res.data?.familyData || {};
-      const clients: any[] = [];
-      const addList = (list: any[]) => {
-        if (!Array.isArray(list)) return;
-        list.forEach((m: any) => {
-          if (m?.relation === 'Client' || m?.userId) clients.push(m);
-          if (m?.clients?.length) addList(m.clients);
-        });
-      };
-      addList(fd.clients ?? []);
-      setActiveClients(clients.slice(0, 4));
-    }).catch(() => {});
-  }, []);
 
   const tagColor: Record<string, string> = {
     Wedding: 'bg-rose-500',
@@ -288,11 +285,11 @@ function DashboardBottomSections({
           style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.05)' }}>
           <p className="text-[13px] font-bold text-slate-800 mb-1">Storage Usage</p>
           <p className="text-sm text-violet-600 font-semibold mb-3">
-            {stats?.totalSize || '0 MB'} / 10 GB used
+            {storageTotalSize || '0 MB'} / 10 GB used
           </p>
           <div className="w-full h-2 rounded-full bg-slate-100 mb-2">
             <div className="h-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-500"
-              style={{ width: `${Math.min(100, Math.round(((parseFloat(stats?.totalSize) || 0) / 10240) * 100) || 48)}%` }} />
+              style={{ width: `${Math.min(100, Math.round(((parseFloat(storageTotalSize || '0') || 0) / 10240) * 100) || 48)}%` }} />
           </div>
           <p className="text-[11px] text-slate-400">48% used</p>
         </div>
@@ -349,12 +346,18 @@ function DashboardBottomSections({
 
 const DashboardPage = () => {
   const { t, i18n } = useTranslation();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
-  
+  const fetchInFlightRef = useRef(false);
+  const loadingRef = useRef(true);
+
   // Dynamic data states
   const [loading, setLoading] = useState(true);
+  const [recentAlbumsPreview, setRecentAlbumsPreview] = useState<any[]>([]);
+  const [recentImagesPreview, setRecentImagesPreview] = useState<any[]>([]);
+  const [activeClientsPreview, setActiveClientsPreview] = useState<any[]>([]);
+  const [totalImagesCount, setTotalImagesCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
@@ -367,286 +370,307 @@ const DashboardPage = () => {
   const [albumChartData, setAlbumChartData] = React.useState<Array<{name: string; count: number}>>([]);
   const [uploadActivityData, setUploadActivityData] = React.useState<Array<{day: string; uploads: number}>>([]);
 
-  // Update time every minute and auto-refresh data every 5 minutes
+  loadingRef.current = loading;
+
+  // Clock + auto-refresh every 5 minutes (stable interval — not recreated when loading toggles)
   useEffect(() => {
     const timeTimer = setInterval(() => setCurrentTime(new Date()), 60000);
     const dataTimer = setInterval(() => {
-      if (!loading) {
+      if (!loadingRef.current) {
         fetchDashboardData();
       }
-    }, 300000); // 5 minutes
-    
+    }, 300000);
+
     return () => {
       clearInterval(timeTimer);
       clearInterval(dataTimer);
     };
-  }, [loading]);
+  }, []);
 
-  // Fetch all dashboard data
-  useEffect(() => {
-    fetchDashboardData();
-  }, [isAdmin]);
+  const buildFileStatsFromResponses = (
+    filesPayload: unknown,
+    statsPayload: unknown | null,
+  ): DashboardStats => {
+    const files = normalizeImagesList(filesPayload);
+    const stats = statsPayload as {
+      totalSize?: string;
+      securityScore?: number;
+      uploadsToday?: number;
+      fileTypeDistribution?: Record<string, number>;
+    } | null;
+    const totalFiles = files.length;
+    const totalSize = stats?.totalSize || '0 MB';
+    const fileTypes = stats?.fileTypeDistribution || {};
 
-  // Fetch dashboard data from APIs
-  const fetchDashboardData = async () => {
+    return {
+      totalFiles,
+      totalSize,
+      securityScore: stats?.securityScore ?? (totalFiles > 0 ? 95.0 : 100.0),
+      activeServices: 0,
+      recentUploads: stats?.uploadsToday || 0,
+      fileTypes: Object.entries(fileTypes).reduce(
+        (acc, [type, count]) => {
+          acc[type] = {
+            count: count as number,
+            size: `${Math.round((count as number) * 2.5)} MB`,
+            percentage: Math.round(((count as number) / totalFiles) * 100) || 0,
+          };
+          return acc;
+        },
+        {} as Record<string, { count: number; size: string; percentage: number }>,
+      ),
+    };
+  };
+
+  const buildSystemHealthFromAdmin = (
+    healthData: Record<string, string | undefined> | null,
+  ): SystemHealth[] => {
+    if (!healthData) {
+      return [
+        {
+          name: 'Account Status',
+          value: 'Active',
+          status: 'good',
+          icon: FaUser,
+          details: 'Your account is active and secure',
+        },
+        {
+          name: 'Security Status',
+          value: 'Protected',
+          status: 'good',
+          icon: FaLock,
+          details: 'Your files are encrypted and secure',
+        },
+      ];
+    }
+    return [
+      {
+        name: 'System Performance',
+        value: healthData.systemPerformance || 'Good',
+        status: healthData.systemStatus || 'good',
+        icon: FaStar,
+        details: healthData.systemDetails || 'System operating normally',
+      },
+      {
+        name: 'Network Status',
+        value: healthData.networkStatus || 'Stable',
+        status: healthData.networkHealth || 'good',
+        icon: FaCloud,
+        details: healthData.networkDetails || 'Network connection stable',
+      },
+      {
+        name: 'Security Status',
+        value: healthData.securityStatus || 'Protected',
+        status: healthData.securityHealth || 'good',
+        icon: FaLock,
+        details: healthData.securityDetails || 'Security protocols active',
+      },
+      {
+        name: 'Backup Status',
+        value: healthData.backupStatus || 'Current',
+        status: healthData.backupHealth || 'good',
+        icon: FaShieldAlt,
+        details: healthData.backupDetails || 'Backup system operational',
+      },
+    ];
+  };
+
+  const buildUserAnalyticsFromAdmin = (
+    stats: Awaited<ReturnType<typeof adminService.getUserStatisticsOptional>>,
+    health: Awaited<ReturnType<typeof adminService.getSystemHealthOptional>>,
+  ): UserAnalytics => {
+    const statsExtra = stats as (typeof stats & Record<string, number | undefined>) | null;
+    return {
+      totalUsers: health?.totalUsers || stats?.totalUsers || 0,
+      activeUsers: health?.activeUsers || stats?.activeUsers || 0,
+      newUsers: statsExtra?.newUsersToday || statsExtra?.newUsers || 0,
+      userActivity: {
+        daily: statsExtra?.dailyActiveUsers || statsExtra?.dailyUsers || 0,
+        weekly: statsExtra?.weeklyActiveUsers || statsExtra?.weeklyUsers || 0,
+        monthly: statsExtra?.monthlyActiveUsers || statsExtra?.monthlyUsers || 0,
+      },
+      userStats: stats?.statusCounts
+        ? Object.entries(stats.statusCounts).map(([status, count]) => ({
+            plan: status,
+            users: count as number,
+            percentage: Math.round(
+              ((count as number) / (health?.totalUsers || stats?.totalUsers || 1)) * 100,
+            ),
+          }))
+        : [],
+      recentActivity: [],
+    };
+  };
+
+  const fetchDashboardData = useCallback(async () => {
+    if (fetchInFlightRef.current) return;
+    fetchInFlightRef.current = true;
+
     try {
       setLoading(true);
       setError(null);
       setApiErrors({});
 
-      // Fetch data in parallel
-      const [fileStatsResult, servicesResult, systemHealthResult, userStatsResult] = await Promise.allSettled([
-        fetchFileStats(),
-        fetchServicesData(),
-        fetchSystemHealth(),
-        isAdmin ? fetchUserAnalytics() : Promise.resolve(null)
+      const userToken = localStorage.getItem('token');
+      const adminHealthPromise = isAdmin
+        ? adminService.getSystemHealthOptional()
+        : Promise.resolve(null);
+      const adminStatsPromise = isAdmin
+        ? adminService.getUserStatisticsOptional()
+        : Promise.resolve(null);
+
+      const [
+        filesResult,
+        statsResult,
+        albumsResult,
+        servicesResult,
+        adminHealthResult,
+        adminStatsResult,
+        clientsResult,
+      ] = await Promise.allSettled([
+        api.get(`/api/images/user/all?token=${userToken}`),
+        api.get('/api/images/stats'),
+        api.get('/api/albums'),
+        api.get('/api/services/user'),
+        adminHealthPromise,
+        adminStatsPromise,
+        api.get('/api/simple-invitations/family-relationships'),
       ]);
 
       const errors: Record<string, string> = {};
 
-      // Process file stats
-      if (fileStatsResult.status === 'fulfilled') {
-        setStats(fileStatsResult.value);
+      const filesPayload =
+        filesResult.status === 'fulfilled' ? filesResult.value.data : [];
+      const statsPayload =
+        statsResult.status === 'fulfilled' ? statsResult.value.data : null;
+      const allImages = normalizeImagesList(filesPayload);
+
+      if (filesResult.status === 'fulfilled' || statsResult.status === 'fulfilled') {
+        setStats(buildFileStatsFromResponses(filesPayload, statsPayload));
       } else {
         errors.fileStats = i18n.t('mainDashboard.errFileStats');
-        console.error('File stats error:', fileStatsResult.reason);
+        console.error('File stats error:', filesResult.reason ?? statsResult.reason);
       }
 
-      // Process services data
+      setTotalImagesCount(allImages.length);
+      setRecentImagesPreview(allImages.slice(0, 5));
+
+      if (albumsResult.status === 'fulfilled') {
+        const albumsRaw = normalizeAlbumsList(albumsResult.value.data);
+        const sortedByDate = [...albumsRaw].sort(
+          (a: any, b: any) =>
+            new Date(b.updatedAt || b.createdAt || 0).getTime() -
+            new Date(a.updatedAt || a.createdAt || 0).getTime(),
+        );
+        setRecentAlbumsPreview(sortedByDate.slice(0, 3));
+        const sortedByCount = [...albumsRaw]
+          .sort((a: any, b: any) => (b.imageCount || 0) - (a.imageCount || 0))
+          .slice(0, 7);
+        setAlbumChartData(
+          sortedByCount.map((a: any) => ({ name: a.name || 'Album', count: a.imageCount || 0 })),
+        );
+      } else {
+        setRecentAlbumsPreview([]);
+        setAlbumChartData([]);
+      }
+
+      if (clientsResult.status === 'fulfilled') {
+        setActiveClientsPreview(
+          parseClientsFromFamilyResponse(clientsResult.value.data).slice(0, 4),
+        );
+      } else {
+        setActiveClientsPreview([]);
+      }
+
       if (servicesResult.status === 'fulfilled') {
-        setServiceData(servicesResult.value);
+        const response = servicesResult.value;
+        const services = response.data.subscriptions || [];
+        setServiceData(
+          services.map((service: any) => ({
+            name:
+              service.serviceDisplayName ||
+              service.serviceName ||
+              service.name ||
+              'Unknown Service',
+            status: service.connectionStatus === 'CONNECTED' ? 'Connected' : 'Disconnected',
+            lastSync: service.lastConnectionTest
+              ? new Date(service.lastConnectionTest).toLocaleString()
+              : 'Never',
+            files: service.fileCount || 0,
+            uptime: service.uptime || (service.connectionStatus === 'CONNECTED' ? 99.9 : 0),
+            speed:
+              service.speed || (service.connectionStatus === 'CONNECTED' ? 'Fast' : 'Offline'),
+          })),
+        );
       } else {
         errors.services = i18n.t('mainDashboard.errServices');
         console.error('Services error:', servicesResult.reason);
+        setServiceData([]);
       }
 
-      // Process system health
-      if (systemHealthResult.status === 'fulfilled') {
-        setSystemHealth(systemHealthResult.value);
+      const adminHealth =
+        adminHealthResult.status === 'fulfilled'
+          ? (adminHealthResult.value as Record<string, string | undefined> | null)
+          : null;
+
+      if (isAdmin) {
+        if (adminHealthResult.status === 'fulfilled') {
+          setSystemHealth(buildSystemHealthFromAdmin(adminHealth ?? {}));
+        } else {
+          errors.systemHealth = i18n.t('mainDashboard.errSystemHealth');
+          setSystemHealth([]);
+        }
+        if (adminStatsResult.status === 'fulfilled') {
+          setUserAnalytics(
+            buildUserAnalyticsFromAdmin(
+              adminStatsResult.value,
+              adminHealthResult.status === 'fulfilled' ? adminHealthResult.value : null,
+            ),
+          );
+        } else {
+          errors.userAnalytics = i18n.t('mainDashboard.errUserAnalytics');
+          setUserAnalytics(null);
+        }
       } else {
-        errors.systemHealth = i18n.t('mainDashboard.errSystemHealth');
-        console.error('System health error:', systemHealthResult.reason);
+        setSystemHealth(buildSystemHealthFromAdmin(null));
+        setUserAnalytics(null);
       }
 
-      // Process user analytics (admin only)
-      if (userStatsResult.status === 'fulfilled' && userStatsResult.value) {
-        setUserAnalytics(userStatsResult.value);
-      } else if (isAdmin && userStatsResult.status === 'rejected') {
-        errors.userAnalytics = i18n.t('mainDashboard.errUserAnalytics');
-        console.error('User analytics error:', userStatsResult.reason);
-      }
-
-      // Set API errors if any
       if (Object.keys(errors).length > 0) {
         setApiErrors(errors);
       }
 
-      // Generate recent activity and quick insights
-      generateRecentActivity();
-      generateQuickInsights();
-
-      // Set last updated timestamp
       setLastUpdated(new Date());
 
-      // Fetch album chart data
-      try {
-        const albumsRes = await api.get('/api/albums');
-        const albumsRaw = Array.isArray(albumsRes.data) ? albumsRes.data : (albumsRes.data?.albums ?? []);
-        const sorted = [...albumsRaw].sort((a: any, b: any) => (b.imageCount || 0) - (a.imageCount || 0)).slice(0, 7);
-        setAlbumChartData(sorted.map((a: any) => ({ name: a.name || 'Album', count: a.imageCount || 0 })));
-      } catch { setAlbumChartData([]); }
-
-      // Upload activity (last 7 days)
-      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const today = new Date();
-      const recentUploads = fileStatsResult.status === 'fulfilled' ? fileStatsResult.value.recentUploads : 0;
-      setUploadActivityData(Array.from({length: 7}, (_, i) => {
-        const d = new Date(today);
-        d.setDate(today.getDate() - (6 - i));
-        return { day: `${days[d.getDay()]} ${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`, uploads: i === 4 ? recentUploads : 0 };
-      }));
-
+      const recentUploads =
+        filesResult.status === 'fulfilled' || statsResult.status === 'fulfilled'
+          ? buildFileStatsFromResponses(filesPayload, statsPayload).recentUploads
+          : 0;
+      setUploadActivityData(
+        Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(today);
+          d.setDate(today.getDate() - (6 - i));
+          return {
+            day: `${days[d.getDay()]} ${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+            uploads: i === 4 ? recentUploads : 0,
+          };
+        }),
+      );
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(i18n.t('mainDashboard.loadFailed'));
     } finally {
       setLoading(false);
+      fetchInFlightRef.current = false;
     }
-  };
+  }, [isAdmin, i18n]);
 
-  // Fetch file statistics
-  const fetchFileStats = async (): Promise<DashboardStats> => {
-    try {
-      const userToken = localStorage.getItem('token');
-      const [filesResult, statsResult] = await Promise.allSettled([
-        api.get(`/api/images/user/all?token=${userToken}`),
-        api.get('/api/images/stats')
-      ]);
-
-      const files = filesResult.status === 'fulfilled' ? filesResult.value.data : [];
-      const stats = statsResult.status === 'fulfilled' ? statsResult.value.data : null;
-
-      // console.log('Files API Response:', files); // Debug log
-      // console.log('Stats API Response:', stats); // Debug log
-
-      const totalFiles = Array.isArray(files) ? files.length : 0;
-      const totalSize = stats?.totalSize || '0 MB';
-      const fileTypes = stats?.fileTypeDistribution || {};
-
-      return {
-        totalFiles,
-        totalSize,
-        securityScore: stats?.securityScore || (totalFiles > 0 ? 95.0 : 100.0), // Dynamic security score
-        activeServices: 0, // Will be updated by services data
-        recentUploads: stats?.uploadsToday || 0,
-        fileTypes: Object.entries(fileTypes).reduce((acc, [type, count]) => {
-          acc[type] = {
-            count: count as number,
-            size: `${Math.round((count as number) * 2.5)} MB`, // Estimated size
-            percentage: Math.round(((count as number) / totalFiles) * 100) || 0
-          };
-          return acc;
-        }, {} as Record<string, { count: number; size: string; percentage: number }>)
-      };
-    } catch (error) {
-      console.error('Error fetching file stats:', error);
-      return {
-        totalFiles: 0,
-        totalSize: '0 MB',
-        securityScore: 100.0, // Perfect score when no data
-        activeServices: 0,
-        recentUploads: 0,
-        fileTypes: {}
-      };
-    }
-  };
-
-  // Fetch services data
-  const fetchServicesData = async (): Promise<ServiceData[]> => {
-    try {
-      const response = await api.get('/api/services/user');
-      // console.log('Services API Response:', response.data); // Debug log
-      
-      const services = response.data.subscriptions || [];
-      const summary = response.data.summary || {};
-
-      return services.map((service: any) => ({
-        name: service.serviceDisplayName || service.serviceName || service.name || 'Unknown Service',
-        status: service.connectionStatus === 'CONNECTED' ? 'Connected' : 'Disconnected',
-        lastSync: service.lastConnectionTest ? new Date(service.lastConnectionTest).toLocaleString() : 'Never',
-        files: service.fileCount || 0,
-        uptime: service.uptime || (service.connectionStatus === 'CONNECTED' ? 99.9 : 0),
-        speed: service.speed || (service.connectionStatus === 'CONNECTED' ? 'Fast' : 'Offline')
-      }));
-    } catch (error) {
-      console.error('Error fetching services data:', error);
-      return [];
-    }
-  };
-
-  // Fetch system health
-  const fetchSystemHealth = async (): Promise<SystemHealth[]> => {
-    try {
-      if (isAdmin) {
-        const response = await api.get('/api/admin/system/health');
-        const healthData = response.data || {};
-        
-        return [
-          {
-            name: 'System Performance',
-            value: healthData.systemPerformance || 'Good',
-            status: healthData.systemStatus || 'good',
-            icon: FaStar,
-            details: healthData.systemDetails || 'System operating normally'
-          },
-          {
-            name: 'Network Status',
-            value: healthData.networkStatus || 'Stable',
-            status: healthData.networkHealth || 'good',
-            icon: FaCloud,
-            details: healthData.networkDetails || 'Network connection stable'
-          },
-          {
-            name: 'Security Status',
-            value: healthData.securityStatus || 'Protected',
-            status: healthData.securityHealth || 'good',
-            icon: FaLock,
-            details: healthData.securityDetails || 'Security protocols active'
-          },
-          {
-            name: 'Backup Status',
-            value: healthData.backupStatus || 'Current',
-            status: healthData.backupHealth || 'good',
-            icon: FaShieldAlt,
-            details: healthData.backupDetails || 'Backup system operational'
-          }
-        ];
-      } else {
-        return [
-          {
-            name: 'Account Status',
-            value: 'Active',
-            status: 'good',
-            icon: FaUser,
-            details: 'Your account is active and secure'
-          },
-          {
-            name: 'Security Status',
-            value: 'Protected',
-            status: 'good',
-            icon: FaLock,
-            details: 'Your files are encrypted and secure'
-          }
-        ];
-      }
-    } catch (error) {
-      console.error('Error fetching system health:', error);
-      return [];
-    }
-  };
-
-  // Fetch user analytics (admin only)
-  const fetchUserAnalytics = async (): Promise<UserAnalytics> => {
-    try {
-      const [userStats, systemHealth] = await Promise.allSettled([
-        api.get('/api/admin/users/statistics'),
-        api.get('/api/admin/system/health')
-      ]);
-
-      const stats = userStats.status === 'fulfilled' ? userStats.value.data : null;
-      const health = systemHealth.status === 'fulfilled' ? systemHealth.value.data : null;
-
-      // console.log('User Stats API Response:', stats); // Debug log
-      // console.log('System Health API Response:', health); // Debug log
-
-      return {
-        totalUsers: health?.totalUsers || stats?.totalUsers || 0,
-        activeUsers: health?.activeUsers || stats?.activeUsers || 0,
-        newUsers: stats?.newUsersToday || stats?.newUsers || 0,
-        userActivity: {
-          daily: stats?.dailyActiveUsers || stats?.dailyUsers || 0,
-          weekly: stats?.weeklyActiveUsers || stats?.weeklyUsers || 0,
-          monthly: stats?.monthlyActiveUsers || stats?.monthlyUsers || 0
-        },
-        userStats: stats?.statusCounts ? Object.entries(stats.statusCounts).map(([status, count]) => ({
-          plan: status,
-          users: count as number,
-          percentage: Math.round(((count as number) / (health?.totalUsers || stats?.totalUsers || 1)) * 100)
-        })) : [],
-        recentActivity: [] // Could be fetched from a separate endpoint
-      };
-    } catch (error) {
-      console.error('Error fetching user analytics:', error);
-      return {
-        totalUsers: 0,
-        activeUsers: 0,
-        newUsers: 0,
-        userActivity: { daily: 0, weekly: 0, monthly: 0 },
-        userStats: [],
-        recentActivity: []
-      };
-    }
-  };
+  useEffect(() => {
+    if (authLoading) return;
+    fetchDashboardData();
+  }, [authLoading, user?.id, fetchDashboardData]);
 
   // Generate recent activity based on available data
   const generateRecentActivity = () => {
@@ -757,7 +781,7 @@ const DashboardPage = () => {
     if (loading || !stats) return;
     generateRecentActivity();
     generateQuickInsights();
-  }, [i18n.language]);
+  }, [loading, stats, serviceData, i18n.language]);
 
   const dynamicStats = useMemo(() => {
     if (!stats) return [];
@@ -1194,7 +1218,14 @@ const DashboardPage = () => {
 
 
       {/* ── Recent Projects + Recent Uploads + Active Clients ── */}
-      <DashboardBottomSections navigate={navigate} stats={stats} />
+      <DashboardBottomSections
+        navigate={navigate}
+        recentAlbums={recentAlbumsPreview}
+        recentImages={recentImagesPreview}
+        activeClients={activeClientsPreview}
+        totalImages={totalImagesCount}
+        storageTotalSize={stats?.totalSize}
+      />
 
       {/* Activity and System Health Section */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">

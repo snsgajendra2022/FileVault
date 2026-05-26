@@ -320,7 +320,7 @@ export default function FamilyTree() {
   return (
     <div
       ref={containerRef}
-      className="fixed top-16 left-0 lg:left-64 right-0 bottom-0 bg-[#f8fafc] dark:bg-slate-950 transition-colors duration-200"
+      className="family-tree-scope fixed top-16 left-0 lg:left-64 right-0 bottom-0 bg-[#f8fafc] dark:bg-slate-950 transition-colors duration-200"
       style={{ zIndex: 10 }}
     >
       {loading && <FamilyTreeLoadingOverlay />}
@@ -392,18 +392,18 @@ export default function FamilyTree() {
       </div>
 
       {selected && (
-        <aside className="fixed right-4 top-16 bottom-4 w-80 rounded-2xl bg-white dark:bg-slate-900 ring-1 ring-gray-200 dark:ring-slate-700 shadow-lg p-4 flex flex-col z-50 transition-colors duration-200">
-          <div className="flex items-center gap-3 border-b pb-3">
-            <div className="w-10 h-10 rounded-full bg-gray-100 grid place-items-center text-gray-600">
+        <aside className="family-tree-panel fixed right-4 top-16 bottom-4 w-80 rounded-2xl bg-white dark:bg-slate-900 ring-1 ring-gray-200 dark:ring-slate-700 shadow-lg p-4 flex flex-col z-50 transition-colors duration-200">
+          <div className="flex items-center gap-3 border-b border-gray-200 dark:border-slate-700 pb-3">
+            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-slate-800 grid place-items-center text-gray-600 dark:text-slate-300">
               <svg viewBox="0 0 24 24" width="20" height="20">{AVATAR_SILHOUETTE}</svg>
             </div>
             <div className="flex-1">
-              <div className="text-sm text-gray-500">{t("selected")}</div>
-              <div className="font-semibold text-gray-800 text-base break-words max-w-[220px]">
+              <div className="text-sm text-gray-500 dark:text-slate-400">{t("selected")}</div>
+              <div className="font-semibold text-gray-800 dark:text-slate-100 text-base break-words max-w-[220px]">
                 {nodes.find((n) => n.data.id === selected)?.data.name || t("none")}
               </div>
             </div>
-            <button className="ml-2 text-gray-400 hover:text-gray-600" onClick={() => setSelected(null)} aria-label={t("closeAria")}>✕</button>
+            <button className="ml-2 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300" onClick={() => setSelected(null)} aria-label={t("closeAria")}>✕</button>
           </div>
 
           <div className="mt-4 grid gap-2">
@@ -414,7 +414,7 @@ export default function FamilyTree() {
             <Action label={t("refreshFamilyData")} onClick={fetchFamilyData} />
           </div>
 
-          <div className="mt-auto pt-4 text-xs text-gray-400">
+          <div className="mt-auto pt-4 text-xs text-gray-400 dark:text-slate-500">
             {t("zoomHint")}
           </div>
         </aside>
@@ -427,7 +427,7 @@ function Action({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center justify-between w-full px-3 py-2 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50/60 text-gray-700"
+      className="family-tree-action flex items-center justify-between w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-blue-300 dark:hover:border-blue-500 hover:bg-blue-50/60 dark:hover:bg-blue-950/40 text-gray-700 dark:text-slate-200"
     >
       <span className="text-sm font-medium">{label}</span>
       <svg viewBox="0 0 20 20" width="18" height="18" className="text-blue-600" aria-hidden>

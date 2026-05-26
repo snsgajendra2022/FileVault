@@ -16,6 +16,7 @@ import {
   subscribePortalSettings,
   PORTAL_SETTINGS_CHANGED_EVENT,
 } from '../../utils/portalSettings';
+import { setThemePreference } from '../../utils/documentTheme';
 import { useAuth } from './AuthContext';
 
 type PortalSettingsContextValue = {
@@ -33,16 +34,9 @@ type PortalSettingsContextValue = {
 const PortalSettingsContext = createContext<PortalSettingsContextValue | null>(null);
 
 function applyThemeMode(mode: PortalGeneralSettings['themeMode']) {
-  const root = document.documentElement;
-  if (mode === 'dark') {
-    root.classList.add('dark');
-  } else if (mode === 'light') {
-    root.classList.remove('dark');
-  } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    root.classList.add('dark');
-  } else {
-    root.classList.remove('dark');
-  }
+  if (mode === 'dark') setThemePreference('dark');
+  else if (mode === 'light') setThemePreference('light');
+  else setThemePreference('system');
 }
 
 export function PortalSettingsProvider({ children }: { children: React.ReactNode }) {

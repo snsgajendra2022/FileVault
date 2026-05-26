@@ -28,7 +28,7 @@ export function getDefaultPortalGeneralSettings(): PortalGeneralSettings {
     browserNotifications: false,
     requireDeleteConfirmation: true,
     requirePublicShareConfirmation: true,
-    themeMode: 'light',
+    themeMode: 'system',
     sidebarCollapsedByDefault: false,
     aiAssistantEnabled: ai.enabled,
     aiPageContextEnabled: ai.pageContextEnabled,

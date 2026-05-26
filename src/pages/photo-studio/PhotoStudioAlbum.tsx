@@ -38,6 +38,7 @@ import {
 } from '../../utils/albumImageVariants';
 import type { ImageVariants } from '../../utils/progressiveImageVariants';
 import { getConnectionHint, getSaveData } from '../../utils/progressiveImageConfig';
+import './photoStudioAlbumTheme.css';
 
 interface Album {
   id: number;
@@ -275,7 +276,7 @@ function normalizeInfiniteCache(old: unknown): { pages: unknown[]; pageParams: n
 /** Full-page skeleton while albums are loading (matches header + toolbar + grid layout). */
 function AlbumsPageSkeleton({ loadingLabel }: { loadingLabel: string }) {
   return (
-    <div className="p-6 space-y-6" role="status" aria-busy="true" aria-live="polite">
+    <div className="studio-albums-scope studio-albums-page p-6 space-y-6" role="status" aria-busy="true" aria-live="polite">
       <span className="sr-only">{loadingLabel}</span>
       {/* Header — mirrors real toolbar */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -1971,8 +1972,8 @@ const PhotoStudioAlbum: React.FC = () => {
 
   if (isError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
+      <div className="studio-albums-scope studio-albums-page min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-md w-full rounded-2xl border border-gray-100 bg-white p-6 text-center shadow-md">
           <FaExclamationTriangle className="mx-auto mb-3 text-3xl text-red-500" />
           <h1 className="text-xl font-semibold text-gray-900 mb-2">{t('photoStudioAlbumPage.unableLoadAlbums')}</h1>
           <p className="text-gray-600 text-sm mb-4">{t('photoStudioAlbumPage.failedFetchAlbums')}</p>
@@ -1988,16 +1989,10 @@ const PhotoStudioAlbum: React.FC = () => {
   }
 
   return (
-    <div className="p-3 sm:p-6 space-y-6">
+    <div className="studio-albums-scope studio-albums-page min-h-full space-y-6 p-3 sm:p-6">
       {/* Header – hidden when viewing a single album */}
       {viewingAlbumId === null && (
-       <div
-  className="relative mb-6 overflow-hidden rounded-2xl border border-[#D9E7FF] px-5 py-5 sm:px-7 sm:py-6 shadow-[0_8px_30px_rgba(37,99,235,0.06)]"
-  style={{
-    background:
-      'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)',
-  }}
->
+       <div className="studio-album-hero relative mb-6 overflow-hidden rounded-2xl border border-[#D9E7FF] px-5 py-5 shadow-[0_8px_30px_rgba(37,99,235,0.06)] sm:px-7 sm:py-6">
   {/* Ambient glows */}
   <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-blue-400/15 blur-3xl" />
   <div className="pointer-events-none absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-indigo-400/10 blur-3xl" />
@@ -2817,13 +2812,7 @@ const PhotoStudioAlbum: React.FC = () => {
       ) : (
         /* Album Grid – card-based main view */
         <>
-         <div
-  className="rounded-2xl border border-[#D9E7FF] px-4 py-3 sm:px-5 sm:py-4 shadow-[0_4px_20px_rgba(37,99,235,0.05)]"
-  style={{
-    background:
-      'linear-gradient(135deg, rgb(238, 244, 255) 0%, rgb(231, 240, 255) 35%, rgb(245, 249, 255) 100%)',
-  }}
->
+         <div className="studio-album-toolbar rounded-2xl border border-[#D9E7FF] px-4 py-3 shadow-[0_4px_20px_rgba(37,99,235,0.05)] sm:px-5 sm:py-4">
   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
     {/* LEFT — count + sort */}
     <div className="flex flex-wrap items-center gap-3">

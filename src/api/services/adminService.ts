@@ -100,6 +100,19 @@ export interface Plan {
   updatedAt: string;
 }
 
+/** Admin stats endpoints are optional — backend may return 400/403/404 for non-admins or disabled routes. */
+async function optionalAdminRequest<T>(request: () => Promise<T>): Promise<T | null> {
+  try {
+    return await request();
+  } catch (error: unknown) {
+    const status = (error as { response?: { status?: number } })?.response?.status;
+    if (status === 400 || status === 403 || status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 class AdminService {
   // User Management APIs
   async getAllUsers(params?: {
@@ -123,6 +136,10 @@ class AdminService {
   async getUserStatistics(): Promise<UserStatistics> {
     const response = await api.get('/api/admin/users/statistics');
     return response.data;
+  }
+
+  async getUserStatisticsOptional(): Promise<UserStatistics | null> {
+    return optionalAdminRequest(() => this.getUserStatistics());
   }
 
   async getUserDetails(userId: number) {
@@ -158,6 +175,10 @@ class AdminService {
     return response.data;
   }
 
+  async getServiceStatisticsOptional(): Promise<ServiceStatistics | null> {
+    return optionalAdminRequest(() => this.getServiceStatistics());
+  }
+
   async testServiceConfiguration(subscriptionId: number) {
     const response = await api.post(`/api/admin/services/${subscriptionId}/test`);
     return response.data;
@@ -175,10 +196,18 @@ class AdminService {
     return response.data;
   }
 
+  async getUsageStatisticsOptional(period?: string): Promise<UsageStatistics | null> {
+    return optionalAdminRequest(() => this.getUsageStatistics(period));
+  }
+
   // System Health APIs
   async getSystemHealth(): Promise<SystemHealth> {
     const response = await api.get('/api/admin/system/health');
     return response.data;
+  }
+
+  async getSystemHealthOptional(): Promise<SystemHealth | null> {
+    return optionalAdminRequest(() => this.getSystemHealth());
   }
 
   // Plan Management APIs
