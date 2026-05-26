@@ -2,12 +2,20 @@ import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaChevronLeft, FaCheckCircle, FaCheck, FaCopy, FaShare, FaTimes, FaExpandArrowsAlt } from 'react-icons/fa';
+import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheckCircle, FaCheck, FaCopy, FaShare, FaExpandArrowsAlt } from 'react-icons/fa';
 import api from '../../api/client/axiosInstance';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { decryptImageIds, decryptCheckoutPayload } from '../../utils/encryption';
 import { decompressFileList } from '../../utils/checkoutUrlEncoding';
+import Lightbox, { type LightboxItem } from '../../components/lightbox/Lightbox';
+import AlbumGalleryThumb from '../../components/photo-studio/AlbumGalleryThumb';
+import {
+  getAlbumThumbnailUrl,
+  toProgressiveImage,
+} from '../../utils/albumImageVariants';
+import type { ImageVariants } from '../../utils/progressiveImageVariants';
+import { getConnectionHint, getSaveData } from '../../utils/progressiveImageConfig';
 
 interface Album {
   id: number;
@@ -38,12 +46,23 @@ interface AlbumImage {
   thumbnailUrl?: string;
   downloadUrl?: string;
   fileType?: string;
+  variants?: ImageVariants;
   [key: string]: any;
 }
 
 const IMAGES_PAGE_SIZE = 20;
 const ALBUMS_PAGE_SIZE = 20;
-const ALBUM_IMAGES_PAGE_SIZE = 20; // images to show per album (then "Load more")
+const ALBUM_IMAGES_PAGE_SIZE = 20; // images visible per album before "Load more"
+const ALBUM_IMAGES_FETCH_SIZE = 40; // API page size when loading album photos
+const PHOTO_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp']);
+
+function isPhotoAlbumImage(image: AlbumImage): boolean {
+  const filename = image.originalFilename || image.filename || '';
+  const ft = (image.fileType || filename.split('.').pop() || '').toLowerCase();
+  if (PHOTO_EXTENSIONS.has(ft)) return true;
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  return PHOTO_EXTENSIONS.has(ext);
+}
 
 /** GET /api/flags response: controls visibility of email, phone, download, etc. */
 interface FlagItem {
@@ -75,6 +94,10 @@ const PublicSelectionPage: React.FC = () => {
   const [showSelectionMode, setShowSelectionMode] = useState(false);
   /** Per album: how many images to show (pagination). Key = albumId, value = count. */
   const [albumImagesShownCount, setAlbumImagesShownCount] = useState<Map<number, number>>(new Map());
+  /** Full album photos loaded from GET /api/albums/{id}/images (list API only returns cover). */
+  const [albumImagesById, setAlbumImagesById] = useState<Map<number, AlbumImage[]>>(new Map());
+  const [albumImagesLoadingIds, setAlbumImagesLoadingIds] = useState<Set<number>>(new Set());
+  const albumImagesInflightRef = useRef<Set<number>>(new Set());
   const loadMoreBulkSentinelRef = useRef<HTMLDivElement | null>(null);
   const loadMoreAlbumsRef = useRef<HTMLDivElement | null>(null);
 
@@ -371,7 +394,12 @@ const PublicSelectionPage: React.FC = () => {
       if (chunk.length === 0) return [];
       const ids = chunk.join(',');
       const res = await api.get<AlbumImage[] | { images?: AlbumImage[] }>(`/api/images/bulk`, {
-        params: { ids, token: effectiveToken },
+        params: {
+          ids,
+          token: effectiveToken,
+          connection: getConnectionHint(),
+          saveData: getSaveData(),
+        },
       });
       const raw = res.data;
       if (Array.isArray(raw)) return raw;
@@ -391,6 +419,23 @@ const PublicSelectionPage: React.FC = () => {
     if (!bulkImagesData?.pages) return [];
     return bulkImagesData.pages.flatMap((p) => (Array.isArray(p) ? p : []));
   }, [bulkImagesData]);
+
+  const bulkPhotoImages = useMemo(
+    () => bulkImages.filter(isPhotoAlbumImage),
+    [bulkImages]
+  );
+
+  // Preload bulk thumbnails into browser cache when list grows
+  useEffect(() => {
+    if (!bulkImages.length) return;
+    for (const img of bulkImages) {
+      const url = getAlbumThumbnailUrl(img, img.fileType || 'jpg') || img.thumbnailUrl || img.previewUrl;
+      if (url) {
+        const el = new Image();
+        el.src = url;
+      }
+    }
+  }, [bulkImages]);
 
   // Infinite scroll: bulk images grid
   useEffect(() => {
@@ -451,63 +496,92 @@ const PublicSelectionPage: React.FC = () => {
     return albumsData.pages.flatMap((p) => (p && (p as { albums?: Album[] }).albums) ?? []);
   }, [albumsData]);
 
+  const fetchAllAlbumImages = useCallback(
+    async (albumId: number) => {
+      if (!effectiveToken || albumImagesInflightRef.current.has(albumId)) return;
+      if (albumImagesById.get(albumId)?.length) return;
+      albumImagesInflightRef.current.add(albumId);
+      setAlbumImagesLoadingIds((prev) => new Set(prev).add(albumId));
+      try {
+        const headers = effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {};
+        const merged: AlbumImage[] = [];
+        let page = 0;
+        let totalPages = 1;
+        while (page < totalPages) {
+          const res = await api.get<{
+            images?: AlbumImage[];
+            page?: number;
+            totalPages?: number;
+          }>(`/api/albums/${albumId}/images`, {
+            headers,
+            params: {
+              token: effectiveToken,
+              page,
+              size: ALBUM_IMAGES_FETCH_SIZE,
+              variantDetail: 'full',
+              connection: getConnectionHint(),
+              saveData: getSaveData(),
+            },
+          });
+          const batch = Array.isArray(res.data?.images) ? res.data.images : [];
+          merged.push(...batch);
+          totalPages = Number(res.data?.totalPages ?? 1);
+          page += 1;
+        }
+        setAlbumImagesById((prev) => {
+          const next = new Map(prev);
+          next.set(albumId, merged);
+          return next;
+        });
+      } catch {
+        toast.error(t('publicSelectionPage.toastFailedLoadPhotos') || 'Failed to load photos');
+      } finally {
+        albumImagesInflightRef.current.delete(albumId);
+        setAlbumImagesLoadingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(albumId);
+          return next;
+        });
+      }
+    },
+    [effectiveToken, albumImagesById, t]
+  );
+
+  const getImagesForAlbum = useCallback(
+    (albumId: number): AlbumImage[] => {
+      const cached = albumImagesById.get(albumId);
+      if (cached && cached.length > 0) return cached;
+      return albums.find((a) => a.id === albumId)?.images ?? [];
+    },
+    [albumImagesById, albums]
+  );
+
   const closeFullscreenImage = useCallback(() => {
     setFullscreenImage(null);
     setFullscreenContext(null);
   }, []);
 
   const openFullscreenFromBulk = useCallback((index: number) => {
-    if (bulkImages.length === 0) return;
-    const normalizedIndex = ((index % bulkImages.length) + bulkImages.length) % bulkImages.length;
+    if (bulkPhotoImages.length === 0) return;
+    const normalizedIndex =
+      ((index % bulkPhotoImages.length) + bulkPhotoImages.length) % bulkPhotoImages.length;
     setFullscreenContext({ mode: 'bulk', index: normalizedIndex });
-    setFullscreenImage(bulkImages[normalizedIndex] || null);
-  }, [bulkImages]);
+    setFullscreenImage(bulkPhotoImages[normalizedIndex] || null);
+  }, [bulkPhotoImages]);
+
+  const getPhotoImagesForAlbum = useCallback(
+    (albumId: number) => getImagesForAlbum(albumId).filter(isPhotoAlbumImage),
+    [getImagesForAlbum]
+  );
 
   const openFullscreenFromAlbum = useCallback((albumId: number, imageId: number) => {
-    const albumImages = albums.find((a) => a.id === albumId)?.images || [];
-    if (albumImages.length === 0) return;
-    const foundIndex = albumImages.findIndex((img) => img.id === imageId);
+    const photoList = getPhotoImagesForAlbum(albumId);
+    if (photoList.length === 0) return;
+    const foundIndex = photoList.findIndex((img) => img.id === imageId);
     const normalizedIndex = foundIndex >= 0 ? foundIndex : 0;
     setFullscreenContext({ mode: 'album', albumId, index: normalizedIndex });
-    setFullscreenImage(albumImages[normalizedIndex] || null);
-  }, [albums]);
-
-  const goPrevFullscreenImage = useCallback(() => {
-    if (!fullscreenContext) return;
-    if (fullscreenContext.mode === 'bulk') {
-      openFullscreenFromBulk(fullscreenContext.index - 1);
-      return;
-    }
-    const albumImages = albums.find((a) => a.id === fullscreenContext.albumId)?.images || [];
-    if (albumImages.length === 0) return;
-    const nextIndex = (fullscreenContext.index - 1 + albumImages.length) % albumImages.length;
-    setFullscreenContext({ mode: 'album', albumId: fullscreenContext.albumId, index: nextIndex });
-    setFullscreenImage(albumImages[nextIndex] || null);
-  }, [fullscreenContext, albums, openFullscreenFromBulk]);
-
-  const goNextFullscreenImage = useCallback(() => {
-    if (!fullscreenContext) return;
-    if (fullscreenContext.mode === 'bulk') {
-      openFullscreenFromBulk(fullscreenContext.index + 1);
-      return;
-    }
-    const albumImages = albums.find((a) => a.id === fullscreenContext.albumId)?.images || [];
-    if (albumImages.length === 0) return;
-    const nextIndex = (fullscreenContext.index + 1) % albumImages.length;
-    setFullscreenContext({ mode: 'album', albumId: fullscreenContext.albumId, index: nextIndex });
-    setFullscreenImage(albumImages[nextIndex] || null);
-  }, [fullscreenContext, albums, openFullscreenFromBulk]);
-
-  useEffect(() => {
-    if (!fullscreenImage) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeFullscreenImage();
-      if (e.key === 'ArrowLeft') goPrevFullscreenImage();
-      if (e.key === 'ArrowRight') goNextFullscreenImage();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [fullscreenImage, closeFullscreenImage, goPrevFullscreenImage, goNextFullscreenImage]);
+    setFullscreenImage(photoList[normalizedIndex] || null);
+  }, [getPhotoImagesForAlbum]);
 
   // Infinite scroll: albums list
   useEffect(() => {
@@ -553,13 +627,14 @@ const PublicSelectionPage: React.FC = () => {
 
     // Method 1: Use image IDs if provided (preferred - shorter URLs)
     if (targetImageIds.length > 0) {
-      albums.forEach(album => {
-        if (!album.images || album.images.length === 0) return;
+      albums.forEach((album) => {
+        const images = getImagesForAlbum(album.id);
+        if (images.length === 0) return;
 
         const albumImageIds = new Set<number>();
         let hasMatch = false;
 
-        album.images.forEach(image => {
+        images.forEach((image) => {
           if (targetImageIds.includes(image.id)) {
             albumImageIds.add(image.id);
             hasMatch = true;
@@ -576,13 +651,14 @@ const PublicSelectionPage: React.FC = () => {
     }
     // Method 2: Fallback to filename matching (legacy support)
     else if (targetFilenames.length > 0) {
-      albums.forEach(album => {
-        if (!album.images || album.images.length === 0) return;
+      albums.forEach((album) => {
+        const images = getImagesForAlbum(album.id);
+        if (images.length === 0) return;
 
         const albumImageIds = new Set<number>();
         let hasMatch = false;
 
-        album.images.forEach(image => {
+        images.forEach((image) => {
           const imageFilename = image.originalFilename || image.filename || t('publicSelectionPage.unknownFile');
           // Check if this image's filename matches any target filename
           const isMatch = targetFilenames.some(targetFilename => {
@@ -616,38 +692,29 @@ const PublicSelectionPage: React.FC = () => {
       setShowOnlySelected(true);
       toast.success(t('publicSelectionPage.foundAlbumsMatch', { count: matchedAlbums.size }));
     }
-  }, [albums, targetImageIds, targetFilenames]);
+  }, [albums, albumImagesById, targetImageIds, targetFilenames, getImagesForAlbum, t]);
 
   // Get all selected images (only those with checkboxes checked – for Submit Selection)
   const allSelectedImages = useMemo(() => {
     const images: AlbumImage[] = [];
-    selectedAlbums.forEach(albumId => {
-      const album = albums.find(a => a.id === albumId);
-      if (album && album.images) {
-        const imageIds = userSelectedImages.get(albumId);
-        if (imageIds && imageIds.size > 0) {
-          album.images.forEach(img => {
-            if (imageIds.has(img.id)) {
-              images.push(img);
-            }
-          });
-        }
-      }
+    selectedAlbums.forEach((albumId) => {
+      const imageIds = userSelectedImages.get(albumId);
+      if (!imageIds || imageIds.size === 0) return;
+      getImagesForAlbum(albumId).forEach((img) => {
+        if (imageIds.has(img.id)) images.push(img);
+      });
     });
     return images;
-  }, [selectedAlbums, userSelectedImages, albums]);
+  }, [selectedAlbums, userSelectedImages, getImagesForAlbum]);
 
   // Full album display: all images from every selected album (one grid when album is selected)
   const fullAlbumImages = useMemo(() => {
     const images: AlbumImage[] = [];
-    selectedAlbums.forEach(albumId => {
-      const album = albums.find(a => a.id === albumId);
-      if (album && album.images) {
-        album.images.forEach(img => images.push(img));
-      }
+    selectedAlbums.forEach((albumId) => {
+      getImagesForAlbum(albumId).forEach((img) => images.push(img));
     });
     return images;
-  }, [selectedAlbums, albums]);
+  }, [selectedAlbums, getImagesForAlbum]);
 
   const toggleAlbum = (albumId: number) => {
     setSelectedAlbums(prev => {
@@ -670,16 +737,33 @@ const PublicSelectionPage: React.FC = () => {
   };
 
   const toggleAlbumExpand = (albumId: number) => {
-    setExpandedAlbums(prev => {
+    setExpandedAlbums((prev) => {
       const next = new Set(prev);
       if (next.has(albumId)) {
         next.delete(albumId);
       } else {
         next.add(albumId);
+        void fetchAllAlbumImages(albumId);
       }
       return next;
     });
   };
+
+  // Single-album share link: load all photos and expand immediately
+  useEffect(() => {
+    if (!effectiveHasValidAlbumId || effectiveAlbumId == null || !effectiveToken) return;
+    setExpandedAlbums((prev) => new Set(prev).add(effectiveAlbumId));
+    void fetchAllAlbumImages(effectiveAlbumId);
+  }, [effectiveHasValidAlbumId, effectiveAlbumId, effectiveToken, fetchAllAlbumImages]);
+
+  // Auto-expanded albums (from URL imageIds/files) need their full image lists
+  useEffect(() => {
+    expandedAlbums.forEach((albumId) => {
+      if (!albumImagesById.get(albumId)?.length) {
+        void fetchAllAlbumImages(albumId);
+      }
+    });
+  }, [expandedAlbums, albumImagesById, fetchAllAlbumImages]);
 
   const toggleImageSelection = (albumId: number, imageId: number) => {
     setUserSelectedImages(prev => {
@@ -710,22 +794,14 @@ const PublicSelectionPage: React.FC = () => {
   };
 
   const selectAllImagesInAlbum = (albumId: number) => {
-    const album = albums.find(a => a.id === albumId);
-    if (!album || !album.images) return;
-    
-    setUserSelectedImages(prev => {
+    const images = getImagesForAlbum(albumId);
+    if (images.length === 0) return;
+
+    setUserSelectedImages((prev) => {
       const next = new Map(prev);
-      const allImageIds = new Set(album.images!.map(img => img.id));
-      next.set(albumId, allImageIds);
+      next.set(albumId, new Set(images.map((img) => img.id)));
       return next;
     });
-  };
-
-  const getThumbnailUrl = (image: AlbumImage): string | null => {
-    if (image.thumbnailUrl) return image.thumbnailUrl;
-    if (image.previewUrl) return image.previewUrl;
-    if (image.downloadUrl) return image.downloadUrl;
-    return null;
   };
 
   const getImageUrl = (image: AlbumImage): string | null => {
@@ -739,6 +815,57 @@ const PublicSelectionPage: React.FC = () => {
     const extension = filename.split('.').pop()?.toLowerCase() || '';
     return extension || image.fileType || 'unknown';
   };
+
+  const getThumbnailUrl = (image: AlbumImage): string | null => {
+    const fromVariants = getAlbumThumbnailUrl(image, getFileType(image));
+    if (fromVariants) return fromVariants;
+    if (image.thumbnailUrl) return image.thumbnailUrl;
+    if (image.previewUrl) return image.previewUrl;
+    if (image.downloadUrl) return image.downloadUrl;
+    return null;
+  };
+
+  const lightboxSourceImages = useMemo((): AlbumImage[] => {
+    if (!fullscreenContext) return [];
+    if (fullscreenContext.mode === 'bulk') return bulkPhotoImages;
+    return getPhotoImagesForAlbum(fullscreenContext.albumId);
+  }, [fullscreenContext, bulkPhotoImages, getPhotoImagesForAlbum]);
+
+  const lightboxItems = useMemo((): LightboxItem[] => {
+    return lightboxSourceImages.map((img) => {
+      const fileType = getFileType(img);
+      const thumb = getThumbnailUrl(img);
+      return {
+        id: img.id,
+        src: thumb || img.previewUrl || getImageUrl(img) || null,
+        thumbnailSrc: thumb,
+        alt: getImageFilename(img),
+        filename: getImageFilename(img),
+        progressiveImage: isPhotoAlbumImage(img)
+          ? toProgressiveImage(img, fileType)
+          : undefined,
+      };
+    });
+  }, [lightboxSourceImages]);
+
+  const handleLightboxIndexChange = useCallback(
+    (index: number) => {
+      if (!fullscreenContext) return;
+      const img = lightboxSourceImages[index];
+      if (!img) return;
+      if (fullscreenContext.mode === 'bulk') {
+        setFullscreenContext({ mode: 'bulk', index });
+      } else {
+        setFullscreenContext({
+          mode: 'album',
+          albumId: fullscreenContext.albumId,
+          index,
+        });
+      }
+      setFullscreenImage(img);
+    },
+    [fullscreenContext, lightboxSourceImages]
+  );
 
   const handleDownload = (image: AlbumImage) => {
     const imageUrl = getImageUrl(image);
@@ -1181,7 +1308,7 @@ const PublicSelectionPage: React.FC = () => {
             ) : (
             <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-              {bulkImages.map((image, index) => {
+              {bulkPhotoImages.map((image, index) => {
                 const imageUrl = getImageUrl(image);
                 const thumbUrl = getThumbnailUrl(image);
                 const filename = getImageFilename(image);
@@ -1202,12 +1329,18 @@ const PublicSelectionPage: React.FC = () => {
                         <FaExpandArrowsAlt className="text-sm" />
                       </button>
                       {canView ? (
-                        <img
-                          src={(thumbUrl || imageUrl)!}
-                          alt={filename}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300 cursor-pointer"
+                        <div
+                          className="absolute inset-0 cursor-pointer"
                           onClick={() => openFullscreenFromBulk(index)}
-                        />
+                        >
+                          <AlbumGalleryThumb
+                            image={image}
+                            fileType={fileType}
+                            alt={filename}
+                            eager={index < 12}
+                            className="h-full w-full object-cover hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
                       ) : (
                         <div className="flex items-center justify-center h-full text-gray-500 text-sm">
                           {fileType.toUpperCase()}
@@ -1317,7 +1450,9 @@ const PublicSelectionPage: React.FC = () => {
                 const isSelected = selectedAlbums.has(album.id);
                 const isExpanded = expandedAlbums.has(album.id);
                 const albumImageIds = userSelectedImages.get(album.id) || new Set<number>();
-                const albumImages = album.images || [];
+                const albumImages = getImagesForAlbum(album.id);
+                const albumPhotosLoading = albumImagesLoadingIds.has(album.id);
+                const displayImageCount = album.imageCount ?? albumImages.length;
                 // Album is fully selected only if all images are in the selected set
                 const allSelected = albumImages.length > 0 && albumImageIds.size === albumImages.length;
                 // If album is marked as selected but has no images selected, it means user deselected all images
@@ -1372,7 +1507,7 @@ const PublicSelectionPage: React.FC = () => {
                             </p>
                           )}
                           <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-xs sm:text-sm text-gray-500 mt-1">
-                            <span>{t('publicSelectionPage.imagesCount', { n: albumImages.length })}</span>
+                            <span>{t('publicSelectionPage.imagesCount', { n: displayImageCount })}</span>
                             {showSelectionMode && albumImageIds.size > 0 && (
                               <span className="text-[#2731db] font-medium">
                                 {t('publicSelectionPage.selectedCount', { n: albumImageIds.size })}
@@ -1401,6 +1536,16 @@ const PublicSelectionPage: React.FC = () => {
                     </div>
 
                     {/* Album Images (shown when expanded) - show 20 at a time, then "Load more" */}
+                    {isExpanded && albumPhotosLoading && albumImages.length <= 1 && (
+                      <div className="border-t border-gray-200 p-8 flex justify-center bg-gray-50">
+                        <LoadingSpinner size="md" text={t('publicSelectionPage.loadingPhotos') || 'Loading photos…'} />
+                      </div>
+                    )}
+                    {isExpanded && !albumPhotosLoading && albumImages.length === 0 && (
+                      <div className="border-t border-gray-200 p-6 text-center text-sm text-gray-500 bg-gray-50">
+                        {t('publicSelectionPage.noPhotosInAlbum') || 'No photos in this album.'}
+                      </div>
+                    )}
                     {isExpanded && albumImages.length > 0 && (() => {
                       const showCount = albumImagesShownCount.get(album.id) ?? ALBUM_IMAGES_PAGE_SIZE;
                       const visibleImages = albumImages.slice(0, showCount);
@@ -1480,18 +1625,22 @@ const PublicSelectionPage: React.FC = () => {
                                     <FaExpandArrowsAlt className="text-sm" />
                                   </button>
 
-                                  <div className="h-48 bg-gray-100 overflow-hidden">
+                                  <div
+                                    className="h-48 bg-gray-100 overflow-hidden relative"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (canView) openFullscreenFromAlbum(album.id, image.id);
+                                    }}
+                                  >
                                     {canView ? (
-                                      <img
-                                        src={(thumbUrl || imageUrl)!}
+                                      <AlbumGalleryThumb
+                                        image={image}
+                                        fileType={fileType}
                                         alt={filename}
-                                        className={`w-full h-full object-cover transition-transform duration-300 ${
+                                        eager={visibleImages.indexOf(image) < 12}
+                                        className={`h-full w-full object-cover transition-transform duration-300 ${
                                           isImageSelected ? 'opacity-90' : 'group-hover:scale-105'
                                         }`}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          openFullscreenFromAlbum(album.id, image.id);
-                                        }}
                                       />
                                     ) : (
                                       <div className="flex items-center justify-center h-full text-gray-500 text-sm">
@@ -1562,64 +1711,16 @@ const PublicSelectionPage: React.FC = () => {
         </main>
         )}
 
-        {/* Full-screen image view modal (used by both bulk grid and albums) */}
-        {fullscreenImage && (
-          <div
-            className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4"
-            onClick={closeFullscreenImage}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t('publicSelectionPage.fullscreenDialogLabel')}
-          >
-            <button
-              type="button"
-              onClick={closeFullscreenImage}
-              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors"
-              aria-label={t('publicSelectionPage.close')}
-            >
-              <FaTimes className="text-xl" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                goPrevFullscreenImage();
-              }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-white text-blue-600 shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center justify-center"
-              aria-label={t('publicSelectionPage.previousImage')}
-            >
-              <FaChevronLeft className="text-lg" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                goNextFullscreenImage();
-              }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-white text-blue-600 shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center justify-center"
-              aria-label={t('publicSelectionPage.nextImage')}
-            >
-              <FaChevronRight className="text-lg" />
-            </button>
-            <div
-              className="max-w-[90vw] max-h-[90vh] flex items-center justify-center"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {getImageUrl(fullscreenImage) ? (
-                <img
-                  src={getImageUrl(fullscreenImage)!}
-                  alt={getImageFilename(fullscreenImage)}
-                  className="max-w-full max-h-[90vh] w-auto h-auto object-contain"
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <p className="text-white">{t('publicSelectionPage.imageNotAvailable')}</p>
-              )}
-            </div>
-            <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-sm truncate max-w-[90vw]">
-              {getImageFilename(fullscreenImage)}
-            </p>
-          </div>
+        {/* Full-screen lightbox with progressive variants */}
+        {fullscreenContext && lightboxItems.length > 0 && (
+          <Lightbox
+            items={lightboxItems}
+            initialIndex={fullscreenContext.index}
+            isOpen
+            onClose={closeFullscreenImage}
+            onIndexChange={handleLightboxIndexChange}
+            loop
+          />
         )}
       </div>
     </div>
