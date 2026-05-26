@@ -34,47 +34,50 @@ import adminService from '../../api/services/adminService';
 import api from '../../api/client/axiosInstance';
 import DashboardLoading from '../../components/common/DashboardLoading';
 import { useAuth } from '../../state/context/AuthContext';
-// Comprehensive theme object using only soft premium blue-white colors
+import { useDocumentTheme } from '../../hooks/useDocumentTheme';
+/** Theme tokens — CSS variables switch in light / dark / system (see StudioDashboard.css). */
 export const THEME = {
-  // Core colors from requirements
   primary: '#2563EB',
   primaryLight: '#3B82F6',
-  background: '#F8FAFC',
-  cardBackground: '#FFFFFF',
-  heroBackground: 'linear-gradient(135deg, #EEF4FF 0%, #E7F0FF 35%, #F5F9FF 100%)',
-  border: '#DBEAFE',
-  textPrimary: '#0F172A',
-  textSecondary: '#475569',
+  background: 'var(--sd-page-bg)',
+  cardBackground: 'var(--sd-card)',
+  heroBackground: 'var(--sd-hero-bg)',
+  border: 'var(--sd-border)',
+  textPrimary: 'var(--sd-text-primary)',
+  textSecondary: 'var(--sd-text-secondary)',
   success: '#10B981',
-  shadow: '0 10px 40px rgba(15,23,42,0.08)',
-  
-  // Extended theme colors derived from core palette
+  shadow: 'var(--sd-shadow-medium)',
   primaryHover: '#3B82F6',
-  cardBg: '#FFFFFF',
-  textMuted: '#64748B',
-  borderLight: '#E2E8F0',
-  heroGradient: 'linear-gradient(135deg, #EEF4FF 0%, #E7F0FF 35%, #F5F9FF 100%)',
-  shadowLight: '0 6px 24px rgba(15,23,42,0.06)',
-  shadowMedium: '0 10px 40px rgba(15,23,42,0.08)',
-  shadowHeavy: '0 14px 36px rgba(15,23,42,0.08)',
-  
-  // Glassmorphism backgrounds
-  glassBg: 'rgba(255,255,255,0.78)',
-  glassBgLight: 'rgba(255,255,255,0.72)',
-  glassBgLighter: 'rgba(255,255,255,0.68)',
-  
-  // Chart colors using theme palette
+  cardBg: 'var(--sd-card)',
+  textMuted: 'var(--sd-text-muted)',
+  borderLight: 'var(--sd-border-light)',
+  heroGradient: 'var(--sd-hero-bg)',
+  shadowLight: 'var(--sd-shadow)',
+  shadowMedium: 'var(--sd-shadow-medium)',
+  shadowHeavy: 'var(--sd-shadow-medium)',
+  glassBg: 'var(--sd-glass)',
+  glassBgLight: 'var(--sd-glass)',
+  glassBgLighter: 'var(--sd-glass)',
   chartColors: ['#2563EB', '#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE'],
-  
-  // Status and semantic colors
   online: '#10B981',
-  offline: '#64748B',
+  offline: 'var(--sd-text-muted)',
   warning: '#F59E0B',
-  
-  // Interactive states
   hoverOverlay: 'rgba(37,99,235,0.08)',
   activeScale: 'scale-[0.98]',
   hoverScale: 'scale-[1.02]',
+  tooltipBg: 'var(--sd-tooltip-bg)',
+  tooltipBorder: 'var(--sd-tooltip-border)',
+  statusNewBg: 'var(--sd-status-new-bg)',
+};
+
+const CHART_TOOLTIP_STYLE = {
+  borderRadius: 12,
+  border: '1px solid var(--sd-tooltip-border)',
+  boxShadow: 'var(--sd-shadow-medium)',
+  fontSize: 12,
+  padding: '8px 12px',
+  color: 'var(--sd-text-primary)',
+  background: 'var(--sd-tooltip-bg)',
 };
 
 // Chart colors using theme palette
@@ -82,9 +85,9 @@ const CHART_COLORS = THEME.chartColors;
 
 // Status variants using theme colors
 const STATUS_VARIANTS = [
-  { label: 'Published', bg: '#EFF6FF', text: THEME.primary, dot: THEME.primaryLight },
-  { label: 'Featured',  bg: '#EFF6FF', text: THEME.primary, dot: THEME.primaryLight },
-  { label: 'New',       bg: '#F5F7FB', text: THEME.textSecondary, dot: THEME.textMuted },
+  { label: 'Published', bg: 'var(--sd-chip-bg)', text: THEME.primary, dot: THEME.primaryLight },
+  { label: 'Featured', bg: 'var(--sd-chip-bg)', text: THEME.primary, dot: THEME.primaryLight },
+  { label: 'New', bg: 'var(--sd-status-new-bg)', text: THEME.textSecondary, dot: THEME.textMuted },
 ];
 
 interface DashboardStats {
@@ -264,16 +267,14 @@ function StudioActivityAndClients({
     <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
 
       {/* ── Premium Gallery Uploads ── */}
-      <div className="bg-white rounded-2xl border overflow-hidden"
-        style={{ borderColor: THEME.border, boxShadow: THEME.shadowLight }}>
+      <div className="sd-card rounded-2xl border overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b"
           style={{ borderColor: THEME.border }}>
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl"
-              style={{ background: '#EFF6FF', border: '1px solid #E2E8F0' }}>
-              <Images className="h-4 w-4" style={{ color: THEME.primary }} />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl sd-icon-badge border">
+              <Images className="h-4 w-4 text-[#2563EB]" />
             </div>
             <div>
               <p className="text-[14px] font-bold" style={{ color: THEME.textPrimary }}>Recent Gallery</p>
@@ -281,8 +282,7 @@ function StudioActivityAndClients({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold"
-              style={{ background: '#EFF6FF', border: `1px solid ${THEME.borderLight}`, color: THEME.textSecondary }}>
+            <span className="sd-chip inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold border">
               <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: THEME.primary }} />
               Live
             </span>
@@ -298,8 +298,7 @@ function StudioActivityAndClients({
         <div className="p-4">
           {galleryItems.length === 0 ? (
             <div className="py-12 text-center text-sm" style={{ color: THEME.textMuted }}>
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl mx-auto mb-3"
-                style={{ background: '#EFF6FF', border: '1px solid #E2E8F0' }}>
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl mx-auto mb-3 sd-muted-box border">
                 <Images className="h-7 w-7 text-[THEME.primaryLight]" />
               </div>
               <p className="font-semibold" style={{ color: THEME.textSecondary }}>No uploads yet</p>
@@ -322,8 +321,8 @@ function StudioActivityAndClients({
                 >
                   <Link to="/client-images" className="block group cursor-pointer">
                     {/* Image card */}
-                    <div className="relative rounded-xl overflow-hidden aspect-[4/3] mb-2"
-                      style={{ background: '#EFF6FF', boxShadow: '0 6px 24px rgba(15,23,42,0.06)' }}>
+                    <div className="relative rounded-xl overflow-hidden aspect-[4/3] mb-2 sd-muted-box"
+                      style={{ boxShadow: 'var(--sd-shadow)' }}>
 
                       {/* Thumbnail */}
                       {src ? (
@@ -399,15 +398,14 @@ function StudioActivityAndClients({
       </div>
 
       {/* ── Recent Clients ── */}
-      <div className="bg-white rounded-[20px] border overflow-hidden"
+      <div className="sd-card rounded-[20px] border overflow-hidden"
         style={{ borderColor: '#E5E7EB', boxShadow: '0 2px 12px rgba(15,23,42,0.06)' }}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b"
           style={{ borderColor: '#F3F4F6' }}>
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl"
-              style={{ background: '#EFF6FF', border: '1px solid #DBEAFE' }}>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl sd-icon-badge border">
               <Users className="h-4 w-4 text-[#2563EB]" />
             </div>
             <div>
@@ -426,8 +424,7 @@ function StudioActivityAndClients({
         <div className="px-4 py-2">
           {recentClients.length === 0 ? (
             <div className="py-10 text-center text-sm" style={{ color: THEME.textMuted }}>
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-3"
-                style={{ background: '#EFF6FF', border: '1px solid #DBEAFE' }}>
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-3 sd-muted-box border">
                 <Users className="h-6 w-6 text-[#2563EB]" />
               </div>
               <p className="font-semibold text-[13px]" style={{ color: THEME.textSecondary }}>No clients yet</p>
@@ -481,13 +478,13 @@ function StudioActivityAndClients({
                   {/* Hover actions */}
                   <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
                     <Link to="/studio/clients"
-                      className="h-7 w-7 flex items-center justify-center rounded-lg bg-white transition-colors hover:bg-blue-50"
-                      style={{ border: '1px solid #E5E7EB', color: THEME.textMuted }}>
+                      className="h-7 w-7 flex items-center justify-center rounded-lg sd-card border transition-colors hover:opacity-90"
+                      style={{ color: THEME.textMuted }}>
                       <FaEye className="h-3 w-3" />
                     </Link>
                     <button type="button"
-                      className="h-7 w-7 flex items-center justify-center rounded-lg bg-white transition-colors hover:bg-blue-50"
-                      style={{ border: '1px solid #E5E7EB', color: THEME.textMuted }}>
+                      className="h-7 w-7 flex items-center justify-center rounded-lg sd-card border transition-colors hover:opacity-90"
+                      style={{ color: THEME.textMuted }}>
                       <FaShare className="h-3 w-3" />
                     </button>
                   </div>
@@ -505,8 +502,8 @@ function StudioActivityAndClients({
         {recentClients.length > 0 && (
           <div className="px-4 pb-4 pt-3">
             <Link to="/invitations"
-              className="flex items-center justify-center gap-2 w-full rounded-xl py-2.5 text-[12px] font-semibold transition-colors hover:bg-blue-50"
-              style={{ color: THEME.primary, border: '1px solid #DBEAFE', background: '#EFF6FF' }}>
+              className="sd-chip flex items-center justify-center gap-2 w-full rounded-xl py-2.5 text-[12px] font-semibold border transition-colors hover:opacity-90"
+              style={{ color: THEME.primary }}>
               <Sparkles className="h-3.5 w-3.5" />
               Invite New Client
             </Link>
@@ -527,31 +524,28 @@ const StudioDashboard: React.FC = () => {
   const [yourPhotosCount, setYourPhotosCount] = useState<number | null>(null);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [albumChartData, setAlbumChartData] = useState<ChartDataPoint[]>([]);
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const { theme: colorMode } = useDocumentTheme();
+  const chartTickColor = colorMode === 'dark' ? '#94a3b8' : '#64748b';
+  const chartGridColor = colorMode === 'dark' ? '#334155' : '#f1f5f9';
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        const [systemHealthRes, userStatsRes, usageStatsRes] = await Promise.allSettled([
-          adminService.getSystemHealth(),
-          adminService.getUserStatistics(),
-          adminService.getUsageStatistics('month'),
-        ]);
         const dashbaordActivities = await api.get('/api/dashboard/summary');
         const nextStats: DashboardStats = {};
 
-        if (userStatsRes.status === 'fulfilled') {
-          const totalUsers = userStatsRes.value?.totalUsers;
-          if (typeof totalUsers === 'number') nextStats.totalMember = totalUsers;
-        }
-        if (systemHealthRes.status === 'fulfilled') {
-          const totalImages = systemHealthRes.value?.totalImages;
-          if (typeof totalImages === 'number') nextStats.totalPhotos = totalImages;
-        }
-        if (usageStatsRes.status === 'fulfilled') {
-          const fileTypeDistribution = usageStatsRes.value?.fileTypeDistribution || {};
-          const videoCount = fileTypeDistribution['video'] || fileTypeDistribution['videos'] || undefined;
+        if (isAdmin) {
+          const [systemHealth, userStats, usageStats] = await Promise.all([
+            adminService.getSystemHealthOptional(),
+            adminService.getUserStatisticsOptional(),
+            adminService.getUsageStatisticsOptional('month'),
+          ]);
+          if (typeof userStats?.totalUsers === 'number') nextStats.totalMember = userStats.totalUsers;
+          if (typeof systemHealth?.totalImages === 'number') nextStats.totalPhotos = systemHealth.totalImages;
+          const fileTypeDistribution = usageStats?.fileTypeDistribution || {};
+          const videoCount = fileTypeDistribution.video ?? fileTypeDistribution.videos;
           if (typeof videoCount === 'number') nextStats.totalVideos = videoCount;
         }
 
@@ -677,7 +671,7 @@ const StudioDashboard: React.FC = () => {
       }
     };
     fetchDashboardData();
-  }, []);
+  }, [isAdmin]);
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -743,7 +737,7 @@ const StudioDashboard: React.FC = () => {
   const firstName = user?.firstName ?? 'there';
 
   return (
-    <div className="studio-dashboard premium-dashboard" style={{ color: 'var(--sd-text)' }}>
+    <div className="studio-dashboard premium-dashboard sd-page">
       <main className="relative w-full px-4 py-6 sm:px-6 sm:py-8">
         {/* 1. Welcome Hero */}
         <section className="sd-hero-panel relative overflow-hidden rounded-2xl mb-6 border">
@@ -757,10 +751,10 @@ const StudioDashboard: React.FC = () => {
             {/* Left — text + badges */}
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl sm:text-[28px] font-extrabold tracking-tight leading-tight"
-                style={{ color: 'var(--sd-text)' }}>
+                style={{ color: THEME.textPrimary }}>
                 {t('dashboard.welcome', { name: firstName })} 
               </h1>
-              <p className="mt-1.5 text-[13px] font-normal" style={{ color: 'var(--sd-text-secondary)' }}>
+              <p className="mt-1.5 text-[13px] font-normal" style={{ color: THEME.textSecondary }}>
                 {t('dashboard.welcomeSummary')}
               </p>
 
@@ -798,16 +792,14 @@ const StudioDashboard: React.FC = () => {
                 </Link>
                 <Link
                   to="/studio/albums"
-                  className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ border: '1px solid #DBEAFE', background: 'rgba(255,255,255,0.86)', color: THEME.primary, backdropFilter: 'none' }}
+                  className="sd-btn-secondary inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <FaFolder className="h-3.5 w-3.5 text-[#2563EB]" />
                   {t('dashboard.createAlbum')}
                 </Link>
                 <Link
                   to="/invitations"
-                  className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ border: '1px solid #DBEAFE', background: 'rgba(255,255,255,0.86)', color: THEME.primary, backdropFilter: 'none' }}
+                  className="sd-btn-secondary inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <FaShare className="h-3.5 w-3.5 text-[#2563EB]" />
                   {t('dashboard.addClient')}
@@ -846,7 +838,7 @@ const StudioDashboard: React.FC = () => {
           {[
             {
               icon: FaUsers,
-              iconBg: 'bg-[#EFF6FF]',
+              iconBg: 'sd-icon-badge',
               iconColor: 'text-[#2563EB]',
               sparkColor: THEME.primary,
               value: (typeof stats.totalMember === 'number' ? stats.totalMember : 0).toLocaleString(),
@@ -859,7 +851,7 @@ const StudioDashboard: React.FC = () => {
             },
             {
               icon: FaFolder,
-              iconBg: 'bg-[#EFF6FF]',
+              iconBg: 'sd-icon-badge',
               iconColor: 'text-[#2563EB]',
               sparkColor: THEME.primary,
               value: (stats.totalAlbums ?? albums.length ?? 0).toLocaleString(),
@@ -870,7 +862,7 @@ const StudioDashboard: React.FC = () => {
             },
             {
               icon: FaCamera,
-              iconBg: 'bg-[#EFF6FF]',
+              iconBg: 'sd-icon-badge',
               iconColor: 'text-[#2563EB]',
               sparkColor: THEME.primary,
               value: (typeof stats.totalVideos === 'number' ? stats.totalVideos : 0).toLocaleString(),
@@ -881,7 +873,7 @@ const StudioDashboard: React.FC = () => {
             },
             {
               icon: FaImages,
-              iconBg: 'bg-[#EFF6FF]',
+              iconBg: 'sd-icon-badge',
               iconColor: 'text-[#2563EB]',
               sparkColor: THEME.primary,
               value: photosCount.toLocaleString(),
@@ -894,10 +886,9 @@ const StudioDashboard: React.FC = () => {
             const Icon = card.icon;
             return (
               <div key={card.label}
-                className="bg-white rounded-2xl p-5 border border-[#E2E8F0] transition-all duration-200 hover:-translate-y-0.5"
-                style={{ borderColor: THEME.border, boxShadow: '0 6px 24px rgba(15,23,42,0.06)' }}>
+                className="sd-card rounded-2xl p-5 border transition-all duration-200 hover:-translate-y-0.5">
                 <div className="flex items-start justify-between mb-4">
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.iconBg}`}>
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${card.iconBg}`}>
 <Icon className={`w-[18px] h-[18px] ${card.iconColor}`} />
                   </div>
                   {/* Mini sparkline */}
@@ -924,11 +915,10 @@ const StudioDashboard: React.FC = () => {
         {/* 3. Analytics & Charts — premium Tailwind */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           {/* Album Statistics */}
-          <div className="bg-white rounded-2xl p-6 border border-[#E2E8F0]"
-            style={{ borderColor: THEME.border, boxShadow: '0 6px 24px rgba(15,23,42,0.06)' }}>
+          <div className="sd-card rounded-2xl p-6 border">
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#EFF6FF]">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl sd-icon-badge border">
                   <FaFolder className="h-4 w-4 text-[#2563EB]" />
                 </div>
                 <div>
@@ -952,10 +942,10 @@ const StudioDashboard: React.FC = () => {
             ) : (
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={albumChartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} barSize={32}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 500 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #F1F2F6', boxShadow: '0 14px 36px rgba(15,23,42,0.08)', fontSize: 12, padding: '8px 12px', color: THEME.textPrimary }} cursor={{ fill: 'rgba(37,99,235,0.06)' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} vertical={false} />
+                  <XAxis dataKey="label" tick={{ fill: chartTickColor, fontSize: 11, fontWeight: 500 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fill: chartTickColor, fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} cursor={{ fill: 'rgba(37,99,235,0.06)' }} />
                   <Bar dataKey="value" name={t('dashboard.images')} radius={[6, 6, 0, 0]}>
                     {albumChartData.map((entry, i) => (
                       <Cell key={i} fill={entry.color || CHART_COLORS[i % CHART_COLORS.length]} />
@@ -967,11 +957,10 @@ const StudioDashboard: React.FC = () => {
           </div>
 
           {/* Upload Activity */}
-          <div className="bg-white rounded-2xl p-6 border border-[#E2E8F0]"
-            style={{ borderColor: THEME.border, boxShadow: '0 6px 24px rgba(15,23,42,0.06)' }}>
+          <div className="sd-card rounded-2xl p-6 border">
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#EFF6FF]">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl sd-icon-badge border">
                   <FaChartLine className="h-4 w-4 text-[#2563EB]" />
                 </div>
                 <div>
@@ -989,14 +978,14 @@ const StudioDashboard: React.FC = () => {
                     <stop offset="95%" stopColor={THEME.primary} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 500 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #F1F2F6', boxShadow: '0 14px 36px rgba(15,23,42,0.08)', fontSize: 12, padding: '8px 12px', color: THEME.textPrimary }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: chartTickColor, fontSize: 10, fontWeight: 500 }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fill: chartTickColor, fontSize: 11 }} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
                 <Line type="monotone" dataKey="count" name={t('dashboard.uploads')}
                   stroke={THEME.primary} strokeWidth={2.5}
                   dot={{ fill: THEME.primary, strokeWidth: 0, r: 4 }}
-                  activeDot={{ r: 6, fill: THEME.primary, stroke: '#fff', strokeWidth: 2 }} />
+                  activeDot={{ r: 6, fill: THEME.primary, stroke: colorMode === 'dark' ? '#1e293b' : '#fff', strokeWidth: 2 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -1020,14 +1009,8 @@ const StudioDashboard: React.FC = () => {
             </div>
             <motion.span
               whileHover={{ scale: 1.05 }}
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold cursor-default select-none"
-              style={{
-                color: THEME.primary,
-                background: 'rgba(255,255,255,0.72)',
-                border: '1px solid #E2E8F0',
-                boxShadow: '0 6px 24px rgba(37,99,235,0.08)',
-                backdropFilter: 'none',
-              }}>
+              className="sd-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold cursor-default select-none border"
+              style={{ color: THEME.primary, boxShadow: 'var(--sd-shadow)' }}>
               <Sparkles className="h-3 w-3" />
               Quick Actions
             </motion.span>
@@ -1131,12 +1114,10 @@ const StudioDashboard: React.FC = () => {
                 whileHover={{ x: 3, transition: { duration: 0.18 } }}
               >
                 <Link to="/client-images" className="block group">
-                  <div className="relative rounded-[16px] overflow-hidden p-4 flex items-center gap-4 bg-white"
-                    style={{ border: '1px solid #E5E7EB', boxShadow: '0 2px 10px rgba(15,23,42,0.05)' }}>
+                  <div className="sd-card relative rounded-[16px] overflow-hidden p-4 flex items-center gap-4 border">
                     <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[16px]"
                       style={{ background: 'linear-gradient(180deg,#2563EB,#3B82F6)' }} />
-                    <div className="shrink-0 flex h-11 w-11 items-center justify-center rounded-xl"
-                      style={{ background: '#EFF6FF', border: '1px solid #DBEAFE' }}>
+                    <div className="shrink-0 flex h-11 w-11 items-center justify-center rounded-xl sd-icon-badge border">
                       <Images className="h-5 w-5 text-[#2563EB]" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1147,8 +1128,7 @@ const StudioDashboard: React.FC = () => {
                         <span className="text-[11px]" style={{ color: THEME.textMuted }}>photos</span>
                       </div>
                     </div>
-                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full group-hover:bg-blue-50 transition-colors"
-                      style={{ background: '#F5F7FB', border: '1px solid #E5E7EB' }}>
+                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full sd-muted-box border transition-colors group-hover:opacity-90">
                       <ArrowUpRight className="h-3.5 w-3.5 text-[#2563EB]" />
                     </div>
                   </div>
@@ -1163,12 +1143,10 @@ const StudioDashboard: React.FC = () => {
                 whileHover={{ x: 3, transition: { duration: 0.18 } }}
               >
                 <Link to="/studio/albums" className="block group">
-                  <div className="relative rounded-[16px] overflow-hidden p-4 flex items-center gap-4 bg-white"
-                    style={{ border: '1px solid #E5E7EB', boxShadow: '0 2px 10px rgba(15,23,42,0.05)' }}>
+                  <div className="sd-card relative rounded-[16px] overflow-hidden p-4 flex items-center gap-4 border">
                     <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[16px]"
                       style={{ background: 'linear-gradient(180deg,#2563EB,#3B82F6)' }} />
-                    <div className="shrink-0 flex h-11 w-11 items-center justify-center rounded-xl"
-                      style={{ background: '#EFF6FF', border: '1px solid #DBEAFE' }}>
+                    <div className="shrink-0 flex h-11 w-11 items-center justify-center rounded-xl sd-icon-badge border">
                           <FaFolder className="h-[18px] w-[18px] text-[#2563EB]" />       
              </div>
                     <div className="flex-1 min-w-0">
@@ -1179,8 +1157,7 @@ const StudioDashboard: React.FC = () => {
                         <span className="text-[11px]" style={{ color: THEME.textMuted }}>albums</span>
                       </div>
                     </div>
-                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full group-hover:bg-blue-50 transition-colors"
-                      style={{ background: '#F5F7FB', border: '1px solid #E5E7EB' }}>
+                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full sd-muted-box border transition-colors group-hover:opacity-90">
                       <ArrowUpRight className="h-3.5 w-3.5 text-[#2563EB]" />
                     </div>
                   </div>
@@ -1195,12 +1172,10 @@ const StudioDashboard: React.FC = () => {
                 whileHover={{ x: 3, transition: { duration: 0.18 } }}
               >
                 <Link to="/upload" className="block group">
-                  <div className="relative rounded-[16px] overflow-hidden p-4 flex items-center gap-4 bg-white"
-                    style={{ border: '1px solid #E5E7EB', boxShadow: '0 2px 10px rgba(15,23,42,0.05)' }}>
+                  <div className="sd-card relative rounded-[16px] overflow-hidden p-4 flex items-center gap-4 border">
                     <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[16px]"
                       style={{ background: 'linear-gradient(180deg,#2563EB,#3B82F6)' }} />
-                    <div className="shrink-0 flex h-11 w-11 items-center justify-center rounded-xl"
-                      style={{ background: '#EFF6FF', border: '1px solid #DBEAFE' }}>
+                    <div className="shrink-0 flex h-11 w-11 items-center justify-center rounded-xl sd-icon-badge border">
                       <FaPlus className="h-4 w-4 text-[#2563EB]" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1211,8 +1186,7 @@ const StudioDashboard: React.FC = () => {
                         <span className="text-[11px] font-medium text-emerald-600">Ready to upload</span>
                       </div>
                     </div>
-                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full group-hover:bg-blue-50 transition-colors"
-                      style={{ background: '#F5F7FB', border: '1px solid #E5E7EB' }}>
+                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full sd-muted-box border transition-colors group-hover:opacity-90">
                       <ArrowUpRight className="h-3.5 w-3.5 text-[#2563EB]" />
                     </div>
                   </div>

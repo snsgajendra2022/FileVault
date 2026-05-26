@@ -40,8 +40,8 @@ const Layout = () => {
       <div className="lg:ml-[240px] min-h-screen flex flex-col">
         <Header setSidebarOpen={setSidebarOpen} />
 
-        <main className="flex-1 p-2 lg:p-3">
-          <div className="w-full">
+        <main className="flex-1 p-2 lg:p-3 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+          <div className="portal-page-surface w-full min-h-0">
             <Outlet />
           </div>
         </main>

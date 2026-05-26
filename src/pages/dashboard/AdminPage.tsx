@@ -159,17 +159,17 @@ const AdminDashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void 
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const [userStats, systemHealth, usageStats, serviceStats] = await Promise.allSettled([
-        adminService.getUserStatistics(),
-        adminService.getSystemHealth(),
-        adminService.getUsageStatistics(),
-        adminService.getServiceStatistics(),
+      const [userStats, systemHealth, usageStats, serviceStats] = await Promise.all([
+        adminService.getUserStatisticsOptional(),
+        adminService.getSystemHealthOptional(),
+        adminService.getUsageStatisticsOptional(),
+        adminService.getServiceStatisticsOptional(),
       ]);
       setDashboardData({
-        userStats: userStats.status === 'fulfilled' ? userStats.value : null,
-        systemHealth: systemHealth.status === 'fulfilled' ? systemHealth.value : null,
-        usageStats: usageStats.status === 'fulfilled' ? usageStats.value : null,
-        serviceStats: serviceStats.status === 'fulfilled' ? serviceStats.value : null,
+        userStats,
+        systemHealth,
+        usageStats,
+        serviceStats,
       });
     } catch {
       toast.error(t('adminPage.toastDashboardLoadFailed'));

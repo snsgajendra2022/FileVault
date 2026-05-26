@@ -3422,7 +3422,7 @@ const PhotoThemeCategoryPage: React.FC = () => {
           : `bg-gradient-to-br ${meta.color}`;
 
   return (
-    <div className="category-quantum-studio -m-2 lg:-m-3 flex flex-col min-h-[calc(100dvh-4.5rem)]">
+    <div className="photo-themes-category category-quantum-studio -m-2 lg:-m-3 flex flex-col min-h-[calc(100dvh-4.5rem)]">
       <header className="sticky top-0 z-30 flex justify-between items-center px-4 sm:px-8 h-16 bg-white/90 backdrop-blur-2xl border-b border-slate-200/60 shrink-0">
         <div className="flex items-center gap-4 sm:gap-10 min-w-0">
           <button type="button" onClick={() => navigate('/photo-themes')} className="shrink-0 rounded-lg p-2 text-slate-500 hover:text-[#4648d4] lg:hidden" aria-label={t('backToThemes')}>

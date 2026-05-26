@@ -19,7 +19,7 @@ const UsageAnalytics = () => {
   // Fetch usage statistics
   const { data: usageStats, isLoading } = useQuery({
     queryKey: ['usageStatistics', selectedPeriod],
-    queryFn: () => adminService.getUsageStatistics(selectedPeriod)
+    queryFn: () => adminService.getUsageStatisticsOptional(selectedPeriod)
   });
 
   const formatBytes = (bytes: number) => {

@@ -23,3 +23,7 @@ export const appHeading = 'text-slate-900 dark:text-slate-100';
 export const appMuted = 'text-slate-600 dark:text-slate-400';
 
 export const appSubtle = 'text-slate-500 dark:text-slate-400';
+
+/** Wrap portal nav page roots when not using a page-specific scope class. */
+export const portalPageShell =
+  'min-h-full text-slate-900 dark:text-slate-100 transition-colors duration-200';

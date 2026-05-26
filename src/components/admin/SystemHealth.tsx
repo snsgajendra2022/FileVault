@@ -15,7 +15,7 @@ const SystemHealth = () => {
   // Fetch system health data
   const { data: systemHealth, isLoading, refetch } = useQuery({
     queryKey: ['systemHealth'],
-    queryFn: () => adminService.getSystemHealth(),
+    queryFn: () => adminService.getSystemHealthOptional(),
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 

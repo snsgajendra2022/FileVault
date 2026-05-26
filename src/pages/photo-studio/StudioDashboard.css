@@ -1,3 +1,127 @@
+/* Studio dashboard tokens — light / dark / system (via html.dark) */
+:root {
+  --sd-page-bg: #f1f5f9;
+  --sd-card: #ffffff;
+  --sd-text-primary: #0f172a;
+  --sd-text-secondary: #475569;
+  --sd-text-muted: #64748b;
+  --sd-border: #dbeafe;
+  --sd-border-light: #e2e8f0;
+  --sd-glass: rgba(255, 255, 255, 0.72);
+  --sd-chip-bg: #eff6ff;
+  --sd-surface-muted: #eff6ff;
+  --sd-hero-bg: linear-gradient(135deg, #eef4ff 0%, #e7f0ff 35%, #f5f9ff 100%);
+  --sd-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
+  --sd-shadow-medium: 0 10px 40px rgba(15, 23, 42, 0.08);
+  --sd-btn-secondary-bg: rgba(255, 255, 255, 0.86);
+  --sd-chart-grid: #e2e8f0;
+  --sd-tooltip-bg: #ffffff;
+  --sd-tooltip-border: #f1f2f6;
+  --sd-status-new-bg: #f5f7fb;
+  --sd-text: var(--sd-text-primary);
+}
+
+html.dark {
+  --sd-page-bg: #0f172a;
+  --sd-card: #1e293b;
+  --sd-text-primary: #f1f5f9;
+  --sd-text-secondary: #cbd5e1;
+  --sd-text-muted: #94a3b8;
+  --sd-border: #334155;
+  --sd-border-light: #475569;
+  --sd-glass: rgba(30, 41, 59, 0.88);
+  --sd-chip-bg: rgba(37, 99, 235, 0.12);
+  --sd-surface-muted: #1e293b;
+  --sd-hero-bg: linear-gradient(135deg, #1e293b 0%, #0f172a 45%, #172554 100%);
+  --sd-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  --sd-shadow-medium: 0 10px 40px rgba(0, 0, 0, 0.4);
+  --sd-btn-secondary-bg: rgba(30, 41, 59, 0.92);
+  --sd-chart-grid: #334155;
+  --sd-tooltip-bg: #1e293b;
+  --sd-tooltip-border: #475569;
+  --sd-status-new-bg: #334155;
+}
+
+.studio-dashboard.sd-page,
+.studio-dashboard.premium-dashboard {
+  background: var(--sd-page-bg);
+  color: var(--sd-text-primary);
+  min-height: 100%;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sd-card {
+  background: var(--sd-card) !important;
+  border-color: var(--sd-border-light) !important;
+  color: var(--sd-text-primary);
+  box-shadow: var(--sd-shadow);
+}
+
+.sd-hero-panel {
+  background: var(--sd-hero-bg) !important;
+  border-color: var(--sd-border-light) !important;
+}
+
+.sd-chip {
+  background: var(--sd-chip-bg) !important;
+  border-color: var(--sd-border-light) !important;
+  color: var(--sd-text-secondary) !important;
+}
+
+.sd-icon-badge {
+  background: var(--sd-surface-muted) !important;
+  border-color: var(--sd-border-light) !important;
+}
+
+.sd-btn-secondary {
+  border: 1px solid var(--sd-border) !important;
+  background: var(--sd-btn-secondary-bg) !important;
+  color: #2563eb !important;
+}
+
+html.dark .sd-btn-secondary {
+  color: #93c5fd !important;
+}
+
+.sd-muted-box {
+  background: var(--sd-surface-muted) !important;
+  border-color: var(--sd-border-light) !important;
+}
+
+/* Legacy premium-dashboard blocks (if rendered) */
+html.dark .premium-dashboard .stat-card.premium-card,
+html.dark .premium-dashboard .premium-chart-card,
+html.dark .premium-dashboard .dashboard-card.premium-card,
+html.dark .premium-dashboard .premium-access-card {
+  background: var(--sd-card) !important;
+  border-color: var(--sd-border-light) !important;
+  color: var(--sd-text-primary);
+}
+
+html.dark .premium-dashboard .stat-body h3,
+html.dark .premium-dashboard .chart-title-group h3,
+html.dark .premium-dashboard .card-header h3,
+html.dark .premium-dashboard .premium-access-card h4,
+html.dark .premium-dashboard .activity-message,
+html.dark .premium-dashboard .client-info h4 {
+  color: var(--sd-text-primary) !important;
+}
+
+html.dark .premium-dashboard .stat-body p,
+html.dark .premium-dashboard .chart-title-group p,
+html.dark .premium-dashboard .activity-time,
+html.dark .premium-dashboard .client-info p,
+html.dark .premium-dashboard .premium-access-card p,
+html.dark .premium-dashboard .bar-label-text {
+  color: var(--sd-text-muted) !important;
+}
+
+html.dark .premium-dashboard .activity-list.timeline .activity-item,
+html.dark .premium-dashboard .client-item {
+  background: var(--sd-surface-muted) !important;
+  border-color: var(--sd-border-light) !important;
+}
+
 .studio-dashboard {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea70 0%, #764ba200 25%, #f093fb29 50%, #4facfe66 75%, #00f2fe45 100%);
@@ -996,9 +1120,10 @@
 
 /* ========== Premium Dashboard (Stripe/Linear-style) ========== */
 .studio-dashboard.premium-dashboard {
-  background: #F1F5F9;
+  background: var(--sd-page-bg);
   min-height: 100vh;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--sd-text-primary);
 }
 
 .studio-dashboard.premium-dashboard::before {

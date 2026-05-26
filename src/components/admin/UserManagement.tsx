@@ -47,7 +47,7 @@ const UserManagement = () => {
   // Fetch user statistics
   const { data: userStats, isLoading: statsLoading } = useQuery({
     queryKey: ['userStatistics'],
-    queryFn: () => adminService.getUserStatistics()
+    queryFn: () => adminService.getUserStatisticsOptional()
   });
 
   // Mutations

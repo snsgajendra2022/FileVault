@@ -1,0 +1,178 @@
+/* /memories/events — full-width shell + responsive event cards */
+.memories-events-page {
+  --me-bg: #f6f4fb;
+  --me-surface: #ffffff;
+  --me-surface-muted: #f1f5f9;
+  --me-text: #0f172a;
+  --me-text-muted: #475569;
+  --me-text-faint: #64748b;
+  --me-border: #e2e8f0;
+  --me-accent: #4f46e5;
+  --me-page-pad: clamp(0.75rem, 2.5vw, 1.5rem);
+  --me-card-radius: clamp(1rem, 2vw, 1.5rem);
+}
+
+html.dark .memories-events-page {
+  --me-bg: #020617;
+  --me-surface: #1e293b;
+  --me-surface-muted: #334155;
+  --me-text: #f1f5f9;
+  --me-text-muted: #cbd5e1;
+  --me-text-faint: #94a3b8;
+  --me-border: #475569;
+  --me-accent: #818cf8;
+}
+
+.memories-events-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: calc(100dvh - 4.25rem);
+  min-height: calc(100vh - 4.25rem);
+  background: linear-gradient(
+    165deg,
+    var(--me-bg) 0%,
+    color-mix(in srgb, var(--me-bg) 70%, #ffffff) 45%,
+    color-mix(in srgb, var(--me-bg) 85%, #dbeafe) 100%
+  );
+  color: var(--me-text);
+}
+
+html.dark .memories-events-page {
+  background: linear-gradient(165deg, var(--me-bg) 0%, #0f172a 50%, #1e1b4b 100%);
+}
+
+.memories-events-page .me-page-inner {
+  width: 100%;
+  max-width: 100%;
+  margin-inline: auto;
+  padding-inline: var(--me-page-pad);
+  padding-bottom: clamp(1.5rem, 4vw, 3rem);
+}
+
+.memories-events-page .me-hero {
+  width: 100%;
+  margin-top: var(--me-page-pad);
+  margin-bottom: clamp(0.75rem, 2vw, 1.25rem);
+}
+
+.memories-events-page .me-filter-panel,
+.memories-events-page .me-state-card,
+.memories-events-page .me-event-card {
+  background-color: var(--me-surface);
+  border-color: var(--me-border);
+  color: var(--me-text);
+}
+
+.memories-events-page .me-event-card {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 100%;
+  border-radius: var(--me-card-radius);
+}
+
+.memories-events-page .me-event-card .me-card-cover {
+  aspect-ratio: 16 / 10;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+@media (min-width: 640px) {
+  .memories-events-page .me-event-card .me-card-cover {
+    aspect-ratio: 5 / 3;
+  }
+}
+
+.memories-events-page .me-event-card .me-card-body {
+  padding: clamp(0.875rem, 2.5vw, 1.25rem);
+}
+
+.memories-events-page .me-event-card .me-card-body-muted {
+  color: var(--me-text-muted);
+}
+
+.memories-events-page .me-event-card .me-card-meta {
+  color: var(--me-text-faint);
+}
+
+.memories-events-page .me-event-card .me-card-meta strong {
+  color: var(--me-text-muted);
+}
+
+.memories-events-page .me-group-heading {
+  color: var(--me-text);
+}
+
+.memories-events-page .me-group-count {
+  color: var(--me-text-faint);
+}
+
+/* Responsive card grid — cards always fill cell width */
+.memories-events-page .me-events-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(0.875rem, 2.5vw, 1.25rem);
+  width: 100%;
+  align-items: stretch;
+}
+
+@media (min-width: 640px) {
+  .memories-events-page .me-events-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .memories-events-page .me-events-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1536px) {
+  .memories-events-page .me-events-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.memories-events-page .me-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.memories-events-page .me-card-actions .me-btn {
+  min-height: 2.75rem;
+  touch-action: manipulation;
+}
+
+@media (max-width: 639px) {
+  .memories-events-page .me-card-actions .me-btn {
+    flex: 1 1 calc(50% - 0.25rem);
+    justify-content: center;
+    min-width: 0;
+  }
+}
+
+.memories-events-page .me-filter-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 640px) {
+  .memories-events-page .me-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .memories-events-page .me-filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.memories-events-page .me-filter-grid input {
+  min-height: 2.75rem;
+}
