@@ -33,6 +33,7 @@ const RegisterForm = () => {
   } = useForm<RegistrationData>({
     defaultValues: {
       accountType: 'FREE',
+      role: 'USERS',
     },
   });
 
@@ -317,13 +318,18 @@ const RegisterForm = () => {
                         {t('registerPage.labelRole')}
                       </label>
                       <div className="relative">
-                        <FaUser className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                        <input
-                          type="text"
-                          {...register('role')}
-                          className={inputClass}
-                          placeholder={t('registerPage.placeholderRole')}
-                        />
+                        <FaUser className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                        <select
+                          {...register('role', {
+                            validate: (v) =>
+                              !v || ['USERS', 'STUDIO'].includes(String(v)) || tv('roleInvalid'),
+                          })}
+                          className={`${inputClass} appearance-none py-3.5`}
+                          defaultValue="USERS"
+                        >
+                          <option value="USERS">{t('registerPage.roleRegular')}</option>
+                          <option value="STUDIO">{t('registerPage.roleStudio')}</option>
+                        </select>
                       </div>
                     </div>
 
