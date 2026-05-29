@@ -40,8 +40,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
   // console.log('Header - Is admin:', isAdmin);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm transition-colors duration-200">
-      <div className="mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+<header className="sticky top-0 z-[9999] overflow-visible border-b border-slate-100 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm transition-colors duration-200">      <div className="mx-auto flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
         {/* Left side - Mobile menu button only */}
         <div className="flex items-center">
           <button
