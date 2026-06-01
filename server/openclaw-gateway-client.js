@@ -68,6 +68,17 @@ function openclawEnv() {
 function parseCliJson(stdout) {
   const combined = String(stdout || '').trim();
   if (!combined) return null;
+
+  const firstBrace = combined.indexOf('{');
+  const lastBrace = combined.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(combined.slice(firstBrace, lastBrace + 1));
+    } catch {
+      /* try line-by-line */
+    }
+  }
+
   const lines = combined.split('\n').filter((l) => l.trim());
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i].trim();
@@ -80,6 +91,26 @@ function parseCliJson(stdout) {
     }
   }
   return null;
+}
+
+/** OpenClaw CLI sometimes wraps the payload in { message: "<json string>" } or { result }. */
+function unwrapGatewayPayload(raw) {
+  if (!raw || typeof raw !== 'object') return raw;
+  if (raw.channelAccounts || raw.channels || raw.ok === true) return raw;
+  if (raw.result && typeof raw.result === 'object') return raw.result;
+  if (raw.payload && typeof raw.payload === 'object') return raw.payload;
+  const msg = raw.message;
+  if (typeof msg === 'string') {
+    const trimmed = msg.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        /* keep raw */
+      }
+    }
+  }
+  return raw;
 }
 
 async function approvePendingGatewayDevice(requestId) {
@@ -169,9 +200,18 @@ async function gatewayCall(method, params = {}, timeoutMs = 120000) {
     timeout: timeoutMs + 5000,
   });
 
-  const parsed = parseCliJson(stdout);
-  if (parsed) return parsed;
+  const parsed = parseCliJson(stdout) || parseCliJson(stderr);
+  const unwrapped = unwrapGatewayPayload(parsed);
+  if (unwrapped && (unwrapped.channelAccounts || unwrapped.channels || unwrapped.ok != null)) {
+    return unwrapped;
+  }
+  if (parsed) return unwrapGatewayPayload(parsed) ?? parsed;
   const combined = `${stdout || ''}\n${stderr || ''}`.trim();
+  const fromCombined = parseCliJson(combined);
+  const fromCombinedUnwrapped = unwrapGatewayPayload(fromCombined);
+  if (fromCombinedUnwrapped?.channelAccounts || fromCombinedUnwrapped?.channels) {
+    return fromCombinedUnwrapped;
+  }
   return combined ? { message: combined } : {};
 }
 
@@ -197,20 +237,53 @@ async function gatewayChannelsStatus() {
 
 function parseWhatsAppGatewayAccount(statusJson) {
   if (!statusJson || statusJson.error) return null;
+  const channel = statusJson.channels?.whatsapp || {};
   const accounts = statusJson.channelAccounts?.whatsapp;
   const account = Array.isArray(accounts) ? accounts[0] : null;
   if (!account) return null;
-  const linked = Boolean(account.linked);
-  const running = Boolean(account.running);
-  const connected = linked || Boolean(account.connected);
+
+  const statusState = String(account.statusState || channel.statusState || '');
+  const lastDisconnect = account.lastDisconnect || channel.lastDisconnect || null;
+  const loggedOut = Boolean(lastDisconnect?.loggedOut);
+  const linked =
+    Boolean(account.linked) ||
+    channel.linked === true ||
+    statusState === 'linked';
+  const running =
+    Boolean(account.running) ||
+    channel.running === true ||
+    account.healthState === 'running' ||
+    channel.healthState === 'running' ||
+    statusState === 'running';
+  const connected =
+    !loggedOut && (linked || running || Boolean(account.connected) || channel.connected === true);
+
+  const lastError =
+    (account.lastError && account.lastError !== 'null' ? account.lastError : null) ||
+    (channel.lastError && channel.lastError !== 'null' ? channel.lastError : null) ||
+    (loggedOut && lastDisconnect?.error ? String(lastDisconnect.error) : null);
+
+  const phone =
+    account.phone ||
+    account.e164 ||
+    channel.self?.e164 ||
+    null;
+
+  const lastConnectedAtMs =
+    account.lastConnectedAt || channel.lastConnectedAt || null;
+
   return {
     accountId: account.accountId || 'default',
-    linked,
-    running,
+    linked: linked && !loggedOut,
+    running: running && !loggedOut,
     connected,
-    configured: account.configured !== false,
-    lastError: account.lastError && account.lastError !== 'null' ? account.lastError : null,
-    phone: account.phone || account.e164 || null,
+    configured: account.configured !== false && channel.configured !== false,
+    lastError,
+    phone,
+    loggedOut,
+    statusState,
+    lastConnectedAtMs,
+    restartPending: Boolean(account.restartPending),
   };
 }
 
@@ -262,6 +335,14 @@ async function ensureWhatsAppChannelRunning(accountId = 'default') {
   }
   const st = await gatewayChannelsStatus();
   const wa = parseWhatsAppGatewayAccount(st);
+  if (wa?.loggedOut) {
+    const err = new Error(
+      wa.lastError ||
+        'WhatsApp session logged out on gateway (scan QR again — avoid duplicate Linked devices).'
+    );
+    err.code = 'WHATSAPP_LOGGED_OUT';
+    throw err;
+  }
   if (wa?.running && (wa.connected || wa.linked)) return wa;
   await gatewayCall('channels.start', { channel: 'whatsapp', accountId }, 60000);
   const st2 = await gatewayChannelsStatus();
@@ -320,7 +401,7 @@ async function gatewaySendWhatsApp({ to, text, accountId = 'default' }) {
 }
 
 function normalizeGatewayLoginResult(raw) {
-  const base = raw?.result ?? raw?.payload ?? raw ?? {};
+  const base = unwrapGatewayPayload(raw?.result ?? raw?.payload ?? raw) ?? {};
   if (base.qrDataUrl || base.connected != null) return base;
   const msg = base.message;
   if (typeof msg === 'string' && msg.trim().startsWith('{')) {
@@ -347,6 +428,7 @@ function getGatewayDiagnostics() {
 
 module.exports = {
   gatewayCall,
+  unwrapGatewayPayload,
   approvePendingGatewayDevice,
   ensureGatewayOperatorScopes,
   isGatewayPairingError,

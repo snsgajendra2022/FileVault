@@ -26,6 +26,9 @@ export type WhatsAppStatus = {
   needsRelink?: boolean;
   hasWhatsAppCreds?: boolean;
   gatewayReachable?: boolean | null;
+  gatewayLoggedOut?: boolean;
+  gatewayStatusState?: string | null;
+  omReady?: boolean;
   lastConnectedAt?: string | null;
   lastMessageAt?: string | null;
   authAgeMs?: number | null;
@@ -108,7 +111,10 @@ export default function WhatsAppChannelCard({
 }) {
   const { t } = useTranslation();
   const [qrImgFailed, setQrImgFailed] = React.useState(false);
-  const hasQr = Boolean(loginState.qrPayload || loginState.qrDataUrl);
+  const gatewayLinked = Boolean(status.connected || status.linked);
+  const hasRealQr = Boolean(loginState.qrDataUrl);
+  const hasDevQr = Boolean(loginState.qrPayload && !hasRealQr);
+  const hasQr = Boolean(!gatewayLinked && (hasRealQr || hasDevQr));
 
   React.useEffect(() => {
     setQrImgFailed(false);
@@ -252,10 +258,19 @@ export default function WhatsAppChannelCard({
       {/* Dev QR (not scannable in WhatsApp) */}
       {hasQr && (
         <div className="mx-6 mb-6 flex flex-col items-center">
-          <p className="text-sm font-bold text-slate-700 mb-1">{t('whatsapp.scanQr')}</p>
-          <p className="text-xs text-amber-700 font-medium mb-3 text-center max-w-sm">
-            {t('whatsapp.scanQrHint')}
+          <p className="text-sm font-bold text-slate-700 mb-1">
+            {hasRealQr ? t('whatsapp.realQrTitle', 'Scan in WhatsApp') : t('whatsapp.scanQr')}
           </p>
+          {hasDevQr && (
+            <p className="text-xs text-amber-700 font-medium mb-3 text-center max-w-sm">
+              {t('whatsapp.scanQrHint')}
+            </p>
+          )}
+          {hasRealQr && (
+            <p className="text-xs text-emerald-700 font-medium mb-3 text-center max-w-sm">
+              {t('whatsapp.realQrHint', 'WhatsApp → Linked devices → Link a device')}
+            </p>
+          )}
           <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-4 shadow-inner flex items-center justify-center min-h-[15rem] min-w-[15rem]">
             {showQrImage ? (
               <img

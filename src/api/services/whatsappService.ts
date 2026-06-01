@@ -33,6 +33,9 @@ export type WhatsAppStatus = {
   needsRelink?: boolean;
   hasWhatsAppCreds?: boolean;
   gatewayReachable?: boolean | null;
+  gatewayLoggedOut?: boolean;
+  gatewayStatusState?: string | null;
+  omReady?: boolean;
   lastConnectedAt?: string | null;
   lastMessageAt?: string | null;
   authAgeMs?: number | null;
@@ -185,5 +188,26 @@ export async function sendOmWhatsAppWelcome(): Promise<
   WhatsAppStatus & { ok?: boolean; error?: string }
 > {
   const res = await whatsappClient().post('/api/whatsapp/welcome', {});
+  return res.data;
+}
+
+/** Save studio JWT so WhatsApp OM can list/create via Filevault API. */
+export async function linkWhatsAppAuth(phone?: string | null): Promise<{
+  ok?: boolean;
+  message?: string;
+  error?: string;
+}> {
+  const res = await whatsappClient().post('/api/whatsapp/link-auth', {
+    phone: phone || undefined,
+  });
+  return res.data;
+}
+
+export async function getWhatsAppLinkAuthStatus(): Promise<{
+  ok?: boolean;
+  linked?: boolean;
+  phone?: string | null;
+}> {
+  const res = await whatsappClient().get('/api/whatsapp/link-auth/status');
   return res.data;
 }

@@ -23,6 +23,7 @@ import {
   getWhatsAppMessages,
   bootstrapOmWhatsApp,
   sendOmWhatsAppToPhone,
+  linkWhatsAppAuth,
 } from '../api/services/whatsappService';
 
 function newQrPayload(): string {
@@ -211,17 +212,45 @@ export default function WhatsAppConfigPage() {
   );
 
   useEffect(() => {
+    if (status?.connected && status?.linked) {
+      setLoginState((prev) => ({
+        ...prev,
+        qrDataUrl: null,
+        qrPayload: null,
+        connected: true,
+        message: prev.message?.includes('Invalid QR') ? null : prev.message,
+      }));
+    }
+  }, [status?.connected, status?.linked]);
+
+  useEffect(() => {
     if (
       status?.connected &&
       status?.linked &&
       status?.gatewayReachable !== false &&
-      !status?.omSetupComplete &&
+      !status?.needsRelink &&
+      (!status?.omSetupComplete || !status?.welcomeSentAt) &&
       !bootstrapMutation.isPending
     ) {
       bootstrapMutation.mutate();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-setup once when linked
-  }, [status?.connected, status?.linked, status?.gatewayReachable, status?.omSetupComplete]);
+  }, [
+    status?.connected,
+    status?.linked,
+    status?.gatewayReachable,
+    status?.needsRelink,
+    status?.omSetupComplete,
+    status?.welcomeSentAt,
+  ]);
+
+  /** Let WhatsApp OM use your studio JWT for list/create API tools. */
+  useEffect(() => {
+    if (!status?.connected || !status?.linked || status?.needsRelink) return;
+    linkWhatsAppAuth(status.linkedPhoneE164).catch(() => {
+      /* optional — user may not be logged in on web */
+    });
+  }, [status?.connected, status?.linked, status?.needsRelink, status?.linkedPhoneE164]);
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (

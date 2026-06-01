@@ -140,6 +140,50 @@ The dev server also tries to auto-approve pending requests before starting login
 
 If `npm start` shows `[run-openclaw-gateway] Gateway exited (code=0)` right after editing `.openclaw/openclaw.json`, restart `npm start`. The gateway wrapper now uses `gateway run --force` and restarts automatically on supervisor handoff.
 
+## Welcome works but inbound messages get no reply
+
+Symptoms:
+
+- You receive the OM welcome (“I am OM”) on WhatsApp.
+- Your replies are logged as `Inbound message +91…` but nothing comes back.
+- Gateway log shows `Embedded agent failed before reply: Cannot read properties of undefined (reading 'delete')`.
+
+Cause: `session.dmScope: "per-channel-peer"` routes self-chat DMs to `agent:main:whatsapp:direct:+<phone>`, which can crash the embedded agent before the model runs. The welcome message is sent by the dev server (`/api/whatsapp/bootstrap`), not that session path.
+
+Fix in `.openclaw/openclaw.json` (project and `~/.openclaw/openclaw.json` if you use it):
+
+```json
+"session": {
+  "dmScope": "main"
+}
+```
+
+Restart `npm start`, then send `hi` again in **Message yourself** on WhatsApp.
+
+## WhatsApp commands (same as studio)
+
+After `npm start`, link your account by opening **Studio → WhatsApp** while logged in. Then message OM on WhatsApp:
+
+- `help` — full command menu
+- `list my events` / `create event Party Name`
+- `my albums` / `phone book` / `upload family`
+- `open memories dashboard` — replies include a link to open that page in the browser
+
+Set `OM_WEB_APP_URL` in `.env` to your React app URL (e.g. `http://192.168.1.58:3000`) so links work on your phone.
+
+## WhatsApp commands (same as studio)
+
+Open **Studio → WhatsApp** while logged in (links your JWT). Then message OM on WhatsApp:
+
+- `help` — command menu
+- `list my events` / `create event Party Name`
+- `my albums` / `phone book` / `upload family`
+- `open memories dashboard` — includes a browser link
+
+Set `OM_WEB_APP_URL` in `.env` to your React app URL (e.g. `http://192.168.1.58:3000`) so links open on your phone.
+
+If the embedded agent still crashes (`reading 'delete'`), **om-whatsapp-relay** handles replies via `http://127.0.0.1:9093/api/whatsapp/relay-inbound`. Ensure `npm start` is running. `openclaw` should be **2026.5.28+** to match `@openclaw/whatsapp`.
+
 ## Still broken?
 
 - Node **≥ 22.12**: `node -v`

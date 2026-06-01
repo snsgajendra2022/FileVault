@@ -2,6 +2,9 @@
   "agents": {
     "defaults": {
       "workspace": "/Users/gajendrarawat/filevault",
+      "memorySearch": {
+        "enabled": false
+      },
       "model": {
         "primary": "openrouter/owl-alpha"
       },
@@ -57,7 +60,7 @@
     }
   },
   "session": {
-    "dmScope": "per-channel-peer"
+    "dmScope": "main"
   },
   "tools": {
     "profile": "coding"
@@ -86,9 +89,10 @@
   "channels": {
     "whatsapp": {
       "enabled": true,
-      "dmPolicy": "allowlist",
-      "allowFrom": ["+919009659717"],
-      "groupAllowFrom": ["+919009659717"],
+      "dmPolicy": "open",
+      "allowFrom": ["*"],
+      "groupPolicy": "open",
+      "groupAllowFrom": ["*"],
       "selfChatMode": true,
       "responsePrefix": "auto",
       "accounts": {
@@ -102,6 +106,7 @@
     }
   },
   "plugins": {
+    "allow": ["whatsapp", "openrouter", "om-whatsapp-relay"],
     "entries": {
       "openai": {
         "enabled": false
@@ -111,6 +116,12 @@
       },
       "openrouter": {
         "enabled": true
+      },
+      "om-whatsapp-relay": {
+        "enabled": true,
+        "config": {
+          "relayUrl": "http://127.0.0.1:9093/api/whatsapp/relay-inbound"
+        }
       }
     }
   }

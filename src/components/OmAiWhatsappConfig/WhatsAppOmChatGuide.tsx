@@ -66,6 +66,11 @@ export default function WhatsAppOmChatGuide({
         <div className="mx-6 mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
           <p className="font-bold">{t('whatsapp.needsRelinkTitle')}</p>
           <p className="mt-1">{t('whatsapp.needsRelinkBody')}</p>
+          {status.lastError && (
+            <p className="mt-2 text-xs font-mono bg-red-100/80 px-2 py-1 rounded break-all">
+              {status.lastError}
+            </p>
+          )}
         </div>
       )}
 
@@ -160,7 +165,18 @@ export default function WhatsAppOmChatGuide({
           {t('whatsapp.omTryTitle')}
         </p>
         <ul className="space-y-2">
-          {(['hi', 'list my events', 'show my albums'] as const).map((phrase) => (
+          {(
+            [
+              'help',
+              'hi',
+              'list my events',
+              'create event Summer Party',
+              'my albums',
+              'phone book',
+              'upload family',
+              '(send a photo to upload)',
+            ] as const
+          ).map((phrase) => (
             <li
               key={phrase}
               className="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-sm font-mono text-slate-800"

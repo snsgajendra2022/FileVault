@@ -27,27 +27,30 @@ Invoke with a line:
 TOOL:{"id":"list_memories_events","payload":{}}
 ```
 
-## Web-only UI actions
+## Web UI actions
 
-When `context.channel` is not `whatsapp`, you may return:
+When `context.channel` is not `whatsapp`, you may return JSON actions or `NAVIGATE:/path` (see `src/utils/openclawNavigation.ts` and `server/om-route-catalog.js`).
 
-```json
-{"action":"open_route_memories_events","payload":{}}
-```
+## WhatsApp (full OM menu)
 
-or `NAVIGATE:/memories/events` as the last line.
+WhatsApp uses `server/om-whatsapp-actions.js` + `om-whatsapp-relay` plugin:
 
-Allowed route opens: see `src/utils/openclawNavigation.ts`.
+- **Plain text** replies with **deep links** to studio pages (`OM_WEB_APP_URL` or localhost:3000).
+- **Same tools** as web when the user linked auth (Studio → WhatsApp while logged in).
+- **Stable chat session** per phone number.
+- Say **help** for the command menu.
 
-## WhatsApp
+Examples users can text:
 
-- Reply in short plain text.
-- No `NAVIGATE` lines.
-- Use tools for data; confirm uploads/creates in one sentence.
+- `list my events` / `create event Diwali 2026`
+- `my albums` / `phone book` / `upload family`
+- `open memories dashboard` / `photo themes` / `invitations`
+
+Uploads: send a link to `/upload` or `/upload-family-images` — files are chosen in the browser.
 
 ## Auth
 
-Tools use the user’s Bearer token from the session. If tools fail with 401, ask the user to log in on the web app first.
+Tools use the user’s Bearer token. On WhatsApp, token is saved via `POST /api/whatsapp/link-auth` from the studio UI. If tools fail with 401, ask the user to open **Studio → WhatsApp** in the browser while logged in.
 
 ## Docs
 

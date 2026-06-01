@@ -71,12 +71,27 @@ function isPathAllowed(path) {
   return API_PATH_ALLOWLIST.some((prefix) => p === prefix || p.startsWith(prefix + '/'));
 }
 
-async function runKeywordTools(req, userText) {
+async function runKeywordTools(req, userText, opts = {}) {
   if (!OM_TOOLS_ENABLED) return '';
   const t = String(userText || '').trim();
   if (!t) return '';
 
   const lines = [];
+  const { parseCreateEventFromText } = require('./om-whatsapp-actions');
+
+  const createPayload = parseCreateEventFromText(t);
+  if (createPayload && (opts.channel === 'whatsapp' || /\bcreate\b/i.test(t))) {
+    const r = await executeTool(req, 'create_memories_event', createPayload);
+    if (!r.ok) {
+      lines.push(
+        `[OM tool: create_memories_event failed HTTP ${r.status} ${r.error || ''}]`.trim()
+      );
+    } else {
+      const ev = r.data?.event || r.data;
+      const name = ev?.name || createPayload.name;
+      lines.push(`[OM tool: create_memories_event OK — created "${name}"]`);
+    }
+  }
 
   if (/\b(list|show|get|my)\s+(memories?\s+)?events?\b/i.test(t) || /\bevents?\s+list\b/i.test(t)) {
     const r = await filevaultFetch(req, 'GET', '/api/memories/events');

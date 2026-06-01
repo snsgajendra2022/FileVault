@@ -36,6 +36,7 @@
     "react-hot-toast": "^2.6.0",
     "react-i18next": "^15.1.1",
     "react-icons": "^5.5.0",
+    "react-is": "^18.3.1",
     "react-inner-image-zoom": "^4.0.1",
     "react-loading-skeleton": "^3.5.0",
     "react-pageflip": "2.0.3",
@@ -49,7 +50,7 @@
     "zustand": "^5.0.10"
   },
   "scripts": {
-    "start": "concurrently -n web,om,gw -c blue,green,magenta \"craco start\" \"node server/openclaw-dev-server.js\" \"node server/run-openclaw-gateway.js\" \"openclaw:gateway:run\" \"openclaw:devices:approve\"",
+    "start": "concurrently -n web,om,gw,approve -c blue,green,magenta,yellow \"craco start\" \"node server/openclaw-dev-server.js\" \"node server/approve-openclaw-device-local.js\"",
     "start:web": "craco start",
     "openclaw-server": "node server/openclaw-dev-server.js",
     "openclaw": "openclaw",
@@ -82,6 +83,9 @@
       "last 1 safari version"
     ]
   },
+  "overrides": {
+    "react-is": "^18.3.1"
+  },
   "devDependencies": {
     "@craco/craco": "^7.1.0",
     "@types/d3": "^7.4.3",
@@ -93,7 +97,7 @@
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
     "multer": "^2.1.1",
-    "openclaw": "^2026.5.19",
+    "openclaw": "^2026.5.28",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17"
   }

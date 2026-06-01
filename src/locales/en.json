@@ -410,7 +410,7 @@
     "omTryTitle": "Try asking OM",
     "omTryNote": "Replies use openrouter/owl-alpha via OpenClaw gateway.",
     "omServerNote": "Dev server: port 9093 · Gateway: port 18789",
-    "omActionsNote": "OM can list events, albums, and photos via your studio API."
+    "omActionsNote": "OM can list/create events, albums, contacts, and send app links. Stay logged in on this page so WhatsApp uses your studio login."
   },
   "settings": {
     "title": "Settings",

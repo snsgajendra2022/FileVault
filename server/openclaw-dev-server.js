@@ -19,6 +19,17 @@ const {
   parseActionsFromReply,
   processToolLines,
 } = require('./om-api-tools');
+const {
+  ALLOWED_NAV,
+  sanitizeNavigatePath,
+  labelForPath,
+  matchRouteFromText,
+} = require('./om-route-catalog');
+const {
+  WHATSAPP_OM_SYSTEM_APPEND,
+  buildWhatsAppOmRequest,
+  formatReplyForWhatsApp,
+} = require('./om-whatsapp-actions');
 const { mountWhatsAppRoutes } = require('./whatsapp-routes');
 const { mountPortalSettingsRoutes } = require('./portal-settings-routes');
 
@@ -102,40 +113,6 @@ const sessionHistory = {};
 function newSessionId() {
   return `dev-${crypto.randomUUID()}`;
 }
-
-const ALLOWED_NAV = new Set([
-  '/memories/events',
-  '/memories/events/new',
-  '/memories/dashboard',
-  '/memories/shared',
-  '/photo-themes',
-  '/photo-book',
-  '/phonebook',
-  '/studio/dashboard',
-  '/studio/albums',
-  '/studio/openclaw',
-  '/studio/whatsapp',
-  '/filter-images',
-  '/upload-family-images',
-  '/client-images',
-]);
-
-const PATH_LABELS = {
-  '/memories/events': 'Events',
-  '/memories/events/new': 'New event',
-  '/memories/dashboard': 'Memories home',
-  '/memories/shared': 'Shared with me',
-  '/photo-themes': 'Photo themes',
-  '/photo-book': 'Photo books',
-  '/phonebook': 'Phone book',
-  '/studio/dashboard': 'Studio dashboard',
-  '/studio/albums': 'Albums',
-  '/studio/openclaw': 'Assistant',
-  '/studio/whatsapp': 'WhatsApp',
-  '/filter-images': 'Face filter',
-  '/upload-family-images': 'Family upload',
-  '/client-images': 'My images',
-};
 
 const OM_SYSTEM = `You are the assistant for "Our Memories" (OM) — a photographer / family studio web app.
 You help with navigation and questions about the product. You cannot call HTTP APIs yourself unless the user’s server provides a bridge that does.
@@ -226,50 +203,10 @@ function formatContextForModel(context) {
   return '\n\n[App context — real data from the OM app]\n' + lines.join('\n');
 }
 
-function labelForPath(path) {
-  return PATH_LABELS[path] || path;
-}
-
-function sanitizeNavigatePath(p) {
-  if (!p || typeof p !== 'string') return null;
-  const path = p.split('?')[0].trim();
-  if (!path.startsWith('/') || path.includes('//')) return null;
-  return ALLOWED_NAV.has(path) ? path : null;
-}
-
 function routeFromUserText(raw) {
-  const s = String(raw || '').trim();
-  if (!s) return null;
-  const rules = [
-    [/(\b(new|create)\s+(an?\s+)?events?\b)|(\bevents?\s+(new|create)\b)|(\bnew\s+memories?\s+events?\b)/i, '/memories/events/new'],
-    [/\b(memories?\s+dashboard)\b|\b(our\s+memories?\s+home)\b/i, '/memories/dashboard'],
-    [/\b(shared\s+with\s+me)\b|\b(memories?\s+shared)\b/i, '/memories/shared'],
-    [/\b(get|open|go\s+to|show|list|view)\s+(the\s+)?events?\b/i, '/memories/events'],
-    [/\b(events?\s+(get|list|open|page))\b/i, '/memories/events'],
-    [/\b(events?\s+(please|now))\b/i, '/memories/events'],
-    [/\b(open\s+)?memories?\s+events?\b/i, '/memories/events'],
-    [/\b(event|events)\b/i, '/memories/events'],
-    [/\b(go\s+to\s+)?my\s+albums?\b/i, '/studio/albums'],
-    [/\bopen\s+(my\s+)?(photo\s*)?albums?\b/i, '/studio/albums'],
-    [/\bstudio\s+albums?\b/i, '/studio/albums'],
-    [/\balbums?\s+page\b/i, '/studio/albums'],
-    [/^\s*albums?\s*$/i, '/studio/albums'],
-    [/^\s*album\s*$/i, '/studio/albums'],
-    [/\bphoto\s*themes?\b|\bthemes?\s+page\b/i, '/photo-themes'],
-    [/\bphoto\s*books?\b/i, '/photo-book'],
-    [/\bphone\s*book\b|\bcontacts?\s+list\b/i, '/phonebook'],
-    [/\bstudio\s+dashboard\b/i, '/studio/dashboard'],
-    [/^\s*dashboard\s*$/i, '/studio/dashboard'],
-    [/\bupload\s+family\b|\bfamily\s+upload\b/i, '/upload-family-images'],
-    [/\bmy\s+images\b|\bclient\s+images\b/i, '/client-images'],
-    [/\bopen\s*claw\b|\bassistant\s+page\b/i, '/studio/openclaw'],
-    [/\bwhatsapp\b/i, '/studio/whatsapp'],
-    [/\bface\s*filter\b|\bfilter\s+images\b/i, '/filter-images'],
-  ];
-  for (const [re, dest] of rules) {
-    if (re.test(s)) return sanitizeNavigatePath(dest);
-  }
-  return null;
+  const m = matchRouteFromText(raw);
+  if (m === '__help__') return null;
+  return m ? sanitizeNavigatePath(m) : null;
 }
 
 function parseNavigateFromText(reply) {
@@ -436,9 +373,11 @@ async function tryOpenAI(req, { userId, sid, userText, imageBuffer, imageMime, p
 function fallbackReply(userText) {
   const r = replyForReminder(userText);
   if (r) return r;
+  const { buildHelpMenuText } = require('./om-whatsapp-actions');
+  if (/^\s*help\s*$/i.test(String(userText || ''))) return buildHelpMenuText();
   return (
-    'I can open OM pages when you say “open events”, “my albums”, or “phone book”. ' +
-    'For full AI, set OPENAI_API_KEY in `.env` or OPENCLAW_BRIDGE_URL to your Java bridge. See docs/BACKEND-OM-ASSISTANT.md.'
+    'I can help with events, albums, contacts, photo uploads (send an image here), and studio pages. ' +
+    'Say *help* for commands. For full AI, set OPENAI_API_KEY in `.env`. See docs/BACKEND-OM-ASSISTANT.md.'
   );
 }
 
@@ -452,16 +391,27 @@ function replyForReminder(text) {
   return null;
 }
 
-async function computeAssistantResult(req, { userText, transcript, imageBuffer, imageMime, prompt, channel }) {
+async function computeAssistantResult(req, { userText, transcript, imageBuffer, imageMime, prompt, channel, from }) {
   const textIn = (userText || transcript || prompt || '').trim();
   const sidIn = req.body?.sessionId;
   const sid = typeof sidIn === 'string' && sidIn.trim() ? sidIn.trim() : newSessionId();
   const userId = getRequestUserId(req);
   const context = pickContext(req);
-  const channelNote = channel === 'whatsapp' ? '\n\n[Channel: WhatsApp — reply in plain text, no NAVIGATE unless user uses web app separately.]' : '';
-  const keywordContext = await runKeywordTools(req, textIn);
+  const isWhatsApp = channel === 'whatsapp';
+  const matchedRoute = isWhatsApp ? matchRouteFromText(textIn) : null;
+  const channelNote = isWhatsApp ? WHATSAPP_OM_SYSTEM_APPEND : '';
+  const keywordContext = await runKeywordTools(req, textIn, { channel });
+  const toolAuthFailed = keywordContext.includes('401') || keywordContext.includes('Missing Authorization');
   const contextAppend = formatContextForModel(context) + keywordContext + channelNote;
-  const localNav = channel === 'whatsapp' ? null : routeFromUserText(textIn);
+  const localNav = isWhatsApp ? null : routeFromUserText(textIn);
+
+  if (isWhatsApp && matchedRoute === '__help__') {
+    return buildJsonResponse({
+      sessionId: sid,
+      userId,
+      reply: formatReplyForWhatsApp({ reply: '', matchedRoute: '__help__' }),
+    });
+  }
 
   const bridgePayload = {
     kind: imageBuffer ? 'image' : transcript != null ? 'voice' : 'chat',
@@ -507,11 +457,25 @@ async function computeAssistantResult(req, { userText, transcript, imageBuffer, 
       });
       if (out && out.reply) {
         const nav = out.navigateFromModel || localNav;
+        let reply = out.reply;
+        if (isWhatsApp) {
+          reply = formatReplyForWhatsApp({
+            reply,
+            matchedRoute: matchedRoute && matchedRoute !== '__help__' ? matchedRoute : null,
+            toolAuthFailed,
+          });
+          if (matchedRoute && matchedRoute !== '__help__' && !reply.includes('http')) {
+            const link = require('./om-route-catalog').buildDeepLink(matchedRoute);
+            if (link) {
+              reply = `${reply}\n\nOpen ${labelForPath(matchedRoute)}:\n${link}`.trim();
+            }
+          }
+        }
         return buildJsonResponse({
           sessionId: sid,
           userId,
-          reply: out.reply,
-          navigateTo: nav || undefined,
+          reply,
+          navigateTo: isWhatsApp ? undefined : nav || undefined,
         });
       }
     }
@@ -541,8 +505,23 @@ async function computeAssistantResult(req, { userText, transcript, imageBuffer, 
     });
   }
 
+  if (isWhatsApp && matchedRoute && matchedRoute !== '__help__') {
+    return buildJsonResponse({
+      sessionId: sid,
+      userId,
+      reply: formatReplyForWhatsApp({
+        reply: keywordContext ? `Here is what I found:${keywordContext}` : '',
+        matchedRoute,
+        toolAuthFailed,
+      }),
+    });
+  }
+
   const fb = fallbackReply(textIn);
-  return buildJsonResponse({ sessionId: sid, userId, reply: fb });
+  const reply = isWhatsApp
+    ? formatReplyForWhatsApp({ reply: fb, matchedRoute: null, toolAuthFailed })
+    : fb;
+  return buildJsonResponse({ sessionId: sid, userId, reply });
 }
 
 async function runAssistantPipeline(req, res, opts) {
@@ -593,17 +572,25 @@ app.post('/api/openclaw/image', upload.single('file'), async (req, res) => {
 mountPortalSettingsRoutes(app);
 
 mountWhatsAppRoutes(app, {
-  onInboundMessage: async ({ text, req }) => {
-    const fakeReq = {
-      headers: req.headers,
-      body: {
-        sessionId: `wa-${crypto.randomUUID()}`,
-        context: { channel: 'whatsapp', path: '/studio/whatsapp' },
-      },
-    };
-    const result = await computeAssistantResult(fakeReq, {
+  onInboundMessage: async ({ from, text, media, req }) => {
+    const omReq = buildWhatsAppOmRequest({ from, text, req });
+    const waMedia = Array.isArray(media) ? media.filter((m) => m?.path) : [];
+
+    if (waMedia.length > 0) {
+      const { processWhatsAppMediaInbound } = require('./om-whatsapp-upload');
+      const mediaReply = await processWhatsAppMediaInbound({
+        req: omReq,
+        from,
+        text,
+        media: waMedia,
+      });
+      if (mediaReply) return { reply: mediaReply };
+    }
+
+    const result = await computeAssistantResult(omReq, {
       userText: text,
       channel: 'whatsapp',
+      from,
     });
     return { reply: result.reply || '' };
   },

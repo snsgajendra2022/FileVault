@@ -25,6 +25,7 @@ const {
 } = require('./openclaw-gateway-client');
 const { OM_WELCOME_OUTBOUND } = require('./om-whatsapp-replies');
 const { bootstrapOmWhatsApp } = require('./whatsapp-bootstrap');
+const { loadWhatsAppStudioState, saveWhatsAppStudioState } = require('./whatsapp-studio-state');
 
 const DEFAULT_CONFIG = {
   dmPolicy: 'pairing',
@@ -87,26 +88,42 @@ function isAllowedSender(config, from, isGroup) {
 }
 
 function mountWhatsAppRoutes(app, hooks = {}) {
+  const persisted = loadWhatsAppStudioState();
   const state = {
     configured: true,
     linked: false,
     running: false,
     connected: false,
-    linkedPhoneE164: null,
-    welcomeSentAt: null,
-    lastConnectedAt: null,
-    lastMessageAt: null,
+    linkedPhoneE164: persisted.linkedPhoneE164 || null,
+    welcomeSentAt: persisted.welcomeSentAt || null,
+    lastConnectedAt: persisted.lastConnectedAt || null,
+    lastMessageAt: persisted.lastMessageAt || null,
     lastError: null,
     loginPending: false,
     lastQrDataUrl: null,
     studioDisconnected: false,
     bootstrapInFlight: false,
-    omSetupComplete: false,
-    omIntroSentAt: null,
+    omSetupComplete: Boolean(persisted.omSetupComplete),
+    omIntroSentAt: persisted.omIntroSentAt || null,
     gatewayReachable: null,
+    gatewayLoggedOut: false,
+    gatewayStatusState: null,
     config: { ...DEFAULT_CONFIG },
-    messages: [],
+    messages: Array.isArray(persisted.messages) ? persisted.messages : [],
   };
+
+  function persistStudioState(extra = {}) {
+    saveWhatsAppStudioState({
+      linkedPhoneE164: state.linkedPhoneE164,
+      welcomeSentAt: state.welcomeSentAt,
+      lastConnectedAt: state.lastConnectedAt,
+      lastMessageAt: state.lastMessageAt,
+      omSetupComplete: state.omSetupComplete,
+      omIntroSentAt: state.omIntroSentAt,
+      messages: state.messages.slice(0, 50),
+      ...extra,
+    });
+  }
 
   function pushMessage(entry) {
     state.messages.unshift({
@@ -157,7 +174,7 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     return null;
   }
 
-  async function syncFromGateway() {
+  async function syncFromGateway({ tryStart = false } = {}) {
     if (process.env.OPENCLAW_WHATSAPP_USE_GATEWAY === 'false' || !isGatewayConfigured()) {
       return null;
     }
@@ -167,23 +184,62 @@ function mountWhatsAppRoutes(app, hooks = {}) {
         state.lastError = state.lastError || 'Gateway not reachable on port 18789';
         return null;
       }
-      const st = await gatewayChannelsStatus();
-      const wa = parseWhatsAppGatewayAccount(st);
+
+      let st = await gatewayChannelsStatus();
+      let wa = parseWhatsAppGatewayAccount(st);
+
+      if (
+        tryStart &&
+        wa &&
+        !wa.loggedOut &&
+        hasWhatsAppSessionCreds() &&
+        !wa.running &&
+        !wa.linked
+      ) {
+        try {
+          await gatewayCall('channels.start', { channel: 'whatsapp', accountId: 'default' }, 60000);
+          st = await gatewayChannelsStatus();
+          wa = parseWhatsAppGatewayAccount(st);
+        } catch {
+          /* keep previous wa */
+        }
+      }
+
       if (!wa) return null;
+
+      state.gatewayLoggedOut = Boolean(wa.loggedOut);
+      state.gatewayStatusState = wa.statusState || null;
 
       state.linked = Boolean(wa.linked);
       state.running = Boolean(wa.running);
-      state.connected = Boolean(wa.linked && (wa.running || wa.connected));
-      if (state.connected && !state.lastConnectedAt) {
+      state.connected = Boolean(wa.connected);
+
+      if (wa.lastConnectedAtMs) {
+        state.lastConnectedAt = new Date(wa.lastConnectedAtMs).toISOString();
+      } else if (state.connected && !state.lastConnectedAt) {
         state.lastConnectedAt = new Date().toISOString();
       }
-      if (!wa.linked && !hasWhatsAppSessionCreds()) {
+
+      if (wa.loggedOut) {
+        state.linked = false;
+        state.running = false;
+        state.connected = false;
+        state.omSetupComplete = false;
+        state.lastError =
+          wa.lastError ||
+          'WhatsApp session ended on gateway (401 conflict). Click Relink and scan QR again.';
+      } else if (!wa.linked && !hasWhatsAppSessionCreds()) {
         state.omSetupComplete = false;
         state.welcomeSentAt = null;
       }
+
       if (wa.phone) rememberLinkedPhone(wa.phone);
-      if (wa.lastError) state.lastError = String(wa.lastError);
+      if (wa.lastError && wa.loggedOut) state.lastError = String(wa.lastError);
       else if (state.connected) state.lastError = null;
+
+      if (state.connected || state.welcomeSentAt || state.omSetupComplete) {
+        persistStudioState();
+      }
       return wa;
     } catch (e) {
       state.lastError = String(e.message || e);
@@ -212,6 +268,8 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     if (state.welcomeSentAt) return { ok: true, skipped: true };
     const result = await sendOmMessageToPhone(OM_WELCOME_TEXT);
     state.welcomeSentAt = new Date().toISOString();
+    state.omSetupComplete = true;
+    persistStudioState();
     return result;
   }
 
@@ -240,23 +298,33 @@ function mountWhatsAppRoutes(app, hooks = {}) {
   };
 
   async function runOmBootstrap() {
-    return bootstrapOmWhatsApp(state, bootstrapDeps);
+    const result = await bootstrapOmWhatsApp(state, bootstrapDeps);
+    if (result.ok) persistStudioState();
+    return result;
   }
 
   function statusPayload(extra = {}) {
     const hasCreds = hasWhatsAppSessionCreds();
-    const needsRelink = hasCreds && !state.linked;
+    const needsRelink =
+      Boolean(state.gatewayLoggedOut) ||
+      (hasCreds && !state.linked && !state.running && !state.connected);
+    const omReady = Boolean(
+      state.connected && state.linked && state.gatewayReachable !== false
+    );
     return {
       configured: state.configured,
       linked: state.linked,
-      running: state.running || state.connected,
-      connected: state.connected && state.linked,
+      running: state.running || (state.connected && state.linked),
+      connected: state.connected,
       linkedPhoneE164: state.linkedPhoneE164,
       welcomeSentAt: state.welcomeSentAt,
       omSetupComplete: state.omSetupComplete,
+      omReady,
       needsRelink,
       hasWhatsAppCreds: hasCreds,
       gatewayReachable: state.gatewayReachable,
+      gatewayLoggedOut: state.gatewayLoggedOut,
+      gatewayStatusState: state.gatewayStatusState,
       lastConnectedAt: state.lastConnectedAt,
       lastMessageAt: state.lastMessageAt,
       authAgeMs:
@@ -264,22 +332,27 @@ function mountWhatsAppRoutes(app, hooks = {}) {
           ? Date.now() - new Date(state.lastConnectedAt).getTime()
           : null,
       lastError: state.lastError,
-      gateway: getGatewayDiagnostics(),
+      gateway: {
+        ...getGatewayDiagnostics(),
+        reachable: state.gatewayReachable,
+      },
       ...extra,
     };
   }
 
   app.get('/api/whatsapp/status', async (_req, res) => {
     if (process.env.OPENCLAW_WHATSAPP_USE_GATEWAY !== 'false' && isGatewayConfigured()) {
+      const wasConnected = state.connected;
       state.gatewayReachable = await isGatewayReachable();
       if (state.gatewayReachable) {
-        await syncFromGateway();
-        if (
+        await syncFromGateway({ tryStart: true });
+        const shouldBootstrap =
           state.connected &&
           state.linked &&
-          !state.omSetupComplete &&
-          !state.bootstrapInFlight
-        ) {
+          !state.gatewayLoggedOut &&
+          !state.bootstrapInFlight &&
+          (!state.omSetupComplete || !state.welcomeSentAt || !wasConnected);
+        if (shouldBootstrap) {
           runOmBootstrap().catch(() => {});
         }
       }
@@ -354,8 +427,11 @@ function mountWhatsAppRoutes(app, hooks = {}) {
         }
 
         if (!force) {
-          await syncFromGateway();
-          const sessionOk = state.linked && hasWhatsAppSessionCreds();
+          await syncFromGateway({ tryStart: true });
+          const sessionOk =
+            hasWhatsAppSessionCreds() &&
+            !state.gatewayLoggedOut &&
+            (state.linked || state.running || state.connected);
           if (sessionOk) {
             state.loginPending = false;
             state.studioDisconnected = false;
@@ -476,10 +552,14 @@ function mountWhatsAppRoutes(app, hooks = {}) {
         const connected = Boolean(result?.connected);
         if (connected) {
           state.loginPending = false;
-          state.linked = true;
-          state.running = true;
-          state.connected = true;
-          state.lastConnectedAt = new Date().toISOString();
+          state.gatewayLoggedOut = false;
+          await syncFromGateway({ tryStart: true });
+          if (!state.connected) {
+            state.linked = true;
+            state.running = true;
+            state.connected = true;
+            state.lastConnectedAt = new Date().toISOString();
+          }
           state.lastError = null;
           const phone = parsePhoneFromGatewayText(result?.message);
           if (phone) rememberLinkedPhone(phone);
@@ -490,6 +570,7 @@ function mountWhatsAppRoutes(app, hooks = {}) {
             text: 'WhatsApp linked via OpenClaw Gateway.',
             status: 'delivered',
           });
+          persistStudioState();
           runOmBootstrap().catch(() => {});
         }
         return res.json({
@@ -591,6 +672,112 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     }
 
     res.json({ ok: true, messageId: msgId });
+  });
+
+  /** Gateway plugin om-whatsapp-relay → compute OM reply (no duplicate send; gateway delivers text). */
+  /** Link Filevault JWT from the logged-in studio UI so WhatsApp OM can call APIs. */
+  app.post('/api/whatsapp/link-auth', (req, res) => {
+    const auth = String(req.headers.authorization || req.body?.token || '').trim();
+    if (!auth) {
+      return res.status(400).json({ ok: false, error: 'Authorization Bearer token required' });
+    }
+    const phone = String(req.body?.phone || state.linkedPhoneE164 || '').trim();
+    const { saveBearerForPhone } = require('./om-whatsapp-actions');
+    saveBearerForPhone(phone, auth);
+    return res.json({
+      ok: true,
+      phone: phone || null,
+      message: 'OM WhatsApp linked to your studio login for list/create actions.',
+    });
+  });
+
+  app.get('/api/whatsapp/link-auth/status', (_req, res) => {
+    const { resolveBearerForPhone } = require('./om-whatsapp-actions');
+    const phone = state.linkedPhoneE164;
+    const hasToken = Boolean(resolveBearerForPhone(phone));
+    return res.json({ ok: true, phone, linked: hasToken });
+  });
+
+  app.post('/api/whatsapp/relay-inbound', async (req, res) => {
+    const from = String(req.body?.from || '').trim();
+    const text = String(req.body?.text || '').trim();
+    const mediaPath = String(req.body?.mediaPath || '').trim();
+    const mediaType = String(req.body?.mediaType || '').trim();
+    const mediaFileName = String(req.body?.mediaFileName || '').trim();
+    const rawMediaList = Array.isArray(req.body?.mediaPaths) ? req.body.mediaPaths : [];
+
+    const media = [];
+    if (rawMediaList.length > 0) {
+      for (const entry of rawMediaList) {
+        const p = String(entry?.path || entry || '').trim();
+        if (!p) continue;
+        media.push({
+          path: p,
+          type: String(entry?.type || entry?.mime || mediaType || '').trim() || undefined,
+          name: String(entry?.name || entry?.fileName || mediaFileName || '').trim() || undefined,
+        });
+      }
+    } else if (mediaPath) {
+      media.push({
+        path: mediaPath,
+        type: mediaType || undefined,
+        name: mediaFileName || undefined,
+      });
+    }
+
+    if (!text && media.length === 0) {
+      return res.status(400).json({ ok: false, error: 'text or media required' });
+    }
+
+    const remote = req.socket?.remoteAddress || '';
+    const isLocal =
+      remote === '127.0.0.1' ||
+      remote === '::1' ||
+      remote === '::ffff:127.0.0.1' ||
+      !remote;
+    if (!isLocal) {
+      return res.status(403).json({ ok: false, error: 'relay allowed from loopback only' });
+    }
+
+    if (!state.connected) {
+      return res.status(409).json({ ok: false, error: 'WhatsApp not connected' });
+    }
+
+    const sender = from || state.linkedPhoneE164 || '';
+    if (sender && !isAllowedSender(state.config, sender, false)) {
+      return res.status(403).json({ ok: false, error: 'sender not allowed' });
+    }
+
+    const inboundLabel =
+      text || (media.length ? `[${media.length} image(s)]` : '');
+    pushMessage({
+      direction: 'inbound',
+      from: sender || 'unknown',
+      to: 'om',
+      text: inboundLabel,
+      status: 'delivered',
+    });
+
+    let reply = '';
+    if (typeof hooks.onInboundMessage === 'function') {
+      try {
+        const out = await hooks.onInboundMessage({ from: sender, text, media, req });
+        reply = (out?.reply || '').trim();
+      } catch (e) {
+        console.warn('[whatsapp] relay-inbound failed:', e.message);
+        return res.status(500).json({ ok: false, error: String(e.message || e) });
+      }
+    } else {
+      reply =
+        'OM dev server has no assistant hook. Start with: npm start (openclaw-dev-server on port 9093).';
+    }
+
+    if (reply) {
+      state.lastMessageAt = new Date().toISOString();
+      persistStudioState();
+    }
+
+    return res.json({ ok: true, reply });
   });
 
   app.post('/api/whatsapp/simulate-inbound', async (req, res) => {
