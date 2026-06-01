@@ -6,3 +6,5 @@ export type { WhatsAppConfigValues } from './WhatsAppConfigForm';
 
 export { default as WhatsAppMessageLog } from './WhatsAppMessageLog';
 export type { WhatsAppLogEntry } from './WhatsAppMessageLog';
+
+export { default as WhatsAppOmChatGuide } from './WhatsAppOmChatGuide';

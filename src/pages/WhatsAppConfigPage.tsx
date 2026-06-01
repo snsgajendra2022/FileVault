@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -7,6 +7,7 @@ import {
   WhatsAppChannelCard,
   WhatsAppConfigForm,
   WhatsAppMessageLog,
+  WhatsAppOmChatGuide,
   type WhatsAppStatus,
   type WhatsAppLoginState,
   type WhatsAppConfigValues,
@@ -20,6 +21,8 @@ import {
   saveWhatsAppConfig,
   getWhatsAppConfig,
   getWhatsAppMessages,
+  bootstrapOmWhatsApp,
+  sendOmWhatsAppToPhone,
 } from '../api/services/whatsappService';
 
 function newQrPayload(): string {
@@ -118,6 +121,7 @@ export default function WhatsAppConfigPage() {
       if (data.connected) {
         toast.success(t('whatsapp.linkedSuccess'));
         queryClient.invalidateQueries({ queryKey: ['whatsapp', 'status'] });
+        bootstrapMutation.mutate();
       }
     },
     onError: (err: Error) => {
@@ -153,6 +157,28 @@ export default function WhatsAppConfigPage() {
     },
   });
 
+  const bootstrapMutation = useMutation({
+    mutationFn: () => bootstrapOmWhatsApp(),
+    onSuccess: (data) => {
+      if (data.ok) {
+        toast.success(data.message || t('whatsapp.omSetupDone'));
+      } else if (data.error) {
+        toast.error(data.error);
+      }
+      queryClient.invalidateQueries({ queryKey: ['whatsapp', 'status'] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const sendMessageMutation = useMutation({
+    mutationFn: (text: string) => sendOmWhatsAppToPhone(text),
+    onSuccess: () => {
+      toast.success(t('whatsapp.manualSendSuccess'));
+      queryClient.invalidateQueries({ queryKey: ['whatsapp', 'status', 'messages'] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const saveConfigMutation = useMutation({
     mutationFn: (values: WhatsAppConfigValues) => saveWhatsAppConfig(values),
     onSuccess: () => {
@@ -183,6 +209,19 @@ export default function WhatsAppConfigPage() {
     (values: WhatsAppConfigValues) => saveConfigMutation.mutate(values),
     [saveConfigMutation],
   );
+
+  useEffect(() => {
+    if (
+      status?.connected &&
+      status?.linked &&
+      status?.gatewayReachable !== false &&
+      !status?.omSetupComplete &&
+      !bootstrapMutation.isPending
+    ) {
+      bootstrapMutation.mutate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-setup once when linked
+  }, [status?.connected, status?.linked, status?.gatewayReachable, status?.omSetupComplete]);
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
@@ -245,6 +284,17 @@ export default function WhatsAppConfigPage() {
             onWaitLogin={handleWaitLogin}
             onLogout={handleLogout}
             onRefresh={handleRefresh}
+          />
+        )}
+
+        {status && (
+          <WhatsAppOmChatGuide
+            status={status}
+            gatewayReachable={status.gatewayReachable ?? undefined}
+            onRetrySetup={() => bootstrapMutation.mutate()}
+            setupBusy={bootstrapMutation.isPending}
+            onSendMessage={(text) => sendMessageMutation.mutate(text)}
+            sendBusy={sendMessageMutation.isPending}
           />
         )}
 

@@ -20,6 +20,12 @@ export type WhatsAppStatus = {
   linked?: boolean;
   running?: boolean;
   connected?: boolean;
+  linkedPhoneE164?: string | null;
+  welcomeSentAt?: string | null;
+  omSetupComplete?: boolean;
+  needsRelink?: boolean;
+  hasWhatsAppCreds?: boolean;
+  gatewayReachable?: boolean | null;
   lastConnectedAt?: string | null;
   lastMessageAt?: string | null;
   authAgeMs?: number | null;

@@ -27,10 +27,22 @@ export type WhatsAppStatus = {
   linked?: boolean;
   running?: boolean;
   connected?: boolean;
+  linkedPhoneE164?: string | null;
+  welcomeSentAt?: string | null;
+  omSetupComplete?: boolean;
+  needsRelink?: boolean;
+  hasWhatsAppCreds?: boolean;
+  gatewayReachable?: boolean | null;
   lastConnectedAt?: string | null;
   lastMessageAt?: string | null;
   authAgeMs?: number | null;
   lastError?: string | null;
+  gateway?: {
+    configPath?: string;
+    wsUrl?: string;
+    hasToken?: boolean;
+    hasWhatsAppCreds?: boolean;
+  };
 };
 
 export type WhatsAppLoginStartResponse = {
@@ -149,5 +161,29 @@ export async function sendWhatsAppMessage(params: {
     '/api/whatsapp/send',
     params,
   );
+  return res.data;
+}
+
+/** Auto-setup OM on linked phone (allowlist, listener, welcome). */
+export async function bootstrapOmWhatsApp(): Promise<
+  WhatsAppStatus & { ok?: boolean; message?: string; error?: string; busy?: boolean }
+> {
+  const res = await whatsappClient().post('/api/whatsapp/bootstrap', {});
+  return res.data;
+}
+
+/** Send arbitrary text to the linked phone (Message yourself). */
+export async function sendOmWhatsAppToPhone(text: string): Promise<
+  WhatsAppStatus & { ok?: boolean; error?: string }
+> {
+  const res = await whatsappClient().post('/api/whatsapp/send-to-phone', { text });
+  return res.data;
+}
+
+/** Resend OM welcome to linked phone. */
+export async function sendOmWhatsAppWelcome(): Promise<
+  WhatsAppStatus & { ok?: boolean; error?: string }
+> {
+  const res = await whatsappClient().post('/api/whatsapp/welcome', {});
   return res.data;
 }
