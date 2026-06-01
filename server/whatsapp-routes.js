@@ -15,6 +15,8 @@ const {
   gatewayLogoutWhatsApp,
   ensureWhatsAppChannelRunning,
   normalizeGatewayLoginResult,
+  ensureGatewayOperatorScopes,
+  isGatewayPairingError,
   getGatewayDiagnostics,
   resolveConfigPath,
   readPhoneFromWhatsAppCreds,
@@ -372,11 +374,24 @@ function mountWhatsAppRoutes(app, hooks = {}) {
           }
         }
 
-        const raw = await gatewayCall('web.login.start', {
-          force,
-          timeoutMs: 60000,
-          verbose: false,
-        });
+        await ensureGatewayOperatorScopes().catch(() => {});
+
+        let raw;
+        try {
+          raw = await gatewayCall('web.login.start', {
+            force,
+            timeoutMs: 60000,
+            verbose: false,
+          });
+        } catch (loginErr) {
+          if (!isGatewayPairingError(loginErr)) throw loginErr;
+          await ensureGatewayOperatorScopes();
+          raw = await gatewayCall('web.login.start', {
+            force,
+            timeoutMs: 60000,
+            verbose: false,
+          });
+        }
         const result = normalizeGatewayLoginResult(raw);
         if (result?.qrDataUrl) {
           state.loginPending = true;

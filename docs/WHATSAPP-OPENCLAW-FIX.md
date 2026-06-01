@@ -119,6 +119,27 @@ npm run openclaw:channels:status
 - **Invalid QR in WhatsApp app** = you scanned the old **fake** dev code from Java (9090) or gateway was offline.
 - **Valid flow** = gateway on 18789 + dev server 9093 + `REACT_APP_WHATSAPP_API_URL` → page shows **real** QR (`source: openclaw-gateway` in network response).
 
+## `pairing required` / `scope upgrade pending approval`
+
+WhatsApp QR uses `web.login.start`, which needs **`operator.admin`**. If the CLI was only approved for **`operator.read`**, the gateway blocks the call until you approve the scope upgrade.
+
+**Quick fix (gateway must be running on 18789):**
+
+```bash
+cd /Users/gajendrarawat/filevault
+npm run openclaw:devices:approve
+# or open the control UI and approve the pending CLI device:
+open http://127.0.0.1:18789/
+```
+
+Then refresh `/studio/whatsapp` and click **Show QR** again.
+
+The dev server also tries to auto-approve pending requests before starting login.
+
+## Gateway exited after “config reload”
+
+If `npm start` shows `[run-openclaw-gateway] Gateway exited (code=0)` right after editing `.openclaw/openclaw.json`, restart `npm start`. The gateway wrapper now uses `gateway run --force` and restarts automatically on supervisor handoff.
+
 ## Still broken?
 
 - Node **≥ 22.12**: `node -v`

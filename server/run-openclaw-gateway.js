@@ -41,30 +41,49 @@ async function main() {
   console.log(`[run-openclaw-gateway] Config: ${env.OPENCLAW_CONFIG_PATH}`);
   console.log(`[run-openclaw-gateway] Starting ${gatewayBin} gateway...`);
 
-  const child = spawn(gatewayBin, ['gateway'], {
-    cwd: projectRoot,
-    env,
-    stdio: 'inherit',
-  });
+  let shuttingDown = false;
+  let restartTimer = null;
 
-  child.on('exit', (code, signal) => {
-    if (signal) {
-      console.log(`[run-openclaw-gateway] Gateway stopped (signal=${signal})`);
-    } else {
-      console.log(`[run-openclaw-gateway] Gateway exited (code=${code})`);
-    }
-    process.exit(code ?? 0);
-  });
+  function spawnGateway() {
+    const child = spawn(gatewayBin, ['gateway', 'run', '--force'], {
+      cwd: projectRoot,
+      env,
+      stdio: 'inherit',
+    });
 
-  process.on('SIGTERM', () => {
-    console.log('[run-openclaw-gateway] SIGTERM — forwarding to gateway');
-    child.kill('SIGTERM');
-  });
+    child.on('exit', (code, signal) => {
+      if (shuttingDown) {
+        process.exit(code ?? 0);
+        return;
+      }
+      if (signal) {
+        console.log(`[run-openclaw-gateway] Gateway stopped (signal=${signal})`);
+        process.exit(0);
+        return;
+      }
+      console.log(
+        `[run-openclaw-gateway] Gateway exited (code=${code}) — restarting in 2s (config reload / supervisor handoff)`
+      );
+      restartTimer = setTimeout(spawnGateway, 2000);
+    });
 
-  process.on('SIGINT', () => {
-    console.log('[run-openclaw-gateway] SIGINT — forwarding to gateway');
-    child.kill('SIGTERM');
-  });
+    process.on('SIGTERM', () => {
+      shuttingDown = true;
+      if (restartTimer) clearTimeout(restartTimer);
+      console.log('[run-openclaw-gateway] SIGTERM — forwarding to gateway');
+      child.kill('SIGTERM');
+    });
+
+    process.on('SIGINT', () => {
+      shuttingDown = true;
+      if (restartTimer) clearTimeout(restartTimer);
+      console.log('[run-openclaw-gateway] SIGINT — forwarding to gateway');
+      child.kill('SIGTERM');
+    });
+  }
+
+  spawnGateway();
+
 }
 
 main().catch((err) => {

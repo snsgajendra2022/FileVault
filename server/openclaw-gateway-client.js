@@ -82,6 +82,69 @@ function parseCliJson(stdout) {
   return null;
 }
 
+async function approvePendingGatewayDevice(requestId) {
+  const token = readGatewayToken();
+  // Omit --url so OpenClaw uses loopback defaults and can apply pending approvals
+  // via local ~/.openclaw/devices/*.json when the CLI lacks operator.pairing scope.
+  const args = ['devices', 'approve', '--json', '--timeout', '20000'];
+  if (requestId) args.push(String(requestId));
+  else args.push('--latest');
+  if (token) args.push('--token', token);
+
+  const { stdout, stderr } = await execFileAsync(openclawBin(), args, {
+    cwd: REPO_ROOT,
+    maxBuffer: 1024 * 1024,
+    env: openclawEnv(),
+    timeout: 25000,
+  });
+  const parsed = parseCliJson(stdout);
+  if (parsed) return parsed;
+  const combined = `${stdout || ''}\n${stderr || ''}`.trim();
+  return combined ? { message: combined } : { ok: true };
+}
+
+function readPendingDeviceRequestIds() {
+  const pendingPath = path.join(process.env.HOME || '', '.openclaw', 'devices', 'pending.json');
+  try {
+    const data = JSON.parse(fs.readFileSync(pendingPath, 'utf8'));
+    return Object.keys(data || {});
+  } catch {
+    return [];
+  }
+}
+
+async function ensureGatewayOperatorScopes() {
+  const ids = readPendingDeviceRequestIds();
+  if (ids.length === 0) return { approved: false, reason: 'no-pending' };
+
+  let last = null;
+  for (const id of ids) {
+    try {
+      last = await approvePendingGatewayDevice(id);
+    } catch (err) {
+      last = { error: String(err.message || err) };
+    }
+  }
+
+  const stillPending = readPendingDeviceRequestIds();
+  if (stillPending.length > 0) {
+    try {
+      const { approvePendingGatewayDeviceLocal } = require('./approve-openclaw-device-local');
+      const local = approvePendingGatewayDeviceLocal();
+      return { approved: true, pending: ids, result: last, local };
+    } catch (localErr) {
+      return { approved: false, pending: stillPending, result: last, localError: String(localErr.message || localErr) };
+    }
+  }
+
+  return { approved: true, pending: ids, result: last };
+}
+
+function isGatewayPairingError(err) {
+  const msg = String(err?.message || err || '');
+  return /pairing required|scope upgrade/i.test(msg);
+}
+
 async function gatewayCall(method, params = {}, timeoutMs = 120000) {
   const token = readGatewayToken();
   const url = gatewayWsUrl();
@@ -284,6 +347,9 @@ function getGatewayDiagnostics() {
 
 module.exports = {
   gatewayCall,
+  approvePendingGatewayDevice,
+  ensureGatewayOperatorScopes,
+  isGatewayPairingError,
   normalizeGatewayLoginResult,
   isGatewayConfigured,
   isGatewayReachable,

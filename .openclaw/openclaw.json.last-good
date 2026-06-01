@@ -6,7 +6,10 @@
         "primary": "openrouter/owl-alpha"
       },
       "models": {
-        "openrouter/owl-alpha": {}
+        "openrouter/owl-alpha": {},
+        "openai/gpt-5.5": {},
+        "openai/gpt-4.0": {},
+        "openrouter/free": {}
       }
     },
     "list": [
@@ -70,12 +73,32 @@
       }
     }
   },
+  "wizard": {
+    "lastRunAt": "2026-05-07T10:23:52.990Z",
+    "lastRunVersion": "2026.5.6",
+    "lastRunCommand": "onboard",
+    "lastRunMode": "local"
+  },
+  "meta": {
+    "lastTouchedVersion": "2026.5.19",
+    "lastTouchedAt": "2026-06-01T12:00:00.000Z"
+  },
   "channels": {
     "whatsapp": {
       "enabled": true,
       "dmPolicy": "allowlist",
       "allowFrom": ["+919009659717"],
-      "groupAllowFrom": ["+919009659717"]
+      "groupAllowFrom": ["+919009659717"],
+      "selfChatMode": true,
+      "responsePrefix": "auto",
+      "accounts": {
+        "default": {
+          "name": "OM",
+          "enabled": true,
+          "selfChatMode": true,
+          "responsePrefix": "auto"
+        }
+      }
     }
   },
   "plugins": {

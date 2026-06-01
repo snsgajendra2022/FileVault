@@ -49,13 +49,14 @@
     "zustand": "^5.0.10"
   },
   "scripts": {
-    "start": "concurrently -n web,om,gw -c blue,green,magenta \"craco start\" \"node server/openclaw-dev-server.js\" \"node server/run-openclaw-gateway.js\"",
+    "start": "concurrently -n web,om,gw -c blue,green,magenta \"craco start\" \"node server/openclaw-dev-server.js\" \"node server/run-openclaw-gateway.js\" \"openclaw:gateway:run\" \"openclaw:devices:approve\"",
     "start:web": "craco start",
     "openclaw-server": "node server/openclaw-dev-server.js",
     "openclaw": "openclaw",
     "openclaw:onboard": "OPENCLAW_CONFIG_PATH=$PWD/.openclaw/openclaw.json openclaw onboard",
     "openclaw:whatsapp:login": "OPENCLAW_CONFIG_PATH=$PWD/.openclaw/openclaw.json openclaw channels login --channel whatsapp",
     "openclaw:channels:status": "OPENCLAW_CONFIG_PATH=$PWD/.openclaw/openclaw.json openclaw channels status",
+    "openclaw:devices:approve": "node server/approve-openclaw-device-local.js",
     "openclaw:gateway:run": "node server/run-openclaw-gateway.js",
     "stop": "launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/ai.openclaw.gateway.plist 2>/dev/null || true; pkill -f openclaw-gateway || true",
     "dev": "npm start",
