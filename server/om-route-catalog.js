@@ -21,7 +21,7 @@ const OM_ROUTES = [
   { path: '/photo-book', label: 'Photo books', patterns: [/\bphoto\s*books?\b/i] },
   { path: '/phonebook', label: 'Phone book', patterns: [/\bphone\s*book\b/i, /\bcontacts?\b/i] },
   { path: '/phonebook/new', label: 'New contact', patterns: [/\b(new|add)\s+contact\b/i, /\bcreate\s+contact\b/i] },
-  { path: '/client-images', label: 'My images', patterns: [/\bmy\s+images\b/i, /\bclient\s+images\b/i] },
+  { path: '/client-images', label: 'Gallery / my images', patterns: [/\bgallery\b/i, /\bmy\s+photos?\b/i, /\bmy\s+images\b/i, /\bclient\s+images\b/i] },
   { path: '/upload-family-images', label: 'Family upload', patterns: [/\bupload\s+family\b/i, /\bfamily\s+upload\b/i] },
   { path: '/upload', label: 'Upload', patterns: [/\bupload\s+(photos?|images?)\b/i, /^\s*upload\s*$/i] },
   { path: '/filter-images', label: 'Face filter', patterns: [/\bface\s*filter\b/i, /\bfilter\s+images\b/i, /\bfacesync\b/i] },
@@ -50,6 +50,7 @@ function labelForPath(path) {
 function matchRouteFromText(raw) {
   const s = String(raw || '').trim();
   if (!s) return null;
+  if (/^<media:/i.test(s) || /^\[(image|photo|video|document|audio|sticker)\]$/i.test(s)) return null;
   if (/^\s*help\s*$/i.test(s) || /\b(what can you do|commands|menu)\b/i.test(s)) return '__help__';
   for (const row of OM_ROUTES) {
     for (const re of row.patterns) {
@@ -76,7 +77,8 @@ function buildHelpMenuText() {
   const lines = [
     'OM on WhatsApp — you can:',
     '• List/create events, albums, images, contacts (when logged in on web)',
-    '• Send photos here to upload to your OM library',
+    '• Send photo/video/voice/doc — OM saves it, sends preview back, opens gallery link',
+    '• Say "gallery" or "my images" for gallery view link',
     '• Get a link to open any studio page in the browser',
     '',
     'Try:',
@@ -87,7 +89,7 @@ function buildHelpMenuText() {
     'Pages I can link:',
     ...OM_ROUTES.slice(0, 16).map((r) => `• ${r.label} — say "${r.label.toLowerCase()}"`),
     '',
-    'Uploads: send a photo in this chat, or say "upload" for the browser upload page.',
+    'Uploads: photo/video/voice/doc in chat. Caption: for event Diwali 2026',
     'Say *help* anytime for this menu.',
   ];
   return lines.join('\n');

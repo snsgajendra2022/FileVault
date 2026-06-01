@@ -68,20 +68,23 @@ function buildWhatsAppOmRequest({ from, text, req }) {
 const WHATSAPP_OM_SYSTEM_APPEND = `
 Channel: WhatsApp (plain text only).
 
-Capabilities on WhatsApp (same OM brain as the web app):
-- Answer questions about Our Memories / Filevault studio.
-- Run server tools via TOOL lines (list/create events, list albums, images, contacts).
-- When the user wants a screen in the app, you will be given a deep link — mention it clearly once.
+IMPORTANT — uploads are ALREADY wired (do NOT ask the user to build webhooks or bridges):
+- When the user sends media (photo, screenshot, video, voice note, document), the server uploads to POST /api/images/upload and replies with file ID.
+- Caption "for event Summer Party" or "event #12" auto-links the image to that memories event.
+- Tools allowed: upload_image, link_image_to_event, list/create events, albums, contacts, api_post on allowlisted paths.
 
-Rules for WhatsApp:
-- Keep replies short (under ~12 lines unless listing data).
-- Do NOT use NAVIGATE: lines — the server adds app links.
-- Do NOT use JSON action blocks — not supported on WhatsApp.
-- For uploads: users can send photos directly in this WhatsApp chat; they are saved to their OM library when logged in. You can also share the /upload deep link for bulk picks from the browser.
-- For create event: use TOOL:{"id":"create_memories_event","payload":{"name":"...","location":"..."}} when details are clear.
-- If API tools fail with 401, ask them to open Studio → WhatsApp in the browser while logged in (links your account).
+Capabilities:
+- Answer OM / Filevault questions; run TOOL lines when needed.
+- Deep links to studio pages when they want a screen in the browser (server adds links — do not use NAVIGATE:).
 
-Helpful phrases users may say: list events, create event, my albums, phone book, upload, memories dashboard, invitations, family tree, settings.
+Rules:
+- Keep replies short. No NAVIGATE: or JSON action blocks on WhatsApp.
+- Never say "expose an endpoint" or "build a webhook" for WhatsApp upload — it already works.
+- Bulk multi-file picks: optional /upload browser link only.
+- create event: TOOL:{"id":"create_memories_event","payload":{"name":"..."}}
+- 401: ask user to open Studio → WhatsApp while logged in.
+
+Examples: list my events, create event Diwali, send photo, for event Wedding 2026
 `;
 
 function stripNavigateAndActions(text) {
@@ -91,12 +94,60 @@ function stripNavigateAndActions(text) {
   return out;
 }
 
+/** Remove raw tool/API/JSON dumps before sending to WhatsApp. */
+function sanitizeReplyForWhatsApp(text) {
+  let out = String(text || '');
+  out = out.replace(/\[OM tool:[\s\S]*?\]/gi, '');
+  out = out.replace(/\[Tool results\][\s\S]*/gi, '');
+  out = out.replace(/^TOOL:\s*\{[\s\S]*?\}\s*$/gim, '');
+  out = out.replace(/\bTool \w+ (?:OK|failed)[^\n]*/gi, '');
+  out = out.replace(/\{[\s\S]{60,}?\}/g, (block) => {
+    if (/"status"|"data"|"error"|"ok"|"imageId"|"eventId"/i.test(block)) return '';
+    return block;
+  });
+  out = out.replace(/https?:\/\/[^\s]*(?::9090|\/api\/)[^\s]*/gi, '');
+  out = out.replace(
+    /\b(FILEVAULT_API|OPENAI_API|openai \d{3}|openrouter\.ai|User not found)[^\n]*/gi,
+    ''
+  );
+  out = out.replace(/\n{3,}/g, '\n\n');
+  return out.trim();
+}
+
+/** Turn keyword prefetch lines into short user-facing text (no tool tags). */
+function humanizeKeywordContextForWhatsApp(keywordContext) {
+  const lines = [];
+  const re = /\[OM tool:\s*([^\]]+)\]/gi;
+  let m;
+  const t = String(keywordContext || '');
+  while ((m = re.exec(t))) {
+    const inner = m[1].trim();
+    if (/failed HTTP/i.test(inner)) {
+      lines.push('Could not load that data right now.');
+      continue;
+    }
+    const created = inner.match(/create_memories_event OK — created "([^"]+)"/i);
+    if (created) {
+      lines.push(`Created event: ${created[1]}`);
+      continue;
+    }
+    const dash = inner.indexOf('—');
+    if (dash >= 0) {
+      const detail = inner.slice(dash + 1).trim();
+      if (detail) lines.push(detail);
+    } else if (inner) {
+      lines.push(inner.replace(/_/g, ' '));
+    }
+  }
+  return lines.join('\n').trim();
+}
+
 function formatReplyForWhatsApp({ reply, matchedRoute, toolAuthFailed }) {
   if (matchedRoute === '__help__') {
     return buildHelpMenuText().slice(0, WA_TEXT_LIMIT);
   }
 
-  let text = stripNavigateAndActions(reply);
+  let text = sanitizeReplyForWhatsApp(stripNavigateAndActions(reply));
   const route = matchedRoute || null;
   const link = route ? buildDeepLink(route) : null;
 
@@ -136,6 +187,8 @@ module.exports = {
   resolveBearerForPhone,
   buildWhatsAppOmRequest,
   formatReplyForWhatsApp,
+  sanitizeReplyForWhatsApp,
+  humanizeKeywordContextForWhatsApp,
   parseCreateEventFromText,
   buildHelpMenuText,
   sanitizeNavigatePath,

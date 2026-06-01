@@ -19,7 +19,9 @@ The bridge or dev server (`server/om-api-tools.js`) exposes:
 | `list_user_images` | “My images”, library size |
 | `list_albums` | Studio albums |
 | `list_contacts` | Phone book |
-| `api_get` / `api_post` | Other allowlisted `/api/*` paths only |
+| `upload_image` | Server has a local `filePath` (WhatsApp media on disk) — uploads to `/api/images/upload` |
+| `link_image_to_event` | `eventId`, `imageId`, optional `comment` — POST `/api/memories/events/{id}/images` |
+| `api_get` / `api_post` | Other allowlisted `/api/*` paths (includes `/api/images/upload` metadata via POST body on server) |
 
 Invoke with a line:
 
@@ -31,26 +33,32 @@ TOOL:{"id":"list_memories_events","payload":{}}
 
 When `context.channel` is not `whatsapp`, you may return JSON actions or `NAVIGATE:/path` (see `src/utils/openclawNavigation.ts` and `server/om-route-catalog.js`).
 
-## WhatsApp (full OM menu)
+## WhatsApp (full access — no webhook needed)
 
-WhatsApp uses `server/om-whatsapp-actions.js` + `om-whatsapp-relay` plugin:
+Pipeline is **live**:
 
-- **Plain text** replies with **deep links** to studio pages (`OM_WEB_APP_URL` or localhost:3000).
-- **Same tools** as web when the user linked auth (Studio → WhatsApp while logged in).
-- **Stable chat session** per phone number.
-- Say **help** for the command menu.
+1. User sends **photo, screenshot, video, voice note, or document** on WhatsApp → OpenClaw saves media → `om-whatsapp-relay` → `POST /api/whatsapp/relay-inbound`
+2. Dev server uploads to **`POST /api/images/upload`** (Filevault API accepts all file types) with linked JWT
+3. Optional caption **`for event NAME`** or **`event #12`** → links file to that event
 
-Examples users can text:
+Also: `POST /api/whatsapp/upload` (multipart `file`) for direct tests.
 
-- `list my events` / `create event Diwali 2026`
-- `my albums` / `phone book` / `upload family`
-- `open memories dashboard` / `photo themes` / `invitations`
+**Do not** tell developers to build webhooks or ask for upload endpoint URLs — use the tools above.
 
-Uploads: send a link to `/upload` or `/upload-family-images` — files are chosen in the browser.
+- Plain text + **deep links** (`OM_WEB_APP_URL`)
+- **Same tools** when auth linked (Studio → WhatsApp while logged in, or `OM_WHATSAPP_API_TOKEN` in `.env`)
+- Say **help** for the command menu
+
+Examples:
+
+- Send **photo / video / voice / document** (instant upload)
+- Media + caption: `for event Diwali 2026`
+- `list my events` / `create event Summer Party`
+- `my albums` / `phone book`
 
 ## Auth
 
-Tools use the user’s Bearer token. On WhatsApp, token is saved via `POST /api/whatsapp/link-auth` from the studio UI. If tools fail with 401, ask the user to open **Studio → WhatsApp** in the browser while logged in.
+Tools use the user’s Bearer token. On WhatsApp, token is saved via `POST /api/whatsapp/link-auth` from the studio UI. Service account: `OM_WHATSAPP_API_TOKEN` or `FILEVAULT_WHATSAPP_BEARER` in `.env`. If tools fail with 401, ask the user to open **Studio → WhatsApp** while logged in.
 
 ## Docs
 

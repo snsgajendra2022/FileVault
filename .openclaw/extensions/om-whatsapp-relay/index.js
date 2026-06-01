@@ -1,5 +1,6 @@
 import { definePluginEntry } from 'openclaw/plugin-sdk/plugin-entry';
 import fs from 'node:fs';
+import path from 'node:path';
 
 const DEFAULT_RELAY_URL = 'http://127.0.0.1:9093/api/whatsapp/relay-inbound';
 
@@ -9,36 +10,59 @@ function isWhatsAppSurface(ctx, event) {
 }
 
 function resolveSender(ctx) {
-  return (
-    String(ctx?.From || ctx?.SenderId || ctx?.ConversationId || ctx?.OriginatingTo || '').trim() ||
-    null
-  );
+  const from = String(ctx?.From || '')
+    .trim()
+    .replace(/^whatsapp:/i, '');
+  const senderId = String(ctx?.SenderId || '').trim();
+  // OriginatingTo is the reply destination — not the inbound sender (using it caused wrong-number replies).
+  return from || senderId || null;
+}
+
+function resolveReplyTarget(ctx, event) {
+  const to = String(event?.originatingTo || ctx?.To || '').trim();
+  if (to) return to.replace(/^whatsapp:/i, '');
+  return resolveSender(ctx);
+}
+
+function mediaKindFromBody(body) {
+  const t = String(body || '').trim().toLowerCase();
+  if (t.includes('video')) return 'video';
+  if (t.includes('audio')) return 'audio';
+  if (t.includes('document')) return 'document';
+  if (t.includes('image') || t.includes('sticker')) return 'image';
+  return undefined;
 }
 
 function collectMedia(ctx) {
   const out = [];
   const paths = ctx?.MediaPaths?.length ? ctx.MediaPaths : ctx?.MediaPath ? [ctx.MediaPath] : [];
+  const urls = ctx?.MediaUrls?.length ? ctx.MediaUrls : ctx?.MediaUrl ? [ctx.MediaUrl] : [];
   const types = ctx?.MediaTypes?.length ? ctx.MediaTypes : ctx?.MediaType ? [ctx.MediaType] : [];
-  const names = [];
+  const bodyKind = mediaKindFromBody(ctx?.Body || ctx?.RawBody);
+  const count = Math.max(paths.length, urls.length, types.length ? 1 : 0);
 
-  for (let i = 0; i < paths.length; i += 1) {
-    const p = String(paths[i] || '').trim();
+  for (let i = 0; i < count; i += 1) {
+    const p = String(paths[i] || urls[i] || '').trim();
     if (!p) continue;
+    const type = types[i] || types[0] || undefined;
+    const base = p.includes('/') ? path.basename(p) : p.replace(/^media:\/\/[^/]+\//i, '');
     out.push({
       path: p,
-      type: types[i] || types[0] || undefined,
-      name: names[i] || undefined,
+      type,
+      name: base && base !== '.' ? base : undefined,
+      kind: bodyKind,
     });
   }
   return out;
 }
 
-async function relayInbound({ relayUrl, from, text, media, sessionKey, logger }) {
+async function relayInbound({ relayUrl, from, replyTo, text, media, sessionKey, logger }) {
   const res = await fetch(relayUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from,
+      replyTo: replyTo || from,
       text: text || '',
       sessionKey,
       mediaPath: media[0]?.path,
@@ -63,12 +87,16 @@ async function relayInbound({ relayUrl, from, text, media, sessionKey, logger })
     return null;
   }
 
+  if (data?.suppressReply) {
+    return data;
+  }
+
   const reply = typeof data?.reply === 'string' ? data.reply.trim() : '';
   if (!reply) {
     logger.warn('om-whatsapp-relay: empty reply from dev server');
     return null;
   }
-  return reply;
+  return { ...data, reply };
 }
 
 export default definePluginEntry({
@@ -86,23 +114,19 @@ export default definePluginEntry({
       if (!isWhatsAppSurface(ctx, event)) return;
 
       const from = resolveSender(ctx);
-      const text = String(ctx.Body || ctx.RawBody || '').trim();
+      const replyTo = resolveReplyTarget(ctx, event);
+      const rawText = String(ctx.Body || ctx.RawBody || '').trim();
       const media = collectMedia(ctx);
 
-      if (!text && media.length === 0) return;
+      if (!rawText && media.length === 0) return;
 
-      for (const item of media) {
-        if (item.path && !fs.existsSync(item.path)) {
-          api.logger.warn(`om-whatsapp-relay: media missing on disk: ${item.path}`);
-        }
-      }
-
-      let reply;
+      let result;
       try {
-        reply = await relayInbound({
+        result = await relayInbound({
           relayUrl,
-          from,
-          text,
+          from: from || replyTo,
+          replyTo,
+          text: rawText,
           media,
           sessionKey: event.sessionKey,
           logger: api.logger,
@@ -112,6 +136,21 @@ export default definePluginEntry({
         return;
       }
 
+      if (!result) return;
+
+      if (result.suppressReply) {
+        hookCtx.recordProcessed('completed', { reason: 'om_inbound_disabled' });
+        api.logger.info(
+          `om-whatsapp-relay: inbound suppressed (media=${media.length}, om switch off)`
+        );
+        return {
+          handled: true,
+          queuedFinal: false,
+          counts: hookCtx.dispatcher.getQueuedCounts(),
+        };
+      }
+
+      const reply = result.reply;
       if (!reply) return;
 
       const queuedFinal = hookCtx.dispatcher.sendFinalReply({ text: reply });

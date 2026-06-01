@@ -23,6 +23,8 @@ function whatsappClient(): AxiosInstance {
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export type WhatsAppStatus = {
+  /** When false, inbound photos/text are ignored (no OM upload, no WhatsApp reply). */
+  inboundOmEnabled?: boolean;
   configured?: boolean;
   linked?: boolean;
   running?: boolean;

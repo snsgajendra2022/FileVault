@@ -346,6 +346,8 @@
     "groupAllowFromPlaceholder": "group-id@g.us\nanother-group@g.us",
     "selfChatMode": "Self-chat mode",
     "selfChatModeHint": "Allow the bot to receive messages from your own number (same-phone setup)",
+    "inboundOmEnabled": "OM inbound (photos & replies)",
+    "inboundOmEnabledHint": "When on, WhatsApp images upload to OM and the assistant replies. When off, inbound is ignored (no upload, no reply).",
     "sendReadReceipts": "Send read receipts",
     "sendReadReceiptsHint": "Show blue ticks for messages read by the bot",
     "textChunkLimit": "Text chunk limit",

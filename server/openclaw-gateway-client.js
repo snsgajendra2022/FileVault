@@ -353,51 +353,86 @@ async function gatewayLogoutWhatsApp(accountId = 'default') {
   return gatewayCall('channels.logout', { channel: 'whatsapp', accountId }, 60000);
 }
 
-async function gatewaySendWhatsApp({ to, text, accountId = 'default' }) {
-  const target = String(to || '').trim();
-  const body = String(text || '').trim();
-  if (!target || !body) throw new Error('to and text required for WhatsApp send');
+function normalizeWhatsAppTarget(to) {
+  let t = String(to || '').trim().replace(/^whatsapp:/i, '');
+  if (!t) return null;
+  if (t.includes('@')) t = t.split('@')[0];
+  const digits = t.replace(/\D/g, '');
+  if (!digits) return t;
+  return t.startsWith('+') ? `+${digits}` : `+${digits}`;
+}
 
-  const targets = [...new Set([target, target.replace(/^\+/, ''), target.startsWith('+') ? target : `+${target}`])];
-  const jid = readWhatsAppSelfJid();
-  if (jid) targets.push(jid.split('@')[0]);
+function buildWhatsAppTargetVariants(target) {
+  const base = normalizeWhatsAppTarget(target);
+  if (!base) return [];
+  const digits = base.replace(/\D/g, '');
+  return [...new Set([base, `+${digits}`, digits].filter(Boolean))];
+}
+
+async function runOpenClawMessageSend(argv, accountId = 'default') {
+  const { stdout, stderr } = await execFileAsync(
+    openclawBin(),
+    ['message', 'send', '--channel', 'whatsapp', '--account', accountId, ...argv, '--json'],
+    {
+      cwd: REPO_ROOT,
+      maxBuffer: 4 * 1024 * 1024,
+      env: openclawEnv(),
+      timeout: 120000,
+    }
+  );
+  const parsed = parseCliJson(stdout);
+  if (parsed) return parsed;
+  const errText = String(stderr || stdout || '').trim();
+  if (!errText || /sent|ok|success/i.test(errText)) return { ok: true };
+  throw new Error(errText);
+}
+
+/**
+ * Send text only to the explicit target (no fallback to self-chat — avoids wrong-number replies).
+ */
+async function gatewaySendWhatsApp({ to, text, accountId = 'default' }) {
+  const body = String(text || '').trim();
+  if (!body) throw new Error('text required for WhatsApp send');
+
+  const targets = buildWhatsAppTargetVariants(to);
+  if (!targets.length) throw new Error('to required for WhatsApp send');
 
   let lastErr = null;
   for (const t of targets) {
-    if (!t) continue;
     try {
-      const { stdout, stderr } = await execFileAsync(
-        openclawBin(),
-        [
-          'message',
-          'send',
-          '--channel',
-          'whatsapp',
-          '--account',
-          accountId,
-          '--target',
-          t,
-          '--message',
-          body,
-          '--json',
-        ],
-        {
-          cwd: REPO_ROOT,
-          maxBuffer: 2 * 1024 * 1024,
-          env: openclawEnv(),
-          timeout: 90000,
-        }
-      );
-      const parsed = parseCliJson(stdout);
-      if (parsed) return parsed;
-      const errText = String(stderr || stdout || '').trim();
-      if (!errText || /sent|ok|success/i.test(errText)) return { ok: true };
-      lastErr = new Error(errText);
+      return await runOpenClawMessageSend(['--target', t, '--message', body], accountId);
     } catch (e) {
       lastErr = e;
     }
   }
   throw lastErr || new Error('WhatsApp send failed');
+}
+
+/**
+ * Send image/video/document back on WhatsApp (--media).
+ */
+async function gatewaySendWhatsAppMedia({ to, mediaPath, text, accountId = 'default' }) {
+  const media = String(mediaPath || '').trim();
+  if (!media || !fs.existsSync(media)) {
+    throw new Error('mediaPath must exist on disk');
+  }
+
+  const targets = buildWhatsAppTargetVariants(to);
+  if (!targets.length) throw new Error('to required for WhatsApp media send');
+
+  const args = ['--media', media];
+  const caption = String(text || '').trim();
+  if (caption) args.push('--message', caption);
+
+  let lastErr = null;
+  for (const t of targets) {
+    try {
+      return await runOpenClawMessageSend(['--target', t, ...args], accountId);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('WhatsApp media send failed');
 }
 
 function normalizeGatewayLoginResult(raw) {
@@ -445,6 +480,8 @@ module.exports = {
   ensureWhatsAppChannelRunning,
   gatewayLogoutWhatsApp,
   gatewaySendWhatsApp,
+  gatewaySendWhatsAppMedia,
+  normalizeWhatsAppTarget,
   readGatewayToken,
   gatewayWsUrl,
   resolveOpenClawConfig,

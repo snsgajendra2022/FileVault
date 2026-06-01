@@ -29,6 +29,7 @@ const {
   WHATSAPP_OM_SYSTEM_APPEND,
   buildWhatsAppOmRequest,
   formatReplyForWhatsApp,
+  humanizeKeywordContextForWhatsApp,
 } = require('./om-whatsapp-actions');
 const { mountWhatsAppRoutes } = require('./whatsapp-routes');
 const { mountPortalSettingsRoutes } = require('./portal-settings-routes');
@@ -128,7 +129,7 @@ Rules:
 - Never invent unknown action IDs.
 - Never request delete/payment/publish/final submit/sharing without explicit user confirmation.
 - For clicking UI elements, only request click_allowed_element with a whitelisted actionId (data-ai-action).
-- For uploads, you may request opening an allowed upload dialog, but the user must select files manually.
+- For uploads in the web UI, the user selects files manually. On WhatsApp, photos upload automatically via the server relay (no extra integration needed).
 
 In-app routes you may send the user to (exact paths only, one line at the very end of your message when they clearly want to open that screen):
 - /memories/events — list Memories events
@@ -300,7 +301,10 @@ function buildJsonResponse(base) {
   return out;
 }
 
-async function tryOpenAI(req, { userId, sid, userText, imageBuffer, imageMime, prompt, contextAppend }) {
+async function tryOpenAI(
+  req,
+  { userId, sid, userText, imageBuffer, imageMime, prompt, contextAppend, forWhatsApp }
+) {
   if (!OPENAI_KEY) return null;
 
   const ctx = typeof contextAppend === 'string' ? contextAppend : '';
@@ -362,7 +366,7 @@ async function tryOpenAI(req, { userId, sid, userText, imageBuffer, imageMime, p
   let { text, path } = parseNavigateFromText(raw);
   const processed = await processToolLines(req, text || raw);
   text = processed.text;
-  if (processed.toolNotes) {
+  if (processed.toolNotes && !forWhatsApp) {
     text = (text || '').trim() + processed.toolNotes;
   }
   const reply = (text || raw).trim();
@@ -454,6 +458,7 @@ async function computeAssistantResult(req, { userText, transcript, imageBuffer, 
         imageMime,
         prompt,
         contextAppend,
+        forWhatsApp: isWhatsApp,
       });
       if (out && out.reply) {
         const nav = out.navigateFromModel || localNav;
@@ -481,10 +486,19 @@ async function computeAssistantResult(req, { userText, transcript, imageBuffer, 
     }
   } catch (e) {
     llmError = e;
-    console.warn('[openclaw-dev] OpenAI failed:', e.message);
+    const msg = String(e.message || e);
+    const authFailed =
+      /\b401\b/.test(msg) || /user not found/i.test(msg) || /invalid.*api.*key/i.test(msg);
+    if (authFailed) {
+      console.warn(
+        '[openclaw-dev] OpenRouter auth failed (401). Regenerate OPENAI_API_KEY at https://openrouter.ai/keys — using keyword/fallback replies.'
+      );
+    } else {
+      console.warn('[openclaw-dev] OpenAI failed:', msg);
+    }
   }
 
-  if (OPENAI_KEY && llmError) {
+  if (OPENAI_KEY && llmError && !isWhatsApp) {
     const detail = String(llmError.message || llmError).slice(0, 400);
     return buildJsonResponse({
       sessionId: sid,
@@ -506,11 +520,12 @@ async function computeAssistantResult(req, { userText, transcript, imageBuffer, 
   }
 
   if (isWhatsApp && matchedRoute && matchedRoute !== '__help__') {
+    const human = humanizeKeywordContextForWhatsApp(keywordContext);
     return buildJsonResponse({
       sessionId: sid,
       userId,
       reply: formatReplyForWhatsApp({
-        reply: keywordContext ? `Here is what I found:${keywordContext}` : '',
+        reply: human ? `Here is what I found:\n${human}` : '',
         matchedRoute,
         toolAuthFailed,
       }),
@@ -572,6 +587,7 @@ app.post('/api/openclaw/image', upload.single('file'), async (req, res) => {
 mountPortalSettingsRoutes(app);
 
 mountWhatsAppRoutes(app, {
+  upload,
   onInboundMessage: async ({ from, text, media, req }) => {
     const omReq = buildWhatsAppOmRequest({ from, text, req });
     const waMedia = Array.isArray(media) ? media.filter((m) => m?.path) : [];

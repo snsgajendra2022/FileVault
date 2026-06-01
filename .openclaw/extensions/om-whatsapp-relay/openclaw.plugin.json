@@ -1,7 +1,7 @@
 {
   "id": "om-whatsapp-relay",
   "name": "OM WhatsApp Relay",
-  "description": "Routes WhatsApp auto-replies through the Filevault dev server (port 9093) when the embedded agent path fails.",
+  "description": "WhatsApp → Filevault dev server (9093): instant image upload to /api/images/upload + OM tools (bypasses broken embedded agent).",
   "activation": {
     "onStartup": true
   },

@@ -33,6 +33,7 @@ export type WhatsAppStatus = {
   lastMessageAt?: string | null;
   authAgeMs?: number | null;
   lastError?: string | null;
+  inboundOmEnabled?: boolean;
 };
 
 export type WhatsAppLoginState = {

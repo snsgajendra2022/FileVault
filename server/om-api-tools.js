@@ -15,6 +15,7 @@ const API_PATH_ALLOWLIST = [
   '/api/memories/events',
   '/api/images/user/all',
   '/api/images/upload',
+  '/api/images/upload-family',
   '/api/albums',
   '/api/public-share/contacts',
   '/api/photobooks',
@@ -174,6 +175,30 @@ async function executeTool(req, toolId, payload = {}) {
     case 'api_post':
       if (!isPathAllowed(p.path)) return { ok: false, status: 403, error: 'Path not allowlisted' };
       return filevaultFetch(req, 'POST', String(p.path), { body: p.body });
+    case 'upload_image': {
+      const { uploadFileToFilevault, assertAllowedMediaPath } = require('./om-whatsapp-upload');
+      const filePath = String(p.filePath || p.path || '').trim();
+      const safe = assertAllowedMediaPath(filePath);
+      if (!safe) return { ok: false, status: 403, error: 'filePath not allowed' };
+      const auth = pickAuthHeader(req);
+      if (!auth) return { ok: false, status: 401, error: 'Missing Authorization' };
+      const result = await uploadFileToFilevault({
+        auth,
+        filePath: safe,
+        mime: p.mime || p.mediaType,
+        fileName: p.fileName,
+      });
+      return { ok: result.ok, status: result.ok ? 200 : result.status || 500, data: result, error: result.error };
+    }
+    case 'link_image_to_event': {
+      const eventId = String(p.eventId || p.event_id || '').trim();
+      const imageId = p.imageId ?? p.image_id;
+      if (!eventId || imageId == null) {
+        return { ok: false, status: 400, error: 'eventId and imageId required' };
+      }
+      const { linkImageToMemoriesEvent } = require('./om-whatsapp-upload');
+      return linkImageToMemoriesEvent(req, eventId, imageId, p.comment || p.caption);
+    }
     default:
       return { ok: false, status: 400, error: `Unknown tool: ${id}` };
   }
@@ -255,7 +280,10 @@ async function processToolLines(req, text) {
 const TOOL_CATALOG = `
 OM server tools (dev bridge runs TOOL lines and keyword prefetch):
 - list_memories_events, create_memories_event, list_user_images, list_albums, list_contacts
-- api_get / api_post on allowlisted /api/* paths only
+- upload_image (server filePath from WhatsApp media), link_image_to_event (eventId, imageId, optional comment)
+- api_get / api_post on allowlisted /api/* paths (includes POST /api/images/upload via api_post with multipart only on server)
+
+WhatsApp: photos sent in chat are uploaded automatically by the relay (no webhook needed).
 
 To call a tool, add one line at the end:
 TOOL:{"id":"list_memories_events","payload":{}}

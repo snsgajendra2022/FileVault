@@ -33,12 +33,18 @@ const DEFAULT_CONFIG = {
   groupPolicy: 'allowlist',
   groupAllowFrom: '',
   selfChatMode: false,
+  /** When false: no OM upload/reply for inbound WhatsApp (relay returns suppressReply). */
+  inboundOmEnabled: true,
   textChunkLimit: 4000,
   mediaMaxMb: 50,
   sendReadReceipts: true,
   reactionLevel: 'minimal',
   debounceMs: 0,
 };
+
+function isOmInboundEnabled(config) {
+  return config?.inboundOmEnabled !== false;
+}
 
 const OM_WELCOME_TEXT =
   process.env.OM_WHATSAPP_WELCOME?.trim() || OM_WELCOME_OUTBOUND;
@@ -108,7 +114,12 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     gatewayReachable: null,
     gatewayLoggedOut: false,
     gatewayStatusState: null,
-    config: { ...DEFAULT_CONFIG },
+    config: {
+      ...DEFAULT_CONFIG,
+      ...(persisted.whatsappConfig && typeof persisted.whatsappConfig === 'object'
+        ? persisted.whatsappConfig
+        : {}),
+    },
     messages: Array.isArray(persisted.messages) ? persisted.messages : [],
   };
 
@@ -336,6 +347,7 @@ function mountWhatsAppRoutes(app, hooks = {}) {
         ...getGatewayDiagnostics(),
         reachable: state.gatewayReachable,
       },
+      inboundOmEnabled: isOmInboundEnabled(state.config),
       ...extra,
     };
   }
@@ -406,7 +418,8 @@ function mountWhatsAppRoutes(app, hooks = {}) {
 
   app.post('/api/whatsapp/config', (req, res) => {
     state.config = { ...DEFAULT_CONFIG, ...state.config, ...(req.body || {}) };
-    res.json({ ok: true });
+    persistStudioState({ whatsappConfig: state.config });
+    res.json({ ok: true, inboundOmEnabled: isOmInboundEnabled(state.config) });
   });
 
   app.post('/api/whatsapp/login/start', async (req, res) => {
@@ -676,6 +689,35 @@ function mountWhatsAppRoutes(app, hooks = {}) {
 
   /** Gateway plugin om-whatsapp-relay → compute OM reply (no duplicate send; gateway delivers text). */
   /** Link Filevault JWT from the logged-in studio UI so WhatsApp OM can call APIs. */
+  /** Direct multipart upload (studio tools / testing). Uses same pipeline as relay media. */
+  if (hooks.upload) {
+    app.post('/api/whatsapp/upload', hooks.upload.single('file'), async (req, res) => {
+      const auth = String(req.headers.authorization || '').trim();
+      const phone = String(req.body?.phone || state.linkedPhoneE164 || '').trim();
+      const { saveBearerForPhone, buildWhatsAppOmRequest } = require('./om-whatsapp-actions');
+      const { processWhatsAppMediaInbound } = require('./om-whatsapp-upload');
+      if (auth) saveBearerForPhone(phone, auth);
+
+      const file = req.file;
+      if (!file?.buffer?.length) {
+        return res.status(400).json({ ok: false, error: 'multipart field "file" required' });
+      }
+
+      const omReq = buildWhatsAppOmRequest({ from: phone, text: req.body?.caption || '', req });
+      const reply = await processWhatsAppMediaInbound({
+        req: omReq,
+        from: phone,
+        text: req.body?.caption || '',
+        media: [{ buffer: file.buffer, type: file.mimetype, name: file.originalname }],
+      });
+
+      return res.json({
+        ok: Boolean(reply),
+        reply: reply || 'Upload failed — link Studio → WhatsApp or send Authorization Bearer.',
+      });
+    });
+  }
+
   app.post('/api/whatsapp/link-auth', (req, res) => {
     const auth = String(req.headers.authorization || req.body?.token || '').trim();
     if (!auth) {
@@ -687,7 +729,7 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     return res.json({
       ok: true,
       phone: phone || null,
-      message: 'OM WhatsApp linked to your studio login for list/create actions.',
+      message: 'OM WhatsApp linked — uploads, events, albums, and API tools enabled for this number.',
     });
   });
 
@@ -698,8 +740,20 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     return res.json({ ok: true, phone, linked: hasToken });
   });
 
+  function normalizeInboundPhone(raw) {
+    const s = String(raw || '').trim().replace(/^whatsapp:/i, '');
+    if (s.includes('@')) {
+      const digits = s.split('@')[0].replace(/\D/g, '');
+      return digits ? `+${digits}` : s;
+    }
+    const digits = s.replace(/\D/g, '');
+    if (digits.length >= 10) return `+${digits}`;
+    const m = s.match(/\+?\d{10,15}/);
+    return m ? `+${m[0].replace(/\D/g, '')}` : s;
+  }
+
   app.post('/api/whatsapp/relay-inbound', async (req, res) => {
-    const from = String(req.body?.from || '').trim();
+    const from = normalizeInboundPhone(req.body?.from || req.body?.replyTo || '');
     const text = String(req.body?.text || '').trim();
     const mediaPath = String(req.body?.mediaPath || '').trim();
     const mediaType = String(req.body?.mediaType || '').trim();
@@ -758,6 +812,10 @@ function mountWhatsAppRoutes(app, hooks = {}) {
       status: 'delivered',
     });
 
+    if (!isOmInboundEnabled(state.config)) {
+      return res.json({ ok: true, reply: '', suppressReply: true });
+    }
+
     let reply = '';
     if (typeof hooks.onInboundMessage === 'function') {
       try {
@@ -798,6 +856,10 @@ function mountWhatsAppRoutes(app, hooks = {}) {
       isGroup: Boolean(req.body?.isGroup),
     });
 
+    if (!isOmInboundEnabled(state.config)) {
+      return res.json({ ok: true, reply: '', suppressReply: true });
+    }
+
     let reply = '';
     if (typeof hooks.onInboundMessage === 'function') {
       const out = await hooks.onInboundMessage({ from, text, req });
@@ -812,4 +874,4 @@ function mountWhatsAppRoutes(app, hooks = {}) {
   return { getState: () => state, runOmBootstrap };
 }
 
-module.exports = { mountWhatsAppRoutes, DEFAULT_CONFIG };
+module.exports = { mountWhatsAppRoutes, DEFAULT_CONFIG, isOmInboundEnabled };

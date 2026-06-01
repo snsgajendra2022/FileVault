@@ -174,7 +174,7 @@ export default function WhatsAppOmChatGuide({
               'my albums',
               'phone book',
               'upload family',
-              '(send a photo to upload)',
+              '(send photo / video / voice / doc)',
             ] as const
           ).map((phrase) => (
             <li

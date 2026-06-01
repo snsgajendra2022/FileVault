@@ -16,6 +16,7 @@ export type WhatsAppConfigValues = {
   groupPolicy: 'open' | 'allowlist' | 'disabled';
   groupAllowFrom: string;
   selfChatMode: boolean;
+  inboundOmEnabled: boolean;
   textChunkLimit: number;
   mediaMaxMb: number;
   sendReadReceipts: boolean;
@@ -29,6 +30,7 @@ const DEFAULT_CONFIG: WhatsAppConfigValues = {
   groupPolicy: 'allowlist',
   groupAllowFrom: '',
   selfChatMode: false,
+  inboundOmEnabled: true,
   textChunkLimit: 4000,
   mediaMaxMb: 50,
   sendReadReceipts: true,
@@ -207,6 +209,14 @@ export default function WhatsAppConfigForm({
           onChange={(v) => update('selfChatMode', v)}
           label={t('whatsapp.selfChatMode')}
           description={t('whatsapp.selfChatModeHint')}
+        />
+
+        {/* Inbound OM (upload + replies) */}
+        <ToggleSwitch
+          checked={values.inboundOmEnabled}
+          onChange={(v) => update('inboundOmEnabled', v)}
+          label={t('whatsapp.inboundOmEnabled')}
+          description={t('whatsapp.inboundOmEnabledHint')}
         />
 
         {/* Send Read Receipts */}
