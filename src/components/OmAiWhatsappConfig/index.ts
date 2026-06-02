@@ -8,3 +8,5 @@ export { default as WhatsAppMessageLog } from './WhatsAppMessageLog';
 export type { WhatsAppLogEntry } from './WhatsAppMessageLog';
 
 export { default as WhatsAppOmChatGuide } from './WhatsAppOmChatGuide';
+
+export { default as WhatsAppInboundOmBanner } from './WhatsAppInboundOmBanner';

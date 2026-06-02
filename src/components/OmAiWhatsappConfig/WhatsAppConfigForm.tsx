@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FaSave,
@@ -9,6 +9,7 @@ import {
   FaBell,
   FaCheckCircle,
 } from 'react-icons/fa';
+import WhatsAppToggleSwitch from './WhatsAppToggleSwitch';
 
 export type WhatsAppConfigValues = {
   dmPolicy: 'pairing' | 'allowlist' | 'open' | 'disabled';
@@ -38,46 +39,6 @@ const DEFAULT_CONFIG: WhatsAppConfigValues = {
   debounceMs: 0,
 };
 
-function ToggleSwitch({
-  checked,
-  onChange,
-  label,
-  description,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-  description?: string;
-}) {
-  return (
-    <label className="flex items-start gap-3 cursor-pointer group">
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 ${
-          checked ? 'bg-green-600' : 'bg-slate-300'
-        }`}
-      >
-        <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
-            checked ? 'translate-x-6' : 'translate-x-1'
-          }`}
-        />
-      </button>
-      <div className="min-w-0">
-        <p className="text-sm font-bold text-slate-800 group-hover:text-slate-900 transition-colors">
-          {label}
-        </p>
-        {description && (
-          <p className="text-xs text-slate-500 mt-0.5">{description}</p>
-        )}
-      </div>
-    </label>
-  );
-}
-
 export default function WhatsAppConfigForm({
   initial,
   onSave,
@@ -93,6 +54,12 @@ export default function WhatsAppConfigForm({
     ...initial,
   });
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (initial) {
+      setValues((prev) => ({ ...DEFAULT_CONFIG, ...prev, ...initial }));
+    }
+  }, [initial]);
 
   const update = <K extends keyof WhatsAppConfigValues>(
     key: K,
@@ -204,23 +171,15 @@ export default function WhatsAppConfigForm({
         )}
 
         {/* Self Chat Mode */}
-        <ToggleSwitch
+        <WhatsAppToggleSwitch
           checked={values.selfChatMode}
           onChange={(v) => update('selfChatMode', v)}
           label={t('whatsapp.selfChatMode')}
           description={t('whatsapp.selfChatModeHint')}
         />
 
-        {/* Inbound OM (upload + replies) */}
-        <ToggleSwitch
-          checked={values.inboundOmEnabled}
-          onChange={(v) => update('inboundOmEnabled', v)}
-          label={t('whatsapp.inboundOmEnabled')}
-          description={t('whatsapp.inboundOmEnabledHint')}
-        />
-
         {/* Send Read Receipts */}
-        <ToggleSwitch
+        <WhatsAppToggleSwitch
           checked={values.sendReadReceipts}
           onChange={(v) => update('sendReadReceipts', v)}
           label={t('whatsapp.sendReadReceipts')}

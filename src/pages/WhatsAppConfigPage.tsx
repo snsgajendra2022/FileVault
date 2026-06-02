@@ -8,6 +8,7 @@ import {
   WhatsAppConfigForm,
   WhatsAppMessageLog,
   WhatsAppOmChatGuide,
+  WhatsAppInboundOmBanner,
   type WhatsAppStatus,
   type WhatsAppLoginState,
   type WhatsAppConfigValues,
@@ -185,6 +186,7 @@ export default function WhatsAppConfigPage() {
     onSuccess: () => {
       toast.success(t('whatsapp.configSaved'));
       queryClient.invalidateQueries({ queryKey: ['whatsapp', 'config'] });
+      queryClient.invalidateQueries({ queryKey: ['whatsapp', 'status'] });
     },
     onError: (err: Error) => {
       toast.error(err.message);
@@ -209,6 +211,14 @@ export default function WhatsAppConfigPage() {
   const handleSaveConfig = useCallback(
     (values: WhatsAppConfigValues) => saveConfigMutation.mutate(values),
     [saveConfigMutation],
+  );
+
+  const handleInboundOmToggle = useCallback(
+    (inboundOmEnabled: boolean) => {
+      if (!config) return;
+      saveConfigMutation.mutate({ ...config, inboundOmEnabled });
+    },
+    [config, saveConfigMutation],
   );
 
   useEffect(() => {
@@ -279,6 +289,15 @@ export default function WhatsAppConfigPage() {
 
       {/* Content */}
       <div className="max-w-6xl mx-auto px-2 py-8 sm:px-4 space-y-8">
+        {/* OM inbound switch — top of page */}
+        {!configLoading && config && (
+          <WhatsAppInboundOmBanner
+            enabled={config.inboundOmEnabled !== false}
+            onToggle={handleInboundOmToggle}
+            saving={saveConfigMutation.isPending}
+          />
+        )}
+
         {/* Loading state */}
         {statusLoading && !status && (
           <div className="flex items-center justify-center py-20">
