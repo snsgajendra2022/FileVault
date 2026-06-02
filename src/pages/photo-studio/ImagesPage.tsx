@@ -1509,7 +1509,7 @@ const ClientImagesPage = () => {
                   );
                 })}
               </div>
-              <p className="mt-3 text-xs leading-5 text-[#4a4455]">{t('imagesPage.familySectionHint')}</p>
+              <p className="mt-3 text-xs leading-5 text-[#4a4455]">{t('imagesPage.familySectionHint bdfbgd')}</p>
             </section>
           )}
 
@@ -1975,12 +1975,12 @@ const ClientImagesPage = () => {
       {/* Lightbox - full screen with dark blur overlay */}
       {selectedImage && (
         <div
-          className="fixed inset-0 z-50 bg-[oklch(0.12_0.02_270/0.97)] backdrop-blur-md"
+          className="fixed inset-0 z-[99999] bg-[oklch(0.12_0.02_270/0.97)] backdrop-blur-md"
           role="dialog"
           aria-modal="true"
           aria-label="Image preview"
         >
-          <div className="lumina-lightbox-chrome pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-4 px-4 py-4 sm:px-6">
+          <div className="lumina-lightbox-chrome pointer-events-none absolute inset-x-0 top-0 z-[100000] flex items-center justify-between gap-4 px-4 py-4 sm:px-6">
             <div className="pointer-events-auto min-w-0 flex-1 pr-4">
               <p className="truncate text-sm font-semibold text-white">
                 {(activeLightboxImage ?? selectedImage).filename}

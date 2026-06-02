@@ -746,20 +746,20 @@ const ImagesPage = () => {
       {/* File Preview Modal — fullscreen lightbox */}
       {selectedImage && (
         <div
-          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm"
+          className="fixed inset-0 z-[99999] bg-black/95 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           onClick={closeLightbox}
         >
           {/* Top bar */}
           <div
-            className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 py-3 pointer-events-none"
+            className="absolute top-0 left-0 right-0 z-[100000] flex items-center justify-between px-4 py-3"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-sm font-medium text-white/90 truncate max-w-[50%]">
+            <h3 className="text-sm font-medium text-white/90 truncate max-w-[60%]">
               {selectedImage.filename}
             </h3>
-            <div className="flex items-center gap-1 pointer-events-auto">
+            <div className="flex items-center gap-1">
               {viewMode === 'my' && (
                 <button
                   type="button"
@@ -814,7 +814,7 @@ const ImagesPage = () => {
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setSelectedImage(prevImg); }}
-                  className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 z-30 h-11 w-11 rounded-full bg-white/95 text-blue-600 shadow-md hover:scale-105 hover:text-blue-700 transition-all flex items-center justify-center"
+                  className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 z-[100001] h-11 w-11 rounded-full bg-white/95 text-blue-600 shadow-md hover:scale-105 hover:text-blue-700 transition-all flex items-center justify-center"
                   aria-label="Previous"
                 >
                   ‹
@@ -822,7 +822,7 @@ const ImagesPage = () => {
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setSelectedImage(nextImg); }}
-                  className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 z-30 h-11 w-11 rounded-full bg-white/95 text-blue-600 shadow-md hover:scale-105 hover:text-blue-700 transition-all flex items-center justify-center"
+                  className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 z-[100001] h-11 w-11 rounded-full bg-white/95 text-blue-600 shadow-md hover:scale-105 hover:text-blue-700 transition-all flex items-center justify-center"
                   aria-label="Next"
                 >
                   ›
