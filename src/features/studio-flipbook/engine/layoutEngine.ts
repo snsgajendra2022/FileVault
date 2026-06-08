@@ -111,6 +111,8 @@ function templateToElements(
   for (const slot of template.imageSlots) {
     const img = imageMap.get(slot.id);
     if (!img && slot.role !== 'decorative') continue;
+    const isFullBleed = slot.role === 'background' || slot.frameType === 'full_bleed';
+    const defaultFit = isFullBleed ? 'cover' : 'contain';
     elements.push({
       elementType: slot.role === 'decorative' ? 'decorative' : 'image',
       albumImageId: img?.id,
@@ -122,11 +124,14 @@ function templateToElements(
       zIndex: slot.zIndex ?? 1,
       opacity: slot.opacity,
       frameType: slot.frameType,
-      fitMode: slot.fitMode ?? 'cover',
+      fitMode: defaultFit,
+      cropX: 50,
+      cropY: 50,
       styleJson: {
         borderRadius: slot.borderRadius,
         shadow: slot.shadow,
         role: slot.role,
+        imageZoom: 1,
       },
     });
   }

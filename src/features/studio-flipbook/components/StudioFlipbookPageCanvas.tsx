@@ -3,7 +3,6 @@ import { getTheme } from '../themes';
 import type { GeneratedPage, GeneratedPageElement, ThemeId } from '../types';
 import { DESIGN_CANVAS } from '../constants/canvas';
 
-/* ─── public props ─── */
 export type CanvasElement = GeneratedPageElement & { _idx: number };
 
 type Props = {
@@ -11,182 +10,122 @@ type Props = {
   imageUrlById: Record<number, string>;
   themeId?: ThemeId;
   className?: string;
-  /** When true the user can select / drag / resize elements */
   interactive?: boolean;
   selectedIndex: number | null;
   onSelect: (index: number | null) => void;
-  /** Called after drag or resize finishes */
   onElementChange: (index: number, patch: Partial<GeneratedPageElement>) => void;
-  /** Double-click on a text element */
   onTextDoubleClick?: (index: number) => void;
+  displayWidth?: number;
+  /** Extra scale applied by builder zoom control */
+  builderZoom?: number;
 };
 
-/* ─── helpers ─── */
 function frameBorderStyle(frameType?: string, accent?: string): React.CSSProperties {
   switch (frameType) {
-    case 'golden':   return { border: `2px solid ${accent ?? '#c9a227'}` };
-    case 'border':   return { border: '1px solid rgba(255,255,255,0.85)' };
-    case 'circle':   return { borderRadius: '50%', overflow: 'hidden' };
-    case 'rounded':  return { borderRadius: 16, overflow: 'hidden' };
+    case 'golden': return { border: `2px solid ${accent ?? '#c9a227'}` };
+    case 'border': return { border: '1px solid rgba(255,255,255,0.85)' };
+    case 'circle': return { borderRadius: '50%', overflow: 'hidden' };
+    case 'rounded': return { borderRadius: 16, overflow: 'hidden' };
     case 'grayscale_fade': return { filter: 'grayscale(1)' };
-    default:         return {};
+    default: return {};
   }
 }
 
-/* ─── single element renderer (interactive) ─── */
-function InteractiveElement({
-  el,
-  idx,
-  imageUrlById,
-  accent,
-  overlay,
-  selected,
-  onSelect,
-  onCommit,
-  onTextDoubleClick,
+function imageCropStyle(
+  cropX: number,
+  cropY: number,
+  zoom: number,
+  fit: string,
+): React.CSSProperties {
+  const objectFit = fit === 'fill' ? 'fill' : fit === 'contain' ? 'contain' : 'cover';
+  const style: React.CSSProperties = {
+    width: '100%',
+    height: '100%',
+    display: 'block',
+    objectFit,
+    objectPosition: `${cropX}% ${cropY}%`,
+  };
+  if (zoom > 1) {
+    style.transform = `scale(${zoom})`;
+    style.transformOrigin = `${cropX}% ${cropY}%`;
+  }
+  return style;
+}
+
+function PageElementView({
+  el, imageUrlById, accent, overlay, fillParent = false,
 }: {
   el: CanvasElement;
-  idx: number;
   imageUrlById: Record<number, string>;
   accent: string;
   overlay?: string;
-  selected: boolean;
-  onSelect: (i: number) => void;
-  onCommit: (i: number, patch: Partial<GeneratedPageElement>) => void;
-  onTextDoubleClick?: (i: number) => void;
+  fillParent?: boolean;
 }) {
-  const [dragging, setDragging] = React.useState(false);
-  const [resizing, setResizing] = React.useState(false);
-  const dragStart = React.useRef<{ mx: number; my: number; ex: number; ey: number } | null>(null);
-  const resizeStart = React.useRef<{ mx: number; my: number; ew: number; eh: number } | null>(null);
+  const base: React.CSSProperties = fillParent
+    ? {
+        position: 'absolute', inset: 0, width: '100%', height: '100%',
+        zIndex: el.zIndex, opacity: el.opacity ?? 1,
+        transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+        pointerEvents: 'none',
+      }
+    : {
+        position: 'absolute',
+        left: `${el.x}%`, top: `${el.y}%`,
+        width: `${el.width}%`, height: `${el.height}%`,
+        zIndex: el.zIndex, opacity: el.opacity ?? 1,
+        transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+        pointerEvents: 'none',
+      };
 
-  /* pointer-down on the element body → start drag */
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (el.elementType === 'decorative') return;
-    e.stopPropagation();
-    onSelect(idx);
-    if (el.elementType === 'text') return; // text is edited via double-click, not dragged
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    dragStart.current = { mx: e.clientX, my: e.clientY, ex: el.x, ey: el.y };
-    setDragging(true);
-  };
-
-  /* pointer-down on resize handle */
-  const handleResizeDown = (e: React.PointerEvent) => {
-    e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    resizeStart.current = { mx: e.clientX, my: e.clientY, ew: el.width, eh: el.height };
-    setResizing(true);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (dragging && dragStart.current) {
-      const dx = ((e.clientX - dragStart.current.mx) / DESIGN_CANVAS.width) * 100;
-      const dy = ((e.clientY - dragStart.current.my) / DESIGN_CANVAS.height) * 100;
-      onCommit(idx, {
-        x: Math.max(0, Math.min(100 - el.width, dragStart.current.ex + dx)),
-        y: Math.max(0, Math.min(100 - el.height, dragStart.current.ey + dy)),
-      });
-    }
-    if (resizing && resizeStart.current) {
-      const dx = ((e.clientX - resizeStart.current.mx) / DESIGN_CANVAS.width) * 100;
-      const dy = ((e.clientY - resizeStart.current.my) / DESIGN_CANVAS.height) * 100;
-      onCommit(idx, {
-        width: Math.max(3, Math.min(100 - el.x, resizeStart.current.ew + dx)),
-        height: Math.max(3, Math.min(100 - el.y, resizeStart.current.eh + dy)),
-      });
-    }
-  };
-
-  const handlePointerUp = () => {
-    setDragging(false);
-    setResizing(false);
-    dragStart.current = null;
-    resizeStart.current = null;
-  };
-
-  const base: React.CSSProperties = {
-    position: 'absolute',
-    left: `${el.x}%`,
-    top: `${el.y}%`,
-    width: `${el.width}%`,
-    height: `${el.height}%`,
-    zIndex: el.zIndex,
-    opacity: el.opacity ?? 1,
-    transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
-    outline: selected ? `2px solid ${accent}` : undefined,
-    outlineOffset: 2,
-    cursor: dragging ? 'grabbing' : resizing ? 'nwse-resize' : el.elementType === 'text' ? 'text' : 'grab',
-    userSelect: 'none',
-  };
-
-  /* ── image element ── */
-  if (el.elementType === 'image' && el.albumImageId) {
-    const url = imageUrlById[el.albumImageId];
+  if (el.elementType === 'image') {
+    const url = el.albumImageId ? imageUrlById[el.albumImageId] : undefined;
     const radius = (el.styleJson?.borderRadius as number) ?? 0;
     const shadow = (el.styleJson?.shadow as string) ?? '';
+    const cropX = el.cropX ?? 50;
+    const cropY = el.cropY ?? 50;
+    const zoom = (el.styleJson?.imageZoom as number) ?? 1;
+    const fit = el.fitMode ?? 'contain';
     return (
       <div
-        key={idx}
         style={{
           ...base,
           borderRadius: el.frameType === 'circle' ? '50%' : radius ? `${radius}px` : 0,
           overflow: 'hidden',
           ...frameBorderStyle(el.frameType, accent),
           boxShadow: shadow || undefined,
+          background: url ? (fit === 'cover' ? '#111827' : '#f3f4f6') : '#f3f4f6',
         }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
       >
         {url ? (
           <img
             src={url}
             alt=""
-            loading="lazy"
+            crossOrigin="anonymous"
             draggable={false}
-            style={{
-              width: '100%', height: '100%',
-              objectFit: el.fitMode ?? 'cover',
-              objectPosition: `${el.cropX ?? 50}% ${el.cropY ?? 50}%`,
-              display: 'block',
-              pointerEvents: 'none',
-            }}
+            style={imageCropStyle(cropX, cropY, zoom, fit)}
           />
         ) : (
-          <div style={{ width: '100%', height: '100%', background: '#e5e7eb' }} />
-        )}
-        {selected && (
-          <div
-            onPointerDown={handleResizeDown}
-            style={{
-              position: 'absolute',
-              bottom: -6, right: -6,
-              width: 14, height: 14,
-              borderRadius: '50%',
-              background: accent,
-              border: '2px solid #fff',
-              cursor: 'nwse-resize',
-              zIndex: 9999,
-            }}
-          />
+          <div style={{
+            width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#9ca3af', fontSize: 13, border: '2px dashed #d1d5db',
+          }}>
+            + Image
+          </div>
         )}
       </div>
     );
   }
 
-  /* ── text element ── */
   if (el.elementType === 'text') {
     const s = el.styleJson ?? {};
     return (
       <div
-        key={idx}
         style={{
           ...base,
-          fontSize: `clamp(${(s.fontSizePx as number) * 0.4}px, ${((s.fontSizePx as number) / DESIGN_CANVAS.width) * 100}vw, ${s.fontSizePx}px)`,
+          fontFamily: (s.fontFamily as string) ?? 'inherit',
+          fontSize: `${(s.fontSizePx as number) ?? 32}px`,
           fontWeight: (s.fontWeight as number) ?? 400,
-          color: (s.color as string) ?? '#fff',
+          color: (s.color as string) ?? '#ffffff',
           textAlign: (s.align as React.CSSProperties['textAlign']) ?? 'left',
           letterSpacing: s.letterSpacing ? `${s.letterSpacing}px` : undefined,
           lineHeight: (s.lineHeight as number) ?? 1.4,
@@ -196,129 +135,328 @@ function InteractiveElement({
           justifyContent: s.align === 'center' ? 'center' : s.align === 'right' ? 'flex-end' : 'flex-start',
           overflow: 'hidden',
           wordBreak: 'break-word',
-          userSelect: 'text',
-          cursor: 'text',
         }}
-        onPointerDown={(e) => { e.stopPropagation(); onSelect(idx); }}
-        onDoubleClick={() => onTextDoubleClick?.(idx)}
       >
         {el.content}
-        {selected && (
-          <div
-            onPointerDown={handleResizeDown}
-            style={{
-              position: 'absolute',
-              bottom: -6, right: -6,
-              width: 14, height: 14,
-              borderRadius: '50%',
-              background: accent,
-              border: '2px solid #fff',
-              cursor: 'nwse-resize',
-              zIndex: 9999,
-            }}
-          />
-        )}
       </div>
     );
   }
 
-  /* ── decorative ── */
   if (el.elementType === 'decorative') {
-    return renderDecorative(el, accent, idx);
+    const kind = (el.styleJson?.kind as string) ?? '';
+    const s: React.CSSProperties = { ...base };
+    if (kind === 'divider') return <div style={{ ...s, background: accent, opacity: 0.6 }} />;
+    if (kind === 'border') return <div style={{ ...s, border: `1px solid ${accent}`, borderRadius: 4, opacity: 0.5 }} />;
+    if (kind === 'corner_floral') return <div style={{ ...s, color: accent, fontSize: 24 }}>✦</div>;
+    if (kind === 'heart') return <div style={{ ...s, color: '#be185d', fontSize: 32 }}>♥</div>;
+    if (kind === 'confetti') return <div style={{ ...s, opacity: 0.35, fontSize: 10 }}>✨ 🎉 ✨</div>;
   }
 
   return null;
 }
 
-/* ─── decorative renderer ─── */
-function renderDecorative(el: CanvasElement, accent: string, key: number) {
-  const kind = (el.styleJson?.kind as string) ?? '';
-  const s: React.CSSProperties = {
-    position: 'absolute', left: `${el.x}%`, top: `${el.y}%`,
-    width: `${el.width}%`, height: `${el.height}%`,
-    zIndex: el.zIndex, pointerEvents: 'none',
+type DragMode = 'none' | 'frame' | 'pan' | 'resize';
+
+function InteractiveElement({
+  el, idx, imageUrlById, accent, overlay, selected, scale, builderZoom,
+  onSelect, onCommit, onTextDoubleClick,
+}: {
+  el: CanvasElement;
+  idx: number;
+  imageUrlById: Record<number, string>;
+  accent: string;
+  overlay?: string;
+  selected: boolean;
+  scale: number;
+  builderZoom: number;
+  onSelect: (i: number) => void;
+  onCommit: (i: number, patch: Partial<GeneratedPageElement>) => void;
+  onTextDoubleClick?: (i: number) => void;
+}) {
+  const [dragMode, setDragMode] = React.useState<DragMode>('none');
+  const dragStart = React.useRef<{
+    mx: number; my: number;
+    ex: number; ey: number;
+    cx: number; cy: number;
+    ew: number; eh: number;
+  } | null>(null);
+
+  const isImage = el.elementType === 'image';
+  const effectiveScale = scale * builderZoom;
+  const canvasW = DESIGN_CANVAS.width * effectiveScale;
+  const canvasH = DESIGN_CANVAS.height * effectiveScale;
+
+  const endDrag = React.useCallback(() => {
+    setDragMode('none');
+    dragStart.current = null;
+  }, []);
+
+  const handlePointerMove = React.useCallback((e: PointerEvent) => {
+    const start = dragStart.current;
+    if (!start || dragMode === 'none') return;
+
+    if (dragMode === 'frame') {
+      const dx = ((e.clientX - start.mx) / canvasW) * 100;
+      const dy = ((e.clientY - start.my) / canvasH) * 100;
+      onCommit(idx, {
+        x: Math.max(0, Math.min(100 - el.width, start.ex + dx)),
+        y: Math.max(0, Math.min(100 - el.height, start.ey + dy)),
+      });
+    }
+
+    if (dragMode === 'pan') {
+      const dx = ((e.clientX - start.mx) / canvasW) * 100 * 1.5;
+      const dy = ((e.clientY - start.my) / canvasH) * 100 * 1.5;
+      onCommit(idx, {
+        cropX: Math.max(0, Math.min(100, start.cx + dx)),
+        cropY: Math.max(0, Math.min(100, start.cy + dy)),
+      });
+    }
+
+    if (dragMode === 'resize') {
+      const dx = ((e.clientX - start.mx) / canvasW) * 100;
+      const dy = ((e.clientY - start.my) / canvasH) * 100;
+      onCommit(idx, {
+        width: Math.max(3, Math.min(100 - el.x, start.ew + dx)),
+        height: Math.max(3, Math.min(100 - el.y, start.eh + dy)),
+      });
+    }
+  }, [canvasH, canvasW, dragMode, el.height, el.width, el.x, el.y, idx, onCommit]);
+
+  React.useEffect(() => {
+    if (dragMode === 'none') return;
+    const onUp = () => endDrag();
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, [dragMode, endDrag, handlePointerMove]);
+
+  const startDrag = (
+    e: React.PointerEvent,
+    mode: DragMode,
+    opts?: { frame?: boolean },
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onSelect(idx);
+    dragStart.current = {
+      mx: e.clientX,
+      my: e.clientY,
+      ex: el.x,
+      ey: el.y,
+      cx: el.cropX ?? 50,
+      cy: el.cropY ?? 50,
+      ew: el.width,
+      eh: el.height,
+    };
+    setDragMode(mode);
+    if (!opts?.frame) {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    }
   };
-  if (kind === 'divider')       return <div key={key} style={{ ...s, background: accent, opacity: 0.6 }} />;
-  if (kind === 'border')        return <div key={key} style={{ ...s, border: `1px solid ${accent}`, borderRadius: 4, opacity: 0.5 }} />;
-  if (kind === 'corner_floral') return <div key={key} style={{ ...s, color: accent, fontSize: 'clamp(12px,2vw,24px)' }}>✦</div>;
-  if (kind === 'heart')         return <div key={key} style={{ ...s, color: '#be185d', fontSize: 'clamp(16px,3vw,32px)' }}>♥</div>;
-  if (kind === 'confetti')      return <div key={key} style={{ ...s, opacity: 0.35, fontSize: 10 }}>✨ 🎉 ✨</div>;
-  return null;
+
+  const handleTextPointerDown = (e: React.PointerEvent) => {
+    if (el.elementType !== 'text') return;
+    e.stopPropagation();
+    onSelect(idx);
+    startDrag(e, 'frame');
+  };
+
+  const shell: React.CSSProperties = {
+    position: 'absolute',
+    left: `${el.x}%`,
+    top: `${el.y}%`,
+    width: `${el.width}%`,
+    height: `${el.height}%`,
+    zIndex: el.zIndex,
+    outline: selected ? `2px solid ${accent}` : undefined,
+    outlineOffset: 2,
+    cursor: dragMode === 'pan' ? 'grabbing' : dragMode === 'frame' ? 'grabbing' : isImage ? 'default' : 'grab',
+    userSelect: 'none',
+    pointerEvents: el.elementType === 'decorative' ? 'none' : 'auto',
+  };
+
+  return (
+    <div
+      style={shell}
+      onDoubleClick={() => el.elementType === 'text' && onTextDoubleClick?.(idx)}
+    >
+      {isImage ? (
+        <>
+          {selected && (
+            <div
+              className="studio-flipbook-frame-move-handle"
+              onPointerDown={(e) => startDrag(e, 'frame')}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 26,
+                background: accent,
+                color: '#fff',
+                fontSize: 10,
+                fontWeight: 600,
+                cursor: dragMode === 'frame' ? 'grabbing' : 'grab',
+                zIndex: 10,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'auto',
+                opacity: 0.92,
+              }}
+            >
+              ↔ Drag to move frame
+            </div>
+          )}
+          <div
+            className="studio-flipbook-image-pan"
+            onPointerDown={(e) => startDrag(e, 'pan')}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              top: selected ? 26 : 0,
+              zIndex: 2,
+              cursor: dragMode === 'pan' ? 'grabbing' : 'move',
+              pointerEvents: 'auto',
+            }}
+          >
+            <PageElementView el={el} imageUrlById={imageUrlById} accent={accent} overlay={overlay} fillParent />
+          </div>
+        </>
+      ) : el.elementType === 'text' ? (
+        <div
+          onPointerDown={handleTextPointerDown}
+          style={{ position: 'absolute', inset: 0, cursor: dragMode === 'frame' ? 'grabbing' : 'grab' }}
+        >
+          <PageElementView el={el} imageUrlById={imageUrlById} accent={accent} overlay={overlay} fillParent />
+        </div>
+      ) : (
+        <PageElementView el={el} imageUrlById={imageUrlById} accent={accent} overlay={overlay} fillParent />
+      )}
+
+      {selected && el.elementType !== 'decorative' && (
+        <div
+          onPointerDown={(e) => startDrag(e, 'resize')}
+          style={{
+            position: 'absolute',
+            bottom: 4,
+            right: 4,
+            width: 14,
+            height: 14,
+            borderRadius: '50%',
+            background: accent,
+            border: '2px solid #fff',
+            cursor: 'nwse-resize',
+            zIndex: 12,
+            pointerEvents: 'auto',
+          }}
+        />
+      )}
+    </div>
+  );
 }
 
-/* ─── main canvas ─── */
 const StudioFlipbookPageCanvas: React.FC<Props> = ({
   page, imageUrlById, themeId, className = '',
   interactive = false, selectedIndex, onSelect, onElementChange,
-  onTextDoubleClick,
+  onTextDoubleClick, displayWidth, builderZoom = 1,
 }) => {
+  const outerRef = React.useRef<HTMLDivElement>(null);
+  const [measuredWidth, setMeasuredWidth] = React.useState(displayWidth ?? DESIGN_CANVAS.width);
+
+  React.useEffect(() => {
+    if (displayWidth) {
+      setMeasuredWidth(displayWidth);
+      return;
+    }
+    const el = outerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w > 0) setMeasuredWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [displayWidth]);
+
   const theme = getTheme(themeId ?? page.themeVariant ?? 'wedding_modern');
   const overlay = (page.settingsJson?.overlayGradient as string) ?? undefined;
+  const scale = measuredWidth / DESIGN_CANVAS.width;
+  const displayHeight = DESIGN_CANVAS.height * scale;
 
   const bgStyle: React.CSSProperties = {
-    background: page.backgroundType === 'gradient' || page.backgroundType === 'image'
-      ? page.backgroundValue || theme.backgroundColor
-      : theme.backgroundColor,
+    background: page.backgroundValue || theme.backgroundColor,
     position: 'relative',
-    width: '100%',
-    aspectRatio: `${DESIGN_CANVAS.width} / ${DESIGN_CANVAS.height}`,
+    width: DESIGN_CANVAS.width,
+    height: DESIGN_CANVAS.height,
     overflow: 'hidden',
+    flexShrink: 0,
   };
 
   const sorted = [...page.elements]
     .map((el, _idx) => ({ ...el, _idx }))
     .sort((a, b) => a.zIndex - b.zIndex);
 
-  /* click on empty canvas → deselect */
   const handleCanvasClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onSelect(null);
   };
 
   return (
     <div
-      className={`studio-flipbook-page ${className}`}
-      style={bgStyle}
-      onClick={interactive ? handleCanvasClick : undefined}
+      ref={outerRef}
+      className={`studio-flipbook-page-outer ${className}`}
+      style={{
+        width: displayWidth ? measuredWidth : '100%',
+        height: displayHeight,
+        overflow: 'hidden',
+        position: 'relative',
+      }}
     >
-      {overlay && (
-        <div style={{ position: 'absolute', inset: 0, background: overlay, zIndex: 1, pointerEvents: 'none' }} />
-      )}
-      {sorted.map((el) => {
-        if (!interactive) {
-          /* non-interactive fallback — simple render */
-          return (
-            <div key={el._idx} style={{
-              position: 'absolute', left: `${el.x}%`, top: `${el.y}%`,
-              width: `${el.width}%`, height: `${el.height}%`,
-              zIndex: el.zIndex, opacity: el.opacity ?? 1,
-            }}>
-              {el.elementType === 'image' && el.albumImageId && imageUrlById[el.albumImageId] && (
-                <img src={imageUrlById[el.albumImageId]} alt="" loading="lazy"
-                  style={{ width: '100%', height: '100%', objectFit: el.fitMode ?? 'cover', display: 'block' }} />
-              )}
-              {el.elementType === 'text' && (
-                <div style={{ color: (el.styleJson?.color as string) ?? '#fff', fontSize: (el.styleJson?.fontSizePx as number) ?? 24 }}>
-                  {el.content}
-                </div>
-              )}
-            </div>
-          );
-        }
-        return (
-          <InteractiveElement
-            key={el._idx}
-            el={el}
-            idx={el._idx}
-            imageUrlById={imageUrlById}
-            accent={theme.accentColor}
-            overlay={overlay}
-            selected={selectedIndex === el._idx}
-            onSelect={onSelect}
-            onCommit={onElementChange}
-            onTextDoubleClick={onTextDoubleClick}
-          />
-        );
-      })}
+      <div
+        className="studio-flipbook-page"
+        style={{
+          ...bgStyle,
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+        }}
+        onClick={interactive ? handleCanvasClick : undefined}
+      >
+        {overlay && (
+          <div style={{ position: 'absolute', inset: 0, background: overlay, zIndex: 1, pointerEvents: 'none' }} />
+        )}
+        {sorted.map((el) =>
+          interactive ? (
+            <InteractiveElement
+              key={el._idx}
+              el={el}
+              idx={el._idx}
+              imageUrlById={imageUrlById}
+              accent={theme.accentColor}
+              overlay={overlay}
+              selected={selectedIndex === el._idx}
+              scale={scale}
+              builderZoom={builderZoom}
+              onSelect={onSelect}
+              onCommit={onElementChange}
+              onTextDoubleClick={onTextDoubleClick}
+            />
+          ) : (
+            <PageElementView
+              key={el._idx}
+              el={el}
+              imageUrlById={imageUrlById}
+              accent={theme.accentColor}
+              overlay={overlay}
+            />
+          )
+        )}
+      </div>
     </div>
   );
 };
