@@ -1,0 +1,371 @@
+.guest-book-root {
+  --gb-bg: #07070a;
+  --gb-bg-top: #0a0a0f;
+  --gb-surface: rgba(255, 255, 255, 0.04);
+  --gb-surface-hover: rgba(255, 255, 255, 0.07);
+  --gb-border: rgba(255, 255, 255, 0.1);
+  --gb-accent-from: #7c3aed;
+  --gb-accent-to: #d946ef;
+  --gb-glow: rgba(124, 58, 237, 0.35);
+  --gb-text: #f1f5f9;
+  --gb-text-muted: #94a3b8;
+  --gb-text-faint: #64748b;
+  font-family: 'Poppins', system-ui, sans-serif;
+  color: var(--gb-text);
+  background: linear-gradient(165deg, var(--gb-bg-top) 0%, var(--gb-bg) 45%, #0c0812 100%);
+  color-scheme: dark;
+  isolation: isolate;
+  position: relative;
+  overflow: hidden;
+}
+
+.guest-book-root::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(124, 58, 237, 0.18), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(217, 70, 239, 0.1), transparent);
+}
+
+.guest-book-root > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Escape portal-page-surface global input/text overrides (app-portal-pages.css) */
+.portal-page-surface .guest-book-root {
+  color: var(--gb-text) !important;
+}
+
+.portal-page-surface .guest-book-root .text-white {
+  color: #ffffff !important;
+}
+
+.portal-page-surface .guest-book-root .text-slate-100 {
+  color: #f1f5f9 !important;
+}
+
+.portal-page-surface .guest-book-root .text-slate-200 {
+  color: #e2e8f0 !important;
+}
+
+.portal-page-surface .guest-book-root .text-slate-300 {
+  color: #cbd5e1 !important;
+}
+
+.portal-page-surface .guest-book-root .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+.portal-page-surface .guest-book-root .text-slate-500 {
+  color: #64748b !important;
+}
+
+.portal-page-surface .guest-book-root .text-violet-200,
+.portal-page-surface .guest-book-root .text-violet-300 {
+  color: #ddd6fe !important;
+}
+
+.portal-page-surface .guest-book-root input,
+.portal-page-surface .guest-book-root select,
+.portal-page-surface .guest-book-root textarea {
+  background-color: rgba(0, 0, 0, 0.35) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f1f5f9 !important;
+}
+
+.portal-page-surface .guest-book-root input::placeholder,
+.portal-page-surface .guest-book-root textarea::placeholder {
+  color: #64748b !important;
+}
+
+.portal-page-surface .guest-book-root select option {
+  background-color: #1e1b2e !important;
+  color: #f1f5f9 !important;
+}
+
+.guest-book-root--embedded {
+  border-radius: 0 0 1.25rem 1.25rem;
+  padding: 1.25rem 1rem 1.75rem;
+}
+
+@media (min-width: 640px) {
+  .guest-book-root--embedded {
+    padding: 1.5rem 1.25rem 2rem;
+  }
+}
+
+.guest-book-root--standalone {
+  min-height: 100%;
+  padding: 1rem 0.75rem 2rem;
+}
+
+/* Studio digital guest book — indigo theme aligned with photo studio */
+.guest-book-root--studio {
+  --gb-bg: #0f172a;
+  --gb-bg-top: #1e293b;
+  --gb-surface: rgba(255, 255, 255, 0.05);
+  --gb-accent-from: #2731db;
+  --gb-accent-to: #6366f1;
+  --gb-glow: rgba(39, 49, 219, 0.35);
+  --gb-text: #f1f5f9;
+  --gb-text-muted: #94a3b8;
+}
+
+html:not(.dark) .guest-book-root--studio.guest-book-root--embedded {
+  --gb-bg: #f8fafc;
+  --gb-bg-top: #eef2ff;
+  --gb-surface: rgba(15, 23, 42, 0.04);
+  --gb-text: #0f172a;
+  --gb-text-muted: #64748b;
+  --gb-border: rgba(15, 23, 42, 0.1);
+  color: var(--gb-text);
+  color-scheme: light;
+  background: linear-gradient(165deg, var(--gb-bg-top) 0%, #ffffff 45%, #f8fafc 100%);
+}
+
+html:not(.dark) .guest-book-root--studio.guest-book-root--embedded::before {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(39, 49, 219, 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(99, 102, 241, 0.08), transparent);
+}
+
+html:not(.dark) .portal-page-surface .guest-book-root--studio.guest-book-root--embedded {
+  color: var(--gb-text) !important;
+}
+
+html:not(.dark) .portal-page-surface .guest-book-root--studio .text-white {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .portal-page-surface .guest-book-root--studio .text-slate-50,
+html:not(.dark) .portal-page-surface .guest-book-root--studio .text-slate-100,
+html:not(.dark) .portal-page-surface .guest-book-root--studio .text-slate-200 {
+  color: #1e293b !important;
+}
+
+html:not(.dark) .portal-page-surface .guest-book-root--studio .text-slate-300,
+html:not(.dark) .portal-page-surface .guest-book-root--studio .text-slate-400 {
+  color: #64748b !important;
+}
+
+html:not(.dark) .portal-page-surface .guest-book-root--studio .border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.1) !important;
+}
+
+html:not(.dark) .portal-page-surface .guest-book-root--studio input,
+html:not(.dark) .portal-page-surface .guest-book-root--studio select,
+html:not(.dark) .portal-page-surface .guest-book-root--studio textarea {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.guest-book-root--studio .gb-image-collage {
+  min-height: 120px;
+}
+
+.guest-book-root--studio .gb-collage-cell {
+  min-height: 80px;
+}
+
+.guest-book-root .gb-display {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+}
+
+.guest-book-masonry {
+  column-count: 1;
+  column-gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .guest-book-masonry {
+    column-count: 2;
+  }
+}
+
+@media (min-width: 1024px) {
+  .guest-book-masonry {
+    column-count: 2;
+  }
+}
+
+.guest-book-root--embedded .guest-book-masonry {
+  column-count: 1;
+}
+
+@media (min-width: 1280px) {
+  .guest-book-root--embedded .guest-book-masonry {
+    column-count: 2;
+  }
+}
+
+.guest-book-masonry > * {
+  break-inside: avoid;
+  margin-bottom: 1rem;
+}
+
+.guest-book-timeline {
+  position: relative;
+  padding-left: 1.75rem;
+}
+
+.guest-book-timeline::before {
+  content: '';
+  position: absolute;
+  left: 0.4rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(
+    180deg,
+    rgba(124, 58, 237, 0.6) 0%,
+    rgba(217, 70, 239, 0.2) 50%,
+    transparent 100%
+  );
+}
+
+.guest-book-timeline-item {
+  position: relative;
+}
+
+.guest-book-timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -1.55rem;
+  top: 1.25rem;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, var(--gb-accent-from), var(--gb-accent-to));
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.2);
+}
+
+.gb-image-collage {
+  display: grid;
+  gap: 3px;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.gb-image-collage--1 {
+  grid-template-columns: 1fr;
+  aspect-ratio: 4 / 3;
+}
+
+.gb-image-collage--2 {
+  grid-template-columns: 1fr 1fr;
+  aspect-ratio: 16 / 10;
+}
+
+.gb-image-collage--3 {
+  grid-template-columns: 1.2fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  aspect-ratio: 16 / 10;
+}
+
+.gb-image-collage--3 .gb-collage-main {
+  grid-row: span 2;
+}
+
+.gb-image-collage--4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  aspect-ratio: 1;
+}
+
+.gb-collage-cell {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.gb-collage-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gb-more-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: white;
+  backdrop-filter: blur(2px);
+}
+
+.gb-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: gb-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes gb-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.gb-fade-in {
+  animation: gb-fade-in 0.35s ease-out both;
+}
+
+@keyframes gb-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.gb-modal-backdrop {
+  animation: gb-backdrop-in 0.25s ease-out both;
+}
+
+@keyframes gb-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.gb-drag-active {
+  border-color: rgba(124, 58, 237, 0.7) !important;
+  background: rgba(124, 58, 237, 0.08) !important;
+  transform: scale(1.01);
+}
+
+.guest-book-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.guest-book-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+.guest-book-studio__sidebar .guest-book-scroll::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.35);
+}

@@ -21,6 +21,7 @@ import {
   FaPalette,
   FaBook,
   FaHeart,
+  FaBookOpen,
   FaFlag,
   FaCog,
 } from 'react-icons/fa';
@@ -59,6 +60,7 @@ const NAV_ICON_BY_LABEL_KEY: Record<string, ComponentType<{ className?: string }
   'nav.studio.filterImages': FaUsers,
   'nav.studio.album': FaFolder,
   'nav.studio.ourMemories': FaHeart,
+  'nav.studio.guestBook': FaBookOpen,
   'nav.studio.phoneBook': FaBook,
   'nav.studio.photoThemes': FaPalette,
   'nav.studio.createMembers': FaUserPlus,
@@ -83,6 +85,7 @@ const NAV_ICON_BY_HREF: Record<string, ComponentType<{ className?: string }>> = 
   '/filter-images': FaUsers,
   '/studio/albums': FaFolder,
   '/memories/events': FaHeart,
+  '/guest-book': FaBookOpen,
   '/phonebook': FaBook,
   '/photo-themes': FaPalette,
   '/invitations': FaUserPlus,
@@ -116,7 +119,7 @@ export const STUDIO_SIDEBAR_GROUPS = [
   },
   {
     label: 'Memories',
-    keys: ['nav.studio.ourMemories', 'nav.studio.photoBooks', 'nav.studio.photoThemes'],
+    keys: ['nav.studio.ourMemories', 'nav.studio.guestBook', 'nav.studio.photoBooks', 'nav.studio.photoThemes'],
   },
   {
     label: 'People',
@@ -145,7 +148,7 @@ export const USERS_SIDEBAR_GROUPS = [
       'nav.studio.album',
     ],
   },
-  { label: 'Memories', keys: ['nav.studio.ourMemories'] },
+  { label: 'Memories', keys: ['nav.studio.ourMemories', 'nav.studio.guestBook'] },
   { label: 'People', keys: ['nav.studio.createMembers'] },
   { label: 'Account', keys: ['nav.studio.settings', 'nav.studio.services'] },
 ] as const;

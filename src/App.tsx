@@ -94,6 +94,7 @@ import MemoriesEventsListPage from './pages/memories/MemoriesEventsListPage';
 import MemoriesCreateEventPage from './pages/memories/MemoriesCreateEventPage';
 import MemoriesEventManagePage from './pages/memories/MemoriesEventManagePage';
 import MemoriesSharedWithMePage from './pages/memories/MemoriesSharedWithMePage';
+import StudioGuestBookPage from './pages/guest-book/StudioGuestBookPage';
 
 // phonebook pages
 import PhoneBookListPage from './pages/PhoneBook/PhoneBookListPage';
@@ -258,6 +259,9 @@ const AppRoutes = () => {
         <Route path="memories/events/:eventId/edit" element={<MemoriesCreateEventPage />} />
         <Route path="memories/events/:eventId" element={<MemoriesEventManagePage />} />
         <Route path="memories/shared" element={<MemoriesSharedWithMePage />} />
+        <Route path="guest-book" element={<StudioGuestBookPage />} />
+        <Route path="guest-book/:albumId" element={<StudioGuestBookPage />} />
+        <Route path="guest-book/event/:eventId" element={<StudioGuestBookPage />} />
         {/* Phone Book / Contacts */}
         <Route path="phonebook" element={<PhoneBookListPage />} />
         <Route path="phonebook/new" element={<PhoneBookCreatePage />} />

@@ -18,10 +18,43 @@ export function mapMemoriesApiImage(x: any): MemoriesImage {
   const likedByUserIds = likedByUserIdsRaw
     .map((n: any) => Number(n))
     .filter((n: any) => Number.isFinite(n));
+  const thumbCandidates = [
+    x?.thumbUrl,
+    x?.thumbnailUrl,
+    x?.previewUrl,
+    x?.variants?.thumbnailUrl,
+    x?.variants?.recommendedUrl,
+    x?.s3PublicUrl,
+    x?.b2PublicUrl,
+    x?.googleDriveViewUrl,
+    x?.hdUrl,
+    x?.downloadUrl,
+  ];
+  const hdCandidates = [
+    x?.hdUrl,
+    x?.fullUrl,
+    x?.downloadUrl,
+    x?.previewUrl,
+    x?.variants?.recommendedUrl,
+    x?.variants?.previewFallbackUrl,
+    x?.s3PublicUrl,
+    x?.b2PublicUrl,
+    x?.googleDriveViewUrl,
+    x?.thumbUrl,
+    x?.thumbnailUrl,
+  ];
+  const pickUrl = (candidates: unknown[]) => {
+    for (const c of candidates) {
+      if (c != null && String(c).trim()) return String(c).trim();
+    }
+    return '';
+  };
+  const thumbUrl = pickUrl(thumbCandidates);
+  const hdUrl = pickUrl(hdCandidates) || thumbUrl;
   return {
     id: String(x?.id ?? x?.imageId ?? `img_${Math.random().toString(36).slice(2)}`),
-    thumbUrl: String(x?.thumbUrl ?? x?.thumbnailUrl ?? x?.previewUrl ?? x?.hdUrl ?? ''),
-    hdUrl: String(x?.hdUrl ?? x?.fullUrl ?? x?.downloadUrl ?? x?.thumbUrl ?? ''),
+    thumbUrl,
+    hdUrl,
     likes: Number(x?.likes ?? x?.likeCount ?? 0) || 0,
     comments: Array.isArray(x?.comments)
       ? x.comments

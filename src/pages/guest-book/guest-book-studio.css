@@ -1,0 +1,75 @@
+@import '../photo-studio/photoStudioAlbumTheme.css';
+
+/* Studio hub — /guest-book — matches photo studio portal theme */
+.guest-book-studio {
+  min-height: calc(100dvh - 5rem);
+}
+
+.guest-book-studio__header {
+  margin-bottom: 1.75rem;
+}
+
+.guest-book-studio__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  .guest-book-studio__grid {
+    grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+}
+
+.guest-book-studio__sidebar {
+  border-radius: 1.25rem;
+  border: 1px solid var(--sa-border);
+  background: var(--sa-surface);
+  box-shadow: var(--sa-shadow);
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .guest-book-studio__sidebar {
+    position: sticky;
+    top: 5.5rem;
+  }
+}
+
+.guest-book-studio__album-btn {
+  color: var(--sa-text);
+}
+
+.guest-book-studio__album-btn:hover:not(.guest-book-studio__album-btn--active) {
+  background: var(--sa-accent-soft);
+}
+
+.guest-book-studio__album-btn--active {
+  background: linear-gradient(135deg, #2731db, #6366f1) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 24px rgba(39, 49, 219, 0.35);
+}
+
+.guest-book-studio__panel {
+  border-radius: 1.25rem;
+  border: 1px solid var(--sa-border);
+  overflow: hidden;
+  box-shadow: var(--sa-shadow);
+  background: var(--sa-surface);
+}
+
+.guest-book-studio__toolbar-btn {
+  color: var(--sa-text);
+  border-color: var(--sa-border);
+  background: var(--sa-surface);
+}
+
+.guest-book-studio__toolbar-btn:hover {
+  background: var(--sa-accent-soft);
+}
+
+.guest-book-studio__sidebar .guest-book-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--sa-text-faint) 45%, transparent);
+}

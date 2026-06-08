@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { FaArrowLeft, FaCloudUploadAlt, FaHeart, FaImages } from 'react-icons/fa';
+import { FaArrowLeft, FaCloudUploadAlt, FaImages } from 'react-icons/fa';
 import { useMemoriesStore } from '../../features/memories/memoriesStore';
 import { loadRemoteMemoriesForPublicGallery } from '../../api/services/memoriesShareService';
 import {
