@@ -55,3 +55,41 @@ export function pxToPctX(px: number): number {
 export function pxToPctY(px: number): number {
   return (px / DESIGN_CANVAS.height) * 100;
 }
+
+/** Perfect flipbook page size — fits viewport, preserves design canvas aspect */
+export function computeFlipbookPageSize(
+  orientation: 'landscape' | 'portrait' = 'landscape',
+  viewportW = typeof window !== 'undefined' ? window.innerWidth : 1200,
+  viewportH = typeof window !== 'undefined' ? window.innerHeight : 800,
+): { width: number; height: number } {
+  const padX = 96;
+  const padY = 130;
+  const maxW = viewportW - padX;
+  const maxH = viewportH - padY;
+  const landscapeAspect = DESIGN_CANVAS.width / DESIGN_CANVAS.height;
+
+  if (orientation === 'landscape') {
+    let height = Math.min(maxH * 0.9, 520);
+    let width = Math.round(height * landscapeAspect);
+    if (width > maxW * 0.8) {
+      width = Math.round(maxW * 0.8);
+      height = Math.round(width / landscapeAspect);
+    }
+    return {
+      width: Math.max(300, width),
+      height: Math.max(188, height),
+    };
+  }
+
+  const portraitPageAspect = DESIGN_CANVAS.height / DESIGN_CANVAS.width;
+  let height = Math.min(maxH * 0.9, 680);
+  let width = Math.round(height * portraitPageAspect);
+  if (width > maxW * 0.58) {
+    width = Math.round(maxW * 0.58);
+    height = Math.round(width / portraitPageAspect);
+  }
+  return {
+    width: Math.max(260, width),
+    height: Math.max(416, height),
+  };
+}

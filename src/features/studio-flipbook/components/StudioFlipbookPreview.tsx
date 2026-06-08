@@ -1,105 +1,204 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import HTMLFlipBook from 'react-pageflip';
-import { FaTimes, FaChevronLeft, FaChevronRight, FaDownload } from 'react-icons/fa';
+import {
+  FaTimes, FaChevronLeft, FaChevronRight, FaDownload, FaBook,
+} from 'react-icons/fa';
 import StudioFlipbookPageCanvas from './StudioFlipbookPageCanvas';
 import type { GeneratedPage, ThemeId } from '../types';
-import { DESIGN_CANVAS } from '../constants/canvas';
+import { computeFlipbookPageSize } from '../constants/canvas';
 
 type Props = {
   pages: GeneratedPage[];
   imageUrlById: Record<number, string>;
   themeId: ThemeId;
+  albumTitle?: string;
   onClose: () => void;
   onDownloadPdf: () => void;
 };
 
-function computePageSize(): { w: number; h: number } {
-  const ratio = DESIGN_CANVAS.height / DESIGN_CANVAS.width;
-  const maxW = Math.min(window.innerWidth * 0.42, 580);
-  const maxH = window.innerHeight * 0.72;
-  let w = maxW;
-  let h = w * ratio;
-  if (h > maxH) {
-    h = maxH;
-    w = h / ratio;
-  }
-  return { w: Math.round(w), h: Math.round(h) };
-}
-
-const FlipPage = React.forwardRef<HTMLDivElement, { children: React.ReactNode; width: number; height: number }>(
-  ({ children, width, height }, ref) => (
-    <div
-      ref={ref}
-      className="studio-flipbook-preview-page"
-      style={{ width, height, background: '#fff', overflow: 'hidden', position: 'relative' }}
-    >
-      {children}
-    </div>
-  )
-);
-FlipPage.displayName = 'FlipPage';
+type ViewMode = 'flipbook' | 'page';
+type BookOrientation = 'landscape' | 'portrait';
 
 type FlipBookHandle = {
-  pageFlip: () => { flipPrev: () => void; flipNext: () => void };
+  pageFlip: () => {
+    flipPrev: (corner?: string) => void;
+    flipNext: (corner?: string) => void;
+    flip: (page: number, corner?: string) => void;
+  };
 };
 
-const StudioFlipbookPreview: React.FC<Props> = ({ pages, imageUrlById, themeId, onClose, onDownloadPdf }) => {
+const FlipBookPage = React.forwardRef<HTMLDivElement, {
+  children: React.ReactNode;
+}>(function FlipBookPage({ children }, ref) {
+  return (
+    <div ref={ref} className="studio-flipbook-flip-page">
+      <div className="studio-flipbook-flip-page-inner">
+        {children}
+      </div>
+    </div>
+  );
+});
+
+function pageFrameStyle(
+  orientation: BookOrientation,
+  bookW: number,
+  bookH: number,
+): React.CSSProperties {
+  return {
+    width: bookW,
+    height: bookH,
+    maxWidth: 'calc(100vw - 96px)',
+    maxHeight: 'calc(100vh - 130px)',
+  };
+}
+
+const StudioFlipbookPreview: React.FC<Props> = ({
+  pages, imageUrlById, themeId, albumTitle, onClose, onDownloadPdf,
+}) => {
   const bookRef = React.useRef<FlipBookHandle | null>(null);
+
+  const [viewMode, setViewMode] = React.useState<ViewMode>('flipbook');
+  const [orientation, setOrientation] = React.useState<BookOrientation>('landscape');
   const [currentPage, setCurrentPage] = React.useState(0);
-  const [pageSize, setPageSize] = React.useState(computePageSize);
+  const [bookSize, setBookSize] = React.useState(() =>
+    computeFlipbookPageSize('landscape'),
+  );
 
   React.useEffect(() => {
-    const onResize = () => setPageSize(computePageSize());
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+    const update = () => setBookSize(computeFlipbookPageSize(orientation));
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [orientation]);
 
-  const handlePrev = () => bookRef.current?.pageFlip().flipPrev();
-  const handleNext = () => bookRef.current?.pageFlip().flipNext();
+  const flipPrev = React.useCallback(() => {
+    if (viewMode === 'flipbook') {
+      bookRef.current?.pageFlip().flipPrev();
+    } else {
+      setCurrentPage((p) => Math.max(0, p - 1));
+    }
+  }, [viewMode]);
+
+  const flipNext = React.useCallback(() => {
+    if (viewMode === 'flipbook') {
+      bookRef.current?.pageFlip().flipNext();
+    } else {
+      setCurrentPage((p) => Math.min(pages.length - 1, p + 1));
+    }
+  }, [viewMode, pages.length]);
+
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') flipPrev();
+      if (e.key === 'ArrowRight') flipNext();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose, flipPrev, flipNext]);
+
+  const activePage = pages[currentPage];
+  const frameStyle = pageFrameStyle(orientation, bookSize.width, bookSize.height);
 
   return createPortal(
-    <div className="studio-flipbook-preview-overlay" onClick={onClose}>
-      <div className="studio-flipbook-preview-modal" onClick={e => e.stopPropagation()}>
-        <div className="studio-flipbook-preview-header">
-          <h3>Flipbook Preview</h3>
-          <div className="studio-flipbook-preview-header-actions">
-            <button type="button" className="studio-flipbook-preview-btn" onClick={onDownloadPdf}>
-              <FaDownload /> Download PDF
-            </button>
-            <button type="button" className="studio-flipbook-preview-close" onClick={onClose}>
-              <FaTimes />
-            </button>
+    <div className="studio-flipbook-preview-overlay studio-flipbook-preview-photo-theme">
+      <div className="studio-flipbook-preview-topbar">
+        <div className="studio-flipbook-preview-brand">
+          <div className="studio-flipbook-preview-brand-icon">
+            <FaBook />
+          </div>
+          <div>
+            <span className="studio-flipbook-preview-brand-title">Flipbook</span>
+            {albumTitle && (
+              <span className="studio-flipbook-preview-brand-sub">{albumTitle}</span>
+            )}
           </div>
         </div>
 
-        <div className="studio-flipbook-preview-stage">
-          <button type="button" className="studio-flipbook-preview-nav prev" onClick={handlePrev} disabled={currentPage === 0}>
-            <FaChevronLeft />
-          </button>
+        <div className="studio-flipbook-preview-topbar-actions">
+          <div className="studio-flipbook-preview-view-toggle">
+            <button
+              type="button"
+              className={viewMode === 'flipbook' ? 'active' : ''}
+              onClick={() => setViewMode('flipbook')}
+            >
+              Flip Book
+            </button>
+            <button
+              type="button"
+              className={viewMode === 'page' ? 'active' : ''}
+              onClick={() => setViewMode('page')}
+            >
+              Page View
+            </button>
+          </div>
 
-          <div className="studio-flipbook-preview-book-wrap">
+          <div className="studio-flipbook-preview-orientation-toggle">
+            <button
+              type="button"
+              className={orientation === 'landscape' ? 'active' : ''}
+              onClick={() => setOrientation('landscape')}
+            >
+              Landscape
+            </button>
+            <button
+              type="button"
+              className={orientation === 'portrait' ? 'active' : ''}
+              onClick={() => setOrientation('portrait')}
+            >
+              Portrait
+            </button>
+          </div>
+
+          <button type="button" className="studio-flipbook-preview-dl-btn" onClick={onDownloadPdf}>
+            <FaDownload /> PDF
+          </button>
+          <button type="button" className="studio-flipbook-preview-close-btn" onClick={onClose} aria-label="Close">
+            <FaTimes />
+          </button>
+        </div>
+      </div>
+
+      <div className="studio-flipbook-preview-stage-photo">
+        <div className="studio-flipbook-preview-spotlight" aria-hidden />
+
+        <button
+          type="button"
+          className="studio-flipbook-preview-nav-photo prev"
+          onClick={flipPrev}
+          disabled={currentPage === 0}
+        >
+          <FaChevronLeft />
+        </button>
+
+        {viewMode === 'flipbook' ? (
+          <div
+            className="studio-flipbook-preview-book-wrap-photo"
+            style={{ width: bookSize.width, height: bookSize.height }}
+          >
             <HTMLFlipBook
-              width={pageSize.w}
-              height={pageSize.h}
+              key={`${orientation}-${bookSize.width}-${bookSize.height}`}
+              ref={bookRef}
+              width={bookSize.width}
+              height={bookSize.height}
               size="fixed"
-              minWidth={pageSize.w}
-              maxWidth={pageSize.w}
-              minHeight={pageSize.h}
-              maxHeight={pageSize.h}
+              minWidth={bookSize.width}
+              maxWidth={bookSize.width}
+              minHeight={bookSize.height}
+              maxHeight={bookSize.height}
+              maxShadowOpacity={0.7}
               showCover={true}
               mobileScrollSupport={true}
-              onFlip={(e) => setCurrentPage(e.data)}
-              ref={bookRef}
-              className="studio-flipbook-book"
-              style={{ margin: '0 auto' }}
-              startPage={0}
               drawShadow={true}
-              flippingTime={600}
-              usePortrait={true}
+              flippingTime={700}
+              onFlip={(e) => setCurrentPage(e.data)}
+              className="studio-flipbook-book-photo"
+              style={{ width: '100%', height: '100%' }}
+              startPage={0}
+              usePortrait={orientation === 'portrait'}
               startZIndex={0}
               autoSize={false}
-              maxShadowOpacity={0.5}
               showPageCorners={true}
               disableFlipByClick={false}
               clickEventForward={true}
@@ -107,29 +206,78 @@ const StudioFlipbookPreview: React.FC<Props> = ({ pages, imageUrlById, themeId, 
               swipeDistance={50}
             >
               {pages.map((page) => (
-                <FlipPage key={page.pageNumber} width={pageSize.w} height={pageSize.h}>
+                <FlipBookPage key={page.pageNumber}>
                   <StudioFlipbookPageCanvas
                     page={page}
                     imageUrlById={imageUrlById}
                     themeId={themeId}
-                    displayWidth={pageSize.w}
+                    fillParent
                     selectedIndex={null}
                     onSelect={() => {}}
                     onElementChange={() => {}}
                   />
-                </FlipPage>
+                </FlipBookPage>
               ))}
             </HTMLFlipBook>
           </div>
+        ) : (
+          <div
+            className="studio-flipbook-page-preview-frame"
+            style={frameStyle}
+            key={`${currentPage}-${orientation}`}
+          >
+            {activePage && (
+              <StudioFlipbookPageCanvas
+                page={activePage}
+                imageUrlById={imageUrlById}
+                themeId={themeId}
+                fillParent
+                selectedIndex={null}
+                onSelect={() => {}}
+                onElementChange={() => {}}
+              />
+            )}
+          </div>
+        )}
 
-          <button type="button" className="studio-flipbook-preview-nav next" onClick={handleNext} disabled={currentPage >= pages.length - 1}>
-            <FaChevronRight />
-          </button>
-        </div>
+        <button
+          type="button"
+          className="studio-flipbook-preview-nav-photo next"
+          onClick={flipNext}
+          disabled={currentPage >= pages.length - 1}
+        >
+          <FaChevronRight />
+        </button>
 
-        <div className="studio-flipbook-preview-footer">
+        <div className="studio-flipbook-preview-surface-shadow" aria-hidden />
+      </div>
+
+      <div className="studio-flipbook-preview-bottombar">
+        <span className="studio-flipbook-preview-page-count">
           Page {currentPage + 1} of {pages.length}
+          <span className="studio-flipbook-preview-size-hint">
+            · {bookSize.width}×{bookSize.height}
+          </span>
+        </span>
+        <div className="studio-flipbook-preview-dots">
+          {pages.map((_, idx) => (
+            <button
+              key={idx}
+              type="button"
+              className={`studio-flipbook-preview-dot${idx === currentPage ? ' active' : ''}${idx < currentPage ? ' past' : ''}`}
+              onClick={() => {
+                setCurrentPage(idx);
+                if (viewMode === 'flipbook') {
+                  bookRef.current?.pageFlip().flip(idx);
+                }
+              }}
+              aria-label={`Go to page ${idx + 1}`}
+            />
+          ))}
         </div>
+        <span className="studio-flipbook-preview-hint">
+          {viewMode === 'flipbook' ? 'Drag corners to flip · ' : ''}← → navigate · Esc close
+        </span>
       </div>
     </div>,
     document.body

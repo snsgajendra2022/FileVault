@@ -1,28 +1,16 @@
-import React, {
-  memo,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FaSpinner, FaTimes, FaArrowDown } from 'react-icons/fa';
+import { FaSpinner, FaTimes, FaArrowDown, FaExclamationTriangle } from 'react-icons/fa';
 import ProgressiveImage from '../../../components/photo-studio/ProgressiveImage';
-import type {
-  UserImageWithVariants,
-  ImageVariants,
-} from '../../../utils/progressiveImageVariants';
+import type { UserImageWithVariants, ImageVariants } from '../../../utils/progressiveImageVariants';
 import { getThumbnailSrc } from '../../../utils/progressiveImageVariants';
-import {
-  getConnectionHint,
-  getSaveData,
-} from '../../../utils/progressiveImageConfig';
+import { getConnectionHint, getSaveData } from '../../../utils/progressiveImageConfig';
 import { toProgressiveImage } from '../../../utils/albumImageVariants';
 import type { AlbumImageLike } from '../../../utils/albumImageVariants';
 import api from '../../../api/client/axiosInstance';
 
-const PAGE_SIZE = 10;
-const VISIBLE_ROOT_MARGIN = '120px';
+const PAGE_SIZE = 5;
+const SCROLL_LOAD_OFFSET = 120;
 
 function mapRawImage(raw: Record<string, unknown>): UserImageWithVariants {
   const id = Number(raw.id);
@@ -51,77 +39,64 @@ function getImagesFromResponse(res: any): Record<string, unknown>[] {
   return [];
 }
 
-function getTotalPagesFromResponse(res: any, currentCount: number): number {
+function getTotalPagesFromResponse(res: any, count: number): number {
   const data = res?.data;
   const tp = Number(data?.totalPages);
   if (Number.isFinite(tp) && tp > 0) return tp;
   const total = Number(data?.totalElements ?? data?.total ?? data?.count);
   if (Number.isFinite(total) && total > 0) return Math.ceil(total / PAGE_SIZE);
-  if (currentCount < PAGE_SIZE) return 1;
-  return Number.MAX_SAFE_INTEGER;
+  return count < PAGE_SIZE ? 1 : Number.MAX_SAFE_INTEGER;
 }
 
 type ThumbProps = {
   image: UserImageWithVariants;
-  index: number;
-  isVisible: boolean;
-  thumbRef: (el: HTMLButtonElement | null) => void;
+  eager: boolean;
+  scrollRoot: React.RefObject<HTMLDivElement | null>;
   onSelect: (id: number) => void;
 };
-
-type LoadState = 'idle' | 'loading' | 'loaded' | 'error';
 
 const ThumbSkeleton = memo(function ThumbSkeleton() {
   return <div className="studio-flipbook-thumb-skeleton" aria-hidden />;
 });
 
 const ChooseImageThumb = memo(function ChooseImageThumb({
-  image,
-  index,
-  isVisible,
-  thumbRef,
-  onSelect,
+  image, eager, scrollRoot, onSelect,
 }: ThumbProps) {
-  const [loadState, setLoadState] = useState<LoadState>('idle');
-  const id = Number(image.id);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [visible, setVisible] = useState(eager);
 
   useEffect(() => {
-    if (!isVisible || loadState !== 'idle') return;
-    setLoadState('loading');
-  }, [isVisible, loadState]);
+    if (eager || visible) return;
+    const el = btnRef.current;
+    const root = scrollRoot.current;
+    if (!el || !root) return;
 
-  const showSkeleton = loadState === 'idle' || loadState === 'loading';
-  const showImage = loadState === 'loading' || loadState === 'loaded';
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry?.isIntersecting) setVisible(true); },
+      { root, rootMargin: '160px 0px', threshold: 0 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [eager, visible, scrollRoot]);
 
   return (
     <button
-      ref={thumbRef}
+      ref={btnRef}
       type="button"
-      data-idx={index}
       className="studio-flipbook-modal-thumb"
-      onClick={() => onSelect(id)}
+      onClick={() => onSelect(Number(image.id))}
       title={image.filename}
     >
       <div className="studio-flipbook-modal-thumb-inner">
-        {showSkeleton && <ThumbSkeleton />}
-        {showImage && (
-          <div
-            className="studio-flipbook-modal-thumb-img"
-            style={{ opacity: loadState === 'loaded' ? 1 : 0 }}
-          >
-            <ProgressiveImage
-              image={image}
-              enabled={isVisible}
-              mode="thumbnail"
-              alt={image.filename}
-              className="h-full w-full object-cover"
-              onLoad={() => setLoadState('loaded')}
-              onError={() => setLoadState('error')}
-            />
-          </div>
-        )}
-        {loadState === 'error' && (
-          <div className="studio-flipbook-modal-thumb-error">!</div>
+        {!visible && <ThumbSkeleton />}
+        {visible && (
+          <ProgressiveImage
+            image={image}
+            enabled
+            mode="thumbnail"
+            alt={image.filename}
+            className="h-full w-full object-cover"
+          />
         )}
       </div>
     </button>
@@ -131,24 +106,25 @@ const ChooseImageThumb = memo(function ChooseImageThumb({
 type Props = {
   open: boolean;
   albumId: number;
+  images?: UserImageWithVariants[];   // ← pre-loaded from builder (preferred)
   onClose: () => void;
   onSelect: (imageId: number) => void;
 };
 
-const ChooseImageModal: React.FC<Props> = ({ open, albumId, onClose, onSelect }) => {
+const ChooseImageModal: React.FC<Props> = ({ open, albumId, images: propImages, onClose, onSelect }) => {
   const [images, setImages] = useState<UserImageWithVariants[]>([]);
   const [nextPage, setNextPage] = useState(0);
   const [totalPages, setTotalPages] = useState(Number.MAX_SAFE_INTEGER);
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [visibleIndices, setVisibleIndices] = useState<Set<number>>(new Set());
+  const [error, setError] = useState<string | null>(null);
 
-  const gridRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const sessionIdRef = useRef(0);
   const loadingRef = useRef(false);
-  const thumbRefsMapRef = useRef<Map<number, HTMLButtonElement | null>>(new Map());
-  const observerRef = useRef<IntersectionObserver | null>(null);
+  const prevOpenRef = useRef(false);
+  const propImagesRef = useRef<UserImageWithVariants[] | undefined>(undefined);
 
   const reset = useCallback(() => {
     setImages([]);
@@ -157,21 +133,67 @@ const ChooseImageModal: React.FC<Props> = ({ open, albumId, onClose, onSelect })
     setLoading(false);
     setReady(false);
     setHasMore(true);
-    setVisibleIndices(new Set());
+    setError(null);
     loadingRef.current = false;
-    thumbRefsMapRef.current.clear();
     sessionIdRef.current += 1;
   }, []);
 
+  /* ── When modal opens, seed from propImages or fetch ── */
   useEffect(() => {
-    if (!open) reset();
-  }, [open, reset]);
+    if (!open) { prevOpenRef.current = false; return; }
+    if (prevOpenRef.current) return;          // already open, skip reset
+    prevOpenRef.current = true;
+
+    if (propImages && propImages.length > 0) {
+      // Use pre-loaded images — instant, no API call needed
+      reset();
+      setImages(propImages);
+      setReady(true);
+      setHasMore(false);
+      setTotalPages(1);
+      propImagesRef.current = propImages;
+    } else {
+      // Fallback: fetch ourselves (standalone usage)
+      reset();
+      const currentImages = propImages;
+      if (currentImages && currentImages.length > 0) {
+        setImages(currentImages);
+        setReady(true);
+        setHasMore(false);
+        setTotalPages(1);
+      } else {
+        // Need to fetch from API
+        const t = window.setTimeout(() => fetchPage(0), 0);
+        return () => window.clearTimeout(t);
+      }
+    }
+  }, [open, propImages]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── Also re-seed when propImages changes while open ── */
+  useEffect(() => {
+    if (!open) return;
+    if (propImagesRef.current === propImages) return;
+    if (!propImages || propImages.length === 0) return;
+    propImagesRef.current = propImages;
+    reset();
+    setImages(propImages);
+    setReady(true);
+    setHasMore(false);
+    setTotalPages(1);
+  }, [propImages, open, reset]);
 
   const fetchPage = useCallback(async (pageNum: number) => {
     if (loadingRef.current) return;
+    if (!Number.isFinite(albumId) || albumId <= 0) {
+      setError('Invalid album');
+      setReady(true);
+      setHasMore(false);
+      return;
+    }
     const sid = sessionIdRef.current;
     loadingRef.current = true;
     setLoading(true);
+    setError(null);
 
     try {
       const res = await api.get(`/api/albums/${albumId}/images`, {
@@ -185,8 +207,7 @@ const ChooseImageModal: React.FC<Props> = ({ open, albumId, onClose, onSelect })
       });
       if (sid !== sessionIdRef.current) return;
 
-      const raw = getImagesFromResponse(res);
-      const mapped = raw.map(mapRawImage);
+      const mapped = getImagesFromResponse(res).map(mapRawImage);
       const tp = getTotalPagesFromResponse(res, mapped.length);
 
       setTotalPages(tp);
@@ -195,15 +216,14 @@ const ChooseImageModal: React.FC<Props> = ({ open, albumId, onClose, onSelect })
         return [...prev, ...mapped.filter((i) => !ids.has(Number(i.id)))];
       });
 
-      const done =
-        mapped.length === 0 ||
-        mapped.length < PAGE_SIZE ||
-        pageNum + 1 >= tp;
+      const done = mapped.length === 0 || mapped.length < PAGE_SIZE || pageNum + 1 >= tp;
       setHasMore(!done);
       setNextPage(pageNum + 1);
       setReady(true);
-    } catch {
+    } catch (err: unknown) {
       if (sid === sessionIdRef.current) {
+        const msg = err instanceof Error ? err.message : 'Failed to load images';
+        setError(msg);
         setHasMore(false);
         setReady(true);
       }
@@ -216,112 +236,29 @@ const ChooseImageModal: React.FC<Props> = ({ open, albumId, onClose, onSelect })
   }, [albumId]);
 
   useEffect(() => {
-    if (!open) return;
-    reset();
-    const t = window.setTimeout(() => fetchPage(0), 0);
-    return () => window.clearTimeout(t);
-  }, [open, albumId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
     for (const img of images) {
       const url = getThumbnailSrc(img) || img.thumbnailUrl || img.previewUrl;
-      if (url) {
-        const el = new Image();
-        el.fetchPriority = 'low';
-        el.src = url;
-      }
+      if (url) { const el = new Image(); el.fetchPriority = 'low'; el.src = url; }
     }
   }, [images]);
 
   const loadMore = useCallback(() => {
     if (!open || !ready || !hasMore || loadingRef.current) return;
-    if (nextPage >= totalPages) {
-      setHasMore(false);
-      return;
-    }
+    if (nextPage >= totalPages) { setHasMore(false); return; }
     fetchPage(nextPage);
   }, [open, ready, hasMore, nextPage, totalPages, fetchPage]);
 
   const handleScroll = useCallback(() => {
-    const grid = gridRef.current;
-    if (!grid) return;
-    const { scrollTop, scrollHeight, clientHeight } = grid;
-    if (scrollHeight - scrollTop - clientHeight < 180) loadMore();
+    const el = scrollRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < SCROLL_LOAD_OFFSET;
+    if (nearBottom) loadMore();
   }, [loadMore]);
-
-  const setThumbRef = useCallback(
-    (index: number) => (el: HTMLButtonElement | null) => {
-      if (el) el.dataset.idx = String(index);
-      thumbRefsMapRef.current.set(index, el);
-    },
-    []
-  );
-
-  /* Mark first row visible immediately so images show without waiting for observer */
-  useEffect(() => {
-    if (!images.length) return;
-    setVisibleIndices((prev) => {
-      const next = new Set(prev);
-      let changed = false;
-      const initialVisible = Math.min(images.length, PAGE_SIZE);
-      for (let i = 0; i < initialVisible; i += 1) {
-        if (!next.has(i)) {
-          next.add(i);
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [images.length]);
-
-  useEffect(() => {
-    if (!open || !ready || images.length === 0) return;
-
-    const grid = gridRef.current;
-    const observer =
-      observerRef.current ||
-      new IntersectionObserver(
-        (entries) => {
-          setVisibleIndices((prev) => {
-            const next = new Set(prev);
-            let changed = false;
-            for (const entry of entries) {
-              const idx = Number((entry.target as HTMLElement).dataset.idx);
-              if (!Number.isFinite(idx)) continue;
-              if (entry.isIntersecting && !next.has(idx)) {
-                next.add(idx);
-                changed = true;
-              }
-            }
-            return changed ? next : prev;
-          });
-        },
-        {
-          root: grid,
-          rootMargin: VISIBLE_ROOT_MARGIN,
-          threshold: 0.01,
-        }
-      );
-
-    observerRef.current = observer;
-
-    const scheduleObserve = () => {
-      thumbRefsMapRef.current.forEach((el) => {
-        if (el) observer.observe(el);
-      });
-    };
-
-    const frameId = requestAnimationFrame(scheduleObserve);
-    return () => {
-      cancelAnimationFrame(frameId);
-      thumbRefsMapRef.current.forEach((el) => {
-        if (el) observer.unobserve(el);
-      });
-    };
-  }, [open, ready, images.length]);
 
   if (!open) return null;
 
+  const showInitialLoading = !ready && loading && images.length === 0;
+  const showError = error && images.length === 0;
   const allDone = ready && !loading && !hasMore;
 
   return createPortal(
@@ -335,70 +272,89 @@ const ChooseImageModal: React.FC<Props> = ({ open, albumId, onClose, onSelect })
             Choose Image
             {images.length > 0 && (
               <span className="studio-flipbook-image-count">
-                {images.length}
-                {hasMore ? '+' : ''}
+                {images.length}{hasMore ? '+' : ''}
               </span>
             )}
           </h3>
-          <button type="button" onClick={onClose} aria-label="Close">
-            <FaTimes />
-          </button>
+          <button type="button" onClick={onClose} aria-label="Close"><FaTimes /></button>
         </div>
 
+        {/* Single inner scroll area */}
         <div
-          ref={gridRef}
-          className="studio-flipbook-choose-image-grid"
+          ref={scrollRef}
+          className="studio-flipbook-choose-image-scroll"
           onScroll={handleScroll}
         >
-          {images.map((img, index) => (
-            <ChooseImageThumb
-              key={String(img.id)}
-              image={img}
-              index={index}
-              isVisible={visibleIndices.has(index)}
-              thumbRef={setThumbRef(index)}
-              onSelect={onSelect}
-            />
-          ))}
+          {/* Initial loading spinner */}
+          {showInitialLoading && (
+            <div className="studio-flipbook-choose-image-initial-load">
+              <FaSpinner className="animate-spin" size={22} />
+              <span>Loading images…</span>
+            </div>
+          )}
 
-          <div className="studio-flipbook-grid-bottom">
-            {loading && (
+          {/* Error state */}
+          {showError && (
+            <div className="studio-flipbook-choose-image-error">
+              <FaExclamationTriangle size={20} />
+              <span>Failed to load images</span>
+              <p className="studio-flipbook-choose-image-error-msg">{error}</p>
+              <button
+                type="button"
+                className="studio-flipbook-load-more-btn"
+                onClick={() => { reset(); fetchPage(0); }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Image grid */}
+          {images.length > 0 && (
+            <div className="studio-flipbook-choose-image-grid">
+              {images.map((img, index) => (
+                <ChooseImageThumb
+                  key={String(img.id)}
+                  image={img}
+                  eager={index < PAGE_SIZE}
+                  scrollRoot={scrollRef}
+                  onSelect={onSelect}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Footer: load more / all done / empty */}
+          <div className="studio-flipbook-choose-image-footer">
+            {loading && images.length > 0 && (
               <div className="studio-flipbook-loading-more">
-                <FaSpinner className="animate-spin" size={16} />
-                <span>Loading…</span>
+                <FaSpinner className="animate-spin" size={14} />
+                <span>Loading more…</span>
               </div>
             )}
+
+            {ready && hasMore && !loading && images.length > 0 && (
+              <button
+                type="button"
+                className="studio-flipbook-load-more-btn"
+                onClick={loadMore}
+              >
+                <FaArrowDown size={11} />
+                Load more images ({images.length} shown)
+              </button>
+            )}
+
             {allDone && images.length > 0 && (
               <span className="studio-flipbook-all-loaded">
                 All {images.length} images loaded
               </span>
             )}
-            {ready && !loading && images.length === 0 && (
-              <span className="studio-flipbook-all-loaded">No images found</span>
+
+            {ready && !loading && images.length === 0 && !error && (
+              <span className="studio-flipbook-all-loaded">No images in this album</span>
             )}
           </div>
         </div>
-
-        {ready && hasMore && (
-          <div className="studio-flipbook-load-more-bar">
-            <button
-              type="button"
-              className="studio-flipbook-load-more-btn"
-              onClick={loadMore}
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <FaSpinner className="animate-spin" size={14} /> Loading…
-                </>
-              ) : (
-                <>
-                  <FaArrowDown size={12} /> Load More ({images.length} loaded)
-                </>
-              )}
-            </button>
-          </div>
-        )}
       </div>
     </div>,
     document.body

@@ -111,8 +111,7 @@ function templateToElements(
   for (const slot of template.imageSlots) {
     const img = imageMap.get(slot.id);
     if (!img && slot.role !== 'decorative') continue;
-    const isFullBleed = slot.role === 'background' || slot.frameType === 'full_bleed';
-    const defaultFit = isFullBleed ? 'cover' : 'contain';
+    const defaultFit = slot.fitMode ?? 'cover';
     elements.push({
       elementType: slot.role === 'decorative' ? 'decorative' : 'image',
       albumImageId: img?.id,

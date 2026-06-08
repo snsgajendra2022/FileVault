@@ -2789,6 +2789,8 @@
     "photos": "फ़ोटो",
     "menu": "मेनू",
     "loadingMore": "और लोड हो रहा है...",
+    "loadingPhotos": "फ़ोटो लोड हो रही हैं…",
+    "noPhotosInAlbum": "इस एल्बम में अभी कोई फ़ोटो नहीं है।",
     "editAlbum": "एल्बम संपादित करें",
     "albumName": "एल्बम नाम *",
     "descriptionOptional": "विवरण (वैकल्पिक)",

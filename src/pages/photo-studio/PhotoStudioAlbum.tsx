@@ -2477,7 +2477,7 @@ const PhotoStudioAlbum: React.FC = () => {
 
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 min-h-[280px]">
                 {viewingAlbumDetailPending ? (
-                  <div aria-busy="true" aria-label={t('photoStudioAlbumPage.loadingPhotos') || 'Loading photos'}>
+                  <div aria-busy="true" aria-label={t('photoStudioAlbumPage.loadingPhotos')}>
                     <div className="h-5 w-36 rounded-lg bg-gray-200 animate-pulse mb-4" />
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4">
                       {Array.from({ length: 15 }, (_, i) => (
@@ -2487,7 +2487,7 @@ const PhotoStudioAlbum: React.FC = () => {
                       ))}
                     </div>
                     <p className="text-center text-sm text-gray-500 mt-6">
-                      {t('photoStudioAlbumPage.loadingPhotos') || 'Loading photos…'}
+                      {t('photoStudioAlbumPage.loadingPhotos')}
                     </p>
                   </div>
                 ) : viewingAlbumSourceImages.length > 0 ? (
@@ -2569,7 +2569,7 @@ const PhotoStudioAlbum: React.FC = () => {
                             </button>
                           </>
                         ) : (
-                          <p className="text-sm">{t('photoStudioAlbumPage.noPhotosInAlbum') || 'No photos in this album yet.'}</p>
+                          <p className="text-sm">{t('photoStudioAlbumPage.noPhotosInAlbum')}</p>
                         )}
                       </div>
                     ) : (
@@ -2700,7 +2700,7 @@ const PhotoStudioAlbum: React.FC = () => {
                         {(hasMoreAlbumImages || isFetchingMoreAlbumImages) && (
                           <div ref={loadMoreAlbumImagesRef} className="flex justify-center py-6">
                             {isFetchingMoreAlbumImages && (
-                              <LoadingSpinner size="md" text={t('photoStudioAlbumPage.loadingPhotos') || 'Loading more…'} />
+                              <LoadingSpinner size="md" text={t('photoStudioAlbumPage.loadingMore')} />
                             )}
                           </div>
                         )}

@@ -1,6 +1,7 @@
 import React from 'react';
+import { CropImageDisplay, DraggableCropImage } from '../../../components/photo-studio/CropImageDisplay';
 import { getTheme } from '../themes';
-import type { GeneratedPage, GeneratedPageElement, ThemeId } from '../types';
+import type { FitMode, GeneratedPage, GeneratedPageElement, ThemeId } from '../types';
 import { DESIGN_CANVAS } from '../constants/canvas';
 
 export type CanvasElement = GeneratedPageElement & { _idx: number };
@@ -16,7 +17,8 @@ type Props = {
   onElementChange: (index: number, patch: Partial<GeneratedPageElement>) => void;
   onTextDoubleClick?: (index: number) => void;
   displayWidth?: number;
-  /** Extra scale applied by builder zoom control */
+  /** Fill parent box — measures container and scales canvas (flipbook pages) */
+  fillParent?: boolean;
   builderZoom?: number;
 };
 
@@ -31,25 +33,9 @@ function frameBorderStyle(frameType?: string, accent?: string): React.CSSPropert
   }
 }
 
-function imageCropStyle(
-  cropX: number,
-  cropY: number,
-  zoom: number,
-  fit: string,
-): React.CSSProperties {
-  const objectFit = fit === 'fill' ? 'fill' : fit === 'contain' ? 'contain' : 'cover';
-  const style: React.CSSProperties = {
-    width: '100%',
-    height: '100%',
-    display: 'block',
-    objectFit,
-    objectPosition: `${cropX}% ${cropY}%`,
-  };
-  if (zoom > 1) {
-    style.transform = `scale(${zoom})`;
-    style.transformOrigin = `${cropX}% ${cropY}%`;
-  }
-  return style;
+function resolveFitMode(fit?: string): FitMode {
+  if (fit === 'contain' || fit === 'fill') return fit;
+  return 'cover';
 }
 
 function PageElementView({
@@ -81,10 +67,7 @@ function PageElementView({
     const url = el.albumImageId ? imageUrlById[el.albumImageId] : undefined;
     const radius = (el.styleJson?.borderRadius as number) ?? 0;
     const shadow = (el.styleJson?.shadow as string) ?? '';
-    const cropX = el.cropX ?? 50;
-    const cropY = el.cropY ?? 50;
-    const zoom = (el.styleJson?.imageZoom as number) ?? 1;
-    const fit = el.fitMode ?? 'contain';
+    const fit = resolveFitMode(el.fitMode);
     return (
       <div
         style={{
@@ -93,16 +76,16 @@ function PageElementView({
           overflow: 'hidden',
           ...frameBorderStyle(el.frameType, accent),
           boxShadow: shadow || undefined,
-          background: url ? (fit === 'cover' ? '#111827' : '#f3f4f6') : '#f3f4f6',
+          background: url ? '#111827' : '#f3f4f6',
         }}
       >
         {url ? (
-          <img
+          <CropImageDisplay
             src={url}
-            alt=""
-            crossOrigin="anonymous"
-            draggable={false}
-            style={imageCropStyle(cropX, cropY, zoom, fit)}
+            cropX={el.cropX ?? 50}
+            cropY={el.cropY ?? 50}
+            zoom={(el.styleJson?.imageZoom as number) ?? 1}
+            fit={fit}
           />
         ) : (
           <div style={{
@@ -155,7 +138,7 @@ function PageElementView({
   return null;
 }
 
-type DragMode = 'none' | 'frame' | 'pan' | 'resize';
+type DragMode = 'none' | 'frame' | 'resize';
 
 function InteractiveElement({
   el, idx, imageUrlById, accent, overlay, selected, scale, builderZoom,
@@ -177,7 +160,6 @@ function InteractiveElement({
   const dragStart = React.useRef<{
     mx: number; my: number;
     ex: number; ey: number;
-    cx: number; cy: number;
     ew: number; eh: number;
   } | null>(null);
 
@@ -204,15 +186,6 @@ function InteractiveElement({
       });
     }
 
-    if (dragMode === 'pan') {
-      const dx = ((e.clientX - start.mx) / canvasW) * 100 * 1.5;
-      const dy = ((e.clientY - start.my) / canvasH) * 100 * 1.5;
-      onCommit(idx, {
-        cropX: Math.max(0, Math.min(100, start.cx + dx)),
-        cropY: Math.max(0, Math.min(100, start.cy + dy)),
-      });
-    }
-
     if (dragMode === 'resize') {
       const dx = ((e.clientX - start.mx) / canvasW) * 100;
       const dy = ((e.clientY - start.my) / canvasH) * 100;
@@ -236,11 +209,7 @@ function InteractiveElement({
     };
   }, [dragMode, endDrag, handlePointerMove]);
 
-  const startDrag = (
-    e: React.PointerEvent,
-    mode: DragMode,
-    opts?: { frame?: boolean },
-  ) => {
+  const startDrag = (e: React.PointerEvent, mode: DragMode) => {
     e.stopPropagation();
     e.preventDefault();
     onSelect(idx);
@@ -249,21 +218,15 @@ function InteractiveElement({
       my: e.clientY,
       ex: el.x,
       ey: el.y,
-      cx: el.cropX ?? 50,
-      cy: el.cropY ?? 50,
       ew: el.width,
       eh: el.height,
     };
     setDragMode(mode);
-    if (!opts?.frame) {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    }
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   const handleTextPointerDown = (e: React.PointerEvent) => {
     if (el.elementType !== 'text') return;
-    e.stopPropagation();
-    onSelect(idx);
     startDrag(e, 'frame');
   };
 
@@ -276,13 +239,19 @@ function InteractiveElement({
     zIndex: el.zIndex,
     outline: selected ? `2px solid ${accent}` : undefined,
     outlineOffset: 2,
-    cursor: dragMode === 'pan' ? 'grabbing' : dragMode === 'frame' ? 'grabbing' : isImage ? 'default' : 'grab',
+    cursor: dragMode === 'frame' ? 'grabbing' : isImage ? 'default' : 'grab',
     userSelect: 'none',
     pointerEvents: el.elementType === 'decorative' ? 'none' : 'auto',
   };
 
+  const imageUrl = isImage && el.albumImageId ? imageUrlById[el.albumImageId] : undefined;
+  const radius = (el.styleJson?.borderRadius as number) ?? 0;
+  const shadow = (el.styleJson?.shadow as string) ?? '';
+  const fit = resolveFitMode(el.fitMode);
+
   return (
     <div
+      className={isImage ? 'group/crop' : undefined}
       style={shell}
       onDoubleClick={() => el.elementType === 'text' && onTextDoubleClick?.(idx)}
     >
@@ -315,18 +284,36 @@ function InteractiveElement({
             </div>
           )}
           <div
-            className="studio-flipbook-image-pan"
-            onPointerDown={(e) => startDrag(e, 'pan')}
             style={{
               position: 'absolute',
               inset: 0,
               top: selected ? 26 : 0,
               zIndex: 2,
-              cursor: dragMode === 'pan' ? 'grabbing' : 'move',
-              pointerEvents: 'auto',
+              borderRadius: el.frameType === 'circle' ? '50%' : radius ? `${radius}px` : 0,
+              overflow: 'hidden',
+              ...frameBorderStyle(el.frameType, accent),
+              boxShadow: shadow || undefined,
+              background: imageUrl ? '#111827' : '#f3f4f6',
             }}
+            onPointerDown={() => onSelect(idx)}
           >
-            <PageElementView el={el} imageUrlById={imageUrlById} accent={accent} overlay={overlay} fillParent />
+            {imageUrl ? (
+              <DraggableCropImage
+                src={imageUrl}
+                cropX={el.cropX ?? 50}
+                cropY={el.cropY ?? 50}
+                zoom={(el.styleJson?.imageZoom as number) ?? 1}
+                fit={fit}
+                onCropChange={(x, y) => onCommit(idx, { cropX: x, cropY: y })}
+              />
+            ) : (
+              <div style={{
+                width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#9ca3af', fontSize: 13, border: '2px dashed #d1d5db',
+              }}>
+                + Image
+              </div>
+            )}
           </div>
         </>
       ) : el.elementType === 'text' ? (
@@ -365,30 +352,52 @@ function InteractiveElement({
 const StudioFlipbookPageCanvas: React.FC<Props> = ({
   page, imageUrlById, themeId, className = '',
   interactive = false, selectedIndex, onSelect, onElementChange,
-  onTextDoubleClick, displayWidth, builderZoom = 1,
+  onTextDoubleClick, displayWidth, fillParent = false, builderZoom = 1,
 }) => {
   const outerRef = React.useRef<HTMLDivElement>(null);
-  const [measuredWidth, setMeasuredWidth] = React.useState(displayWidth ?? DESIGN_CANVAS.width);
+  const [box, setBox] = React.useState({
+    w: displayWidth ?? DESIGN_CANVAS.width,
+    h: (displayWidth ?? DESIGN_CANVAS.width) * (DESIGN_CANVAS.height / DESIGN_CANVAS.width),
+  });
 
   React.useEffect(() => {
-    if (displayWidth) {
-      setMeasuredWidth(displayWidth);
-      return;
-    }
     const el = outerRef.current;
     if (!el) return;
+
+    const update = (w: number, h: number) => {
+      if (w > 0 && h > 0) setBox({ w, h });
+    };
+
+    if (fillParent) {
+      const ro = new ResizeObserver((entries) => {
+        const { width, height } = entries[0]?.contentRect ?? { width: 0, height: 0 };
+        update(width, height);
+      });
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+
+    if (displayWidth) {
+      update(displayWidth, displayWidth * (DESIGN_CANVAS.height / DESIGN_CANVAS.width));
+      return;
+    }
+
     const ro = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
-      if (w > 0) setMeasuredWidth(w);
+      const w = entries[0]?.contentRect.width ?? 0;
+      if (w > 0) update(w, w * (DESIGN_CANVAS.height / DESIGN_CANVAS.width));
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [displayWidth]);
+  }, [displayWidth, fillParent]);
 
   const theme = getTheme(themeId ?? page.themeVariant ?? 'wedding_modern');
   const overlay = (page.settingsJson?.overlayGradient as string) ?? undefined;
-  const scale = measuredWidth / DESIGN_CANVAS.width;
-  const displayHeight = DESIGN_CANVAS.height * scale;
+
+  const scale = fillParent
+    ? Math.min(box.w / DESIGN_CANVAS.width, box.h / DESIGN_CANVAS.height)
+    : box.w / DESIGN_CANVAS.width;
+  const renderW = DESIGN_CANVAS.width * scale;
+  const renderH = DESIGN_CANVAS.height * scale;
 
   const bgStyle: React.CSSProperties = {
     background: page.backgroundValue || theme.backgroundColor,
@@ -410,14 +419,27 @@ const StudioFlipbookPageCanvas: React.FC<Props> = ({
   return (
     <div
       ref={outerRef}
-      className={`studio-flipbook-page-outer ${className}`}
+      className={`studio-flipbook-page-outer ${fillParent ? 'studio-flipbook-page-outer--fill' : ''} ${className}`}
       style={{
-        width: displayWidth ? measuredWidth : '100%',
-        height: displayHeight,
+        width: fillParent || !displayWidth ? '100%' : box.w,
+        height: fillParent ? '100%' : renderH,
         overflow: 'hidden',
         position: 'relative',
+        display: fillParent ? 'flex' : undefined,
+        alignItems: fillParent ? 'center' : undefined,
+        justifyContent: fillParent ? 'center' : undefined,
       }}
     >
+      <div
+        className="studio-flipbook-page-scaler"
+        style={{
+          width: renderW,
+          height: renderH,
+          position: 'relative',
+          overflow: 'hidden',
+          flexShrink: 0,
+        }}
+      >
       <div
         className="studio-flipbook-page"
         style={{
@@ -456,6 +478,7 @@ const StudioFlipbookPageCanvas: React.FC<Props> = ({
             />
           )
         )}
+      </div>
       </div>
     </div>
   );

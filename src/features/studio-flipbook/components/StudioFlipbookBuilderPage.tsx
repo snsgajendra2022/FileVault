@@ -116,8 +116,7 @@ function applyLayoutToPage(
       if (existing.albumImageId) usedIds.add(existing.albumImageId);
     } else {
       const img = available[availIdx++];
-      const isFullBleed = slot.role === 'background' || slot.frameType === 'full_bleed';
-      const defaultFit = isFullBleed ? 'cover' : 'contain';
+      const defaultFit = slot.fitMode ?? 'cover';
       newElements.push({
         elementType: slot.role === 'decorative' ? 'decorative' : 'image',
         albumImageId: img ? Number(img.id) : undefined,
@@ -431,7 +430,7 @@ const StudioFlipbookBuilderPage: React.FC = () => {
           </button>
           <button type="button" onClick={() => setZoom(z => Math.min(1.5, z + 0.1))}>+</button>
           <button type="button" onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}>−</button>
-          <button type="button" onClick={() => setShowPreview(true)}><FaEye /> Preview</button>
+          <button type="button" onClick={() => setShowPreview(true)}><FaEye /> Flipbook</button>
           <button type="button" onClick={() => void handleDownloadPdf()} disabled={exporting}>
             {exporting ? <FaSpinner className="animate-spin" /> : <FaDownload />} PDF
           </button>
@@ -475,7 +474,7 @@ const StudioFlipbookBuilderPage: React.FC = () => {
             <div className="studio-flipbook-canvas" style={{ transform: `scale(${zoom})` }}>
               {page && (
                 <StudioFlipbookPageCanvas page={page} imageUrlById={imageUrlById} themeId={theme}
-                  interactive selectedIndex={selectedElement} onSelect={setSelectedElement}
+                  interactive fillParent selectedIndex={selectedElement} onSelect={setSelectedElement}
                   onElementChange={handleCanvasElementChange} onTextDoubleClick={handleTextDoubleClick}
                   builderZoom={zoom} />
               )}
@@ -485,7 +484,7 @@ const StudioFlipbookBuilderPage: React.FC = () => {
             </button>
           </div>
           <p className="studio-flipbook-page-indicator">
-            Page {currentPage + 1} of {pages.length} · Drag image to pan inside frame · Use ↔ Move frame handle to reposition · Double-click text to edit
+            Page {currentPage + 1} of {pages.length} · Drag image to reposition (same as photo theme) · Top bar moves frame · Double-click text to edit
           </p>
         </main>
 
@@ -550,7 +549,7 @@ const StudioFlipbookBuilderPage: React.FC = () => {
                     <p className="studio-flipbook-hint" style={{ marginBottom: 6 }}>
                       Cover = fills frame (may crop) · Contain = full image visible · Fill = stretch
                     </p>
-                    <select value={selectedEl.fitMode ?? 'contain'} onChange={e => updateElement(currentPage, selectedElement!, { fitMode: e.target.value as FitMode })}>
+                    <select value={selectedEl.fitMode ?? 'cover'} onChange={e => updateElement(currentPage, selectedElement!, { fitMode: e.target.value as FitMode })}>
                       {FIT_MODES.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
                     </select>
                   </section>
@@ -578,7 +577,7 @@ const StudioFlipbookBuilderPage: React.FC = () => {
                     <span className="studio-flipbook-range-val">{Math.round(((selectedEl.styleJson?.imageZoom as number) ?? 1) * 100)}%</span>
                     <button type="button" className="studio-flipbook-reset-btn"
                       onClick={() => updateElement(currentPage, selectedElement!, {
-                        cropX: 50, cropY: 50, fitMode: 'contain',
+                        cropX: 50, cropY: 50, fitMode: 'cover',
                         styleJson: { ...selectedEl.styleJson, imageZoom: 1 },
                       })}>
                       Reset image position
@@ -713,6 +712,7 @@ const StudioFlipbookBuilderPage: React.FC = () => {
       <ChooseImageModal
         open={showImageLibrary}
         albumId={albumId}
+        images={albumImages}
         onClose={() => setShowImageLibrary(false)}
         onSelect={handleImageSwap}
       />
@@ -725,12 +725,13 @@ const StudioFlipbookBuilderPage: React.FC = () => {
         eventType={eventType}
       />
 
-      {/* ── flipbook preview ── */}
+      {/* ── 3D flipbook preview ── */}
       {showPreview && (
         <StudioFlipbookPreview
           pages={pages}
           imageUrlById={imageUrlById}
           themeId={theme}
+          albumTitle={albumTitle}
           onClose={() => setShowPreview(false)}
           onDownloadPdf={() => { setShowPreview(false); void handleDownloadPdf(); }}
         />
