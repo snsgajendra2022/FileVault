@@ -2200,6 +2200,14 @@ const PhotoStudioAlbum: React.FC = () => {
                   </button>
                   <button
                     type="button"
+                    onClick={() => navigate(`/studio/albums/${album.id}/flipbook`)}
+                    className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-[#4648d4] text-white hover:bg-[#3a3cb8] text-xs sm:text-sm font-medium"
+                  >
+                    <FaFolderOpen className="mr-1 inline" />
+                    Studio Flipbook
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => { setPendingAlbumIds([album.id]); setShowTemplateModal(true); }}
                     disabled={isTransferringToPhotoBook}
                     className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-[#111827] text-white hover:bg-slate-800 text-xs sm:text-sm font-medium disabled:opacity-60"

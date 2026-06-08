@@ -82,6 +82,7 @@ import PaymentManagement from './components/admin/PaymentManagement';
 import PhotoThemesPage from './pages/photo-themes/PhotoThemesPage';
 import PhotoThemeCategoryPage from './pages/photo-themes/PhotoThemeCategoryPage';
 import PhotoThemeAlbumBuilderPage from './pages/photo-themes/PhotoThemeAlbumBuilderPage';
+import StudioFlipbookBuilderPage from './features/studio-flipbook/components/StudioFlipbookBuilderPage';
 
 // photo-book pages
 import PhotoBook from './pages/photo-book/PhotoBookPage';
@@ -242,6 +243,7 @@ const AppRoutes = () => {
         <Route path="studio/settings" element={<StudioSettings />} />
         {/* <Route path="treePage" element={<TreePage />} /> */}
         <Route path="studio/albums" element={<PhotoStudioAlbum />} />
+        <Route path="studio/albums/:albumId/flipbook" element={<StudioFlipbookBuilderPage />} />
         <Route path="studio/shared-albums" element={<SharedAlbums />} />
         <Route path="studio/shared-photo-links" element={<SharedPhotoLinks />} />
         <Route path="client-tree" element={<ClientTreePage />} />

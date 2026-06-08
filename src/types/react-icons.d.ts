@@ -123,6 +123,7 @@ declare module 'react-icons/fa' {
   export const FaSync: ComponentType<IconProps>;
   export const FaLayerGroup: ComponentType<IconProps>;
   export const FaFont: ComponentType<IconProps>;
+  export const FaRandom: ComponentType<IconProps>;
 
 }
 
