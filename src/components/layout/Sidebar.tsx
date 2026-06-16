@@ -14,7 +14,7 @@ import {
 import { getResolvedPortalRole, loadPortalGeneralSettings } from '../../utils/portalSettings';
 import { usePortalSettingsOptional } from '../../state/context/PortalSettingsContext';
 import { FaCog, FaCrown, FaSignOutAlt, FaHeart, FaImage, FaCamera} from 'react-icons/fa';
-import { THEME } from 'src/pages/photo-studio/StudioDashboard';
+import { THEME } from '../../pages/photo-studio/studioDashboardTheme';
 
 function NavItem({
   item,

@@ -1786,3 +1786,182 @@ html.dark .premium-dashboard .client-item {
 .family-members-swiper .swiper-slide > div {
   flex: 1 1 auto;
 }
+
+/* ── Quick Actions: Detected People strip ── */
+.sd-people-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.sd-people-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 70% 120% at 100% 0%, rgba(99, 14, 212, 0.08) 0%, transparent 55%);
+}
+
+html.dark .sd-people-panel::before {
+  background: radial-gradient(ellipse 70% 120% at 100% 0%, rgba(167, 139, 250, 0.12) 0%, transparent 55%);
+}
+
+.sd-people-strip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.sd-person-avatar-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 4.75rem;
+  padding: 0.25rem 0.35rem 0.5rem;
+  border-radius: 1rem;
+  text-decoration: none;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.sd-person-avatar-link:hover {
+  transform: translateY(-3px);
+  background: rgba(99, 14, 212, 0.08);
+}
+
+html.dark .sd-person-avatar-link:hover {
+  background: rgba(167, 139, 250, 0.12);
+}
+
+.sd-person-ring {
+  position: relative;
+  width: 4.25rem;
+  height: 4.25rem;
+  border-radius: 9999px;
+  padding: 2.5px;
+  background: linear-gradient(135deg, #630ed4, #8b5cf6 55%, #c084fc);
+  box-shadow: 0 10px 24px -10px rgba(99, 14, 212, 0.45);
+  transition: box-shadow 0.25s ease;
+}
+
+.sd-person-avatar-link:hover .sd-person-ring {
+  box-shadow: 0 14px 32px -8px rgba(99, 14, 212, 0.55);
+}
+
+.sd-person-ring img,
+.sd-person-ring .sd-person-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  object-fit: cover;
+  border: 2px solid var(--sd-card);
+}
+
+.sd-person-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #ede9fe, #ddd6fe);
+  color: #5b21b6;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+html.dark .sd-person-fallback {
+  background: linear-gradient(145deg, #312e81, #4c1d95);
+  color: #e9d5ff;
+}
+
+.sd-person-name {
+  max-width: 5rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--sd-text-primary);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sd-person-count {
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: var(--sd-text-muted);
+}
+
+.sd-person-new {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  padding: 0.08rem 0.32rem;
+  border-radius: 9999px;
+  background: #10b981;
+  color: #fff;
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 10px -4px rgba(16, 185, 129, 0.55);
+}
+
+.sd-view-more-people {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-width: 4.25rem;
+  height: 5.35rem;
+  padding: 0.45rem;
+  border-radius: 1rem;
+  border: 1.5px dashed rgba(99, 14, 212, 0.35);
+  background: rgba(99, 14, 212, 0.07);
+  color: #630ed4;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+html.dark .sd-view-more-people {
+  color: #c4b5fd;
+  border-color: rgba(167, 139, 250, 0.4);
+  background: rgba(167, 139, 250, 0.1);
+}
+
+.sd-view-more-people:hover {
+  transform: translateY(-3px);
+  background: rgba(99, 14, 212, 0.12);
+}
+
+.sd-view-more-stack {
+  display: flex;
+  align-items: center;
+  padding-left: 0.3rem;
+}
+
+.sd-view-more-stack span {
+  width: 1.45rem;
+  height: 1.45rem;
+  margin-left: -0.5rem;
+  border-radius: 9999px;
+  border: 2px solid var(--sd-card);
+  background: linear-gradient(145deg, #c4b5fd, #8b5cf6);
+}
+
+.sd-quick-tile {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sd-quick-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sd-shadow-medium);
+}
+
+.sd-people-hero {
+  background: linear-gradient(135deg, #630ed4 0%, #7c3aed 48%, #8b5cf6 100%);
+  box-shadow: 0 14px 44px rgba(99, 14, 212, 0.32);
+}

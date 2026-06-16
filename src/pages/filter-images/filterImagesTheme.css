@@ -1,0 +1,273 @@
+/* Face Filter — People Frame */
+
+.filter-images-scope {
+  --ff-bg: #f4f6fb;
+  --ff-surface: #ffffff;
+  --ff-on-surface: #12141a;
+  --ff-muted: #5c6370;
+  --ff-primary: #630ed4;
+  --ff-primary-soft: rgba(99, 14, 212, 0.12);
+  --ff-ring: rgba(99, 14, 212, 0.45);
+  --ff-glow: rgba(99, 14, 212, 0.22);
+  --ff-border: rgba(18, 20, 26, 0.08);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--ff-bg);
+  color: var(--ff-on-surface);
+  min-height: 100%;
+}
+
+html.dark .filter-images-scope {
+  --ff-bg: #0b0f17;
+  --ff-surface: #151b28;
+  --ff-on-surface: #f3f5f9;
+  --ff-muted: #94a3b8;
+  --ff-primary: #a78bfa;
+  --ff-primary-soft: rgba(167, 139, 250, 0.16);
+  --ff-ring: rgba(167, 139, 250, 0.55);
+  --ff-glow: rgba(139, 92, 246, 0.28);
+  --ff-border: rgba(255, 255, 255, 0.1);
+}
+
+.filter-images-scope .ff-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  padding: 2rem 2rem 2.25rem;
+  margin-bottom: 1.75rem;
+  background:
+    radial-gradient(120% 80% at 100% 0%, var(--ff-primary-soft), transparent 55%),
+    linear-gradient(145deg, var(--ff-surface) 0%, color-mix(in oklab, var(--ff-surface), var(--ff-primary) 4%) 100%);
+  border: 1px solid var(--ff-border);
+  box-shadow: 0 24px 60px -32px var(--ff-glow);
+}
+
+.filter-images-scope .ff-hero-glow {
+  position: absolute;
+  right: -4rem;
+  top: -5rem;
+  width: 18rem;
+  height: 18rem;
+  border-radius: 9999px;
+  background: var(--ff-primary);
+  opacity: 0.08;
+  filter: blur(60px);
+  pointer-events: none;
+}
+
+.filter-images-scope .ff-person-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.25rem;
+  border-radius: 1.25rem;
+  background: color-mix(in oklab, var(--ff-surface), transparent 8%);
+  border: 1px solid var(--ff-border);
+  backdrop-filter: blur(10px);
+}
+
+.filter-images-scope .ff-avatar-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 5.5rem;
+  padding: 0.35rem 0.5rem 0.65rem;
+  border-radius: 1rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.filter-images-scope .ff-avatar-btn:hover {
+  transform: translateY(-2px);
+  background: var(--ff-primary-soft);
+}
+
+.filter-images-scope .ff-avatar-btn--active .ff-avatar-ring {
+  box-shadow: 0 0 0 3px var(--ff-ring), 0 12px 28px -8px var(--ff-glow);
+}
+
+.filter-images-scope .ff-avatar-ring {
+  position: relative;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 9999px;
+  padding: 3px;
+  background: linear-gradient(135deg, var(--ff-primary), #8b5cf6 55%, #c084fc);
+  transition: box-shadow 0.25s ease;
+}
+
+.filter-images-scope .ff-avatar-ring img,
+.filter-images-scope .ff-avatar-ring .ff-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  object-fit: cover;
+  border: 2px solid var(--ff-surface);
+}
+
+.filter-images-scope .ff-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #ede9fe, #ddd6fe);
+  color: #5b21b6;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+html.dark .filter-images-scope .ff-avatar-fallback {
+  background: linear-gradient(145deg, #312e81, #4c1d95);
+  color: #e9d5ff;
+}
+
+.filter-images-scope .ff-avatar-name {
+  max-width: 5.75rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ff-on-surface);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filter-images-scope .ff-avatar-count {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--ff-muted);
+}
+
+.filter-images-scope .ff-view-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 4.75rem;
+  height: 5.75rem;
+  padding: 0.5rem;
+  border-radius: 1rem;
+  border: 1.5px dashed color-mix(in oklab, var(--ff-primary), transparent 35%);
+  background: var(--ff-primary-soft);
+  color: var(--ff-primary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.filter-images-scope .ff-view-more:hover {
+  transform: translateY(-2px);
+  background: color-mix(in oklab, var(--ff-primary-soft), var(--ff-primary) 12%);
+}
+
+.filter-images-scope .ff-view-more-stack {
+  display: flex;
+  align-items: center;
+  padding-left: 0.35rem;
+}
+
+.filter-images-scope .ff-view-more-stack span {
+  width: 1.65rem;
+  height: 1.65rem;
+  margin-left: -0.55rem;
+  border-radius: 9999px;
+  border: 2px solid var(--ff-surface);
+  background: linear-gradient(145deg, #c4b5fd, #8b5cf6);
+  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.25);
+}
+
+.filter-images-scope .ff-badge-new {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  padding: 0.1rem 0.35rem;
+  border-radius: 9999px;
+  background: #10b981;
+  color: white;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 10px -4px rgba(16, 185, 129, 0.6);
+}
+
+.filter-images-scope .ff-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(8, 10, 18, 0.55);
+  backdrop-filter: blur(8px);
+}
+
+@media (min-width: 640px) {
+  .filter-images-scope .ff-modal-backdrop {
+    align-items: center;
+  }
+}
+
+.filter-images-scope .ff-modal-panel {
+  width: 100%;
+  max-width: 32rem;
+  max-height: min(82vh, 640px);
+  overflow: hidden;
+  border-radius: 1.5rem;
+  background: var(--ff-surface);
+  border: 1px solid var(--ff-border);
+  box-shadow: 0 32px 80px -24px rgba(0, 0, 0, 0.45);
+  animation: ff-slide-up 0.28s ease-out;
+}
+
+@keyframes ff-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.filter-images-scope .ff-person-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  /* gap: 0.75rem; */
+  padding: 1rem 1.25rem 4rem 1.25rem;
+  overflow-y: auto;
+  max-height: calc(min(82vh, 640px) - 4.5rem);
+}
+
+.filter-images-scope .ff-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 4rem 1.5rem;
+  border-radius: 1.25rem;
+  border: 1px dashed var(--ff-border);
+  background: color-mix(in oklab, var(--ff-surface), transparent 20%);
+  color: var(--ff-muted);
+  text-align: center;
+}
+
+.filter-images-scope .ff-confidence {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  background: var(--ff-primary-soft);
+  color: var(--ff-primary);
+  font-size: 0.7rem;
+  font-weight: 600;
+}

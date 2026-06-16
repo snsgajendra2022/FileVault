@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Images, Users, Star, Clock, ArrowUpRight, CheckCircle2, Sparkles } from 'lucide-react';
+import { Images, Users, Star, Clock, ArrowUpRight, CheckCircle2, Sparkles, ScanFace } from 'lucide-react';
 import {
   FaCamera,
   FaUsers,
@@ -35,40 +36,167 @@ import api from '../../api/client/axiosInstance';
 import DashboardLoading from '../../components/common/DashboardLoading';
 import { useAuth } from '../../state/context/AuthContext';
 import { useDocumentTheme } from '../../hooks/useDocumentTheme';
-/** Theme tokens — CSS variables switch in light / dark / system (see StudioDashboard.css). */
-export const THEME = {
-  primary: '#2563EB',
-  primaryLight: '#3B82F6',
-  background: 'var(--sd-page-bg)',
-  cardBackground: 'var(--sd-card)',
-  heroBackground: 'var(--sd-hero-bg)',
-  border: 'var(--sd-border)',
-  textPrimary: 'var(--sd-text-primary)',
-  textSecondary: 'var(--sd-text-secondary)',
-  success: '#10B981',
-  shadow: 'var(--sd-shadow-medium)',
-  primaryHover: '#3B82F6',
-  cardBg: 'var(--sd-card)',
-  textMuted: 'var(--sd-text-muted)',
-  borderLight: 'var(--sd-border-light)',
-  heroGradient: 'var(--sd-hero-bg)',
-  shadowLight: 'var(--sd-shadow)',
-  shadowMedium: 'var(--sd-shadow-medium)',
-  shadowHeavy: 'var(--sd-shadow-medium)',
-  glassBg: 'var(--sd-glass)',
-  glassBgLight: 'var(--sd-glass)',
-  glassBgLighter: 'var(--sd-glass)',
-  chartColors: ['#2563EB', '#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE'],
-  online: '#10B981',
-  offline: 'var(--sd-text-muted)',
-  warning: '#F59E0B',
-  hoverOverlay: 'rgba(37,99,235,0.08)',
-  activeScale: 'scale-[0.98]',
-  hoverScale: 'scale-[1.02]',
-  tooltipBg: 'var(--sd-tooltip-bg)',
-  tooltipBorder: 'var(--sd-tooltip-border)',
-  statusNewBg: 'var(--sd-status-new-bg)',
+import {
+  fetchFacePersons,
+  resolveMediaUrl,
+  type FacePerson,
+  type FacePersonsResponse,
+} from '../../api/services/faceRecognitionService';
+import { THEME } from './studioDashboardTheme';
+
+export { THEME };
+
+const VISIBLE_PEOPLE = 12;
+
+const EMPTY_FACE_PERSONS: FacePersonsResponse = {
+  userId: 0,
+  username: '',
+  fullName: '',
+  totalPersons: 0,
+  persons: [],
 };
+
+function personInitials(name?: string | null): string {
+  const parts = (name ?? '').trim().split(/[\s_]+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function DashboardPersonAvatar({ person }: { person: FacePerson }) {
+  const [imgError, setImgError] = useState(false);
+  const thumb = resolveMediaUrl(person.personThumbnailUrl);
+
+  return (
+    <Link
+      to={`/filter-images?person=${encodeURIComponent(person.personId)}`}
+      className="sd-person-avatar-link group"
+      aria-label={`${person.displayName || person.personId}, ${person.imageCount ?? 0} photos`}
+    >
+      <div className="sd-person-ring">
+        {thumb && !imgError ? (
+          <img
+            src={thumb}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="sd-person-fallback" aria-hidden>
+            {personInitials(person.displayName)}
+          </div>
+        )}
+        {person.isNewPerson && <span className="sd-person-new">New</span>}
+      </div>
+      <span className="sd-person-name" title={person.displayName || person.personId}>
+        {person.displayName || person.personId}
+      </span>
+      <span className="sd-person-count">{person.imageCount ?? 0} photos</span>
+    </Link>
+  );
+}
+
+function StudioDetectedPeopleStrip({
+  persons,
+  totalPersons,
+  loading,
+}: {
+  persons: FacePerson[];
+  totalPersons: number;
+  loading: boolean;
+}) {
+  const visible = persons.slice(0, VISIBLE_PEOPLE);
+  const hiddenCount = Math.max(0, persons.length - VISIBLE_PEOPLE);
+
+  return (
+    <div className="sd-card sd-people-panel rounded-2xl border p-5 mb-4">
+      <div className="relative z-[1] flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold mb-2"
+            style={{ background: 'rgba(99,14,212,0.10)', color: '#630ed4' }}>
+            <ScanFace className="h-3 w-3" />
+            Face recognition
+          </div>
+          <h4 className="text-[15px] font-extrabold tracking-tight" style={{ color: THEME.textPrimary }}>
+            Detected people
+          </h4>
+          <p className="text-[11px] mt-0.5" style={{ color: THEME.textMuted }}>
+            Browse photos grouped by face — tap anyone to open People Frame
+          </p>
+        </div>
+        <Link
+          to="/filter-images"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-[11px] font-bold transition-opacity hover:opacity-90"
+          style={{
+            background: 'linear-gradient(135deg, #630ed4 0%, #8b5cf6 100%)',
+            color: '#fff',
+            boxShadow: '0 8px 20px rgba(99,14,212,0.25)',
+          }}
+        >
+          Open People Frame
+          <ArrowUpRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+
+      <div className="relative z-[1] mt-4">
+        {loading ? (
+          <div className="flex items-center gap-4 py-2">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex flex-col items-center gap-2">
+                <div className="h-[4.25rem] w-[4.25rem] rounded-full sd-muted-box animate-pulse" />
+                <div className="h-2 w-12 rounded-full sd-muted-box animate-pulse" />
+              </div>
+            ))}
+          </div>
+        ) : persons.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-8 text-center sd-muted-box">
+            <ScanFace className="h-8 w-8 opacity-35" style={{ color: THEME.textMuted }} />
+            <p className="text-[12px] font-semibold" style={{ color: THEME.textSecondary }}>
+              No faces detected yet
+            </p>
+            <p className="text-[11px] max-w-xs" style={{ color: THEME.textMuted }}>
+              Upload photos with clear faces and they will appear here automatically.
+            </p>
+            <Link to="/upload" className="mt-1 text-[11px] font-bold" style={{ color: THEME.primary }}>
+              Upload photos →
+            </Link>
+          </div>
+        ) : (
+          <div className="sd-people-strip">
+            {visible.map((person, index) => (
+              <DashboardPersonAvatar
+                key={person.personId || `person-${index}`}
+                person={person}
+              />
+            ))}
+            {hiddenCount > 0 && (
+              <Link to="/filter-images" className="sd-view-more-people" aria-label={`View ${hiddenCount} more people`}>
+                <div className="sd-view-more-stack" aria-hidden>
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <span>+{hiddenCount}</span>
+                <span>View more</span>
+              </Link>
+            )}
+            {totalPersons > 0 && (
+              <div className="ml-auto hidden sm:flex flex-col items-end justify-center pr-1">
+                <span className="text-[22px] font-extrabold leading-none" style={{ color: THEME.primary }}>
+                  {totalPersons}
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: THEME.textMuted }}>
+                  people
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const CHART_TOOLTIP_STYLE = {
   borderRadius: 12,
@@ -528,6 +656,28 @@ const StudioDashboard: React.FC = () => {
   const { theme: colorMode } = useDocumentTheme();
   const chartTickColor = colorMode === 'dark' ? '#94a3b8' : '#64748b';
   const chartGridColor = colorMode === 'dark' ? '#334155' : '#f1f5f9';
+
+  const { data: facePersonsData, isPending: facePersonsLoading } = useQuery({
+    queryKey: ['facePersons', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return EMPTY_FACE_PERSONS;
+      try {
+        return await fetchFacePersons(user.id);
+      } catch (err) {
+        console.warn('Face persons unavailable on dashboard:', err);
+        return { ...EMPTY_FACE_PERSONS, userId: user.id };
+      }
+    },
+    enabled: !!user?.id,
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const detectedPeople = Array.isArray(facePersonsData?.persons) ? facePersonsData.persons : [];
+  const totalDetectedPeople =
+    typeof facePersonsData?.totalPersons === 'number'
+      ? facePersonsData.totalPersons
+      : detectedPeople.length;
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -999,200 +1149,193 @@ const StudioDashboard: React.FC = () => {
           user={user}
         />
 
-        {/* 6. Quick Access — Ultra Premium SaaS Action Cards */}
-        <section className="mb-8">
-          {/* Section header */}
+        {/* 6. Quick Access — people strip + premium action cards */}
+        <section className="mb-8 sd-quick-actions">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="text-[17px] font-extrabold tracking-tight" style={{ color: THEME.textPrimary }}>{t('dashboard.quickAccess')}</h3>
-              <p className="text-[12px] mt-0.5" style={{ color: THEME.textMuted }}>{t('dashboard.quickAccessSubtitle')}</p>
+              <h3 className="text-[17px] font-extrabold tracking-tight" style={{ color: THEME.textPrimary }}>
+                {t('dashboard.quickAccess')}
+              </h3>
+              <p className="text-[12px] mt-0.5" style={{ color: THEME.textMuted }}>
+                {t('dashboard.quickAccessSubtitle')}
+              </p>
             </div>
             <motion.span
               whileHover={{ scale: 1.05 }}
               className="sd-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold cursor-default select-none border"
-              style={{ color: THEME.primary, boxShadow: 'var(--sd-shadow)' }}>
+              style={{ color: THEME.primary, boxShadow: 'var(--sd-shadow)' }}
+            >
               <Sparkles className="h-3 w-3" />
               Quick Actions
             </motion.span>
           </div>
 
-          {/* ── Grid: 1 hero card (tall) + 3 stacked on right ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <StudioDetectedPeopleStrip
+            persons={detectedPeople}
+            totalPersons={totalDetectedPeople}
+            loading={facePersonsLoading}
+          />
 
-            {/* ── HERO CARD: Manage Clients ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* People Frame hero */}
             <motion.div
-              className="lg:col-span-2"
+              className="lg:col-span-5"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
               whileHover={{ y: -5, transition: { duration: 0.22, ease: 'easeOut' } }}
             >
-              <Link to="/studio/clients" className="block h-full group">
-                <div className="relative h-full min-h-[280px] rounded-[20px] overflow-hidden p-6 flex flex-col justify-between"
-                  style={{
-                    background: 'linear-gradient(135deg, #2563EB 0%, #3B82F6 100%)',
-                    boxShadow: '0 12px 40px rgba(37,99,235,0.30)',
-                  }}>
-
-                  {/* Subtle mesh overlay */}
-                  <div className="pointer-events-none absolute inset-0"
-                    style={{ background: 'radial-gradient(ellipse 90% 70% at 80% 20%, rgba(255,255,255,0.10) 0%, transparent 65%)' }} />
-                  <div className="pointer-events-none absolute -bottom-10 -left-10 h-40 w-40 rounded-full"
-                    style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 70%)' }} />
-
-                  {/* Top: icon + badge */}
+              <Link to="/filter-images" className="block h-full group">
+                <div className="sd-people-hero relative h-full min-h-[260px] rounded-[20px] overflow-hidden p-6 flex flex-col justify-between">
+                  <div
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                      background:
+                        'radial-gradient(ellipse 90% 70% at 80% 20%, rgba(255,255,255,0.12) 0%, transparent 65%)',
+                    }}
+                  />
                   <div className="flex items-start justify-between relative z-10">
                     <motion.div
                       whileHover={{ rotate: 6, scale: 1.08 }}
                       transition={{ duration: 0.18 }}
-                      className="flex h-13 w-13 items-center justify-center rounded-2xl"
+                      className="flex items-center justify-center rounded-2xl"
                       style={{
-                        width: '52px', height: '52px',
+                        width: '52px',
+                        height: '52px',
                         background: 'rgba(255,255,255,0.18)',
                         border: '1px solid rgba(255,255,255,0.30)',
-                        boxShadow: '0 4px 14px rgba(0,0,0,0.10)',
-                      }}>
-                      <Users className="h-6 w-6 text-white" />
+                      }}
+                    >
+                      <ScanFace className="h-6 w-6 text-white" />
                     </motion.div>
-                    <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold text-white"
-                      style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.25)' }}>
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold text-white"
+                      style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.25)' }}
+                    >
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse" />
-                      Live
+                      {totalDetectedPeople > 0 ? `${totalDetectedPeople} detected` : 'AI ready'}
                     </span>
                   </div>
-
-                  {/* Bottom: text + stats + arrow */}
                   <div className="relative z-10">
                     <p className="text-[21px] font-bold text-white leading-tight tracking-tight mb-1">
-                      {t('dashboard.manageClients')}
+                      People Frame
                     </p>
-                    <p className="text-[12px] text-blue-100 leading-relaxed mb-5">
-                      {t('dashboard.manageClientsDesc')}
+                    <p className="text-[12px] text-violet-100 leading-relaxed mb-4">
+                      Filter your library by face with instant thumbnails and smooth quality upgrades.
                     </p>
-
-                    {/* Stats pills */}
-                    <div className="flex items-center gap-2 mb-5">
-                      <span className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold text-white"
-                        style={{ background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.22)' }}>
-                        <Users className="h-3 w-3" />
-                        {(typeof stats.totalMember === 'number' ? stats.totalMember : 0)} Clients
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[11px] font-semibold text-emerald-200"
-                        style={{ background: 'rgba(52,211,153,0.16)', border: '1px solid rgba(52,211,153,0.28)' }}>
-                        <CheckCircle2 className="h-3 w-3" />
-                        Active
-                      </span>
-                    </div>
-
-                    {/* CTA row */}
+                    {detectedPeople.length > 0 && (
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="flex -space-x-2">
+                          {detectedPeople.slice(0, 4).map((p, i) => (
+                            <div
+                              key={p.personId || `hero-person-${i}`}
+                              className="h-8 w-8 rounded-full border-2 border-white/90 overflow-hidden bg-violet-200"
+                            >
+                              {p.personThumbnailUrl ? (
+                                <img
+                                  src={resolveMediaUrl(p.personThumbnailUrl)}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <span className="flex h-full w-full items-center justify-center text-[9px] font-bold text-violet-800">
+                                  {personInitials(p.displayName)}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        <span className="text-[11px] font-medium text-violet-100">Tap to browse</span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-blue-100">View all clients →</span>
-                      <motion.div
-                        whileHover={{ x: 2, y: -2 }}
-                        transition={{ duration: 0.14 }}
+                      <span className="text-[11px] font-medium text-violet-100">Open face filter →</span>
+                      <div
                         className="flex h-9 w-9 items-center justify-center rounded-xl"
-                        style={{
-                          background: 'rgba(255,255,255,0.20)',
-                          border: '1px solid rgba(255,255,255,0.30)',
-                        }}>
+                        style={{ background: 'rgba(255,255,255,0.20)', border: '1px solid rgba(255,255,255,0.30)' }}
+                      >
                         <ArrowUpRight className="h-4 w-4 text-white" />
-                      </motion.div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </Link>
             </motion.div>
 
-            {/* ── RIGHT COLUMN: 3 stacked cards ── */}
-            <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-4">
-
-              {/* Card: Photo Gallery */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1, duration: 0.35 }}
-                whileHover={{ x: 3, transition: { duration: 0.18 } }}
-              >
-                <Link to="/client-images" className="block group">
-                  <div className="sd-card relative rounded-[16px] overflow-hidden p-4 flex items-center gap-4 border">
-                    <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[16px]"
-                      style={{ background: 'linear-gradient(180deg,#2563EB,#3B82F6)' }} />
-                    <div className="shrink-0 flex h-11 w-11 items-center justify-center rounded-xl sd-icon-badge border">
-                      <Images className="h-5 w-5 text-[#2563EB]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-semibold leading-tight" style={{ color: THEME.textPrimary }}>{t('dashboard.photoGallery')}</p>
-                      <p className="text-[11px] mt-0.5 truncate" style={{ color: THEME.textMuted }}>{t('dashboard.photoGalleryDesc')}</p>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-[12px] font-bold" style={{ color: THEME.primary }}>{photosCount.toLocaleString()}</span>
-                        <span className="text-[11px]" style={{ color: THEME.textMuted }}>photos</span>
+            {/* Action tiles 2×2 */}
+            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                {
+                  to: '/client-images',
+                  icon: <Images className="h-5 w-5 text-[#2563EB]" />,
+                  title: t('dashboard.photoGallery'),
+                  desc: t('dashboard.photoGalleryDesc'),
+                  stat: `${photosCount.toLocaleString()} photos`,
+                  delay: 0.08,
+                },
+                {
+                  to: '/studio/albums',
+                  icon: <FaFolder className="h-[18px] w-[18px] text-[#2563EB]" />,
+                  title: t('dashboard.albums'),
+                  desc: t('dashboard.albumsDesc'),
+                  stat: `${stats.totalAlbums ?? albums.length ?? 0} albums`,
+                  delay: 0.14,
+                },
+                {
+                  to: '/upload',
+                  icon: <FaPlus className="h-4 w-4 text-[#2563EB]" />,
+                  title: t('dashboard.uploadPhotos'),
+                  desc: t('dashboard.uploadPhotosDesc'),
+                  stat: 'Ready to upload',
+                  statIcon: <CheckCircle2 className="h-3 w-3 text-emerald-500" />,
+                  delay: 0.2,
+                },
+                {
+                  to: '/studio/clients',
+                  icon: <Users className="h-5 w-5 text-[#2563EB]" />,
+                  title: t('dashboard.manageClients'),
+                  desc: t('dashboard.manageClientsDesc'),
+                  stat: `${typeof stats.totalMember === 'number' ? stats.totalMember : 0} clients`,
+                  delay: 0.26,
+                },
+              ].map((card) => (
+                <motion.div
+                  key={card.to}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: card.delay, duration: 0.35 }}
+                  whileHover={{ y: -3, transition: { duration: 0.18 } }}
+                >
+                  <Link to={card.to} className="block group h-full">
+                    <div className="sd-card sd-quick-tile relative h-full border p-4 flex items-center gap-4">
+                      <div
+                        className="pointer-events-none absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[16px]"
+                        style={{ background: 'linear-gradient(180deg,#2563EB,#3B82F6)' }}
+                      />
+                      <div className="shrink-0 flex h-11 w-11 items-center justify-center rounded-xl sd-icon-badge border">
+                        {card.icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-semibold leading-tight" style={{ color: THEME.textPrimary }}>
+                          {card.title}
+                        </p>
+                        <p className="text-[11px] mt-0.5 truncate" style={{ color: THEME.textMuted }}>
+                          {card.desc}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          {card.statIcon}
+                          <span className="text-[11px] font-bold" style={{ color: THEME.primary }}>
+                            {card.stat}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full sd-muted-box border group-hover:opacity-90 transition-opacity">
+                        <ArrowUpRight className="h-3.5 w-3.5 text-[#2563EB]" />
                       </div>
                     </div>
-                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full sd-muted-box border transition-colors group-hover:opacity-90">
-                      <ArrowUpRight className="h-3.5 w-3.5 text-[#2563EB]" />
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-
-              {/* Card: Albums */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.18, duration: 0.35 }}
-                whileHover={{ x: 3, transition: { duration: 0.18 } }}
-              >
-                <Link to="/studio/albums" className="block group">
-                  <div className="sd-card relative rounded-[16px] overflow-hidden p-4 flex items-center gap-4 border">
-                    <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[16px]"
-                      style={{ background: 'linear-gradient(180deg,#2563EB,#3B82F6)' }} />
-                    <div className="shrink-0 flex h-11 w-11 items-center justify-center rounded-xl sd-icon-badge border">
-                          <FaFolder className="h-[18px] w-[18px] text-[#2563EB]" />       
-             </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-semibold leading-tight" style={{ color: THEME.textPrimary }}>{t('dashboard.albums')}</p>
-                      <p className="text-[11px] mt-0.5 truncate" style={{ color: THEME.textMuted }}>{t('dashboard.albumsDesc')}</p>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-[12px] font-bold" style={{ color: THEME.primary }}>{(stats.totalAlbums ?? albums.length ?? 0)}</span>
-                        <span className="text-[11px]" style={{ color: THEME.textMuted }}>albums</span>
-                      </div>
-                    </div>
-                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full sd-muted-box border transition-colors group-hover:opacity-90">
-                      <ArrowUpRight className="h-3.5 w-3.5 text-[#2563EB]" />
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-
-              {/* Card: Upload Photos */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.26, duration: 0.35 }}
-                whileHover={{ x: 3, transition: { duration: 0.18 } }}
-              >
-                <Link to="/upload" className="block group">
-                  <div className="sd-card relative rounded-[16px] overflow-hidden p-4 flex items-center gap-4 border">
-                    <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[16px]"
-                      style={{ background: 'linear-gradient(180deg,#2563EB,#3B82F6)' }} />
-                    <div className="shrink-0 flex h-11 w-11 items-center justify-center rounded-xl sd-icon-badge border">
-                      <FaPlus className="h-4 w-4 text-[#2563EB]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-semibold leading-tight" style={{ color: THEME.textPrimary }}>{t('dashboard.uploadPhotos')}</p>
-                      <p className="text-[11px] mt-0.5 truncate" style={{ color: THEME.textMuted }}>{t('dashboard.uploadPhotosDesc')}</p>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                        <span className="text-[11px] font-medium text-emerald-600">Ready to upload</span>
-                      </div>
-                    </div>
-                    <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full sd-muted-box border transition-colors group-hover:opacity-90">
-                      <ArrowUpRight className="h-3.5 w-3.5 text-[#2563EB]" />
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-
+                  </Link>
+                </motion.div>
+              ))}
             </div>
           </div>
         </section>
