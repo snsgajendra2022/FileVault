@@ -103,14 +103,13 @@ import PhoneBookDetailPage from './pages/PhoneBook/PhoneBookDetailPage';
 import PhoneBookEditPage from './pages/PhoneBook/PhoneBookEditPage';
 import OpenClawAssistantPage from './pages/OpenClawAssistantPage';
 import WhatsAppConfigPage from './pages/WhatsAppConfigPage';
-import FilterImagesPage from './pages/filter-images/FilterImagesPage';
 import OpenClawAgentDock from './components/openclaw/OpenClawAgentDock';
 
 // misc pages
 import NotFoundPage from './pages/misc/NotFoundPage';
 import PrivacyPolicyPage from './pages/misc/PrivacyPolicyPage';
 import OMPrivacyPolicyPage from './pages/misc/OMPrivacyPolicyPage';
-
+import { photoStudioMarketingRoutes } from './photostudio-marketing/PhotoStudioMarketing';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -172,8 +171,8 @@ const AppRoutes = () => {
     <Routes>
       {/* Public image view route */}
       <Route path="/view" element={<ViewImagePage />} />
-      <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
       <Route path="/our-memories-privacy-policy" element={<OMPrivacyPolicyPage />} />
+      <Route path="/owm-privacy-policy" element={<PrivacyPolicyPage />} />
       {/* Our Memories — public landing & guest gallery (no app shell) */}
       <Route path="/memories" element={<MemoriesLandingPage />} />
       <Route path="/memories/e/:eventSlug" element={<MemoriesPublicGalleryPage />} />
@@ -202,14 +201,14 @@ const AppRoutes = () => {
       <Route path="/studio/auth" element={<StudioAuthPage />} />
       <Route path="/client/:clientId" element={<ClientPortal />} />
 
-      <Route path="/" element={
+      {/* PhotoStudio marketing landing — must use same react-router-dom as app (see craco aliases) */}
+      {photoStudioMarketingRoutes}
+
+      <Route element={
         <ProtectedRoute>
           <Layout />
         </ProtectedRoute>
       }>
-        <Route index element={
-          isAdmin ? <Navigate to="/admin" /> : <Navigate to="/studio/dashboard" />
-        } />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="change-password" element={<ChangePasswordPage />} />
@@ -266,7 +265,6 @@ const AppRoutes = () => {
         <Route path="phonebook/:contactId" element={<PhoneBookDetailPage />} />
         <Route path="phonebook/:contactId/edit" element={<PhoneBookEditPage />} />
         {/* Face filter — inside main layout (sidebar + header) */}
-        <Route path="filter-images/*" element={<FilterImagesPage />} />
         <Route path="photo-themes/:categorySlug" element={<PhotoThemeCategoryPage />} />
         <Route path="photo-themes/:categorySlug/album" element={<PhotoThemeAlbumBuilderPage />} />
         {/* Admin route with proper protection */}

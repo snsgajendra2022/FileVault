@@ -955,3 +955,64 @@ Do not leave visual mistakes.
 Do not create temporary or demo UI.
 
 Create a clean, elegant, pixel-perfect, studio-quality flipbook page layout system where every page has professional image sizing, typography, border, radius, spacing, padding, margin, width, height, and responsive behavior.
+
+
+
+Use for tracking the JOB
+
+curl -X GET "http://127.0.0.1:8000/jobs/<JOB_ID>"
+Generate the client access key for your project
+
+curl -X POST "http://127.0.0.1:8000/api/v1/admin/tenant/token/issue" \
+     -H "Authorization: Bearer <ADMIN_JWT_TOKEN>" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "tenant_id": "tenant_alpha",
+       "name": "External App Token",
+       "scopes": ["read", "write"]
+     }'
+Retrieves all recognized profiles inside the tenant partition.
+
+curl -X GET "http://127.0.0.1:8000/api/people?page=1&per_page=40" \
+     -H "Authorization: Bearer <CLIENT_TOKEN>"
+Get Person Details & Photo filenames
+
+curl -X GET "http://127.0.0.1:8000/api/person/Person_1" \
+     -H "Authorization: Bearer <CLIENT_TOKEN>"
+Ankit Jha, 9 min
+, Edited
+Display/Fetch Thumbnails
+
+curl -X GET "http://127.0.0.1:8000/api/album/photo/Person_1/thumbs/image_name.webp" \
+     -H "Authorization: Bearer <CLIENT_TOKEN>" \
+     --output thumb.webp
+
+Display/Fetch Original Photo
+curl -X GET "http://127.0.0.1:8000/api/album/photo/Person_1/image_name.jpg" \
+     -H "Authorization: Bearer <CLIENT_TOKEN>" \
+     --output original.jpg
+
+ Search Database by Face
+curl -X POST "http://127.0.0.1:8000/api/search/face?top_k=5" \
+     -H "Authorization: Bearer <CLIENT_TOKEN>" \
+     -F "file=@/path/to/search_face.jpg"
+Rename Identified Profile
+
+curl -X POST "http://127.0.0.1:8000/api/person/rename" \
+     -H "Authorization: Bearer <CLIENT_TOKEN>" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "person_id": "Person_1",
+       "name": "Jane Doe"
+     }'
+Merge Profiles
+
+curl -X POST "http://127.0.0.1:8000/api/person/merge" \
+     -H "Authorization: Bearer <CLIENT_TOKEN>" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "source": "Person_2",
+       "target": "Jane Doe",
+       "preview_only": false,
+       "force": true
+     }'

@@ -1,35 +1,59 @@
-Today’s work — 13 Apr 2026
+# Today's Work — 13 Apr 2026
 
-Photobook scoping: when a photobook is selected, pages and covers load and save only for that photobookId.
+## Photobook — load and save by book ID
 
-No fallback to GET /api/album-pages?userId&templateId or GET /api/covers?userId&templateId in that case, so another book’s legacy rows are not merged in.
+- When a photobook is selected, pages and covers load and save only for that `photobookId`.
+- We no longer mix in data from other books via old album-page or cover APIs.
+- Save uses only `POST /api/photobooks/{id}/pages` (no bulk album-pages fallback).
+- `PUT /api/photobooks/{id}` for book details is unchanged.
 
-PhotoThemeAlbumBuilderPage: useSearchParams for deep links /photo-themes/{categorySlug}/album?photobookId=…&templateId=….
+### Deep links
 
-Initial dbTemplateId and photobookId: navigation state (dbTemplateId, templateId, photobookId), then query params, then localStorage photobook_{categorySlug}.
+- URL pattern: `/photo-themes/{categorySlug}/album?photobookId=…&templateId=…`
+- `photobookId` and `templateId` come from (in order): navigation state → URL params → `localStorage` (`photobook_{categorySlug}`).
+- If only `photobookId` is in the URL, `GET /api/photobooks/{id}` fills in `templateId`.
+- Category recovery is skipped when `photobookId` is set but template is still missing — so a deep link is not replaced by the latest book in that category.
 
-If only photobookId is known, GET /api/photobooks/{id} fills templateId.
+### Load rules
 
-by-category recovery skips when photobookId is set but template is still missing, so a deep link is not replaced by the latest book in the category.
+| Case | Pages | Covers |
+|------|-------|--------|
+| Has `photobookId` | `GET /api/photobooks/{id}/pages` | `GET /api/photobooks/{id}/covers` |
+| No book, has `dbTemplateId` | `GET /api/album-pages?userId&templateId` | `GET /api/covers?userId&templateId` |
 
-Load: if photobookId then only GET /api/photobooks/{id}/pages (empty allowed); else if dbTemplateId then GET /api/album-pages?userId&templateId.
+### PhotoThemeCategoryPage
 
-Covers: photobook path only GET /api/photobooks/{id}/covers; else GET /api/covers with userId and templateId.
+- With `photobookId`: covers only from `GET /api/photobooks/{id}/covers`.
+- Without `photobookId` but with `activeTemplateId`: legacy `GET /api/covers`.
+- Added `activeTemplateIdRef` (with `photobookIdRef`) to avoid stale API responses.
 
-Save: only POST /api/photobooks/{id}/pages; removed POST /api/album-pages/bulk fallback. Best-effort PUT /api/photobooks/{id} unchanged.
+---
 
-PhotoThemeCategoryPage: with photobookId, only GET /api/photobooks/{id}/covers for saved covers; no /api/covers fallback when editing a book.
+## PhotoStudioAlbum — ZIP download
 
-Without photobookId but with activeTemplateId, legacy GET /api/covers. activeTemplateIdRef added with photobookIdRef for stale request guards.
+- New button to download album images as a ZIP.
+- Works for selected albums (toolbar) or the open album (detail view).
+- Fetches images with axios, builds ZIP with JSZip, triggers browser download.
 
-PhotoStudioAlbum: added bulk images download as a ZIP file button.
+---
 
-ZIP download: downloads images for the selected album(s) (top toolbar) or the currently open album (album detail view), fetches blobs via axios api client, zips with JSZip, and triggers a browser download.
+## Our Memories — guest links and uploads
 
-Our Memories: pickTokenForMemoriesGuestLinkUrl uses localStorage token when present else event guest token for share URL, QR, publicUrl on MemoriesEventManagePage; API still uses event accessToken where required.
+- Share URL, QR, and `publicUrl` use localStorage token when present; otherwise event guest token.
+- `addImagesToMemoriesEvent`: optional token in JSON body; optional `bearerToken` for guest uploads.
+- Event APIs still use `accessToken` where required.
 
-addImagesToMemoriesEvent: optional token in JSON body from localStorage; optional bearerToken for Authorization on guest uploads.
+---
 
-Earlier baseline (9 Apr): guest token and t on query and APIs; getMemoriesShareAccessTokenFromSearchParams; manage mints access token when missing; guest gallery URL normalization; backend.md Our Memories; glass hero, thumbnails, MemoriesLightbox, imageGroups, shareId, guest welcome, en and hi.
+## Earlier baseline (9 Apr)
 
-Replace this file next session with that day’s notes.
+- Guest token and `t` on query and APIs.
+- `getMemoriesShareAccessTokenFromSearchParams`.
+- Manage page mints access token when missing.
+- Guest gallery URL normalization.
+- `backend.md` Our Memories section.
+- Glass hero, thumbnails, MemoriesLightbox, imageGroups, shareId, guest welcome (en + hi).
+
+---
+
+*Replace this file next session with that day’s notes.*

@@ -157,6 +157,7 @@ function fallbackPermissionRows(): Record<RoleType, RoleMenuPermission[]> {
     { role: 'users', labelKey: 'nav.studio.membersTree', href: '/family-tree', group: 'studio', enabled: true, actions: studioActions },
     { role: 'users', labelKey: 'nav.studio.photoThemes', href: '/photo-themes', group: 'studio', enabled: true, actions: studioActions },
     { role: 'admin', labelKey: 'nav.studio.settings', href: '/portal-settings', group: 'admin', enabled: true, actions: studioActions },
+    { role: 'studio', labelKey: 'nav.studio.filterImages', href: '/filter-images', group: 'studio', enabled: true, actions: studioActions },
   ];
   const users: RoleMenuPermission[] = [
     { role: 'users', labelKey: 'nav.studio.dashboard', href: '/studio/dashboard', group: 'users', enabled: true, actions: regularActions },

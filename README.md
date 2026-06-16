@@ -456,3 +456,58 @@ export const adminNavigation: NavGroup = {
     { labelKey: 'nav.admin.adminSettings', href: '/admin?tab=settings', icon: FaCog, enabled: true },
   ],
 };
+
+
+
+
+## FaceSync (Face Filter) integration
+
+Route: `/filter-images` — **Our Memories sync** (default), People, Face search, Upload.
+
+### Our Memories pipeline (tenant_our_memories)
+
+1. `POST /api/v1/admin/tenants/{tenant}/sync/our-memories` — trigger sync
+2. `GET /api/v1/admin/tenants/{tenant}/sync/jobs/{job_id}` — poll until completed
+3. `GET /api/v1/tenants/{tenant}/processed/users` — user-wise face mappings
+4. `GET /api/v1/people`, `GET /api/v1/person/{id}` — albums
+5. `POST /api/v1/person/rename`, `POST /api/v1/person/merge`, `POST /api/v1/search/face`
+
+### Auth flow (once per FileVault user, per browser tab)
+
+1. User signs in to FileVault → `POST /api/v1/admin/login` → `access_token`
+2. App issues tenant client token → `POST /api/v1/admin/tenant/token/issue` with `scopes: ["read", "write"]`
+3. Client token (`tok_…`) is stored in `sessionStorage` and sent as `Authorization: Bearer …` on all FaceSync calls
+4. On logout, FaceSync tokens are cleared
+
+Do **not** set `REACT_APP_FACESYNC_API_TOKEN` — tokens are fetched at login time.
+
+### Environment (`.env`)
+
+```bash
+REACT_APP_FACESYNC_API_URL=http://127.0.0.1:8000
+REACT_APP_FACESYNC_ADMIN_USERNAME=superadmin
+REACT_APP_FACESYNC_ADMIN_PASSWORD=your-admin-password
+REACT_APP_FACESYNC_TENANT_ID=tenant_our_memories
+REACT_APP_FACESYNC_TENANT_TOKEN_NAME=External App Token
+REACT_APP_FACESYNC_TENANT_SCOPES=read,write
+```
+
+For local dev without CORS on FaceSync, leave `REACT_APP_FACESYNC_API_URL` empty to use the CRA proxy (`src/setupProxy.js`).
+
+### APIs used by the UI
+
+| API | Screen |
+|-----|--------|
+| `POST …/sync/our-memories` + `GET …/sync/jobs/{id}` | Our Memories sync |
+| `GET /api/v1/tenants/{tenant}/processed/users` | User mappings |
+| `GET /api/v1/people?page=&per_page=` | People list |
+| `GET /api/v1/person/{id}` | Person detail |
+| `GET /api/album/photo/{person}/thumbs/*.webp` | Thumbnails |
+| `GET /api/album/photo/{person}/{file}` | Lightbox originals |
+| `POST /upload-images/async` + `GET /jobs/{id}` | Manual upload |
+| `POST /api/v1/search/face?top_k=` | Face search |
+| `POST /api/v1/person/rename` | Rename profile |
+| `POST /api/v1/person/merge` | Merge profiles |
+
+Restart `npm start` after changing FaceSync env vars.
+
