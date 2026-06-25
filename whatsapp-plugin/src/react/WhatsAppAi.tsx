@@ -23,27 +23,16 @@ import {
 } from './api';
 
 export type WhatsAppAiProps = {
-  /** OM server URL, e.g. http://127.0.0.1:9093 */
   apiUrl?: string;
-  /** Your app JWT (optional — uses localStorage token if omitted) */
   authToken?: string;
-  /** User / tenant id (optional — linked phone used after QR) */
   userId?: string;
   className?: string;
-  /** Show title bar */
   showHeader?: boolean;
-  /** Show message log panel */
   showMessageLog?: boolean;
-  /** Auto bootstrap + project sync when connected */
   autoConnect?: boolean;
   onConnected?: (status: WaStatus) => void;
   onError?: (error: Error) => void;
   onMessage?: (entry: WaLogEntry) => void;
-  /**
-   * Wrap in an internal QueryClientProvider. Default false — use your app's
-   * existing QueryClientProvider (recommended). Set true only if the host app
-   * has no react-query provider.
-   */
   wrapProvider?: boolean;
 };
 
@@ -61,9 +50,24 @@ type LoginUi = {
 };
 
 function label(entry: WaLogEntry): string {
-  if (entry.from === 'om' || entry.from === 'system') return 'OM';
+  if (entry.from === 'om' || entry.from === 'system') return 'OM Assistant';
   if (entry.direction === 'inbound') return 'You';
-  return 'OM';
+  return 'OM Assistant';
+}
+
+function StatusDot({ on }: { on: boolean }) {
+  return (
+    <span className="relative flex h-2.5 w-2.5">
+      {on && (
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-400 opacity-60" />
+      )}
+      <span
+        className={`relative inline-flex h-2.5 w-2.5 rounded-full ${
+          on ? 'bg-indigo-500' : 'bg-slate-300'
+        }`}
+      />
+    </span>
+  );
 }
 
 function WhatsAppAiInner({
@@ -141,7 +145,7 @@ function WhatsAppAiInner({
   const logout = useMutation({
     mutationFn: () => waLogout(client),
     onSuccess: () => {
-      setLogin({ busy: false, message: 'Logged out', qrDataUrl: null, connected: null });
+      setLogin({ busy: false, message: 'Session ended', qrDataUrl: null, connected: null });
       queryClient.invalidateQueries({ queryKey: ['whatsapp-ai'] });
     },
   });
@@ -176,7 +180,7 @@ function WhatsAppAiInner({
     if (status.linkedPhoneE164) {
       linkAndSync(status.linkedPhoneE164);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run when connection state changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status?.connected, status?.linked, status?.omSetupComplete, status?.linkedPhoneE164]);
 
   useEffect(() => {
@@ -188,88 +192,165 @@ function WhatsAppAiInner({
   const connected = Boolean(status?.connected && status?.linked);
 
   return (
-    <div className={`wa-ai-root rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}>
+    <div
+      className={`wa-ai-root overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-xl shadow-slate-200/50 ${className}`}
+    >
       {showHeader && (
-        <div className="wa-ai-header border-b border-slate-100 bg-gradient-to-r from-green-600 to-emerald-500 px-5 py-4 text-white">
-          <h2 className="text-lg font-bold text-white">WhatsApp AI</h2>
-          <p className="text-sm text-green-100">Scan QR → Message yourself → OM replies</p>
+        <div className="wa-ai-hero relative overflow-hidden px-6 py-8 sm:px-8">
+          <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-indigo-400/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-12 -left-8 h-32 w-32 rounded-full bg-violet-500/20 blur-2xl" />
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-indigo-200/90">
+                AI Channel
+              </p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                WhatsApp Assistant
+              </h1>
+              <p className="mt-2 max-w-md text-sm text-indigo-100/90">
+                Link your number, chat in <strong className="font-semibold text-white">Message yourself</strong>, and
+                let OM handle your project.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 backdrop-blur-md">
+              <StatusDot on={connected} />
+              <div>
+                <p className="text-xs font-medium text-indigo-100">Status</p>
+                <p className="text-sm font-semibold text-white">
+                  {connected ? 'Live' : isLoading ? 'Checking…' : 'Offline'}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      <div className="wa-ai-body space-y-4 p-5">
-        {isLoading && !status && (
-          <p className="wa-ai-muted text-sm text-slate-500">Connecting to WhatsApp service…</p>
-        )}
+      <div className="grid gap-0 lg:grid-cols-5">
+        {/* Left — connect */}
+        <div className="border-b border-slate-100 bg-slate-50/50 p-6 lg:col-span-2 lg:border-b-0 lg:border-r">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Connection</h3>
 
-        {status && (
-          <div className="flex flex-wrap gap-2 text-xs">
+          {status?.linkedPhoneE164 && (
+            <p className="mt-3 text-sm font-medium text-slate-800">{status.linkedPhoneE164}</p>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-2">
             <Badge ok={connected} label={connected ? 'Connected' : 'Not connected'} />
-            {status.linkedPhoneE164 && (
-              <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">
-                {status.linkedPhoneE164}
+            {status?.selfChatMode !== false && (
+              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+                Private self-chat
               </span>
             )}
-            {status.selfChatMode !== false && (
-              <span className="rounded-full bg-green-50 px-3 py-1 text-green-700">Self-chat only</span>
+          </div>
+
+          {status?.lastError && (
+            <div className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {status.lastError}
+            </div>
+          )}
+
+          {login.message && (
+            <p className="wa-ai-text mt-4 text-sm text-slate-600">{login.message}</p>
+          )}
+
+          <div className="mt-6 flex flex-col items-center">
+            {login.qrDataUrl ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg shadow-indigo-100/50">
+                <img src={login.qrDataUrl} alt="WhatsApp QR" className="h-52 w-52 object-contain sm:h-56 sm:w-56" />
+              </div>
+            ) : (
+              <div className="flex h-52 w-full max-w-[14rem] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-center">
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.5h16.5M3.75 9h16.5m-16.5 4.5h16.5m-16.5 4.5h16.5" />
+                  </svg>
+                </div>
+                <p className="wa-ai-muted px-4 text-xs text-slate-500">Tap Show QR to link WhatsApp</p>
+              </div>
             )}
+            <p className="wa-ai-muted mt-3 text-center text-xs text-slate-500">
+              WhatsApp → Linked devices → Scan code
+            </p>
           </div>
-        )}
 
-        {status?.lastError && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            {status.lastError}
+          <div className="mt-6 grid grid-cols-2 gap-2">
+            <Btn disabled={login.busy} onClick={() => startQr.mutate(true)} className="col-span-2">
+              {login.busy ? 'Please wait…' : 'Show QR code'}
+            </Btn>
+            <Btn disabled={login.busy || !login.qrDataUrl} onClick={() => waitQr.mutate()} variant="ghost">
+              Wait for scan
+            </Btn>
+            <Btn disabled={login.busy} onClick={() => refetch()} variant="ghost">
+              Refresh
+            </Btn>
+            <Btn disabled={login.busy} onClick={() => logout.mutate()} variant="danger" className="col-span-2">
+              End session
+            </Btn>
           </div>
-        )}
-
-        {login.message && (
-          <p className="wa-ai-text text-sm text-slate-600">{login.message}</p>
-        )}
-
-        {login.qrDataUrl && (
-          <div className="flex justify-center rounded-xl border border-slate-100 bg-white p-4">
-            <img src={login.qrDataUrl} alt="WhatsApp QR" className="h-56 w-56 object-contain" />
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-2">
-          <Btn disabled={login.busy} onClick={() => startQr.mutate(true)}>
-            {login.busy ? 'Working…' : 'Show QR'}
-          </Btn>
-          <Btn disabled={login.busy || !login.qrDataUrl} onClick={() => waitQr.mutate()}>
-            Wait for scan
-          </Btn>
-          <Btn variant="ghost" disabled={login.busy} onClick={() => refetch()}>
-            Refresh
-          </Btn>
-          <Btn variant="danger" disabled={login.busy} onClick={() => logout.mutate()}>
-            Logout
-          </Btn>
         </div>
 
+        {/* Right — messages */}
         {showMessageLog && (
-          <div className="rounded-xl border border-slate-100">
-            <div className="wa-ai-msg-title border-b border-slate-100 px-4 py-2 text-sm font-semibold text-slate-800">
-              Messages (you + OM)
-            </div>
-            <div className="max-h-64 overflow-y-auto">
-              {messagesLoading && <p className="wa-ai-muted p-4 text-sm text-slate-400">Loading…</p>}
-              {!messagesLoading && (!messages || messages.length === 0) && (
-                <p className="wa-ai-muted p-4 text-sm text-slate-400">
-                  No messages yet. Chat in Message yourself on your phone.
-                </p>
+          <div className="flex flex-col bg-white p-6 lg:col-span-3">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Inbox</h3>
+                <p className="mt-0.5 text-xs text-slate-400">You and OM only</p>
+              </div>
+              {messages && messages.length > 0 && (
+                <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
+                  {messages.length}
+                </span>
               )}
-              <ul className="divide-y divide-slate-50">
-                {(messages || []).map((m) => (
-                  <li key={m.id} className="px-4 py-3 text-sm">
-                    <div className="flex justify-between gap-2">
-                      <span className="wa-ai-msg-title font-medium text-slate-800">{label(m)}</span>
-                      <span className="wa-ai-msg-time text-xs text-slate-400">
-                        {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    {m.text && <p className="wa-ai-msg-text mt-1 text-slate-600">{m.text}</p>}
-                  </li>
-                ))}
+            </div>
+
+            <div className="min-h-[280px] flex-1 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+              {messagesLoading && (
+                <div className="flex h-full items-center justify-center">
+                  <p className="wa-ai-muted text-sm text-slate-400">Loading messages…</p>
+                </div>
+              )}
+              {!messagesLoading && (!messages || messages.length === 0) && (
+                <div className="flex h-full min-h-[240px] flex-col items-center justify-center text-center">
+                  <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm">
+                    <svg className="h-7 w-7 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-slate-600">No messages yet</p>
+                  <p className="wa-ai-muted mt-1 max-w-xs text-xs text-slate-400">
+                    Open WhatsApp on your phone → Message yourself → say hi to OM
+                  </p>
+                </div>
+              )}
+              <ul className="space-y-3">
+                {(messages || []).map((m) => {
+                  const inbound = m.direction === 'inbound';
+                  return (
+                    <li
+                      key={m.id}
+                      className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
+                        inbound
+                          ? 'wa-ai-msg-in mr-auto bg-white text-slate-800'
+                          : 'wa-ai-msg-out ml-auto bg-indigo-600 text-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className={`text-xs font-semibold ${inbound ? 'text-slate-500' : 'text-indigo-100'}`}>
+                          {label(m)}
+                        </span>
+                        <span className={`text-[10px] ${inbound ? 'text-slate-400' : 'text-indigo-200'}`}>
+                          {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      {m.text && (
+                        <p className={`mt-1.5 leading-relaxed ${inbound ? 'text-slate-700' : 'text-white'}`}>
+                          {m.text}
+                        </p>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </div>
@@ -282,10 +363,11 @@ function WhatsAppAiInner({
 function Badge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span
-      className={`rounded-full px-3 py-1 font-medium ${
-        ok ? 'wa-ai-badge-ok bg-green-100 text-green-800' : 'wa-ai-badge-off bg-slate-100 text-slate-600'
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+        ok ? 'wa-ai-badge-ok bg-indigo-50 text-indigo-700' : 'wa-ai-badge-off bg-slate-100 text-slate-600'
       }`}
     >
+      <StatusDot on={ok} />
       {label}
     </span>
   );
@@ -296,37 +378,32 @@ function Btn({
   onClick,
   disabled,
   variant = 'primary',
+  className = '',
 }: {
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
   variant?: 'primary' | 'ghost' | 'danger';
+  className?: string;
 }) {
   const cls =
     variant === 'primary'
-      ? 'wa-ai-btn-primary bg-[#25D366] text-white hover:bg-green-600'
+      ? 'wa-ai-btn-primary bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200 hover:from-indigo-500 hover:to-violet-500'
       : variant === 'danger'
-        ? 'wa-ai-btn-danger border border-red-200 text-red-600 hover:bg-red-50'
-        : 'wa-ai-btn-ghost border border-slate-200 text-slate-700 hover:bg-slate-50';
+        ? 'wa-ai-btn-danger border border-red-200 bg-white text-red-600 hover:bg-red-50'
+        : 'wa-ai-btn-ghost border border-slate-200 bg-white text-slate-700 hover:bg-slate-50';
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50 ${cls}`}
+      className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all disabled:opacity-45 ${cls} ${className}`}
     >
       {children}
     </button>
   );
 }
 
-/**
- * Drop-in WhatsApp + OM AI UI for any React app.
- *
- * @example
- * import { WhatsAppAi } from 'whatsapp-plugin/react';
- * <WhatsAppAi apiUrl="http://127.0.0.1:9093" />
- */
 export function WhatsAppAi({
   apiUrl,
   authToken,

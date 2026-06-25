@@ -1,9 +1,6 @@
 import React from 'react';
 import { WhatsAppAi } from 'whatsapp-plugin/react';
 
-/**
- * Demo app page — same as using the library in your project.
- */
 export default function WhatsAppConfigPage() {
   const apiUrl =
     process.env.REACT_APP_WHATSAPP_API_URL ||
@@ -11,8 +8,8 @@ export default function WhatsAppConfigPage() {
     'http://127.0.0.1:9093';
 
   return (
-    <div className="min-h-screen bg-slate-50 py-6">
-      <div className="mx-auto max-w-3xl px-4">
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-slate-100 via-white to-indigo-50/30 py-8 sm:py-10">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6">
         <WhatsAppAi apiUrl={apiUrl} autoConnect showHeader showMessageLog />
       </div>
     </div>

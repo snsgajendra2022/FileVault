@@ -1,11 +1,7 @@
 import React from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { FaWhatsapp, FaSignOutAlt } from 'react-icons/fa';
 import { useAuth } from '../../state/context/AuthContext';
 
-/**
- * Minimal white layout for the OM WhatsApp plugin demo app.
- */
 export default function WhatsAppAppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -16,16 +12,16 @@ export default function WhatsAppAppLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <header className="border-b border-slate-200 bg-white sticky top-0 z-10">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#25D366]/10 text-[#25D366]">
-              <FaWhatsapp className="h-5 w-5" />
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/80 backdrop-blur-lg">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-sm font-bold text-white shadow-md shadow-indigo-200">
+              OM
             </span>
             <div>
-              <p className="text-sm font-semibold leading-tight">OM WhatsApp</p>
-              <p className="text-xs text-slate-500">Connect · Message · AI replies</p>
+              <p className="text-sm font-semibold leading-tight text-slate-900">OM Studio</p>
+              <p className="text-xs text-slate-500">WhatsApp · AI · Your project</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -37,15 +33,14 @@ export default function WhatsAppAppLayout() {
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
-              <FaSignOutAlt className="h-3.5 w-3.5" />
-              Logout
+              Reset session
             </button>
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      <main>
         <Outlet />
       </main>
     </div>
