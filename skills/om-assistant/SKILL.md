@@ -10,22 +10,22 @@ Use when the user asks to manage **Our Memories / Filevault / studio** data: eve
 
 ## Auto-connect + auto-read project
 
+**Login = linked WhatsApp number only** (scan QR → Message yourself). No username/password screen.
+
 When WhatsApp links (QR scan + bootstrap), the dev server **automatically**:
 
-1. Resolves the user/tenant (JWT, `X-User-Id`, or device session).
-2. Calls Filevault APIs: events, albums, images, contacts, profile.
-3. Caches a **project snapshot** per tenant (`server/whatsapp-project-sync.js`).
+1. Registers the **phone number** as tenant id (per-number data isolation).
+2. Calls Filevault APIs: events, albums, images, contacts, profile (when API token is available).
+3. Caches a **project snapshot** per phone (`server/whatsapp-project-sync.js`).
 4. Sends a short WhatsApp summary to **Message yourself** (self-chat only).
 5. Injects the snapshot into every OM reply so the AI already knows the project.
 
-No login screen is required if server env is set:
+**API access (optional):** Filevault HTTP APIs still need a Bearer token. Use **one** of:
 
-```env
-OM_WHATSAPP_AUTO_USER=your_api_username
-OM_WHATSAPP_AUTO_PASSWORD=your_api_password
-```
+- `OM_WHATSAPP_API_TOKEN` in server `.env` (studio service token), or
+- Host app passes the user JWT via `link-auth` / `localStorage.token` when embedding the plugin.
 
-Or pass a real Bearer JWT via `link-auth` / `localStorage.token` when embedding in another app.
+No `OM_WHATSAPP_AUTO_USER` / password — the connected number is the identity.
 
 Manual refresh: `POST /api/whatsapp/sync-project` (optional `notify: true` to WhatsApp).
 
@@ -70,12 +70,9 @@ Allowed route opens: see `src/utils/openclawNavigation.ts`.
 
 ## Auth
 
-Tools use the tenant Bearer token (linked on connect). If tools fail with 401:
-
-- Set `OM_WHATSAPP_AUTO_USER` + `OM_WHATSAPP_AUTO_PASSWORD` in `.env`, or
-- Embed the plugin in a host app that passes the user JWT to `link-auth`.
-
-Each user/tenant sees **only their own** messages and project data.
+- **Tenant id** = linked WhatsApp number (digits).
+- **Messages** scoped per phone — other numbers never see your chat.
+- **Studio APIs** need `OM_WHATSAPP_API_TOKEN` or host-app JWT; WhatsApp link alone does not replace Filevault HTTP auth.
 
 ## Docs
 

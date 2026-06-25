@@ -7,7 +7,7 @@ const {
   fetchProjectSnapshot,
   formatSnapshotForWhatsApp,
 } = require('./whatsapp-project-sync');
-const { resolveTenantIdFromPhone } = require('./whatsapp-tenant');
+const { tenantIdFromPhone } = require('./whatsapp-tenant');
 
 async function bootstrapOmWhatsApp(state, deps) {
   const {
@@ -82,7 +82,7 @@ async function bootstrapOmWhatsApp(state, deps) {
     const linkedPhone = state.linkedPhoneE164 || phone;
     if (linkedPhone) {
       try {
-        const tenantId = resolveTenantIdFromPhone(linkedPhone);
+        const tenantId = tenantIdFromPhone(linkedPhone);
         projectSync = await fetchProjectSnapshot(tenantId, linkedPhone);
         if (projectSync.ok && projectSync.snapshot && typeof sendOmMessageToPhone === 'function') {
           const summary = formatSnapshotForWhatsApp(projectSync.snapshot);

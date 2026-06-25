@@ -17,7 +17,13 @@ function whatsappClient(): AxiosInstance {
       config.headers.Authorization = `Bearer ${token}`;
     }
     const userData = getStoredUserData();
-    const userId = userData?.id != null ? String(userData.id) : null;
+    const linkedPhone =
+      typeof localStorage !== 'undefined' ? localStorage.getItem('waLinkedPhone') : null;
+    const userId = linkedPhone
+      ? linkedPhone.replace(/\D/g, '')
+      : userData?.id != null
+        ? String(userData.id)
+        : null;
     if (userId) {
       config.headers['X-User-Id'] = userId;
     }

@@ -79,18 +79,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
 
-      const autoUser = (process.env.REACT_APP_WHATSAPP_AUTO_USER || '').trim();
-      const autoPass = (process.env.REACT_APP_WHATSAPP_AUTO_PASSWORD || '').trim();
-      if (autoUser && autoPass) {
-        try {
-          const response = await api.post('/api/auth/login', { username: autoUser, password: autoPass });
-          if (!cancelled) applyAuthResponse(response.data);
-          return;
-        } catch (error) {
-          console.warn('Auto-login failed, using device session:', error);
-        }
-      }
-
       if (token) {
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         await validateToken();

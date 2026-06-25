@@ -258,14 +258,14 @@ export default function WhatsAppConfigPage() {
     status?.welcomeSentAt,
   ]);
 
-  /** Link session + auto-read project APIs when WhatsApp connects. */
   useEffect(() => {
+    if (status?.linkedPhoneE164) {
+      localStorage.setItem('waLinkedPhone', status.linkedPhoneE164);
+    }
     if (!status?.connected || !status?.linked || status?.needsRelink) return;
     linkWhatsAppAuth(status.linkedPhoneE164)
       .then(() => syncWhatsAppProject({ phone: status.linkedPhoneE164, notify: false }))
-      .catch(() => {
-        /* device session or env auto-login may still work server-side */
-      });
+      .catch(() => {});
   }, [status?.connected, status?.linked, status?.needsRelink, status?.linkedPhoneE164]);
 
   // ── Render ──────────────────────────────────────────────────────────────

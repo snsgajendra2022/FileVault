@@ -33,6 +33,8 @@ const {
   getTenantMessages,
   linkTenantAuth,
   resolveTenantIdFromPhone,
+  registerPhoneAsTenant,
+  tenantIdFromPhone,
 } = require('./whatsapp-tenant');
 
 const DEFAULT_CONFIG = {
@@ -166,6 +168,7 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     const e164 = toE164(phone);
     if (!e164) return;
     state.linkedPhoneE164 = e164;
+    registerPhoneAsTenant(e164);
     if (state.config.selfChatMode !== false) {
       state.config.dmPolicy = 'allowlist';
       state.config.allowFrom = e164;

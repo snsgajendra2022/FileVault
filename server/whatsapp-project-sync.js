@@ -1,65 +1,28 @@
 /**
- * Auto-read project data (events, albums, images, contacts) when WhatsApp connects.
- * Snapshot is cached per tenant and injected into OM replies.
+ * Auto-read project data when WhatsApp connects.
+ * Identity = linked phone number (tenant). No separate login username/password.
  */
 
-const { FILEVAULT_API, executeTool } = require('./om-api-tools');
+const { executeTool } = require('./om-api-tools');
 const {
   resolveBearerForTenant,
-  linkTenantAuth,
   saveTenantRecord,
   getTenantRecord,
   resolveTenantIdFromPhone,
+  registerPhoneAsTenant,
+  tenantIdFromPhone,
 } = require('./whatsapp-tenant');
 
-function normalizeBearer(token) {
-  const t = String(token || '').trim();
-  if (!t) return null;
-  return t.toLowerCase().startsWith('bearer ') ? t : `Bearer ${t}`;
-}
-
-function isLocalPlaceholderBearer(bearer) {
-  return /^Bearer wa-local-/i.test(String(bearer || '').trim());
-}
-
-/** Server-side silent login when env credentials are set (no login UI). */
-async function loginServiceAccount() {
-  const user = (
-    process.env.OM_WHATSAPP_AUTO_USER ||
-    process.env.REACT_APP_WHATSAPP_AUTO_USER ||
-    ''
-  ).trim();
-  const pass = (
-    process.env.OM_WHATSAPP_AUTO_PASSWORD ||
-    process.env.REACT_APP_WHATSAPP_AUTO_PASSWORD ||
-    ''
-  ).trim();
-  if (!user || !pass) return null;
-
-  try {
-    const res = await fetch(`${FILEVAULT_API}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ username: user, password: pass }),
-    });
-    const data = await res.json().catch(() => ({}));
-    const token = data?.apiToken || data?.accessToken || data?.token;
-    return token ? normalizeBearer(token) : null;
-  } catch {
-    return null;
-  }
+function isUsableApiBearer(bearer) {
+  const b = String(bearer || '').trim();
+  if (!b) return false;
+  if (/^Bearer wa-local-/i.test(b)) return false;
+  return true;
 }
 
 async function ensureTenantApiBearer(tenantId, phoneE164) {
-  let bearer = resolveBearerForTenant(tenantId, phoneE164);
-  if (bearer && !isLocalPlaceholderBearer(bearer)) return bearer;
-
-  const service = await loginServiceAccount();
-  if (service) {
-    linkTenantAuth(tenantId, phoneE164, service);
-    return service;
-  }
-  return bearer;
+  const bearer = resolveBearerForTenant(tenantId, phoneE164);
+  return isUsableApiBearer(bearer) ? bearer : null;
 }
 
 function buildOmReq(bearer) {
@@ -98,7 +61,8 @@ async function fetchProjectSnapshot(tenantId, phoneE164) {
     return {
       ok: false,
       error: 'no_api_token',
-      message: 'Set OM_WHATSAPP_AUTO_USER + OM_WHATSAPP_AUTO_PASSWORD in .env, or link a real JWT.',
+      message:
+        'WhatsApp number is linked. For studio API data, set OM_WHATSAPP_API_TOKEN in server .env (one studio token), or embed this plugin in your app with the user JWT.',
     };
   }
 
@@ -145,17 +109,19 @@ async function fetchProjectSnapshot(tenantId, phoneE164) {
     ].filter(Boolean),
   };
 
-  saveTenantRecord(tenantId, { projectSnapshot: snapshot });
+  saveTenantRecord(tenantId, { projectSnapshot: snapshot, linkedPhoneE164: phoneE164 });
   return { ok: true, snapshot };
 }
 
 function formatSnapshotForWhatsApp(snapshot) {
   if (!snapshot?.counts) return null;
-  const { counts, names, profile } = snapshot;
+  const { counts, names, profile, phoneE164 } = snapshot;
   const who =
     profile?.firstName || profile?.username
       ? `Hi ${profile.firstName || profile.username}! `
-      : '';
+      : phoneE164
+        ? `Hi! Your number ${phoneE164} is connected. `
+        : '';
   const lines = [`${who}I read your project:`];
   lines.push(`• ${counts.events} event(s)${names?.events?.length ? ': ' + names.events.join(', ') : ''}`);
   lines.push(`• ${counts.images} photo(s)`);
@@ -171,7 +137,7 @@ function getProjectContextForTenant(tenantId) {
   const s = rec.projectSnapshot;
   if (!s?.counts) return '';
   const parts = [
-    `\n[Project snapshot @ ${s.syncedAt}]`,
+    `\n[Project snapshot @ ${s.syncedAt} | phone ${s.phoneE164 || tenantId}]`,
     `Events: ${s.counts.events}${s.names?.events?.length ? ' (' + s.names.events.join(', ') + ')' : ''}`,
     `Photos: ${s.counts.images}`,
     `Albums: ${s.counts.albums}`,
@@ -182,7 +148,8 @@ function getProjectContextForTenant(tenantId) {
 }
 
 async function syncProjectForPhone(phoneE164) {
-  const tenantId = resolveTenantIdFromPhone(phoneE164);
+  registerPhoneAsTenant(phoneE164);
+  const tenantId = tenantIdFromPhone(phoneE164);
   return fetchProjectSnapshot(tenantId, phoneE164);
 }
 
@@ -192,4 +159,6 @@ module.exports = {
   getProjectContextForTenant,
   syncProjectForPhone,
   ensureTenantApiBearer,
+  registerPhoneAsTenant,
+  tenantIdFromPhone,
 };

@@ -107,12 +107,39 @@ function resolveBearerForTenant(tenantId, phoneE164) {
   const env = normalizeBearer(process.env.OM_WHATSAPP_API_TOKEN || process.env.FILEVAULT_WHATSAPP_BEARER);
   if (env) return env;
   const rec = getTenantRecord(tenantId);
-  if (rec.bearer) return rec.bearer;
+  if (rec.bearer && !/^Bearer wa-local-/i.test(rec.bearer)) return rec.bearer;
   const prev = loadWhatsAppStudioState();
   const key = String(phoneE164 || '').trim();
   if (key && prev.filevaultBearerByPhone?.[key]) return prev.filevaultBearerByPhone[key];
   if (prev.filevaultBearer) return prev.filevaultBearer;
   return null;
+}
+
+/** Linked WhatsApp number is the tenant id — no separate login username. */
+function registerPhoneAsTenant(phoneE164) {
+  const digits = String(phoneE164 || '').replace(/\D/g, '');
+  if (!digits) return null;
+  const tenantId = digits;
+
+  const phoneToTenant = { ...(loadWhatsAppStudioState().phoneToTenant || {}) };
+  phoneToTenant[digits] = tenantId;
+  if (digits.length >= 10) phoneToTenant[digits.slice(-10)] = tenantId;
+  saveWhatsAppStudioState({ phoneToTenant });
+
+  const envToken = normalizeBearer(
+    process.env.OM_WHATSAPP_API_TOKEN || process.env.FILEVAULT_WHATSAPP_BEARER
+  );
+  if (envToken) {
+    linkTenantAuth(tenantId, phoneE164, envToken);
+  } else {
+    saveTenantRecord(tenantId, { linkedPhoneE164: phoneE164 });
+  }
+  return tenantId;
+}
+
+function tenantIdFromPhone(phoneE164) {
+  const digits = String(phoneE164 || '').replace(/\D/g, '');
+  return digits || 'guest';
 }
 
 module.exports = {
@@ -124,4 +151,6 @@ module.exports = {
   linkTenantAuth,
   resolveTenantIdFromPhone,
   resolveBearerForTenant,
+  registerPhoneAsTenant,
+  tenantIdFromPhone,
 };
