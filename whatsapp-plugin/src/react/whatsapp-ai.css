@@ -1,0 +1,104 @@
+/* Fallback styles when host app Tailwind does not scan whatsapp-plugin paths */
+.wa-ai-root {
+  color: #0f172a;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.wa-ai-root h2,
+.wa-ai-root h3,
+.wa-ai-root p,
+.wa-ai-root span,
+.wa-ai-root li,
+.wa-ai-root button {
+  color: inherit;
+}
+
+.wa-ai-root .wa-ai-header {
+  background: linear-gradient(to right, #16a34a, #10b981);
+  color: #fff;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.wa-ai-root .wa-ai-header h2 {
+  color: #fff;
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.wa-ai-root .wa-ai-header p {
+  color: #dcfce7;
+  font-size: 0.875rem;
+  margin: 0.25rem 0 0;
+}
+
+.wa-ai-root .wa-ai-body {
+  padding: 1.25rem;
+}
+
+.wa-ai-root .wa-ai-muted {
+  color: #64748b;
+}
+
+.wa-ai-root .wa-ai-text {
+  color: #334155;
+}
+
+.wa-ai-root .wa-ai-badge-ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.wa-ai-root .wa-ai-badge-off {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.wa-ai-root .wa-ai-btn-primary {
+  background: #25d366;
+  color: #fff;
+  border: none;
+}
+
+.wa-ai-root .wa-ai-btn-ghost {
+  background: #fff;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+}
+
+.wa-ai-root .wa-ai-btn-danger {
+  background: #fff;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.wa-ai-root button {
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.wa-ai-root button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wa-ai-root .wa-ai-msg-title {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.wa-ai-root .wa-ai-msg-time {
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.wa-ai-root .wa-ai-msg-text {
+  color: #475569;
+  margin-top: 0.25rem;
+}

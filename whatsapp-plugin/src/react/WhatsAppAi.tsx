@@ -7,6 +7,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { WhatsAppAiProvider, useWhatsAppAiConfig } from './context';
+import './whatsapp-ai.css';
 import {
   createWaClient,
   waBootstrap,
@@ -189,15 +190,15 @@ function WhatsAppAiInner({
   return (
     <div className={`wa-ai-root rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}>
       {showHeader && (
-        <div className="border-b border-slate-100 bg-gradient-to-r from-green-600 to-emerald-500 px-5 py-4 text-white">
-          <h2 className="text-lg font-bold">WhatsApp AI</h2>
+        <div className="wa-ai-header border-b border-slate-100 bg-gradient-to-r from-green-600 to-emerald-500 px-5 py-4 text-white">
+          <h2 className="text-lg font-bold text-white">WhatsApp AI</h2>
           <p className="text-sm text-green-100">Scan QR → Message yourself → OM replies</p>
         </div>
       )}
 
-      <div className="space-y-4 p-5">
+      <div className="wa-ai-body space-y-4 p-5">
         {isLoading && !status && (
-          <p className="text-sm text-slate-500">Connecting to WhatsApp service…</p>
+          <p className="wa-ai-muted text-sm text-slate-500">Connecting to WhatsApp service…</p>
         )}
 
         {status && (
@@ -221,7 +222,7 @@ function WhatsAppAiInner({
         )}
 
         {login.message && (
-          <p className="text-sm text-slate-600">{login.message}</p>
+          <p className="wa-ai-text text-sm text-slate-600">{login.message}</p>
         )}
 
         {login.qrDataUrl && (
@@ -247,24 +248,26 @@ function WhatsAppAiInner({
 
         {showMessageLog && (
           <div className="rounded-xl border border-slate-100">
-            <div className="border-b border-slate-100 px-4 py-2 text-sm font-semibold text-slate-800">
+            <div className="wa-ai-msg-title border-b border-slate-100 px-4 py-2 text-sm font-semibold text-slate-800">
               Messages (you + OM)
             </div>
             <div className="max-h-64 overflow-y-auto">
-              {messagesLoading && <p className="p-4 text-sm text-slate-400">Loading…</p>}
+              {messagesLoading && <p className="wa-ai-muted p-4 text-sm text-slate-400">Loading…</p>}
               {!messagesLoading && (!messages || messages.length === 0) && (
-                <p className="p-4 text-sm text-slate-400">No messages yet. Chat in Message yourself on your phone.</p>
+                <p className="wa-ai-muted p-4 text-sm text-slate-400">
+                  No messages yet. Chat in Message yourself on your phone.
+                </p>
               )}
               <ul className="divide-y divide-slate-50">
                 {(messages || []).map((m) => (
                   <li key={m.id} className="px-4 py-3 text-sm">
                     <div className="flex justify-between gap-2">
-                      <span className="font-medium text-slate-800">{label(m)}</span>
-                      <span className="text-xs text-slate-400">
+                      <span className="wa-ai-msg-title font-medium text-slate-800">{label(m)}</span>
+                      <span className="wa-ai-msg-time text-xs text-slate-400">
                         {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    {m.text && <p className="mt-1 text-slate-600">{m.text}</p>}
+                    {m.text && <p className="wa-ai-msg-text mt-1 text-slate-600">{m.text}</p>}
                   </li>
                 ))}
               </ul>
@@ -280,7 +283,7 @@ function Badge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span
       className={`rounded-full px-3 py-1 font-medium ${
-        ok ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'
+        ok ? 'wa-ai-badge-ok bg-green-100 text-green-800' : 'wa-ai-badge-off bg-slate-100 text-slate-600'
       }`}
     >
       {label}
@@ -301,10 +304,10 @@ function Btn({
 }) {
   const cls =
     variant === 'primary'
-      ? 'bg-[#25D366] text-white hover:bg-green-600'
+      ? 'wa-ai-btn-primary bg-[#25D366] text-white hover:bg-green-600'
       : variant === 'danger'
-        ? 'border border-red-200 text-red-600 hover:bg-red-50'
-        : 'border border-slate-200 text-slate-700 hover:bg-slate-50';
+        ? 'wa-ai-btn-danger border border-red-200 text-red-600 hover:bg-red-50'
+        : 'wa-ai-btn-ghost border border-slate-200 text-slate-700 hover:bg-slate-50';
   return (
     <button
       type="button"
