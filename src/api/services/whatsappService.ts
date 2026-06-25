@@ -214,6 +214,25 @@ export async function linkWhatsAppAuth(phone?: string | null): Promise<{
   return res.data;
 }
 
+export async function syncWhatsAppProject(params?: {
+  phone?: string | null;
+  notify?: boolean;
+}): Promise<{
+  ok?: boolean;
+  snapshot?: {
+    syncedAt?: string;
+    counts?: { events?: number; albums?: number; images?: number; contacts?: number };
+  };
+  summary?: string;
+  error?: string;
+}> {
+  const res = await whatsappClient().post('/api/whatsapp/sync-project', {
+    phone: params?.phone || undefined,
+    notify: params?.notify ?? false,
+  });
+  return res.data;
+}
+
 export async function getWhatsAppLinkAuthStatus(): Promise<{
   ok?: boolean;
   linked?: boolean;

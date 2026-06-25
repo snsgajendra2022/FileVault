@@ -3,6 +3,11 @@
  */
 
 const { OM_WELCOME_OUTBOUND } = require('./om-whatsapp-replies');
+const {
+  fetchProjectSnapshot,
+  formatSnapshotForWhatsApp,
+} = require('./whatsapp-project-sync');
+const { resolveTenantIdFromPhone } = require('./whatsapp-tenant');
 
 async function bootstrapOmWhatsApp(state, deps) {
   const {
@@ -10,6 +15,7 @@ async function bootstrapOmWhatsApp(state, deps) {
     resolveWhatsAppLinkedPhoneE164,
     rememberLinkedPhone,
     ensureWhatsAppChannelRunning,
+    sendOmMessageToPhone,
     sendOmWelcomeToPhone,
     isGatewayReachable,
     isGatewayConfigured,
@@ -72,14 +78,32 @@ async function bootstrapOmWhatsApp(state, deps) {
     state.omSetupComplete = true;
     state.studioDisconnected = false;
 
+    let projectSync = null;
+    const linkedPhone = state.linkedPhoneE164 || phone;
+    if (linkedPhone) {
+      try {
+        const tenantId = resolveTenantIdFromPhone(linkedPhone);
+        projectSync = await fetchProjectSnapshot(tenantId, linkedPhone);
+        if (projectSync.ok && projectSync.snapshot && typeof sendOmMessageToPhone === 'function') {
+          const summary = formatSnapshotForWhatsApp(projectSync.snapshot);
+          if (summary) {
+            await sendOmMessageToPhone(summary, tenantId);
+          }
+        }
+      } catch (e) {
+        projectSync = { ok: false, error: String(e.message || e) };
+      }
+    }
+
     return {
       ok: true,
       phone: state.linkedPhoneE164,
       welcome,
       welcomeSentAt: state.welcomeSentAt,
       omChatReady: true,
+      projectSync,
       message:
-        'OM messaged your phone. Open WhatsApp (Message yourself) and reply hi or: list my events',
+        'OM messaged your phone. Open WhatsApp (Message yourself) — your project was auto-read.',
     };
   } finally {
     state.bootstrapInFlight = false;

@@ -323,6 +323,7 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     resolveWhatsAppLinkedPhoneE164,
     rememberLinkedPhone,
     ensureWhatsAppChannelRunning,
+    sendOmMessageToPhone,
     sendOmWelcomeToPhone,
     isGatewayReachable,
     isGatewayConfigured,
@@ -799,6 +800,8 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     const { saveBearerForPhone } = require('./om-whatsapp-actions');
     saveBearerForPhone(phone, auth);
     linkTenantAuth(tenantId, phone || null, auth);
+    const { fetchProjectSnapshot } = require('./whatsapp-project-sync');
+    fetchProjectSnapshot(tenantId, phone || null).catch(() => {});
     return res.json({
       ok: true,
       phone: phone || null,
@@ -810,10 +813,38 @@ function mountWhatsAppRoutes(app, hooks = {}) {
 
   app.get('/api/whatsapp/link-auth/status', (req, res) => {
     const tenantId = resolveTenantIdFromReq(req);
-    const { resolveBearerForTenant } = require('./whatsapp-tenant');
+    const { resolveBearerForTenant, getTenantRecord } = require('./whatsapp-tenant');
     const phone = state.linkedPhoneE164;
     const hasToken = Boolean(resolveBearerForTenant(tenantId, phone));
-    return res.json({ ok: true, phone, linked: hasToken, userId: tenantId });
+    const snapshot = getTenantRecord(tenantId).projectSnapshot || null;
+    return res.json({
+      ok: true,
+      phone,
+      linked: hasToken,
+      userId: tenantId,
+      projectSyncedAt: snapshot?.syncedAt || null,
+      projectCounts: snapshot?.counts || null,
+    });
+  });
+
+  app.post('/api/whatsapp/sync-project', async (req, res) => {
+    const tenantId = resolveTenantIdFromReq(req);
+    const phone =
+      String(req.body?.phone || '').trim() || (await resolveWhatsAppLinkedPhoneE164()) || '';
+    const { fetchProjectSnapshot, formatSnapshotForWhatsApp } = require('./whatsapp-project-sync');
+    try {
+      const result = await fetchProjectSnapshot(tenantId, phone);
+      if (!result.ok) {
+        return res.status(result.error === 'no_api_token' ? 401 : 503).json(result);
+      }
+      const summary = formatSnapshotForWhatsApp(result.snapshot);
+      if (summary && req.body?.notify !== false && state.connected) {
+        await sendOmMessageToPhone(summary, tenantId).catch(() => {});
+      }
+      return res.json({ ok: true, snapshot: result.snapshot, summary });
+    } catch (e) {
+      return res.status(500).json({ ok: false, error: String(e.message || e) });
+    }
   });
 
   function normalizeInboundPhone(raw) {

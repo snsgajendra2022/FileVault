@@ -420,7 +420,16 @@ async function computeAssistantResult(req, { userText, transcript, imageBuffer, 
   const channelNote = isWhatsApp ? WHATSAPP_OM_SYSTEM_APPEND : '';
   const keywordContext = await runKeywordTools(req, textIn, { channel });
   const toolAuthFailed = keywordContext.includes('401') || keywordContext.includes('Missing Authorization');
-  const contextAppend = formatContextForModel(context) + keywordContext + channelNote;
+  let projectCtx = '';
+  if (isWhatsApp) {
+    try {
+      const { getProjectContextForTenant } = require('./whatsapp-project-sync');
+      projectCtx = getProjectContextForTenant(userId);
+    } catch {
+      /* optional */
+    }
+  }
+  const contextAppend = formatContextForModel(context) + projectCtx + keywordContext + channelNote;
   const localNav = isWhatsApp ? null : routeFromUserText(textIn);
 
   if (isWhatsApp && matchedRoute === '__help__') {

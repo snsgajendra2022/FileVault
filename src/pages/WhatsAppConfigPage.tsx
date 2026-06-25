@@ -25,6 +25,7 @@ import {
   bootstrapOmWhatsApp,
   sendOmWhatsAppToPhone,
   linkWhatsAppAuth,
+  syncWhatsAppProject,
 } from '../api/services/whatsappService';
 import { useWhatsAppNotifications } from '../hooks/useWhatsAppNotifications';
 
@@ -257,12 +258,14 @@ export default function WhatsAppConfigPage() {
     status?.welcomeSentAt,
   ]);
 
-  /** Let WhatsApp OM use your studio JWT for list/create API tools. */
+  /** Link session + auto-read project APIs when WhatsApp connects. */
   useEffect(() => {
     if (!status?.connected || !status?.linked || status?.needsRelink) return;
-    linkWhatsAppAuth(status.linkedPhoneE164).catch(() => {
-      /* optional — user may not be logged in on web */
-    });
+    linkWhatsAppAuth(status.linkedPhoneE164)
+      .then(() => syncWhatsAppProject({ phone: status.linkedPhoneE164, notify: false }))
+      .catch(() => {
+        /* device session or env auto-login may still work server-side */
+      });
   }, [status?.connected, status?.linked, status?.needsRelink, status?.linkedPhoneE164]);
 
   // ── Render ──────────────────────────────────────────────────────────────
