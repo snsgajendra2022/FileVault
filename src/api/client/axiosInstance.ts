@@ -36,17 +36,7 @@ api.interceptors.response.use(
     const requestId = (error?.config as { metadata?: Record<string, unknown> })?.metadata?.requestId;
     if (typeof requestId === 'string') trackApiError(requestId, error);
     if (error.response?.status === 401) {
-      const path = window.location.pathname || '';
-      const isPublicRoute =
-        path === '/memories' ||
-        path.startsWith('/memories/e/') ||
-        path.startsWith('/public/checkout') ||
-        path.startsWith('/public/selection') ||
-        path.startsWith('/public/images-display');
-      if (!isPublicRoute) {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-      }
+      localStorage.removeItem('token');
     }
     return Promise.reject(error);
   }

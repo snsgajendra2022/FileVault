@@ -45,21 +45,25 @@ function resolveBearerForPhone(phoneE164) {
   return null;
 }
 
-function buildWhatsAppOmRequest({ from, text, req }) {
-  const bearer = resolveBearerForPhone(from);
+function buildWhatsAppOmRequest({ from, text, req, userId }) {
+  const { resolveTenantIdFromPhone, resolveBearerForTenant } = require('./whatsapp-tenant');
+  const tenantId = userId || resolveTenantIdFromPhone(from);
+  const bearer = resolveBearerForTenant(tenantId, from);
   const headers = { ...(req?.headers || {}) };
   if (bearer && !headers.authorization && !headers.Authorization) {
     headers.authorization = bearer;
   }
+  const safeId = String(tenantId || 'guest').replace(/\W/g, '-');
   return {
     headers,
     body: {
-      sessionId: whatsappSessionId(from),
-      userId: from || 'whatsapp',
+      sessionId: `wa-user-${safeId}`,
+      userId: tenantId,
       context: {
         channel: 'whatsapp',
-        path: '/studio/whatsapp',
+        path: '/whatsapp',
         from,
+        userId: tenantId,
       },
     },
   };

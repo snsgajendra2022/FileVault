@@ -21,7 +21,7 @@ REACT_APP_OPENCLAW_DEV_URL=http://192.168.1.58:9093
 # Put that same secret in OPENCLAW_BRIDGE_TOKEN only if your bridge authorizes with Bearer <token>.
 # Leave empty to use OPENAI_API_KEY below (bridge is tried first when set — wrong URL breaks the pipeline).
 OPENCLAW_BRIDGE_URL=http://192.168.1.58:9093
-OPENCLAW_BRIDGE_TOKEN=8193d37a324dbf1f00b07ae0c9beed55d28aab0b456d942f
+OPENCLAW_BRIDGE_TOKEN=
 # OpenRouter keys look like sk-or-v1-oj-... / sk-...), use OPENAI_API_BASE=https://api.openai.com/v1
 OPENAI_API_KEY=s
 # OpenRouter: use provider/model id (e.g. openai/gpt-4o-mini). Direct OpenAI: gpt-4o-mini

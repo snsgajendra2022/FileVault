@@ -7,7 +7,10 @@ import {
   setStoredToken, 
   setStoredUserData, 
   clearStoredAuth,
-  logAuthState 
+  logAuthState,
+  createAutoSessionUser,
+  getOrCreateDeviceUserId,
+  setAutoSessionToken,
 } from '../../utils/authUtils';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -56,42 +59,57 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const isAuthenticated = !!user;
 
   useEffect(() => {
-    console.log('AuthContext: Initializing authentication state...');
-    
-    // Check for existing token and user data in localStorage
-    const token = getStoredToken();
-    const userData = getStoredUserData(); 
-    
-    // console.log('AuthContext: Found token:', !!token, 'Found userData:', !!userData);
-    
-    if (token && userData) {
-      try {
-        // Set authorization header for future requests
-        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        
-        // Set user data from localStorage (convert to User type)
-        setUser(userData as User);
-        setIsLoading(false);
-        
-        console.log('User data restored from localStorage:', userData);
-        logAuthState();
-      } catch (error) {
-        console.error('Error restoring user data from localStorage:', error);
-        // Clear invalid data
-        clearStoredAuth();
-        delete api.defaults.headers.common['Authorization'];
+    let cancelled = false;
+
+    async function initAuth() {
+      const token = getStoredToken();
+      const userData = getStoredUserData();
+
+      if (token && userData) {
+        try {
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          setUser(userData as User);
+          setIsLoading(false);
+          logAuthState();
+          return;
+        } catch (error) {
+          console.error('Error restoring user data from localStorage:', error);
+          clearStoredAuth();
+          delete api.defaults.headers.common['Authorization'];
+        }
       }
-    } else {
-      // No stored data, try to validate token if exists
+
+      const autoUser = (process.env.REACT_APP_WHATSAPP_AUTO_USER || '').trim();
+      const autoPass = (process.env.REACT_APP_WHATSAPP_AUTO_PASSWORD || '').trim();
+      if (autoUser && autoPass) {
+        try {
+          const response = await api.post('/api/auth/login', { username: autoUser, password: autoPass });
+          if (!cancelled) applyAuthResponse(response.data);
+          return;
+        } catch (error) {
+          console.warn('Auto-login failed, using device session:', error);
+        }
+      }
+
       if (token) {
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        validateToken();
-      } else {
-        // No token found, user is not authenticated
-        setIsLoading(false);
-        console.log('No stored token found, user not authenticated');
+        await validateToken();
+        return;
       }
+
+      // No login screen — automatic device session for WhatsApp plugin
+      const sessionUser = createAutoSessionUser();
+      const deviceId = getOrCreateDeviceUserId();
+      setAutoSessionToken(deviceId);
+      setStoredUserData(sessionUser);
+      setUser(sessionUser as User);
+      if (!cancelled) setIsLoading(false);
     }
+
+    initAuth();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const validateToken = async () => {
@@ -106,9 +124,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // console.log('Token validated, user data updated:', userData);
     } catch (error) {
       console.error('Token validation failed:', error);
-      // Clear invalid data
       clearStoredAuth();
       delete api.defaults.headers.common['Authorization'];
+      const sessionUser = createAutoSessionUser();
+      const deviceId = getOrCreateDeviceUserId();
+      setAutoSessionToken(deviceId);
+      setStoredUserData(sessionUser);
+      setUser(sessionUser as User);
     } finally {
       setIsLoading(false);
     }
@@ -246,24 +268,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    console.log('Logout initiated...');
-    
-    // Clear stored authentication data
     clearStoredAuth();
-    
-    // Remove authorization header
     delete api.defaults.headers.common['Authorization'];
-  
-    // Reset user state
-    setUser(null);
-    
-    // Set loading to false to ensure proper state
-    setIsLoading(false);
-    
-    // Clear React Query cache to prevent stale data
     queryClient.clear();
-    
-    console.log('Logout successful - all data cleared, isLoading set to false');
+
+    const sessionUser = createAutoSessionUser();
+    const deviceId = getOrCreateDeviceUserId();
+    setAutoSessionToken(deviceId);
+    setStoredUserData(sessionUser);
+    setUser(sessionUser as User);
+    setIsLoading(false);
   };
 
   const updateUser = (userData: Partial<User>) => {

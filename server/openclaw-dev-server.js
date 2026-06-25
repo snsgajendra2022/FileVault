@@ -238,6 +238,20 @@ function pickBridgeNavigate(data) {
 const sessionHistories = new Map();
 
 function getRequestUserId(req) {
+  const auth = String(req?.headers?.authorization || '').trim();
+  if (auth.toLowerCase().startsWith('bearer ')) {
+    try {
+      const part = auth.slice(7).split('.')[1];
+      if (part) {
+        const json = Buffer.from(part.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+        const payload = JSON.parse(json);
+        const id = payload.userId ?? payload.user_id ?? payload.sub ?? payload.id ?? payload.username;
+        if (id != null) return String(id);
+      }
+    } catch {
+      /* fall through */
+    }
+  }
   const bodyUserId = req.body?.userId;
   if (typeof bodyUserId === 'string' && bodyUserId.trim()) return bodyUserId.trim();
   const contextUserId = req.body?.context?.userId;
@@ -589,7 +603,9 @@ mountPortalSettingsRoutes(app);
 mountWhatsAppRoutes(app, {
   upload,
   onInboundMessage: async ({ from, text, media, req }) => {
-    const omReq = buildWhatsAppOmRequest({ from, text, req });
+    const { resolveTenantIdFromPhone } = require('./whatsapp-tenant');
+    const userId = resolveTenantIdFromPhone(from);
+    const omReq = buildWhatsAppOmRequest({ from, text, req, userId });
     const waMedia = Array.isArray(media) ? media.filter((m) => m?.path) : [];
 
     if (waMedia.length > 0) {

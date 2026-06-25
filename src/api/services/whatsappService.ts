@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance } from 'axios';
 import api from '../../api/client/axiosInstance';
+import { getStoredUserData } from '../../utils/authUtils';
 import type { WhatsAppConfigValues } from '../../components/OmAiWhatsappConfig/WhatsAppConfigForm';
 
 /** Real WhatsApp QR comes from OpenClaw Gateway via dev server (9093), not Java fake QR. */
@@ -14,6 +15,11 @@ function whatsappClient(): AxiosInstance {
     const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
     if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    const userData = getStoredUserData();
+    const userId = userData?.id != null ? String(userData.id) : null;
+    if (userId) {
+      config.headers['X-User-Id'] = userId;
     }
     return config;
   });
@@ -48,6 +54,7 @@ export type WhatsAppStatus = {
     hasToken?: boolean;
     hasWhatsAppCreds?: boolean;
   };
+  selfChatMode?: boolean;
 };
 
 export type WhatsAppLoginStartResponse = {
@@ -72,6 +79,8 @@ export type WhatsAppConfig = {
   groupPolicy?: 'open' | 'allowlist' | 'disabled';
   groupAllowFrom?: string;
   selfChatMode?: boolean;
+  /** Logged-in user id scope for this session (multi-tenant). */
+  userId?: string;
   textChunkLimit?: number;
   mediaMaxMb?: number;
   sendReadReceipts?: boolean;
@@ -209,6 +218,7 @@ export async function getWhatsAppLinkAuthStatus(): Promise<{
   ok?: boolean;
   linked?: boolean;
   phone?: string | null;
+  userId?: string;
 }> {
   const res = await whatsappClient().get('/api/whatsapp/link-auth/status');
   return res.data;

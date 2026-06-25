@@ -26,13 +26,21 @@ const {
 const { OM_WELCOME_OUTBOUND } = require('./om-whatsapp-replies');
 const { bootstrapOmWhatsApp } = require('./whatsapp-bootstrap');
 const { loadWhatsAppStudioState, saveWhatsAppStudioState } = require('./whatsapp-studio-state');
+const { isSelfChatSender, filterSelfChatMessages } = require('./whatsapp-self-chat');
+const {
+  resolveTenantIdFromReq,
+  pushTenantMessage,
+  getTenantMessages,
+  linkTenantAuth,
+  resolveTenantIdFromPhone,
+} = require('./whatsapp-tenant');
 
 const DEFAULT_CONFIG = {
-  dmPolicy: 'pairing',
+  dmPolicy: 'allowlist',
   allowFrom: '',
-  groupPolicy: 'allowlist',
+  groupPolicy: 'disabled',
   groupAllowFrom: '',
-  selfChatMode: false,
+  selfChatMode: true,
   /** When false: no OM upload/reply for inbound WhatsApp (relay returns suppressReply). */
   inboundOmEnabled: true,
   textChunkLimit: 4000,
@@ -136,8 +144,8 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     });
   }
 
-  function pushMessage(entry) {
-    state.messages.unshift({
+  function pushMessage(entry, tenantId) {
+    const msg = {
       id: entry.id || `wa-${crypto.randomUUID()}`,
       direction: entry.direction,
       from: entry.from,
@@ -146,14 +154,24 @@ function mountWhatsAppRoutes(app, hooks = {}) {
       status: entry.status || 'sent',
       timestamp: entry.timestamp || new Date().toISOString(),
       isGroup: Boolean(entry.isGroup),
-    });
+    };
+    const tid = tenantId || entry.tenantId || 'guest';
+    pushTenantMessage(tid, msg);
+    state.messages.unshift(msg);
     while (state.messages.length > 200) state.messages.pop();
-    state.lastMessageAt = entry.timestamp || new Date().toISOString();
+    state.lastMessageAt = msg.timestamp;
   }
 
   function rememberLinkedPhone(phone) {
     const e164 = toE164(phone);
-    if (e164) state.linkedPhoneE164 = e164;
+    if (!e164) return;
+    state.linkedPhoneE164 = e164;
+    if (state.config.selfChatMode !== false) {
+      state.config.dmPolicy = 'allowlist';
+      state.config.allowFrom = e164;
+      state.config.groupPolicy = 'disabled';
+      persistStudioState({ whatsappConfig: state.config });
+    }
   }
 
   async function resolveWhatsAppLinkedPhoneE164() {
@@ -258,20 +276,23 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     }
   }
 
-  async function sendOmMessageToPhone(text) {
+  async function sendOmMessageToPhone(text, tenantId = 'guest') {
     const body = String(text || '').trim();
     if (!body) throw new Error('message text required');
     await ensureWhatsAppChannelRunning('default');
     const to = await resolveSelfChatTarget();
     if (!to) throw new Error('No linked phone — scan QR and link WhatsApp first');
     await gatewaySendWhatsApp({ to, text: body });
-    pushMessage({
-      direction: 'outbound',
-      from: 'om',
-      to,
-      text: body,
-      status: 'sent',
-    });
+    pushMessage(
+      {
+        direction: 'outbound',
+        from: 'om',
+        to,
+        text: body,
+        status: 'sent',
+      },
+      tenantId
+    );
     return { ok: true, to };
   }
 
@@ -348,6 +369,7 @@ function mountWhatsAppRoutes(app, hooks = {}) {
         reachable: state.gatewayReachable,
       },
       inboundOmEnabled: isOmInboundEnabled(state.config),
+      selfChatMode: state.config.selfChatMode !== false,
       ...extra,
     };
   }
@@ -633,9 +655,14 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     res.json({ message: 'Logged out.', ...statusPayload() });
   });
 
-  app.get('/api/whatsapp/messages', (req, res) => {
+  app.get('/api/whatsapp/messages', async (req, res) => {
     const limit = Math.min(100, Math.max(1, Number(req.query?.limit) || 50));
-    let list = [...state.messages];
+    const tenantId = resolveTenantIdFromReq(req);
+    const linked = await resolveWhatsAppLinkedPhoneE164();
+    let list = getTenantMessages(tenantId);
+    if (state.config.selfChatMode !== false) {
+      list = filterSelfChatMessages(list, linked);
+    }
     if (req.query?.before) {
       const before = String(req.query.before);
       const idx = list.findIndex((m) => m.id === before);
@@ -645,38 +672,72 @@ function mountWhatsAppRoutes(app, hooks = {}) {
   });
 
   app.post('/api/whatsapp/send', async (req, res) => {
-    const to = String(req.body?.to || '').trim();
     const text = String(req.body?.text || '').trim();
-    if (!to || !text) {
-      return res.status(400).json({ ok: false, error: 'to and text required' });
+    let to = String(req.body?.to || '').trim();
+    if (!text) {
+      return res.status(400).json({ ok: false, error: 'text required' });
     }
     if (!state.connected) {
       return res.status(409).json({ ok: false, error: 'WhatsApp not connected' });
     }
 
+    const tenantId = resolveTenantIdFromReq(req);
+    const linked = await resolveWhatsAppLinkedPhoneE164();
+    const selfTarget = await resolveSelfChatTarget();
+
+    if (state.config.selfChatMode !== false) {
+      if (to && linked && !isSelfChatSender(to, linked)) {
+        return res.status(403).json({
+          ok: false,
+          error: 'Self-chat only — cannot send messages to other numbers',
+        });
+      }
+      to = selfTarget || linked || to;
+      if (!to) {
+        return res.status(409).json({ ok: false, error: 'No linked phone for self-chat' });
+      }
+    } else if (!to) {
+      return res.status(400).json({ ok: false, error: 'to and text required' });
+    }
+
     const msgId = `out-${crypto.randomUUID()}`;
-    pushMessage({
-      id: msgId,
-      direction: 'outbound',
-      from: 'om',
-      to,
-      text,
-      status: 'sent',
-    });
+    try {
+      await gatewaySendWhatsApp({ to, text });
+    } catch (e) {
+      return res.status(503).json({ ok: false, error: String(e.message || e) });
+    }
+
+    pushMessage(
+      {
+        id: msgId,
+        direction: 'outbound',
+        from: 'om',
+        to,
+        text,
+        status: 'sent',
+      },
+      tenantId
+    );
 
     if (typeof hooks.onInboundMessage === 'function') {
       try {
-        const from = normalizePhone(to) || to;
+        const from = linked || to;
         if (isAllowedSender(state.config, from, false)) {
-          const { reply } = await hooks.onInboundMessage({ from, text, req });
+          const { buildWhatsAppOmRequest } = require('./om-whatsapp-actions');
+          const omReq = buildWhatsAppOmRequest({ from, text, req, userId: tenantId });
+          const { reply } = await hooks.onInboundMessage({ from, text, req: omReq });
           if (reply) {
-            pushMessage({
-              direction: 'outbound',
-              from: 'om',
-              to: from,
-              text: reply,
-              status: 'sent',
-            });
+            await gatewaySendWhatsApp({ to: from, text: reply });
+            pushMessage(
+              {
+                direction: 'outbound',
+                from: 'om',
+                to: from,
+                text: reply,
+                status: 'sent',
+              },
+              tenantId
+            );
           }
         }
       } catch (e) {
@@ -684,7 +745,7 @@ function mountWhatsAppRoutes(app, hooks = {}) {
       }
     }
 
-    res.json({ ok: true, messageId: msgId });
+    res.json({ ok: true, messageId: msgId, to });
   });
 
   /** Gateway plugin om-whatsapp-relay → compute OM reply (no duplicate send; gateway delivers text). */
@@ -693,17 +754,26 @@ function mountWhatsAppRoutes(app, hooks = {}) {
   if (hooks.upload) {
     app.post('/api/whatsapp/upload', hooks.upload.single('file'), async (req, res) => {
       const auth = String(req.headers.authorization || '').trim();
+      const tenantId = resolveTenantIdFromReq(req);
       const phone = String(req.body?.phone || state.linkedPhoneE164 || '').trim();
       const { saveBearerForPhone, buildWhatsAppOmRequest } = require('./om-whatsapp-actions');
       const { processWhatsAppMediaInbound } = require('./om-whatsapp-upload');
-      if (auth) saveBearerForPhone(phone, auth);
+      if (auth) {
+        saveBearerForPhone(phone, auth);
+        linkTenantAuth(tenantId, phone, auth);
+      }
 
       const file = req.file;
       if (!file?.buffer?.length) {
         return res.status(400).json({ ok: false, error: 'multipart field "file" required' });
       }
 
-      const omReq = buildWhatsAppOmRequest({ from: phone, text: req.body?.caption || '', req });
+      const omReq = buildWhatsAppOmRequest({
+        from: phone,
+        text: req.body?.caption || '',
+        req,
+        userId: tenantId,
+      });
       const reply = await processWhatsAppMediaInbound({
         req: omReq,
         from: phone,
@@ -718,26 +788,32 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     });
   }
 
-  app.post('/api/whatsapp/link-auth', (req, res) => {
+  app.post('/api/whatsapp/link-auth', async (req, res) => {
     const auth = String(req.headers.authorization || req.body?.token || '').trim();
     if (!auth) {
       return res.status(400).json({ ok: false, error: 'Authorization Bearer token required' });
     }
-    const phone = String(req.body?.phone || state.linkedPhoneE164 || '').trim();
+    const tenantId = resolveTenantIdFromReq(req);
+    const phone =
+      String(req.body?.phone || '').trim() || (await resolveWhatsAppLinkedPhoneE164()) || '';
     const { saveBearerForPhone } = require('./om-whatsapp-actions');
     saveBearerForPhone(phone, auth);
+    linkTenantAuth(tenantId, phone || null, auth);
     return res.json({
       ok: true,
       phone: phone || null,
-      message: 'OM WhatsApp linked — uploads, events, albums, and API tools enabled for this number.',
+      userId: tenantId,
+      message:
+        'Your account is linked — OM reads your project data only for this login (not other users).',
     });
   });
 
-  app.get('/api/whatsapp/link-auth/status', (_req, res) => {
-    const { resolveBearerForPhone } = require('./om-whatsapp-actions');
+  app.get('/api/whatsapp/link-auth/status', (req, res) => {
+    const tenantId = resolveTenantIdFromReq(req);
+    const { resolveBearerForTenant } = require('./whatsapp-tenant');
     const phone = state.linkedPhoneE164;
-    const hasToken = Boolean(resolveBearerForPhone(phone));
-    return res.json({ ok: true, phone, linked: hasToken });
+    const hasToken = Boolean(resolveBearerForTenant(tenantId, phone));
+    return res.json({ ok: true, phone, linked: hasToken, userId: tenantId });
   });
 
   function normalizeInboundPhone(raw) {
@@ -798,19 +874,30 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     }
 
     const sender = from || state.linkedPhoneE164 || '';
-    if (sender && !isAllowedSender(state.config, sender, false)) {
+    const linked = await resolveWhatsAppLinkedPhoneE164();
+
+    if (state.config.selfChatMode !== false) {
+      if (!isSelfChatSender(sender, linked)) {
+        return res.json({ ok: true, reply: '', suppressReply: true, ignored: 'not-self-chat' });
+      }
+    } else if (sender && !isAllowedSender(state.config, sender, false)) {
       return res.status(403).json({ ok: false, error: 'sender not allowed' });
     }
 
+    const tenantId = resolveTenantIdFromPhone(sender);
+
     const inboundLabel =
       text || (media.length ? `[${media.length} image(s)]` : '');
-    pushMessage({
-      direction: 'inbound',
-      from: sender || 'unknown',
-      to: 'om',
-      text: inboundLabel,
-      status: 'delivered',
-    });
+    pushMessage(
+      {
+        direction: 'inbound',
+        from: sender || 'unknown',
+        to: 'om',
+        text: inboundLabel,
+        status: 'delivered',
+      },
+      tenantId
+    );
 
     if (!isOmInboundEnabled(state.config)) {
       return res.json({ ok: true, reply: '', suppressReply: true });
@@ -819,7 +906,9 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     let reply = '';
     if (typeof hooks.onInboundMessage === 'function') {
       try {
-        const out = await hooks.onInboundMessage({ from: sender, text, media, req });
+        const { buildWhatsAppOmRequest } = require('./om-whatsapp-actions');
+        const omReq = buildWhatsAppOmRequest({ from: sender, text, req, userId: tenantId });
+        const out = await hooks.onInboundMessage({ from: sender, text, media, req: omReq });
         reply = (out?.reply || '').trim();
       } catch (e) {
         console.warn('[whatsapp] relay-inbound failed:', e.message);
@@ -831,6 +920,16 @@ function mountWhatsAppRoutes(app, hooks = {}) {
     }
 
     if (reply) {
+      pushMessage(
+        {
+          direction: 'outbound',
+          from: 'om',
+          to: sender,
+          text: reply,
+          status: 'sent',
+        },
+        tenantId
+      );
       state.lastMessageAt = new Date().toISOString();
       persistStudioState();
     }
@@ -839,22 +938,32 @@ function mountWhatsAppRoutes(app, hooks = {}) {
   });
 
   app.post('/api/whatsapp/simulate-inbound', async (req, res) => {
-    const from = String(req.body?.from || '15550000000').trim();
+    const from = String(req.body?.from || state.linkedPhoneE164 || '').trim();
     const text = String(req.body?.text || '').trim();
     if (!text) return res.status(400).json({ error: 'text required' });
     if (!state.connected) return res.status(409).json({ error: 'not connected' });
+
+    const linked = await resolveWhatsAppLinkedPhoneE164();
+    if (state.config.selfChatMode !== false && !isSelfChatSender(from, linked)) {
+      return res.status(403).json({ error: 'Self-chat only — use your linked number' });
+    }
     if (!isAllowedSender(state.config, from, Boolean(req.body?.isGroup))) {
       return res.status(403).json({ error: 'sender not allowed by config' });
     }
 
-    pushMessage({
-      direction: 'inbound',
-      from,
-      to: 'om',
-      text,
-      status: 'delivered',
-      isGroup: Boolean(req.body?.isGroup),
-    });
+    const tenantId = resolveTenantIdFromReq(req);
+
+    pushMessage(
+      {
+        direction: 'inbound',
+        from,
+        to: 'om',
+        text,
+        status: 'delivered',
+        isGroup: Boolean(req.body?.isGroup),
+      },
+      tenantId
+    );
 
     if (!isOmInboundEnabled(state.config)) {
       return res.json({ ok: true, reply: '', suppressReply: true });
@@ -862,10 +971,15 @@ function mountWhatsAppRoutes(app, hooks = {}) {
 
     let reply = '';
     if (typeof hooks.onInboundMessage === 'function') {
-      const out = await hooks.onInboundMessage({ from, text, req });
+      const { buildWhatsAppOmRequest } = require('./om-whatsapp-actions');
+      const omReq = buildWhatsAppOmRequest({ from, text, req, userId: tenantId });
+      const out = await hooks.onInboundMessage({ from, text, req: omReq });
       reply = out?.reply || '';
       if (reply) {
-        pushMessage({ direction: 'outbound', from: 'om', to: from, text: reply, status: 'sent' });
+        pushMessage(
+          { direction: 'outbound', from: 'om', to: from, text: reply, status: 'sent' },
+          tenantId
+        );
       }
     }
     res.json({ ok: true, reply });

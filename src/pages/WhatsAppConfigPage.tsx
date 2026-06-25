@@ -26,6 +26,7 @@ import {
   sendOmWhatsAppToPhone,
   linkWhatsAppAuth,
 } from '../api/services/whatsappService';
+import { useWhatsAppNotifications } from '../hooks/useWhatsAppNotifications';
 
 function newQrPayload(): string {
   return `om-wa-${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
@@ -64,8 +65,10 @@ export default function WhatsAppConfigPage() {
   const { data: messages, isLoading: messagesLoading } = useQuery<WhatsAppLogEntry[]>({
     queryKey: ['whatsapp', 'messages'],
     queryFn: () => getWhatsAppMessages({ limit: 50 }),
-    refetchInterval: 15_000,
+    refetchInterval: 8_000,
   });
+
+  useWhatsAppNotifications(messages, Boolean(status?.connected && status?.linked));
 
   // ── Mutations ───────────────────────────────────────────────────────────
   const startLoginMutation = useMutation({

@@ -54,6 +54,19 @@ function StatusIcon({ status }: { status?: string }) {
   }
 }
 
+function senderLabel(entry: WhatsAppLogEntry, t: (key: string) => string): string {
+  if (entry.from === 'om' || entry.from === 'system') return 'OM';
+  if (entry.direction === 'inbound') return t('whatsapp.you') || 'You';
+  if (entry.to === 'om') return 'OM';
+  return entry.to || t('whatsapp.unknownRecipient');
+}
+
+function recipientLabel(entry: WhatsAppLogEntry, t: (key: string) => string): string {
+  if (entry.direction === 'inbound') return 'OM';
+  if (entry.from === 'om') return t('whatsapp.you') || 'You';
+  return entry.from || t('whatsapp.unknownSender');
+}
+
 function formatTime(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -124,8 +137,8 @@ export default function WhatsAppMessageLog({
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-slate-800">
                         {entry.direction === 'inbound'
-                          ? entry.from || t('whatsapp.unknownSender')
-                          : entry.to || t('whatsapp.unknownRecipient')}
+                          ? senderLabel(entry, t)
+                          : recipientLabel(entry, t)}
                       </span>
                       {entry.isGroup && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 border border-violet-200 px-2 py-0.5 text-[10px] font-bold text-violet-700 uppercase tracking-wider">

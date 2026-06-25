@@ -47,6 +47,41 @@ export const clearStoredAuth = (): void => {
   localStorage.removeItem('userData');
 };
 
+const DEVICE_USER_KEY = 'waDeviceUserId';
+
+/** Stable per-browser id for multi-tenant WhatsApp when no login UI is shown. */
+export function getOrCreateDeviceUserId(): string {
+  if (typeof localStorage === 'undefined') return 'guest';
+  let id = localStorage.getItem(DEVICE_USER_KEY);
+  if (!id) {
+    id =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? `device-${crypto.randomUUID()}`
+        : `device-${Date.now()}`;
+    localStorage.setItem(DEVICE_USER_KEY, id);
+  }
+  return id;
+}
+
+/** Auto session user — no login screen; OM WhatsApp scopes data by this id. */
+export function createAutoSessionUser(): StoredUserData {
+  const deviceId = getOrCreateDeviceUserId();
+  return {
+    id: deviceId as unknown as number,
+    username: `om-${deviceId.slice(-8)}`,
+    email: '',
+    firstName: 'OM',
+    lastName: 'User',
+    accountType: 'USERS',
+    status: 'ACTIVE',
+    role: 'users',
+  };
+}
+
+export function setAutoSessionToken(deviceId: string): void {
+  setStoredToken(`wa-local-${deviceId}`);
+}
+
 export const isUserAdmin = (userData: StoredUserData | null): boolean => {
   return userData?.accountType === 'ADMIN';
 };

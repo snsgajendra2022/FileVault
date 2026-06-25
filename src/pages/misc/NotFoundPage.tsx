@@ -20,7 +20,7 @@ const NotFoundPage = () => {
         
         <div className="space-y-4">
           <Link
-            to="/studio/dashboard"
+            to="/whatsapp"
             className="btn-primary inline-flex items-center"
           >
             <FaHome className="mr-2" />
