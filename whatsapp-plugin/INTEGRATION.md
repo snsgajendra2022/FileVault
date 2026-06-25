@@ -1,142 +1,102 @@
-# OM WhatsApp Plugin — Use in Any Project
+# WhatsApp AI — simple library install
 
-This repo is now a **WhatsApp-only** demo app + reusable npm plugin.
+Use **one React component** in your project. No login screen. Scan QR → done.
 
-## What stayed in this app
-
-| Route | Screen |
-|-------|--------|
-| `/login` | Login (your backend API via `REACT_APP_API_URL`) |
-| `/whatsapp` | WhatsApp connect, QR, messages, OM AI |
-
-All other `src/pages/*` screens were removed.
-
----
-
-## 1. Run this demo app
+## 1. Install
 
 ```bash
-# .env
-REACT_APP_API_URL=http://your-backend:9090
-REACT_APP_WHATSAPP_API_URL=http://127.0.0.1:9093
+# From GitHub (after you push)
+npm install github:YOUR_USER/web-whatsapp-ai-pulgin#main
 
-npm install
-npm start
-```
-
-1. Open `http://localhost:3000/login`
-2. Sign in with your project account
-3. Go to `/whatsapp` → scan QR → connect WhatsApp
-
----
-
-## 2. Install plugin in another React / Node project
-
-### Option A — copy from this monorepo
-
-```bash
-# In your other project
+# Or local path while developing
 npm install ../web-whatsapp-ai-pulgin/whatsapp-plugin
 ```
 
-### Option B — after publish
+Peer deps (in your main app — you likely already have these):
 
 ```bash
-npm install whatsapp-plugin
+npm install react react-dom @tanstack/react-query axios
 ```
 
-### Browser / React (HTTP relay)
+## 2. Run OM server (once per machine / deploy)
 
-Point at your OM dev server or API that exposes `/api/whatsapp/*`:
+In this repo (or your server):
 
-```typescript
-import { WhatsAppPlugin } from 'whatsapp-plugin';
-
-const wa = new WhatsAppPlugin({
-  apiEndpoint: process.env.REACT_APP_WHATSAPP_API_URL, // e.g. http://127.0.0.1:9093
-  tenantId: 'project-a-user-123',  // isolate per SaaS user
-  autoReconnect: true,
-});
-
-wa.on('qr-code', ({ qrCode }) => {
-  // show QR in your UI
-});
-
-wa.on('message', (msg) => {
-  console.log('Inbound:', msg);
-});
-
-await wa.connect();
-await wa.startQRLogin();
-await wa.waitForQRScan();
-await wa.sendMessage('+919876543210', 'Hello from my SaaS app');
+```bash
+npm start
+# or only: node server/openclaw-dev-server.js  (port 9093)
 ```
 
-### Node.js (direct OpenClaw gateway)
+## 3. Use in your React app
 
-When `server/openclaw-gateway-client.js` is available, the plugin auto-uses the real gateway.
+```tsx
+import { WhatsAppAi } from 'whatsapp-plugin/react';
 
-```typescript
-import { WhatsAppPlugin } from 'whatsapp-plugin';
-
-const wa = WhatsAppPlugin.createInstance('tenant-b', {
-  sessionPath: './sessions/tenant-b',
-});
-
-await wa.connect();
-```
-
----
-
-## 3. Multi-tenant SaaS pattern
-
-One WhatsApp session per user/project:
-
-```typescript
-const sessions = new Map<string, WhatsAppPlugin>();
-
-export function getWhatsAppForUser(userId: string) {
-  if (!sessions.has(userId)) {
-    sessions.set(
-      userId,
-      WhatsAppPlugin.createInstance(userId, {
-        apiEndpoint: process.env.WHATSAPP_PLUGIN_API_ENDPOINT,
-        sessionPath: `./data/wa-sessions/${userId}`,
-      }),
-    );
-  }
-  return sessions.get(userId)!;
+function MyPage() {
+  return (
+    <WhatsAppAi
+      apiUrl="http://127.0.0.1:9093"
+      authToken={localStorage.getItem('token') || undefined}
+      userId={currentUser?.id}
+      autoConnect
+      showHeader
+      showMessageLog
+      onConnected={(status) => console.log('WhatsApp ready', status)}
+      onMessage={(msg) => console.log('New message', msg)}
+    />
+  );
 }
-
-// In your API route
-await getWhatsAppForUser(req.user.id).sendMessage(to, text);
 ```
 
----
+That's it. The component handles:
 
-## 4. Environment variables
+- QR login
+- Wait for scan
+- Auto bootstrap + link phone
+- Auto read your project
+- Message log (you + OM only)
+- Self-chat only
+- Logout / refresh
 
-| Variable | Purpose |
-|----------|---------|
-| `REACT_APP_API_URL` | Your main backend (login, JWT) |
-| `REACT_APP_WHATSAPP_API_URL` | WhatsApp relay (port 9093) |
-| `WHATSAPP_PLUGIN_API_ENDPOINT` | Plugin HTTP adapter base URL |
-| `WHATSAPP_PLUGIN_API_KEY` | Optional bearer for relay |
-| `WHATSAPP_PLUGIN_TENANT_ID` | Default tenant id |
+## Props
 
----
+| Prop | Default | Description |
+|------|---------|-------------|
+| `apiUrl` | `http://127.0.0.1:9093` | OM dev server |
+| `authToken` | `localStorage.token` | Your app JWT |
+| `userId` | linked phone | Tenant id |
+| `autoConnect` | `true` | Bootstrap + sync on connect |
+| `showHeader` | `true` | Green title bar |
+| `showMessageLog` | `true` | Chat log panel |
+| `onConnected` | — | Callback when linked |
+| `onMessage` | — | New inbound message |
+| `onError` | — | API errors |
+| `className` | — | Extra CSS classes |
 
-## 5. Plugin API (quick reference)
+## .env (your main project)
 
-```typescript
-await wa.connect();
-await wa.startQRLogin(force?: boolean);
-await wa.waitForQRScan();
-await wa.sendMessage(to, text);
-await wa.sendFile(to, file, caption?);
-wa.getStatus();
-wa.on('connected' | 'message' | 'qr-code' | 'error', handler);
-await wa.logout();
+```env
+REACT_APP_WHATSAPP_API_URL=http://127.0.0.1:9093
 ```
 
-Gateway type error (`HttpGatewayAdapter` vs `IGatewayAdapter`) is fixed — all credential methods return `Promise<boolean>`.
+Then you can omit `apiUrl`:
+
+```tsx
+<WhatsAppAi />
+```
+
+## Tailwind
+
+The UI uses Tailwind utility classes. Your app should include Tailwind (most CRA/Vite projects already do).
+
+## Server .env (optional API read)
+
+```env
+OM_WHATSAPP_API_TOKEN=your_studio_jwt
+```
+
+WhatsApp number = login. No username/password UI.
+
+## Full docs
+
+See `INTEGRATION.md` for GitHub push, gateway, production.

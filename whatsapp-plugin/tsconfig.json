@@ -4,6 +4,7 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "lib": ["DOM", "DOM.Iterable", "ES2020"],
+    "jsx": "react-jsx",
     "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": true,

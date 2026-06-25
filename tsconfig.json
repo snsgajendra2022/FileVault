@@ -19,7 +19,8 @@
     "paths": {
       "swiper/react": ["node_modules/swiper/swiper-react.d.ts"],
       "swiper/modules": ["node_modules/swiper/types/modules/index.d.ts"],
-      "react-loading-skeleton": ["node_modules/react-loading-skeleton/dist/index.d.ts"]
+      "react-loading-skeleton": ["node_modules/react-loading-skeleton/dist/index.d.ts"],
+      "whatsapp-plugin/react": ["whatsapp-plugin/dist/cjs/react/index.d.ts"]
     },
     "resolveJsonModule": true,
     "isolatedModules": true,

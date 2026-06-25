@@ -1,4 +1,4 @@
-# FileVault - Image Security React Portal
+<!-- # FileVault - Image Security React Portal
 
 node  verion use 22.22.2
     "start": "concurrently -n openclaw,web -c magenta,cyan \"node server/openclaw-dev-server.js\" \"craco start\"",
@@ -456,3 +456,59 @@ export const adminNavigation: NavGroup = {
     { labelKey: 'nav.admin.adminSettings', href: '/admin?tab=settings', icon: FaCog, enabled: true },
   ],
 };
+You can use it like a simple library now — one component:
+
+import { WhatsAppAi } from 'whatsapp-plugin/react';
+<WhatsAppAi apiUrl="http://127.0.0.1:9093" />
+That handles QR, connect, auto project read, messages, and logout.
+
+In your main project (3 steps)
+1. Install
+npm install github:YOUR_USER/web-whatsapp-ai-pulgin#main
+# or local:
+npm install ../web-whatsapp-ai-pulgin/whatsapp-plugin
+npm install @tanstack/react-query axios   # if not already
+2. Run OM server (from this repo)
+npm start
+# React :3000 + OM server :9093
+3. Add component anywhere
+import { WhatsAppAi } from 'whatsapp-plugin/react';
+export function SettingsPage() {
+  return (
+    <WhatsAppAi
+      apiUrl={process.env.REACT_APP_WHATSAPP_API_URL || 'http://127.0.0.1:9093'}
+      authToken={localStorage.getItem('token') || undefined}
+      userId={user?.id}
+      autoConnect
+      onConnected={() => console.log('WhatsApp ready')}
+    />
+  );
+}
+No login screen. Scan QR → use Message yourself on your phone.
+
+What <WhatsAppAi /> does automatically
+Show QR + connect buttons
+Wait for scan
+Link your phone number
+Auto-read your project (events, photos, albums)
+Show message log (You + OM only)
+Self-chat only
+Optional props
+Prop	What
+apiUrl
+OM server (9093)
+authToken
+Your app JWT
+userId
+Your user id
+autoConnect
+Auto bootstrap (default true)
+showMessageLog
+Chat list (default true)
+onConnected
+Callback when linked
+onMessage
+New message callback
+Full guide: whatsapp-plugin/INTEGRATION.md
+
+This demo app already uses the same component on /whatsapp — your project can do the same with one import. -->

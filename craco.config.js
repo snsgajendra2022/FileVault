@@ -10,8 +10,8 @@ const path = require('path');
 module.exports = {
   webpack: {
     alias: {
-      // Browser-safe prebundle; use ESM build so `import axios from 'axios'` gets `.create` (CJS .cjs breaks default interop).
       axios: path.resolve(__dirname, 'node_modules/axios/dist/esm/axios.js'),
+      'whatsapp-plugin/react': path.resolve(__dirname, 'whatsapp-plugin/dist/cjs/react/index.js'),
     },
     configure: (webpackConfig) => {
       webpackConfig.resolve.plugins = (webpackConfig.resolve.plugins || []).filter(
