@@ -58,6 +58,15 @@ That's it. The component handles:
 - Self-chat only
 - Logout / refresh
 
+**Important:** Your app must already wrap routes in `QueryClientProvider` (this demo app does in `App.tsx`). Do not set `wrapProvider` unless you have no react-query in the host app.
+
+```tsx
+// App.tsx — already required for most React apps using react-query
+<QueryClientProvider client={queryClient}>
+  <WhatsAppAi apiUrl="http://127.0.0.1:9093" />
+</QueryClientProvider>
+```
+
 ## Props
 
 | Prop | Default | Description |

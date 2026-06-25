@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { WhatsAppAiProvider, useWhatsAppAiConfig } from './context';
 import {
   createWaClient,
@@ -32,7 +38,19 @@ export type WhatsAppAiProps = {
   onConnected?: (status: WaStatus) => void;
   onError?: (error: Error) => void;
   onMessage?: (entry: WaLogEntry) => void;
+  /**
+   * Wrap in an internal QueryClientProvider. Default false — use your app's
+   * existing QueryClientProvider (recommended). Set true only if the host app
+   * has no react-query provider.
+   */
+  wrapProvider?: boolean;
 };
+
+function createWaQueryClient(): QueryClient {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+  });
+}
 
 type LoginUi = {
   busy: boolean;
@@ -40,10 +58,6 @@ type LoginUi = {
   qrDataUrl: string | null;
   connected: boolean | null;
 };
-
-const defaultQueryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
-});
 
 function label(entry: WaLogEntry): string {
   if (entry.from === 'om' || entry.from === 'system') return 'OM';
@@ -59,7 +73,7 @@ function WhatsAppAiInner({
   onConnected,
   onError,
   onMessage,
-}: Omit<WhatsAppAiProps, 'apiUrl' | 'authToken' | 'userId'>) {
+}: Omit<WhatsAppAiProps, 'apiUrl' | 'authToken' | 'userId' | 'wrapProvider'>) {
   const config = useWhatsAppAiConfig();
   const client = useMemo(() => createWaClient(config), [config]);
   const queryClient = useQueryClient();
@@ -314,6 +328,7 @@ export function WhatsAppAi({
   apiUrl,
   authToken,
   userId,
+  wrapProvider = false,
   ...uiProps
 }: WhatsAppAiProps) {
   const base =
@@ -322,13 +337,19 @@ export function WhatsAppAi({
     (typeof process !== 'undefined' && process.env?.REACT_APP_OPENCLAW_DEV_URL) ||
     'http://127.0.0.1:9093';
 
-  return (
-    <QueryClientProvider client={defaultQueryClient}>
-      <WhatsAppAiProvider apiUrl={base} authToken={authToken} userId={userId}>
-        <WhatsAppAiInner {...uiProps} />
-      </WhatsAppAiProvider>
-    </QueryClientProvider>
+  const [standaloneClient] = useState(() => (wrapProvider ? createWaQueryClient() : null));
+
+  const inner = (
+    <WhatsAppAiProvider apiUrl={base} authToken={authToken} userId={userId}>
+      <WhatsAppAiInner {...uiProps} />
+    </WhatsAppAiProvider>
   );
+
+  if (wrapProvider && standaloneClient) {
+    return <QueryClientProvider client={standaloneClient}>{inner}</QueryClientProvider>;
+  }
+
+  return inner;
 }
 
 export default WhatsAppAi;

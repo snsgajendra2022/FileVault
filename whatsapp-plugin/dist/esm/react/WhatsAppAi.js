@@ -1,11 +1,13 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useMutation, useQuery, useQueryClient, } from '@tanstack/react-query';
 import { WhatsAppAiProvider, useWhatsAppAiConfig } from './context';
 import { createWaClient, waBootstrap, waGetStatus, waLinkAuth, waLogout, waMessages, waStartLogin, waSyncProject, waWaitLogin, } from './api';
-const defaultQueryClient = new QueryClient({
-    defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
-});
+function createWaQueryClient() {
+    return new QueryClient({
+        defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+    });
+}
 function label(entry) {
     if (entry.from === 'om' || entry.from === 'system')
         return 'OM';
@@ -136,11 +138,16 @@ function Btn({ children, onClick, disabled, variant = 'primary', }) {
  * import { WhatsAppAi } from 'whatsapp-plugin/react';
  * <WhatsAppAi apiUrl="http://127.0.0.1:9093" />
  */
-export function WhatsAppAi({ apiUrl, authToken, userId, ...uiProps }) {
+export function WhatsAppAi({ apiUrl, authToken, userId, wrapProvider = false, ...uiProps }) {
     const base = apiUrl ||
         (typeof process !== 'undefined' && process.env?.REACT_APP_WHATSAPP_API_URL) ||
         (typeof process !== 'undefined' && process.env?.REACT_APP_OPENCLAW_DEV_URL) ||
         'http://127.0.0.1:9093';
-    return (_jsx(QueryClientProvider, { client: defaultQueryClient, children: _jsx(WhatsAppAiProvider, { apiUrl: base, authToken: authToken, userId: userId, children: _jsx(WhatsAppAiInner, { ...uiProps }) }) }));
+    const [standaloneClient] = useState(() => (wrapProvider ? createWaQueryClient() : null));
+    const inner = (_jsx(WhatsAppAiProvider, { apiUrl: base, authToken: authToken, userId: userId, children: _jsx(WhatsAppAiInner, { ...uiProps }) }));
+    if (wrapProvider && standaloneClient) {
+        return _jsx(QueryClientProvider, { client: standaloneClient, children: inner });
+    }
+    return inner;
 }
 export default WhatsAppAi;

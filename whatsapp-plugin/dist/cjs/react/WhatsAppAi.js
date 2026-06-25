@@ -6,9 +6,11 @@ const react_1 = require("react");
 const react_query_1 = require("@tanstack/react-query");
 const context_1 = require("./context");
 const api_1 = require("./api");
-const defaultQueryClient = new react_query_1.QueryClient({
-    defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
-});
+function createWaQueryClient() {
+    return new react_query_1.QueryClient({
+        defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+    });
+}
 function label(entry) {
     if (entry.from === 'om' || entry.from === 'system')
         return 'OM';
@@ -139,12 +141,17 @@ function Btn({ children, onClick, disabled, variant = 'primary', }) {
  * import { WhatsAppAi } from 'whatsapp-plugin/react';
  * <WhatsAppAi apiUrl="http://127.0.0.1:9093" />
  */
-function WhatsAppAi({ apiUrl, authToken, userId, ...uiProps }) {
+function WhatsAppAi({ apiUrl, authToken, userId, wrapProvider = false, ...uiProps }) {
     const base = apiUrl ||
         (typeof process !== 'undefined' && process.env?.REACT_APP_WHATSAPP_API_URL) ||
         (typeof process !== 'undefined' && process.env?.REACT_APP_OPENCLAW_DEV_URL) ||
         'http://127.0.0.1:9093';
-    return ((0, jsx_runtime_1.jsx)(react_query_1.QueryClientProvider, { client: defaultQueryClient, children: (0, jsx_runtime_1.jsx)(context_1.WhatsAppAiProvider, { apiUrl: base, authToken: authToken, userId: userId, children: (0, jsx_runtime_1.jsx)(WhatsAppAiInner, { ...uiProps }) }) }));
+    const [standaloneClient] = (0, react_1.useState)(() => (wrapProvider ? createWaQueryClient() : null));
+    const inner = ((0, jsx_runtime_1.jsx)(context_1.WhatsAppAiProvider, { apiUrl: base, authToken: authToken, userId: userId, children: (0, jsx_runtime_1.jsx)(WhatsAppAiInner, { ...uiProps }) }));
+    if (wrapProvider && standaloneClient) {
+        return (0, jsx_runtime_1.jsx)(react_query_1.QueryClientProvider, { client: standaloneClient, children: inner });
+    }
+    return inner;
 }
 exports.default = WhatsAppAi;
 //# sourceMappingURL=WhatsAppAi.js.map

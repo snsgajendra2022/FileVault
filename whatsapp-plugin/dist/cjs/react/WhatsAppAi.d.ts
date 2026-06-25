@@ -17,6 +17,12 @@ export type WhatsAppAiProps = {
     onConnected?: (status: WaStatus) => void;
     onError?: (error: Error) => void;
     onMessage?: (entry: WaLogEntry) => void;
+    /**
+     * Wrap in an internal QueryClientProvider. Default false — use your app's
+     * existing QueryClientProvider (recommended). Set true only if the host app
+     * has no react-query provider.
+     */
+    wrapProvider?: boolean;
 };
 /**
  * Drop-in WhatsApp + OM AI UI for any React app.
@@ -25,6 +31,6 @@ export type WhatsAppAiProps = {
  * import { WhatsAppAi } from 'whatsapp-plugin/react';
  * <WhatsAppAi apiUrl="http://127.0.0.1:9093" />
  */
-export declare function WhatsAppAi({ apiUrl, authToken, userId, ...uiProps }: WhatsAppAiProps): React.JSX.Element;
+export declare function WhatsAppAi({ apiUrl, authToken, userId, wrapProvider, ...uiProps }: WhatsAppAiProps): React.JSX.Element;
 export default WhatsAppAi;
 //# sourceMappingURL=WhatsAppAi.d.ts.map
