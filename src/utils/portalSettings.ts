@@ -152,6 +152,7 @@ function fallbackPermissionRows(): Record<RoleType, RoleMenuPermission[]> {
     { role: 'studio', labelKey: 'nav.studio.album', href: '/studio/albums', group: 'studio', enabled: true, actions: studioActions },
     { role: 'studio', labelKey: 'nav.studio.ourMemories', href: '/memories/events', group: 'studio', enabled: true, actions: studioActions },
     { role: 'studio', labelKey: 'nav.studio.services', href: '/services', group: 'studio', enabled: true, actions: studioActions },
+    { role: 'studio', labelKey: 'nav.studio.helpSupport', href: '/help-support', group: 'studio', enabled: true, actions: studioActions },
     { role: 'users', labelKey: 'nav.studio.createMembers', href: '/invitations', group: 'studio', enabled: true, actions: studioActions },
     { role: 'users', labelKey: 'nav.studio.phoneBook', href: '/phonebook', group: 'studio', enabled: true, actions: studioActions },
     { role: 'users', labelKey: 'nav.studio.membersTree', href: '/family-tree', group: 'studio', enabled: true, actions: studioActions },
@@ -170,6 +171,7 @@ function fallbackPermissionRows(): Record<RoleType, RoleMenuPermission[]> {
     { role: 'users', labelKey: 'nav.studio.membersTree', href: '/family-tree', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.photoThemes', href: '/photo-themes', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.services', href: '/services', group: 'users', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.helpSupport', href: '/help-support', group: 'users', enabled: true, actions: regularActions },
     { role: 'admin', labelKey: 'nav.studio.settings', href: '/portal-settings', group: 'admin', enabled: true, actions: regularActions },
   ];
   const regular: RoleMenuPermission[] = [];

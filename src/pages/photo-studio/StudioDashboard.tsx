@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Images, Users, Star, Clock, ArrowUpRight, CheckCircle2, Sparkles, ScanFace } from 'lucide-react';
+import { Images, Users, ArrowUpRight, Sparkles, ScanFace } from 'lucide-react';
 import {
   FaCamera,
   FaUsers,
@@ -11,9 +11,6 @@ import {
   FaPlus,
   FaChartLine,
   FaFolder,
-  FaArrowUp,
-  FaArrowDown,
-  FaEye,
   FaShare,
 } from 'react-icons/fa';
 import {
@@ -26,8 +23,6 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-  PieChart,
-  Pie,
   Cell,
 } from 'recharts';
 import './StudioDashboard.css';
@@ -44,9 +39,7 @@ import {
 } from '../../api/services/faceRecognitionService';
 import { THEME } from './studioDashboardTheme';
 
-export { THEME };
-
-const VISIBLE_PEOPLE = 12;
+const VISIBLE_PEOPLE = 3;
 
 const EMPTY_FACE_PERSONS: FacePersonsResponse = {
   userId: 0,
@@ -110,89 +103,84 @@ function StudioDetectedPeopleStrip({
   const hiddenCount = Math.max(0, persons.length - VISIBLE_PEOPLE);
 
   return (
-    <div className="sd-card sd-people-panel rounded-2xl border p-5 mb-4">
-      <div className="relative z-[1] flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <div className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold mb-2"
-            style={{ background: 'rgba(99,14,212,0.10)', color: '#630ed4' }}>
-            <ScanFace className="h-3 w-3" />
-            Face recognition
+    <div className="sd-people-hub">
+      <div className="sd-people-hub__glow" aria-hidden />
+      <div className="sd-people-hub__inner">
+        <div className="sd-people-hub__header">
+          <div className="sd-people-hub__title-block">
+            <span className="sd-people-hub__badge">
+              <ScanFace className="h-3.5 w-3.5" />
+              AI Face Match
+            </span>
+            <h4 className="sd-people-hub__title">Your people</h4>
+            <p className="sd-people-hub__subtitle">
+              Tap a face to jump straight into their photo collection
+            </p>
           </div>
-          <h4 className="text-[15px] font-extrabold tracking-tight" style={{ color: THEME.textPrimary }}>
-            Detected people
-          </h4>
-          <p className="text-[11px] mt-0.5" style={{ color: THEME.textMuted }}>
-            Browse photos grouped by face — tap anyone to open People Frame
-          </p>
-        </div>
-        <Link
-          to="/filter-images"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-[11px] font-bold transition-opacity hover:opacity-90"
-          style={{
-            background: 'linear-gradient(135deg, #630ed4 0%, #8b5cf6 100%)',
-            color: '#fff',
-            boxShadow: '0 8px 20px rgba(99,14,212,0.25)',
-          }}
-        >
-          Open People Frame
-          <ArrowUpRight className="h-3.5 w-3.5" />
-        </Link>
-      </div>
-
-      <div className="relative z-[1] mt-4">
-        {loading ? (
-          <div className="flex items-center gap-4 py-2">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="flex flex-col items-center gap-2">
-                <div className="h-[4.25rem] w-[4.25rem] rounded-full sd-muted-box animate-pulse" />
-                <div className="h-2 w-12 rounded-full sd-muted-box animate-pulse" />
+          <div className="sd-people-hub__actions">
+            {totalPersons > 0 && (
+              <div className="sd-people-hub__stat">
+                <span className="sd-people-hub__stat-value">{totalPersons}</span>
+                <span className="sd-people-hub__stat-label">detected</span>
               </div>
-            ))}
-          </div>
-        ) : persons.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-8 text-center sd-muted-box">
-            <ScanFace className="h-8 w-8 opacity-35" style={{ color: THEME.textMuted }} />
-            <p className="text-[12px] font-semibold" style={{ color: THEME.textSecondary }}>
-              No faces detected yet
-            </p>
-            <p className="text-[11px] max-w-xs" style={{ color: THEME.textMuted }}>
-              Upload photos with clear faces and they will appear here automatically.
-            </p>
-            <Link to="/upload" className="mt-1 text-[11px] font-bold" style={{ color: THEME.primary }}>
-              Upload photos →
+            )}
+            <Link to="/filter-images" className="sd-people-hub__cta">
+              People Frame
+              <ArrowUpRight className="h-4 w-4" />
             </Link>
           </div>
-        ) : (
-          <div className="sd-people-strip">
-            {visible.map((person, index) => (
-              <DashboardPersonAvatar
-                key={person.personId || `person-${index}`}
-                person={person}
-              />
-            ))}
-            {hiddenCount > 0 && (
-              <Link to="/filter-images" className="sd-view-more-people" aria-label={`View ${hiddenCount} more people`}>
-                <div className="sd-view-more-stack" aria-hidden>
-                  <span />
-                  <span />
-                  <span />
+        </div>
+
+        <div className="sd-people-hub__body">
+          {loading ? (
+            <div className="sd-people-hub__skeletons">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="sd-people-hub__skel">
+                  <div className="sd-people-hub__skel-avatar" />
+                  <div className="sd-people-hub__skel-line" />
                 </div>
-                <span>+{hiddenCount}</span>
-                <span>View more</span>
-              </Link>
-            )}
-            {totalPersons > 0 && (
-              <div className="ml-auto hidden sm:flex flex-col items-end justify-center pr-1">
-                <span className="text-[22px] font-extrabold leading-none" style={{ color: THEME.primary }}>
-                  {totalPersons}
-                </span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: THEME.textMuted }}>
-                  people
-                </span>
+              ))}
+            </div>
+          ) : persons.length === 0 ? (
+            <div className="sd-people-hub__empty">
+              <div className="sd-people-hub__empty-icon">
+                <ScanFace className="h-7 w-7" />
               </div>
-            )}
-          </div>
-        )}
+              <p className="sd-people-hub__empty-title">No faces detected yet</p>
+              <p className="sd-people-hub__empty-desc">
+                Upload portraits or event photos — faces appear here automatically.
+              </p>
+              {/* <Link to="/upload" className="sd-people-hub__empty-link">
+                Upload photos
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link> */}
+            </div>
+          ) : (
+            <div className="sd-people-hub__strip">
+              {visible.map((person, index) => (
+                <DashboardPersonAvatar
+                  key={person.personId || `person-${index}`}
+                  person={person}
+                />
+              ))}
+              {hiddenCount > 0 && (
+                <Link
+                  to="/filter-images"
+                  className="sd-view-more-people"
+                  aria-label={`View ${hiddenCount} more people`}
+                >
+                  <div className="sd-view-more-stack" aria-hidden>
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                  <span className="sd-view-more-count">+{hiddenCount}</span>
+                  <span>View all</span>
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -211,13 +199,6 @@ const CHART_TOOLTIP_STYLE = {
 // Chart colors using theme palette
 const CHART_COLORS = THEME.chartColors;
 
-// Status variants using theme colors
-const STATUS_VARIANTS = [
-  { label: 'Published', bg: 'var(--sd-chip-bg)', text: THEME.primary, dot: THEME.primaryLight },
-  { label: 'Featured', bg: 'var(--sd-chip-bg)', text: THEME.primary, dot: THEME.primaryLight },
-  { label: 'New', bg: 'var(--sd-status-new-bg)', text: THEME.textSecondary, dot: THEME.textMuted },
-];
-
 interface DashboardStats {
   totalMember?: number;
   clientsTrendPercent?: number;
@@ -228,24 +209,6 @@ interface DashboardStats {
   recentUploads?: number;
   activeSessions?: number;
   totalAlbums?: number;
-}
-
-interface RecentActivity {
-  id: string;
-  type: 'upload' | 'client' | 'session';
-  message: string;
-  timestamp: string;
-  clientName?: string;
-}
-
-interface RecentClient {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  lastSession: string;
-  totalPhotos: number;
-  avatar?: string;
 }
 
 interface UserImageItem {
@@ -275,378 +238,9 @@ interface ChartDataPoint {
   color: string;
 }
 
-// ── Timestamp formatter ──────────────────────────────────────────────────────
-// Handles: ISO strings, epoch ms strings, epoch numbers, "X ago" strings
-function formatActivityTime(raw: string | number | undefined | null): string {
-  if (!raw && raw !== 0) return '';
-
-  // Already a plain relative label with no parseable date — pass through
-  const str = String(raw).trim();
-  if (/^\d+\s*(mins?|hours?|days?|weeks?)\s*ago$/i.test(str)) return str;
-  if (/^just now$/i.test(str)) return str;
-
-  // Try to parse as epoch ms (number or numeric string)
-  const asNum = Number(str);
-  const date = !isNaN(asNum) && asNum > 1_000_000_000
-    ? new Date(asNum > 9_999_999_999 ? asNum : asNum * 1000) // seconds vs ms
-    : new Date(str);
-
-  if (isNaN(date.getTime())) return str; // unparseable — return as-is
-
-  // Time part: "07:03 AM"
-  const timePart = date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-
-  const now = new Date();
-  const diffMs  = Date.now() - date.getTime();
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHr  = Math.floor(diffMin / 60);
-
-  // Same calendar day
-  const isToday =
-    date.getDate()     === now.getDate()   &&
-    date.getMonth()    === now.getMonth()  &&
-    date.getFullYear() === now.getFullYear();
-
-  // Previous calendar day
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  const isYesterday =
-    date.getDate()     === yesterday.getDate()   &&
-    date.getMonth()    === yesterday.getMonth()  &&
-    date.getFullYear() === yesterday.getFullYear();
-
-  if (isToday) {
-    if (diffSec < 60)  return 'Just now';
-    if (diffMin < 60)  return `${diffMin} min${diffMin === 1 ? '' : 's'} ago`;
-    if (diffHr  < 24)  return `${diffHr} hr${diffHr  === 1 ? '' : 's'} ago`;
-  }
-
-  if (isYesterday) return `Yesterday • ${timePart}`;
-
-  // Older: "06 May 2026 • 07:03 AM"
-  const datePart = date.toLocaleDateString('en-GB', {
-    day:   '2-digit',
-    month: 'short',
-    year:  'numeric',
-  });
-  return `${datePart} • ${timePart}`;
-}
-
-// ── StudioActivityAndClients ─────────────────────────────────────────────────
-// Maps raw filenames to beautiful photography category names
-const PHOTO_CATEGORIES = [
-  'Wedding Moments', 'Birthday Memories', 'Studio Portraits',
-  'Pre Wedding Shoot', 'Nature Collection', 'Family Album',
-  'Golden Hour', 'Candid Stories', 'Engagement Session',
-  'Baby Shower', 'Corporate Event', 'Travel Diaries',
-];
-
-function getAlbumDisplayName(img: any, index: number): string {
-  // If the image belongs to a named album, use that
-  if (img.albumName && !/^album\s*\d+$/i.test(img.albumName)) return img.albumName;
-  // Otherwise rotate through beautiful category names
-  return PHOTO_CATEGORIES[index % PHOTO_CATEGORIES.length];
-}
-
-function StudioActivityAndClients({
-  recentImages,
-  recentClients,
-  t,
-  user,
-}: {
-  recentImages: any[];
-  recentClients: RecentClient[];
-  t: (key: string, opts?: any) => any;
-  user?: { id?: string | number; firstName?: string; [key: string]: any } | null;
-}) {
-  const avatarGrads = [
-    THEME.heroBackground,
-    THEME.heroBackground,
-    THEME.heroBackground,
-    THEME.heroBackground,
-    THEME.heroBackground,
-  ];
-
-  const fmtDate = (iso: string) => {
-    if (!iso) return '—';
-    try {
-      return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    } catch { return '—'; }
-  };
-
-  // Group images by album (or treat each as its own "shoot")
-  // We show up to 6 gallery cards
-  const galleryItems = recentImages.slice(0, 6).map((img: any, i: number) => ({
-    img,
-    displayName: getAlbumDisplayName(img, i),
-    status: STATUS_VARIANTS[i % STATUS_VARIANTS.length],
-    photoCount: img.albumImageCount || img.imageCount || Math.floor(Math.random() * 80) + 12,
-    date: fmtDate(img.uploadTime || img.createdAt || ''),
-    src: img.previewUrl || img.thumbnailUrl || img.downloadUrl || null,
-    rating: (4 + (i % 2) * 0.5).toFixed(1),
-  }));
-
-  return (
-    <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-
-      {/* ── Premium Gallery Uploads ── */}
-      <div className="sd-card rounded-2xl border overflow-hidden">
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b"
-          style={{ borderColor: THEME.border }}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl sd-icon-badge border">
-              <Images className="h-4 w-4 text-[#2563EB]" />
-            </div>
-            <div>
-              <p className="text-[14px] font-bold" style={{ color: THEME.textPrimary }}>Recent Gallery</p>
-              <p className="text-[11px]" style={{ color: THEME.textSecondary }}>Latest photography sessions</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="sd-chip inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold border">
-              <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: THEME.primary }} />
-              Live
-            </span>
-            <Link to="/client-images"
-              className="inline-flex items-center gap-1 text-[11px] font-bold transition-colors"
-              style={{ color: THEME.primary }}>
-              View All <ArrowUpRight className="h-3 w-3" />
-            </Link>
-          </div>
-        </div>
-
-        {/* Gallery Grid */}
-        <div className="p-4">
-          {galleryItems.length === 0 ? (
-            <div className="py-12 text-center text-sm" style={{ color: THEME.textMuted }}>
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl mx-auto mb-3 sd-muted-box border">
-                <Images className="h-7 w-7 text-[THEME.primaryLight]" />
-              </div>
-              <p className="font-semibold" style={{ color: THEME.textSecondary }}>No uploads yet</p>
-              <p className="text-[12px] mt-1">Start uploading your photography sessions</p>
-              <Link to="/upload"
-                className="inline-flex items-center gap-1.5 mt-3 rounded-xl px-4 py-2 text-xs font-bold text-white"
-                style={{ background: `linear-gradient(135deg, ${THEME.primary} 0%, ${THEME.primaryLight} 100%)` }}>
-                <FaPlus className="h-3 w-3" /> Upload Photos
-              </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {galleryItems.map(({ img, displayName, status, photoCount, date, src, rating }, i) => (
-                <motion.div
-                  key={img.id || i}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.06, duration: 0.3 }}
-                  whileHover={{ y: -3, transition: { duration: 0.2 } }}
-                >
-                  <Link to="/client-images" className="block group cursor-pointer">
-                    {/* Image card */}
-                    <div className="relative rounded-xl overflow-hidden aspect-[4/3] mb-2 sd-muted-box"
-                      style={{ boxShadow: 'var(--sd-shadow)' }}>
-
-                      {/* Thumbnail */}
-                      {src ? (
-                        <img src={src} alt={displayName}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center"
-                          style={{
-                            background: [
-                              'linear-gradient(135deg,#EEF4FF 0%,#E7F0FF 100%)',
-                              'linear-gradient(135deg,#EFF6FF 0%,#DBEAFE 100%)',
-                              'linear-gradient(135deg,#F0F9FF 0%,#E0F2FE 100%)',
-                              'linear-gradient(135deg,#EEF4FF 0%,#E7F0FF 100%)',
-                              'linear-gradient(135deg,#EFF6FF 0%,#DBEAFE 100%)',
-                              'linear-gradient(135deg,#F0F9FF 0%,#E0F2FE 100%)',
-                            ][i % 6]
-                          }}>
-                          <FaCamera className="h-6 w-6 text-[#2563EB]" />
-                        </div>
-                      )}
-
-                      {/* Gradient overlay */}
-                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        style={{ background: 'linear-gradient(180deg, transparent 45%, rgba(17,24,39,0.55) 100%)' }} />
-
-                      {/* Status badge — top left */}
-                      <div className="absolute top-2 left-2">
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold backdrop-blur-sm"
-                          style={{ background: status.bg + 'cc', color: status.text }}>
-                          <span className="h-1.5 w-1.5 rounded-full" style={{ background: status.dot }} />
-                          {status.label}
-                        </span>
-                      </div>
-
-                      {/* Photo count — top right */}
-                      <div className="absolute top-2 right-2">
-                        <span className="inline-flex items-center gap-1 rounded-full backdrop-blur-sm px-2 py-0.5 text-[9px] font-bold text-white"
-                          style={{ background: 'rgba(15,23,42,0.35)', border: '1px solid rgba(255,255,255,0.14)' }}>
-                          <Images className="h-2.5 w-2.5" />
-                          {photoCount}
-                        </span>
-                      </div>
-
-                      {/* Hover overlay — view button */}
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/95 backdrop-blur-sm shadow-lg"
-                          style={{ border: '1px solid #F1F2F6', boxShadow: '0 6px 24px rgba(37,99,235,0.08)' }}>
-                          <ArrowUpRight className="h-4 w-4 text-[#2563EB]" />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Card info */}
-                    <div className="px-0.5">
-                      <p className="text-[12px] font-bold truncate leading-tight" style={{ color: THEME.textPrimary }}>{displayName}</p>
-                      <div className="flex items-center justify-between mt-0.5">
-                        <div className="flex items-center gap-1">
-                          <Star className="h-2.5 w-2.5 text-[THEME.primaryLight] fill-[THEME.primaryLight]" />
-                          <span className="text-[10px] font-semibold" style={{ color: THEME.textSecondary }}>{rating}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-2.5 w-2.5 text-[THEME.textMuted]" />
-                          <span className="text-[10px]" style={{ color: THEME.textMuted }}>{date}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Recent Clients ── */}
-      <div className="sd-card rounded-[20px] border overflow-hidden"
-        style={{ borderColor: '#E5E7EB', boxShadow: '0 2px 12px rgba(15,23,42,0.06)' }}>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b"
-          style={{ borderColor: '#F3F4F6' }}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl sd-icon-badge border">
-              <Users className="h-4 w-4 text-[#2563EB]" />
-            </div>
-            <div>
-              <p className="text-[14px] font-semibold" style={{ color: THEME.textPrimary }}>{t('dashboard.recentClients')}</p>
-              <p className="text-[11px]" style={{ color: THEME.textMuted }}>Connected members</p>
-            </div>
-          </div>
-          <Link to="/invitations"
-            className="inline-flex items-center gap-1 text-[12px] font-medium transition-colors"
-            style={{ color: THEME.primary }}>
-            View All <ArrowUpRight className="h-3 w-3" />
-          </Link>
-        </div>
-
-        {/* Client list */}
-        <div className="px-4 py-2">
-          {recentClients.length === 0 ? (
-            <div className="py-10 text-center text-sm" style={{ color: THEME.textMuted }}>
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl mx-auto mb-3 sd-muted-box border">
-                <Users className="h-6 w-6 text-[#2563EB]" />
-              </div>
-              <p className="font-semibold text-[13px]" style={{ color: THEME.textSecondary }}>No clients yet</p>
-              <p className="text-[12px] mt-0.5">Invite your first client to get started</p>
-              <Link to="/invitations"
-                className="inline-flex items-center gap-1.5 mt-3 rounded-xl px-4 py-2 text-xs font-semibold text-white"
-                style={{ background: `linear-gradient(135deg, ${THEME.primary} 0%, ${THEME.primaryLight} 100%)` }}>
-                <FaPlus className="h-3 w-3" /> Invite Client
-              </Link>
-            </div>
-          ) : recentClients.map((client, i) => {
-            const online = i % 3 !== 1;
-            const sessionLabels = ['2h ago', 'Yesterday', '2d ago', '3d ago', '1w ago'];
-            const avatarColors = ['#2563EB', '#3B82F6', '#0EA5E9', '#0891B2', '#1D4ED8'];
-            return (
-              <div key={client.id}>
-                <motion.div
-                  initial={{ opacity: 0, x: 6 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.06, duration: 0.22 }}
-                  className="flex items-center gap-3 py-3 group cursor-pointer"
-                >
-                  {/* Avatar */}
-                  <div className="relative shrink-0">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full text-white text-[12px] font-bold"
-                      style={{ background: avatarColors[i % avatarColors.length] }}>
-                      {client.name.charAt(0).toUpperCase()}
-                    </div>
-                    <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${online ? 'bg-emerald-400' : 'bg-slate-300'}`} />
-                  </div>
-
-                  {/* Info */}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-semibold truncate" style={{ color: THEME.textPrimary }}>{client.name}</p>
-                    <p className="text-[11px] truncate" style={{ color: THEME.textMuted }}>{client.email || '—'}</p>
-                  </div>
-
-                  {/* Right side */}
-                  <div className="shrink-0 flex flex-col items-end gap-1">
-                    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
-                      style={online
-                        ? { background: '#ECFDF5', color: '#059669', border: '1px solid #D1FAE5' }
-                        : { background: '#F9FAFB', color: '#6B7280', border: '1px solid #E5E7EB' }
-                      }>
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: online ? '#10B981' : '#9CA3AF' }} />
-                      {online ? 'Active' : 'Away'}
-                    </span>
-                    <span className="text-[10px]" style={{ color: THEME.textMuted }}>{sessionLabels[i] || '—'}</span>
-                  </div>
-
-                  {/* Hover actions */}
-                  <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ml-1">
-                    <Link to="/studio/clients"
-                      className="h-7 w-7 flex items-center justify-center rounded-lg sd-card border transition-colors hover:opacity-90"
-                      style={{ color: THEME.textMuted }}>
-                      <FaEye className="h-3 w-3" />
-                    </Link>
-                    <button type="button"
-                      className="h-7 w-7 flex items-center justify-center rounded-lg sd-card border transition-colors hover:opacity-90"
-                      style={{ color: THEME.textMuted }}>
-                      <FaShare className="h-3 w-3" />
-                    </button>
-                  </div>
-                </motion.div>
-                {/* Thin divider between rows (not after last) */}
-                {i < recentClients.length - 1 && (
-                  <div className="h-px" style={{ background: '#F3F4F6' }} />
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Footer CTA */}
-        {recentClients.length > 0 && (
-          <div className="px-4 pb-4 pt-3">
-            <Link to="/invitations"
-              className="sd-chip flex items-center justify-center gap-2 w-full rounded-xl py-2.5 text-[12px] font-semibold border transition-colors hover:opacity-90"
-              style={{ color: THEME.primary }}>
-              <Sparkles className="h-3.5 w-3.5" />
-              Invite New Client
-            </Link>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
 const StudioDashboard: React.FC = () => {
   const { t } = useTranslation();
   const [stats, setStats] = useState<DashboardStats>({});
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
-  const [recentClients, setRecentClients] = useState<RecentClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [allPhotos, setAllPhotos] = useState<UserImageItem[]>([]);
   const [yourPhotosCount, setYourPhotosCount] = useState<number | null>(null);
@@ -656,6 +250,12 @@ const StudioDashboard: React.FC = () => {
   const { theme: colorMode } = useDocumentTheme();
   const chartTickColor = colorMode === 'dark' ? '#94a3b8' : '#64748b';
   const chartGridColor = colorMode === 'dark' ? '#334155' : '#f1f5f9';
+
+  const truncateLabel = (value: unknown, max = 12) => {
+    const s = String(value ?? '');
+    if (s.length <= max) return s;
+    return `${s.slice(0, Math.max(0, max - 1))}…`;
+  };
 
   const { data: facePersonsData, isPending: facePersonsLoading } = useQuery({
     queryKey: ['facePersons', user?.id],
@@ -707,22 +307,9 @@ const StudioDashboard: React.FC = () => {
         if (typeof summary.clientsTrendLabel === 'string') nextStats.clientsTrendLabel = summary.clientsTrendLabel;
         setStats(nextStats);
 
-        if (Array.isArray(summary.recentActivity)) {
-          setRecentActivity(
-            summary.recentActivity.map((item: any, idx: number) => ({
-              id: String(item.id ?? idx ?? Math.random()),
-              type: (item.type === 'client' || item.type === 'session' || item.type === 'upload') ? item.type : 'upload',
-              message: String(item.message ?? ''),
-              timestamp: String(item.timestamp ?? ''),
-              clientName: item.clientName,
-            }))
-          );
-        } else setRecentActivity([]);
-
         if (typeof summary.yourPhotos === 'number') setYourPhotosCount(summary.yourPhotos);
         else setYourPhotosCount(null);
 
-        let clientsSet = false;
         try {
           const familyRes = await api.get('/api/simple-invitations/family-relationships');
           const family = familyRes.data?.familyData || familyRes.data || {};
@@ -734,10 +321,6 @@ const StudioDashboard: React.FC = () => {
                 allClients.push({
                   id: client.userId,
                   userId: client.userId,
-                  name: client.name || client.username || (typeof client.email === 'string' ? client.email.split('@')[0] : 'Client'),
-                  email: client.email || '',
-                  username: client.username,
-                  relation: client.relation || 'Client',
                 });
               }
               if (client?.clients?.length) flattenClients(client.clients);
@@ -748,45 +331,9 @@ const StudioDashboard: React.FC = () => {
           if (uniqueClients.length > 0) {
             nextStats.totalMember = uniqueClients.length;
             setStats(prev => ({ ...prev, totalMember: uniqueClients.length }));
-            const sorted = [...uniqueClients].sort((a, b) => (Number(b.userId) || 0) - (Number(a.userId) || 0));
-            setRecentClients(
-              sorted.slice(0, 5).map(p => ({
-                id: String(p.userId ?? p.username ?? p.email ?? Math.random()),
-                name: p.name || p.username || (typeof p.email === 'string' ? p.email.split('@')[0] : 'Client'),
-                email: p.email || '',
-                phone: '',
-                lastSession: '',
-                totalPhotos: 0,
-                avatar: undefined,
-              }))
-            );
-            clientsSet = true;
           }
         } catch (e) {
           console.error('Error fetching family relationships:', e);
-        }
-
-        if (!clientsSet) {
-          try {
-            const invitationsRes = await api.get('/api/simple-invitations/my-invitations');
-            const invitations = Array.isArray(invitationsRes.data) ? invitationsRes.data : invitationsRes.data?.invitations || [];
-            const sorted = [...invitations].sort((a: any, b: any) =>
-              new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime()
-            );
-            setRecentClients(
-              sorted.slice(0, 5).map((inv: any) => ({
-                id: String(inv.id ?? inv.invitationId ?? Math.random()),
-                name: inv.inviteeName || inv.name || (inv.inviteeEmail || inv.email || '').split('@')[0] || 'Client',
-                email: inv.inviteeEmail ?? inv.email ?? '',
-                phone: inv.phone || '',
-                lastSession: inv.updatedAt || inv.createdAt ? new Date(inv.updatedAt || inv.createdAt).toLocaleString() : '',
-                totalPhotos: inv.totalPhotos || 0,
-                avatar: inv.avatarUrl,
-              }))
-            );
-          } catch {
-            setRecentClients([]);
-          }
         }
 
         const token = localStorage.getItem('token');
@@ -887,104 +434,84 @@ const StudioDashboard: React.FC = () => {
   const firstName = user?.firstName ?? 'there';
 
   return (
-    <div className="studio-dashboard premium-dashboard sd-page">
-      <main className="relative w-full px-4 py-6 sm:px-6 sm:py-8">
+    <div className="studio-dashboard premium-dashboard sd-page sd-dashboard-v2">
+      <main className="sd-dashboard-main relative w-full">
         {/* 1. Welcome Hero */}
-        <section className="sd-hero-panel relative overflow-hidden rounded-2xl mb-6 border">
-          {/* Soft mesh light */}
-          <div className="pointer-events-none absolute inset-0"
-            style={{ background: 'radial-gradient(ellipse 80% 60% at 70% 40%, rgba(37,99,235,0.08) 0%, transparent 70%)' }} />
-          <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full opacity-20"
-            style={{ background: 'radial-gradient(circle, rgba(37,99,235,0.16) 0%, transparent 65%)' }} />
+        <section className="sd-hero-shell mb-6">
+          <div className="sd-hero-shell__glow" aria-hidden />
+          <div className="sd-hero-panel sd-hero-panel--premium relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 sd-hero-panel__mesh" aria-hidden />
+          <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full sd-hero-panel__orb" aria-hidden />
 
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 px-6 py-7 sm:px-8">
-            {/* Left — text + badges */}
+          <div className="relative flex flex-col gap-5 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6 sm:py-7 lg:px-8">
             <div className="flex-1 min-w-0">
-              <h1 className="text-2xl sm:text-[28px] font-extrabold tracking-tight leading-tight"
-                style={{ color: THEME.textPrimary }}>
-                {t('dashboard.welcome', { name: firstName })} 
+              <p className="sd-hero-eyebrow">
+                <Sparkles className="h-3.5 w-3.5" />
+                Studio overview
+              </p>
+              <h1 className="sd-hero-title">
+                {t('dashboard.welcome', { name: firstName })}
               </h1>
-              <p className="mt-1.5 text-[13px] font-normal" style={{ color: THEME.textSecondary }}>
+              <p className="sd-hero-subtitle">
                 {t('dashboard.welcomeSummary')}
               </p>
 
-              {/* Stat badges */}
-              <div className="flex flex-wrap items-center gap-2 mt-4">
-                <span className="sd-chip inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium border"
-                  style={{ backdropFilter: 'none' }}>
-                  <FaImages className="h-3 w-3 text-[#2563EB]" />
-                  {photosCount.toLocaleString()} {t('dashboard.photosUploaded')}
+              <div className="sd-hero-stats">
+                <span className="sd-hero-stat">
+                  <FaImages className="h-3.5 w-3.5" />
+                  <span className="sd-hero-stat__value">{photosCount.toLocaleString()}</span>
+                  <span className="sd-hero-stat__label">{t('dashboard.photosUploaded')}</span>
                 </span>
-                <span className="sd-chip inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium border"
-                  style={{ backdropFilter: 'none' }}>
-                  <FaUsers className="h-3 w-3 text-[#2563EB]" />
-                  {(typeof stats.totalMember === 'number' ? stats.totalMember : 0)} {t('dashboard.activeClients')}
+                <span className="sd-hero-stat">
+                  <FaUsers className="h-3.5 w-3.5" />
+                  <span className="sd-hero-stat__value">{(typeof stats.totalMember === 'number' ? stats.totalMember : 0)}</span>
+                  <span className="sd-hero-stat__label">{t('dashboard.activeClients')}</span>
                 </span>
-                <span className="sd-chip inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium border"
-                  style={{ backdropFilter: 'none' }}>
-                  <FaFolder className="h-3 w-3 text-[#2563EB]" />
-                  {(stats.totalAlbums ?? 0)} {t('dashboard.albumsCreated')}
+                <span className="sd-hero-stat">
+                  <FaFolder className="h-3.5 w-3.5" />
+                  <span className="sd-hero-stat__value">{(stats.totalAlbums ?? 0)}</span>
+                  <span className="sd-hero-stat__label">{t('dashboard.albumsCreated')}</span>
                 </span>
               </div>
             </div>
 
-            {/* Right — action buttons + camera illustration */}
             <div className="flex flex-col items-start sm:items-end gap-4 shrink-0">
-              {/* Buttons */}
-              <div className="flex flex-wrap items-center gap-2">
-                <Link
-                  to="/upload"
-                  className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold text-white transition-all duration-200 hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ background: `linear-gradient(135deg, ${THEME.primary} 0%, ${THEME.primaryLight} 100%)`, boxShadow: '0 10px 24px rgba(37,99,235,0.18)' }}
-                >
-                  <FaImages className="h-3.5 w-3.5 text-white" />
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+                <Link to="/upload" className="sd-hero-btn sd-hero-btn--primary justify-center">
+                  <FaImages className="h-3.5 w-3.5" />
                   {t('dashboard.uploadPhotos')}
                 </Link>
-                <Link
-                  to="/studio/albums"
-                  className="sd-btn-secondary inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <FaFolder className="h-3.5 w-3.5 text-[#2563EB]" />
+                <Link to="/studio/albums" className="sd-hero-btn sd-hero-btn--ghost justify-center">
+                  <FaFolder className="h-3.5 w-3.5" />
                   {t('dashboard.createAlbum')}
                 </Link>
-                <Link
-                  to="/invitations"
-                  className="sd-btn-secondary inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-medium transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <FaShare className="h-3.5 w-3.5 text-[#2563EB]" />
+                <Link to="/invitations" className="sd-hero-btn sd-hero-btn--ghost justify-center">
+                  <FaShare className="h-3.5 w-3.5" />
                   {t('dashboard.addClient')}
                 </Link>
               </div>
 
-              {/* Camera illustration — decorative with soft blue glassmorphism */}
-              <div className="hidden sm:flex items-end gap-2 opacity-90 select-none pointer-events-none">
+              <div className="hidden sm:flex items-end gap-2 opacity-90 select-none pointer-events-none sd-hero-deco">
                 <div className="relative">
-                  {/* Camera body */}
-                  <div className="w-20 h-14 rounded-xl shadow-xl flex items-center justify-center"
-                    style={{ background: THEME.glassBgLight, border: `1px solid ${THEME.border}`, boxShadow: THEME.shadowMedium }}>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center"
-                      style={{ border: '4px solid rgba(37,99,235,0.22)' }}>
-                      <div className="w-4 h-4 rounded-full" style={{ background: 'rgba(37,99,235,0.29)' }} />
+                  <div className="sd-hero-deco__camera">
+                    <div className="sd-hero-deco__lens">
+                      <div className="sd-hero-deco__lens-inner" />
                     </div>
-                    <div className="absolute top-1.5 right-2 w-2 h-1.5 rounded-sm" style={{ background: 'rgba(37,99,235,0.42)' }} />
+                    <div className="sd-hero-deco__flash" />
                   </div>
-                  {/* Flash */}
-                  <div className="absolute -top-1.5 left-3 w-5 h-2 rounded-sm"
-                    style={{ background: '#EFF6FF', border: `1px solid ${THEME.borderLight}` }} />
                 </div>
-                {/* Flower pot */}
                 <div className="flex flex-col items-center mb-1">
                   <div className="text-lg">🌸</div>
-                  <div className="w-5 h-6 rounded-b-lg"
-                    style={{ background: `linear-gradient(135deg, ${THEME.primary} 0%, ${THEME.primaryLight} 100%)` }} />
+                  <div className="sd-hero-deco__pot" />
                 </div>
               </div>
             </div>
           </div>
+          </div>
         </section>
 
-        {/* 2. Statistics Cards — premium Tailwind */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* 2. KPI cards */}
+        <section className="sd-stat-grid mb-6">
           {[
             {
               icon: FaUsers,
@@ -1032,142 +559,158 @@ const StudioDashboard: React.FC = () => {
               trendUp: true,
               spark: [10, 20, 15, 30, 25, 40, 35],
             },
-          ].map((card) => {
+          ].map((card, idx) => {
             const Icon = card.icon;
             return (
-              <div key={card.label}
-                className="sd-card rounded-2xl p-5 border transition-all duration-200 hover:-translate-y-0.5">
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${card.iconBg}`}>
-<Icon className={`w-[18px] h-[18px] ${card.iconColor}`} />
+              <motion.div
+                key={card.label}
+                className="sd-stat-card"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.06, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <div className="sd-stat-card__inner">
+                  <div className="sd-stat-card__top">
+                    <div className="sd-stat-card__icon">
+                      <Icon className="h-[18px] w-[18px]" />
+                    </div>
+                    <div className="sd-stat-card__spark">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={card.spark.map((v, i) => ({ v, i }))}>
+                          <Line type="monotone" dataKey="v" stroke="#2563eb" strokeWidth={2} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
-                  {/* Mini sparkline */}
-                  <div className="w-20 h-8">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={card.spark.map((v, i) => ({ v, i }))}>
-                        <Line type="monotone" dataKey="v"
-                          stroke={card.sparkColor}
-                          strokeWidth={1.5} dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <p className="sd-stat-card__value">{card.value}</p>
+                  <p className="sd-stat-card__label">{card.label}</p>
+                  <span className={`sd-stat-card__trend ${card.trendUp ? 'sd-stat-card__trend--up' : 'sd-stat-card__trend--down'}`}>
+                    {card.trendUp ? '↑' : '↓'} {card.trend}
+                  </span>
                 </div>
-                <p className="text-[28px] font-bold leading-none mb-1.5 tracking-tight" style={{ color: THEME.textPrimary }}>{card.value}</p>
-                <p className="text-[11px] font-medium uppercase tracking-[0.08em] mb-2" style={{ color: THEME.textMuted }}>{card.label}</p>
-                <span className={`text-[12px] font-medium ${card.trendUp ? 'text-emerald-600' : 'text-red-500'}`}>
-                  {card.trendUp ? '↑' : '↓'} {card.trend}
-                </span>
-              </div>
+              </motion.div>
             );
           })}
         </section>
 
-        {/* 3. Analytics & Charts — premium Tailwind */}
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          {/* Album Statistics */}
-          <div className="sd-card rounded-2xl p-6 border">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl sd-icon-badge border">
-                  <FaFolder className="h-4 w-4 text-[#2563EB]" />
-                </div>
-                <div>
-                  <p className="text-[14px] font-semibold" style={{ color: THEME.textPrimary }}>{t('dashboard.albumStatistics')}</p>
-                  <p className="text-[11px]" style={{ color: THEME.textMuted }}>{t('dashboard.topAlbumsByCount')}</p>
-                </div>
+        {/* 3. Analytics */}
+        <section className="sd-analytics-grid mb-6">
+          <div className="sd-chart-panel">
+            <div className="sd-chart-panel__glow" aria-hidden />
+            <div className="sd-chart-panel__inner">
+            <header className="sd-chart-panel__header">
+              <div className="sd-chart-panel__header-left">
+                <span className="sd-panel__eyebrow">
+                  <FaFolder className="h-3.5 w-3.5" />
+                  Albums
+                </span>
+                <h3 className="sd-panel__title">{t('dashboard.albumStatistics')}</h3>
+                <p className="sd-panel__subtitle">{t('dashboard.topAlbumsByCount')}</p>
               </div>
-              <Link to="/studio/albums" className="text-[12px] font-medium transition-colors"
-                style={{ color: THEME.primary }}>
+              <Link to="/studio/albums" className="sd-panel__link">
                 {t('dashboard.viewAllAlbums')}
+                <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
-            </div>
+            </header>
+            <div className="sd-chart-panel__body">
             {albumChartData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-[THEME.textMuted]">
-                <FaFolder className="h-10 w-10 mb-3 text-[THEME.borderLight]" />
-                <p className="text-sm">{t('dashboard.noAlbumsYet')}</p>
-                <Link to="/studio/albums" className="mt-2 text-xs font-semibold text-[THEME.primary] hover:underline">
+              <div className="sd-chart-panel__empty">
+                <FaFolder className="h-10 w-10" />
+                <p>{t('dashboard.noAlbumsYet')}</p>
+                <Link to="/studio/albums" className="sd-panel__link">
                   {t('dashboard.createFirstAlbum')}
                 </Link>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={albumChartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} barSize={32}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} vertical={false} />
-                  <XAxis dataKey="label" tick={{ fill: chartTickColor, fontSize: 11, fontWeight: 500 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fill: chartTickColor, fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} cursor={{ fill: 'rgba(37,99,235,0.06)' }} />
-                  <Bar dataKey="value" name={t('dashboard.images')} radius={[6, 6, 0, 0]}>
-                    {albumChartData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color || CHART_COLORS[i % CHART_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="sd-chart-canvas sd-chart-canvas--albums">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    layout="vertical"
+                    data={albumChartData}
+                    margin={{ top: 4, right: 16, left: 4, bottom: 4 }}
+                    barSize={14}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} horizontal={false} />
+                    <XAxis type="number" tick={{ fill: chartTickColor, fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="label"
+                      width={108}
+                      tickFormatter={(v) => truncateLabel(v, 14)}
+                      tick={{ fill: chartTickColor, fontSize: 11, fontWeight: 600 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip contentStyle={CHART_TOOLTIP_STYLE} cursor={{ fill: 'rgba(37,99,235,0.06)' }} />
+                    <Bar dataKey="value" name={t('dashboard.images')} radius={[0, 6, 6, 0]}>
+                      {albumChartData.map((entry, i) => (
+                        <Cell key={i} fill={entry.color || CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             )}
+            </div>
+            </div>
           </div>
 
-          {/* Upload Activity */}
-          <div className="sd-card rounded-2xl p-6 border">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl sd-icon-badge border">
-                  <FaChartLine className="h-4 w-4 text-[#2563EB]" />
-                </div>
-                <div>
-                  <p className="text-[14px] font-semibold" style={{ color: THEME.textPrimary }}>{t('dashboard.uploadActivity')}</p>
-                  <p className="text-[11px]" style={{ color: THEME.textMuted }}>{t('dashboard.last7Days')}</p>
-                </div>
+          <div className="sd-chart-panel">
+            <div className="sd-chart-panel__glow sd-chart-panel__glow--alt" aria-hidden />
+            <div className="sd-chart-panel__inner">
+            <header className="sd-chart-panel__header">
+              <div className="sd-chart-panel__header-left">
+                <span className="sd-panel__eyebrow">
+                  <FaChartLine className="h-3.5 w-3.5" />
+                  Activity
+                </span>
+                <h3 className="sd-panel__title">{t('dashboard.uploadActivity')}</h3>
+                <p className="sd-panel__subtitle">{t('dashboard.last7Days')}</p>
               </div>
+            </header>
+            <div className="sd-chart-panel__body">
+            <div className="sd-chart-canvas">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={uploadActivityData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="uploadGradStudio" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={THEME.primary} stopOpacity={0.22} />
+                      <stop offset="95%" stopColor={THEME.primary} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    tickFormatter={(v) => String(v ?? '').split(' ')[0]}
+                    interval="preserveStartEnd"
+                    tick={{ fill: chartTickColor, fontSize: 11, fontWeight: 600 }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis tick={{ fill: chartTickColor, fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
+                  <Line type="monotone" dataKey="count" name={t('dashboard.uploads')}
+                    stroke={THEME.primary} strokeWidth={2.5}
+                    dot={{ fill: THEME.primary, strokeWidth: 0, r: 3 }}
+                    activeDot={{ r: 6, fill: THEME.primary, stroke: colorMode === 'dark' ? '#1e293b' : '#fff', strokeWidth: 2 }} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-            <ResponsiveContainer width="100%" height={240}>
-              {/* Area chart for smooth premium look */}
-              <LineChart data={uploadActivityData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="uploadGradStudio" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={THEME.primary} stopOpacity={0.18} />
-                    <stop offset="95%" stopColor={THEME.primary} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} vertical={false} />
-                <XAxis dataKey="name" tick={{ fill: chartTickColor, fontSize: 10, fontWeight: 500 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fill: chartTickColor, fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-                <Line type="monotone" dataKey="count" name={t('dashboard.uploads')}
-                  stroke={THEME.primary} strokeWidth={2.5}
-                  dot={{ fill: THEME.primary, strokeWidth: 0, r: 4 }}
-                  activeDot={{ r: 6, fill: THEME.primary, stroke: colorMode === 'dark' ? '#1e293b' : '#fff', strokeWidth: 2 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            </div>
+            </div>
           </div>
         </section>
 
-        {/* 4. Recent Activity + 5. Recent Clients — premium Tailwind */}
-        <StudioActivityAndClients
-          recentImages={allPhotos.slice(0, 6)}
-          recentClients={recentClients}
-          t={t}
-          user={user}
-        />
-
-        {/* 6. Quick Access — people strip + premium action cards */}
-        <section className="mb-8 sd-quick-actions">
-          <div className="flex items-center justify-between mb-5">
+        {/* 5. Quick Access — premium hub (hero above untouched) */}
+        <section className="sd-quick-hub-section mb-10">
+          <div className="sd-quick-hub-section__header">
             <div>
-              <h3 className="text-[17px] font-extrabold tracking-tight" style={{ color: THEME.textPrimary }}>
+              <p className="sd-quick-hub-section__eyebrow">
+                <Sparkles className="h-3.5 w-3.5" />
                 {t('dashboard.quickAccess')}
-              </h3>
-              <p className="text-[12px] mt-0.5" style={{ color: THEME.textMuted }}>
-                {t('dashboard.quickAccessSubtitle')}
               </p>
+              <h3 className="sd-quick-hub-section__title">{t('dashboard.quickAccessSubtitle')}</h3>
             </div>
-            <motion.span
-              whileHover={{ scale: 1.05 }}
-              className="sd-chip inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold cursor-default select-none border"
-              style={{ color: THEME.primary, boxShadow: 'var(--sd-shadow)' }}
-            >
-              <Sparkles className="h-3 w-3" />
-              Quick Actions
-            </motion.span>
           </div>
 
           <StudioDetectedPeopleStrip
@@ -1176,166 +719,132 @@ const StudioDashboard: React.FC = () => {
             loading={facePersonsLoading}
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* People Frame hero */}
+          <div className="sd-bento">
+            {/* Featured — People Frame */}
             <motion.div
-              className="lg:col-span-5"
-              initial={{ opacity: 0, y: 20 }}
+              className="sd-bento__featured"
+              initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              whileHover={{ y: -5, transition: { duration: 0.22, ease: 'easeOut' } }}
+              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
             >
-              <Link to="/filter-images" className="block h-full group">
-                <div className="sd-people-hero relative h-full min-h-[260px] rounded-[20px] overflow-hidden p-6 flex flex-col justify-between">
-                  <div
-                    className="pointer-events-none absolute inset-0"
-                    style={{
-                      background:
-                        'radial-gradient(ellipse 90% 70% at 80% 20%, rgba(255,255,255,0.12) 0%, transparent 65%)',
-                    }}
-                  />
-                  <div className="flex items-start justify-between relative z-10">
-                    <motion.div
-                      whileHover={{ rotate: 6, scale: 1.08 }}
-                      transition={{ duration: 0.18 }}
-                      className="flex items-center justify-center rounded-2xl"
-                      style={{
-                        width: '52px',
-                        height: '52px',
-                        background: 'rgba(255,255,255,0.18)',
-                        border: '1px solid rgba(255,255,255,0.30)',
-                      }}
-                    >
-                      <ScanFace className="h-6 w-6 text-white" />
-                    </motion.div>
-                    <span
-                      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold text-white"
-                      style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.25)' }}
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse" />
-                      {totalDetectedPeople > 0 ? `${totalDetectedPeople} detected` : 'AI ready'}
-                    </span>
+              <Link to="/filter-images" className="sd-bento-featured-card group">
+                <div className="sd-bento-featured-card__mesh" aria-hidden />
+                <div className="sd-bento-featured-card__orb sd-bento-featured-card__orb--1" aria-hidden />
+                <div className="sd-bento-featured-card__orb sd-bento-featured-card__orb--2" aria-hidden />
+                <div className="sd-bento-featured-card__top">
+                  <div className="sd-bento-featured-card__icon">
+                    <ScanFace className="h-6 w-6" />
                   </div>
-                  <div className="relative z-10">
-                    <p className="text-[21px] font-bold text-white leading-tight tracking-tight mb-1">
-                      People Frame
-                    </p>
-                    <p className="text-[12px] text-violet-100 leading-relaxed mb-4">
-                      Filter your library by face with instant thumbnails and smooth quality upgrades.
-                    </p>
-                    {detectedPeople.length > 0 && (
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="flex -space-x-2">
-                          {detectedPeople.slice(0, 4).map((p, i) => (
-                            <div
-                              key={p.personId || `hero-person-${i}`}
-                              className="h-8 w-8 rounded-full border-2 border-white/90 overflow-hidden bg-violet-200"
-                            >
-                              {p.personThumbnailUrl ? (
-                                <img
-                                  src={resolveMediaUrl(p.personThumbnailUrl)}
-                                  alt=""
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <span className="flex h-full w-full items-center justify-center text-[9px] font-bold text-violet-800">
-                                  {personInitials(p.displayName)}
-                                </span>
-                              )}
-                            </div>
-                          ))}
+                  <span className="sd-bento-featured-card__pill">
+                    <span className="sd-bento-featured-card__live" />
+                    {totalDetectedPeople > 0 ? `${totalDetectedPeople} faces` : 'Ready'}
+                  </span>
+                </div>
+                <div className="sd-bento-featured-card__body">
+                  <h4 className="sd-bento-featured-card__heading">People Frame</h4>
+                  <p className="sd-bento-featured-card__text">
+                    Filter every shoot by face. Instant previews, silky quality upgrades.
+                  </p>
+                  {detectedPeople.length > 0 && (
+                    <div className="sd-bento-featured-card__faces">
+                      {detectedPeople.slice(0, 5).map((p, i) => (
+                        <div
+                          key={p.personId || `bento-${i}`}
+                          className="sd-bento-featured-card__face"
+                          style={{ zIndex: 5 - i }}
+                        >
+                          {p.personThumbnailUrl ? (
+                            <img src={resolveMediaUrl(p.personThumbnailUrl)} alt="" />
+                          ) : (
+                            <span>{personInitials(p.displayName)}</span>
+                          )}
                         </div>
-                        <span className="text-[11px] font-medium text-violet-100">Tap to browse</span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-violet-100">Open face filter →</span>
-                      <div
-                        className="flex h-9 w-9 items-center justify-center rounded-xl"
-                        style={{ background: 'rgba(255,255,255,0.20)', border: '1px solid rgba(255,255,255,0.30)' }}
-                      >
-                        <ArrowUpRight className="h-4 w-4 text-white" />
-                      </div>
+                      ))}
                     </div>
-                  </div>
+                  )}
+                </div>
+                <div className="sd-bento-featured-card__footer">
+                  <span>Open face filter</span>
+                  <span className="sd-bento-featured-card__arrow">
+                    <ArrowUpRight className="h-4 w-4" />
+                  </span>
                 </div>
               </Link>
             </motion.div>
 
-            {/* Action tiles 2×2 */}
-            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Action tiles */}
+            <div className="sd-bento__grid">
               {[
                 {
                   to: '/client-images',
-                  icon: <Images className="h-5 w-5 text-[#2563EB]" />,
+                  icon: Images,
                   title: t('dashboard.photoGallery'),
                   desc: t('dashboard.photoGalleryDesc'),
-                  stat: `${photosCount.toLocaleString()} photos`,
-                  delay: 0.08,
+                  stat: photosCount.toLocaleString(),
+                  statLabel: 'photos',
+                  accent: 'blue',
+                  delay: 0.06,
                 },
                 {
                   to: '/studio/albums',
-                  icon: <FaFolder className="h-[18px] w-[18px] text-[#2563EB]" />,
+                  icon: FaFolder,
                   title: t('dashboard.albums'),
                   desc: t('dashboard.albumsDesc'),
-                  stat: `${stats.totalAlbums ?? albums.length ?? 0} albums`,
-                  delay: 0.14,
+                  stat: String(stats.totalAlbums ?? albums.length ?? 0),
+                  statLabel: 'albums',
+                  accent: 'indigo',
+                  delay: 0.12,
                 },
                 {
                   to: '/upload',
-                  icon: <FaPlus className="h-4 w-4 text-[#2563EB]" />,
+                  icon: FaPlus,
                   title: t('dashboard.uploadPhotos'),
                   desc: t('dashboard.uploadPhotosDesc'),
-                  stat: 'Ready to upload',
-                  statIcon: <CheckCircle2 className="h-3 w-3 text-emerald-500" />,
-                  delay: 0.2,
+                  stat: 'Ready',
+                  statLabel: 'to upload',
+                  accent: 'sky',
+                  delay: 0.18,
                 },
                 {
                   to: '/studio/clients',
-                  icon: <Users className="h-5 w-5 text-[#2563EB]" />,
+                  icon: Users,
                   title: t('dashboard.manageClients'),
                   desc: t('dashboard.manageClientsDesc'),
-                  stat: `${typeof stats.totalMember === 'number' ? stats.totalMember : 0} clients`,
-                  delay: 0.26,
+                  stat: String(typeof stats.totalMember === 'number' ? stats.totalMember : 0),
+                  statLabel: 'clients',
+                  accent: 'violet',
+                  delay: 0.24,
                 },
-              ].map((card) => (
-                <motion.div
-                  key={card.to}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: card.delay, duration: 0.35 }}
-                  whileHover={{ y: -3, transition: { duration: 0.18 } }}
-                >
-                  <Link to={card.to} className="block group h-full">
-                    <div className="sd-card sd-quick-tile relative h-full border p-4 flex items-center gap-4">
-                      <div
-                        className="pointer-events-none absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[16px]"
-                        style={{ background: 'linear-gradient(180deg,#2563EB,#3B82F6)' }}
-                      />
-                      <div className="shrink-0 flex h-11 w-11 items-center justify-center rounded-xl sd-icon-badge border">
-                        {card.icon}
+              ].map((card) => {
+                const Icon = card.icon;
+                return (
+                  <motion.div
+                    key={card.to}
+                    className="sd-bento__cell"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: card.delay, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <Link to={card.to} className={`sd-bento-tile sd-bento-tile--${card.accent} group`}>
+                      <div className="sd-bento-tile__shine" aria-hidden />
+                      <div className="sd-bento-tile__icon-wrap">
+                        <Icon className="sd-bento-tile__icon" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-semibold leading-tight" style={{ color: THEME.textPrimary }}>
-                          {card.title}
-                        </p>
-                        <p className="text-[11px] mt-0.5 truncate" style={{ color: THEME.textMuted }}>
-                          {card.desc}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                          {card.statIcon}
-                          <span className="text-[11px] font-bold" style={{ color: THEME.primary }}>
-                            {card.stat}
-                          </span>
+                      <div className="sd-bento-tile__content">
+                        <h5 className="sd-bento-tile__title">{card.title}</h5>
+                        <p className="sd-bento-tile__desc">{card.desc}</p>
+                        <div className="sd-bento-tile__stat">
+                          <span className="sd-bento-tile__stat-value">{card.stat}</span>
+                          <span className="sd-bento-tile__stat-label">{card.statLabel}</span>
                         </div>
                       </div>
-                      <div className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full sd-muted-box border group-hover:opacity-90 transition-opacity">
-                        <ArrowUpRight className="h-3.5 w-3.5 text-[#2563EB]" />
-                      </div>
-                    </div>
-                  </Link>
-                </motion.div>
-              ))}
+                      <span className="sd-bento-tile__go" aria-hidden>
+                        <ArrowUpRight className="h-4 w-4" />
+                      </span>
+                    </Link>
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         </section>

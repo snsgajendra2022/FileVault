@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import i18n from 'i18next';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../../state/context/AuthContext';
@@ -27,6 +28,9 @@ import {
   Cloud,
   FileText,
   AlertCircle,
+  HelpCircle,
+  CheckCircle2,
+  Lock,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useQuery } from '@tanstack/react-query';
@@ -652,6 +656,7 @@ interface Album {
 
 const UploadFamilyImagesPage = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [queueState, setQueueState] = useState(uploadManager.getState());
   const [familyMembers, setFamilyMembers] = useState<
@@ -686,6 +691,8 @@ const UploadFamilyImagesPage = () => {
   const [newAlbumIsPublic, setNewAlbumIsPublic] = useState(false);
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
   const [isAddingFiles, setIsAddingFiles] = useState(false);
+  const [showSetupGuide, setShowSetupGuide] = useState(false);
+  const setupAutoShownRef = useRef(false);
   const thumbnailUrlsRef = useRef<Map<string, string>>(new Map());
   const queueListRef = useRef<HTMLDivElement>(null);
   /** Track imageIds we've already added to each album (so we don't double-call the API) */
@@ -708,6 +715,54 @@ const UploadFamilyImagesPage = () => {
     enabled: !!user,
     staleTime: 1 * 60 * 1000,
   });
+
+  const { data: userServicesData, isLoading: cloudServicesLoading } = useQuery({
+    queryKey: ['userServices'],
+    queryFn: async () => {
+      const res = await api.get('/api/services/user');
+      return res.data as { subscriptions?: Array<{
+        serviceDisplayName?: string;
+        serviceType: string;
+        isConfigured?: boolean;
+        isEnabled?: boolean;
+        connectionStatus?: string;
+      }> };
+    },
+    enabled: !!user,
+    staleTime: 30_000,
+  });
+
+  const connectedServices = useMemo(
+    () =>
+      (userServicesData?.subscriptions ?? []).filter(
+        (s) =>
+          s.isConfigured &&
+          s.isEnabled &&
+          s.connectionStatus === 'CONNECTED'
+      ),
+    [userServicesData]
+  );
+
+  const cloudStorageReady = connectedServices.length > 0;
+
+  useEffect(() => {
+    if (cloudServicesLoading) return;
+    if (cloudStorageReady) {
+      setShowSetupGuide(false);
+      return;
+    }
+    if (!setupAutoShownRef.current) {
+      setupAutoShownRef.current = true;
+      setShowSetupGuide(true);
+    }
+  }, [cloudServicesLoading, cloudStorageReady]);
+
+  const openSetupGuide = () => setShowSetupGuide(true);
+
+  const openConnectServices = () => {
+    setShowSetupGuide(false);
+    navigate('/services');
+  };
 
   const { data: albumsData, refetch: refetchAlbums } = useQuery({
     queryKey: ['albums'],
@@ -879,8 +934,8 @@ const UploadFamilyImagesPage = () => {
   };
 
   const canUpload = useCallback(() => {
-    return !!(userProfile?.canUploadImages && userProfile?.allowedFileTypes);
-  }, [userProfile]);
+    return !!(userProfile?.canUploadImages && userProfile?.allowedFileTypes && cloudStorageReady);
+  }, [userProfile, cloudStorageReady]);
 
   const VIDEO_EXTENSIONS = ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
 
@@ -935,6 +990,10 @@ const UploadFamilyImagesPage = () => {
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {
+      if (!cloudStorageReady) {
+        openSetupGuide();
+        return;
+      }
       if (!canUpload()) {
         toast.error(i18n.t('uploadFamilyPage.toastNoPermission'));
         return;
@@ -1327,8 +1386,6 @@ const UploadFamilyImagesPage = () => {
 
   const glassCard =
     'uf-card rounded-xl border p-6 shadow-sm backdrop-blur-[10px] transition-shadow duration-200 hover:shadow-md';
-  const stepBadge =
-    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#dbe1ff] text-sm font-bold text-[#00174b]';
 
   const pendingCount = queueState.items.filter((i) => i.status === 'waiting' || i.status === 'paused').length;
   const uploadingCount = queueState.items.filter(
@@ -1519,7 +1576,15 @@ const UploadFamilyImagesPage = () => {
             <h1 className="text-2xl font-semibold tracking-tight text-[#004ac6]">{t('uploadFamilyPage.title')}</h1>
             <p className="mt-1 text-sm text-[#505f76]">{t('uploadFamilyPage.subtitle')}</p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={openSetupGuide}
+              className="inline-flex items-center gap-2 rounded-lg border border-[#c3c6d7] bg-white px-3 py-2 text-sm font-medium text-[#191b23] transition hover:bg-[#f3f3fe]"
+            >
+              <HelpCircle className="h-4 w-4 text-[#004ac6]" aria-hidden />
+              {t('uploadFamilyPage.setupViewSteps')}
+            </button>
             <div className="text-right">
               <div className="flex items-center justify-end gap-1.5">
                 <span
@@ -1538,12 +1603,28 @@ const UploadFamilyImagesPage = () => {
           </div>
         </div>
 
+        {!cloudStorageReady && !cloudServicesLoading ? (
+          <button
+            type="button"
+            onClick={openSetupGuide}
+            className={`${glassCard} mb-6 flex w-full items-center gap-4 text-left`}
+          >
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#dbe1ff]">
+              <Cloud className="h-6 w-6 text-[#004ac6]" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-[#191b23]">{t('uploadFamilyPage.setupBannerTitle')}</span>
+              <span className="mt-1 block text-sm text-[#505f76]">{t('uploadFamilyPage.setupBannerBody')}</span>
+            </span>
+            <HelpCircle className="h-5 w-5 shrink-0 text-[#737686]" aria-hidden />
+          </button>
+        ) : null}
+
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          {/* Step 1: Destination */}
+          {/* Destination */}
           <section className="flex flex-col gap-4 lg:col-span-4">
             <div className={glassCard}>
-              <div className="mb-4 flex items-center gap-2">
-                <span className={stepBadge}>1</span>
+              <div className="mb-4">
                 <h2 className="text-xl font-semibold text-[#191b23]">{t('uploadFamilyPage.uploadToLabel')}</h2>
               </div>
               <div className="uf-tab-track mb-6 flex rounded-lg p-1">
@@ -1656,7 +1737,7 @@ const UploadFamilyImagesPage = () => {
             </div>
           </section>
 
-          {/* Step 2: Upload Zone */}
+          {/* Upload Zone */}
           <section className="relative flex flex-col gap-4 lg:col-span-8">
             <div className={`${glassCard} relative flex flex-col !p-5`}>
               {isAddingFiles && (
@@ -1668,8 +1749,7 @@ const UploadFamilyImagesPage = () => {
                   </div>
                 </div>
               )}
-              <div className="mb-3 flex items-center gap-2">
-                <span className={stepBadge}>2</span>
+              <div className="mb-3">
                 <h2 className="text-lg font-semibold text-[#191b23]">{t('uploadFamilyPage.uploadZoneTitle')}</h2>
               </div>
               <div
@@ -1678,7 +1758,7 @@ const UploadFamilyImagesPage = () => {
                   isDragActive
                     ? 'border-[#004ac6] bg-[#d0e1fb]/30 shadow-[0_8px_24px_rgba(0,74,198,0.12)]'
                     : 'hover:border-[#004ac6]/50 hover:bg-[#d0e1fb]/20'
-                } ${isAddingFiles ? 'pointer-events-none opacity-60' : ''}`}
+                } ${isAddingFiles || !cloudStorageReady ? 'pointer-events-none opacity-60' : ''}`}
               >
                 <input {...getInputProps()} />
                 <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-[#d0e1fb] transition-transform duration-200 group-hover/drop:scale-105">
@@ -1741,17 +1821,24 @@ const UploadFamilyImagesPage = () => {
                   </div>
                 </div>
               </div>
+              {!cloudStorageReady && !cloudServicesLoading ? (
+                <button
+                  type="button"
+                  onClick={openSetupGuide}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-[#fde68a] bg-[#fffbeb] px-4 py-2 text-sm font-medium text-[#92400e]"
+                >
+                  <Lock className="h-4 w-4" aria-hidden />
+                  {t('uploadFamilyPage.setupViewSteps')}
+                </button>
+              ) : null}
             </div>
           </section>
 
-          {/* Step 3: Upload Queue */}
+          {/* Upload Queue */}
           {queueState.items.length > 0 && (
             <section ref={queueListRef} className="lg:col-span-12">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <span className={stepBadge}>3</span>
-                  <h2 className="text-xl font-semibold text-[#191b23]">{t('uploadFamilyPage.uploadQueue')}</h2>
-                </div>
+                <h2 className="text-xl font-semibold text-[#191b23]">{t('uploadFamilyPage.uploadQueue')}</h2>
                 <span className="text-sm font-medium text-[#505f76]">
                   {t('uploadFamilyPage.filesRemaining', { n: remainingCount })}
                 </span>
@@ -2187,6 +2274,67 @@ const UploadFamilyImagesPage = () => {
                 >
                   {isCreatingAlbum ? t('uploadFamilyPage.creating') : t('uploadFamilyPage.createAlbumBtn')}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSetupGuide && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/55 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="max-h-[min(92dvh,100%)] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-slate-200 bg-white shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-h-[90vh] sm:rounded-2xl sm:p-6">
+            <div className="mb-5 flex items-center justify-between border-b border-slate-100 px-4 pb-4 pt-4 sm:px-0 sm:pt-0">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">{t('uploadFamilyPage.setupGuideTitle')}</h2>
+                <p className="mt-1 text-sm text-slate-500">{t('uploadFamilyPage.setupGuideSubtitle')}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSetupGuide(false)}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <FaTimes className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 px-4 sm:px-0">
+              <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${cloudStorageReady ? 'bg-emerald-50' : 'bg-[#dbe1ff]'}`}>
+                  <Cloud className={`h-6 w-6 ${cloudStorageReady ? 'text-emerald-600' : 'text-[#004ac6]'}`} aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-900">{t('uploadFamilyPage.setupStep1Title')}</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {cloudStorageReady && connectedServices.length > 0
+                      ? `${t('uploadFamilyPage.setupStep1Done')}: ${connectedServices.map((s) => s.serviceDisplayName || s.serviceType).join(', ')}`
+                      : t('uploadFamilyPage.setupStep1Body')}
+                  </p>
+                  {!cloudStorageReady ? (
+                    <button type="button" onClick={openConnectServices} className="btn-primary mt-3 text-sm">
+                      {cloudServicesLoading ? t('uploadFamilyPage.setupChecking') : t('uploadFamilyPage.setupStep1Action')}
+                    </button>
+                  ) : null}
+                </div>
+                {cloudStorageReady ? <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden /> : null}
+              </div>
+
+              <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${cloudStorageReady ? 'bg-[#dbe1ff]' : 'bg-slate-100'}`}>
+                  <Upload className={`h-6 w-6 ${cloudStorageReady ? 'text-[#004ac6]' : 'text-slate-400'}`} aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-semibold ${cloudStorageReady ? 'text-slate-900' : 'text-slate-400'}`}>
+                    {t('uploadFamilyPage.setupStep2Title')}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {cloudStorageReady ? t('uploadFamilyPage.setupStep2Body') : t('uploadFamilyPage.setupStep2Locked')}
+                  </p>
+                </div>
+                {cloudStorageReady ? (
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-[#004ac6]" aria-hidden />
+                ) : (
+                  <Lock className="h-5 w-5 shrink-0 text-slate-300" aria-hidden />
+                )}
               </div>
             </div>
           </div>

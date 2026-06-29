@@ -23,6 +23,7 @@ import {
   FaHeart,
   FaFlag,
   FaCog,
+  FaQuestionCircle,
 } from 'react-icons/fa';
 import type { RoleMenuPermission, RoleType } from '../../types/permissions';
 import type { PortalConfigResponse, PortalMenuFlags, PortalNavigationOverride } from '../../types/portalApi';
@@ -65,6 +66,8 @@ const NAV_ICON_BY_LABEL_KEY: Record<string, ComponentType<{ className?: string }
   'nav.studio.membersTree': FaSitemap,
   'nav.studio.settings': FaCog,
   'nav.studio.services': FaCloud,
+  'nav.studio.helpSupport': FaQuestionCircle,
+  'nav.regular.helpSupport': FaQuestionCircle,
   'nav.admin.adminDashboard': FaShieldAlt,
   'nav.admin.userManagement': FaUsers,
   'nav.admin.photoBook': FaBook,
@@ -94,6 +97,7 @@ const NAV_ICON_BY_HREF: Record<string, ComponentType<{ className?: string }>> = 
   '/family-tree': FaSitemap,
   '/portal-settings': FaCog,
   '/services': FaCloud,
+  '/help-support': FaQuestionCircle,
   '/profile': FaUser,
   '/treePage': FaUsers,
   '/admin?tab=dashboard': FaShieldAlt,
@@ -134,6 +138,7 @@ export const STUDIO_SIDEBAR_GROUPS = [
       'nav.studio.selectPay',
       'nav.studio.paymentManagement',
       'nav.studio.services',
+      'nav.studio.helpSupport',
       'nav.studio.whatsapp',
     ],
   },
@@ -152,7 +157,7 @@ export const USERS_SIDEBAR_GROUPS = [
   },
   { label: 'Memories', keys: ['nav.studio.ourMemories'] },
   { label: 'People', keys: ['nav.studio.createMembers'] },
-  { label: 'Account', keys: ['nav.studio.settings', 'nav.studio.services'] },
+  { label: 'Account', keys: ['nav.studio.settings', 'nav.studio.services', 'nav.studio.helpSupport'] },
 ] as const;
 
 export type SidebarGroupDef = { label: string; keys: readonly string[] };

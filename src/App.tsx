@@ -110,6 +110,7 @@ import OpenClawAgentDock from './components/openclaw/OpenClawAgentDock';
 import NotFoundPage from './pages/misc/NotFoundPage';
 import PrivacyPolicyPage from './pages/misc/PrivacyPolicyPage';
 import OMPrivacyPolicyPage from './pages/misc/OMPrivacyPolicyPage';
+import HelpSupportPage from './pages/misc/HelpSupportPage';
 import { photoStudioMarketingRoutes } from './photostudio-marketing/PhotoStudioMarketing';
 
 const queryClient = new QueryClient({
@@ -214,6 +215,7 @@ const AppRoutes = () => {
         <Route path="profile" element={<ProfilePage />} />
         <Route path="change-password" element={<ChangePasswordPage />} />
         <Route path="services" element={<ServicesPage />} />
+        <Route path="help-support" element={<HelpSupportPage />} />
         <Route path="plans" element={<PlansPage />} />
         <Route path="plans/:planId" element={<PlanDetailsPage />} />
         <Route path="checkout/:planId" element={<CheckoutPage />} />

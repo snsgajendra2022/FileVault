@@ -32,6 +32,7 @@ export const isValidRoute = (pathname: string) => {
     '/studio/dashboard',
     '/profile',
     '/services',
+    '/help-support',
     '/plans',
     '/usage',
     '/billing',

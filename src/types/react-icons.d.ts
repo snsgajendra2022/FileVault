@@ -56,6 +56,8 @@ declare module 'react-icons/fa' {
   export const FaAmazon: ComponentType<IconProps>;
   export const FaDollarSign: ComponentType<IconProps>;
   export const FaInfoCircle: ComponentType<IconProps>;
+  export const FaQuestionCircle: ComponentType<IconProps>;
+  export const FaExternalLinkAlt: ComponentType<IconProps>;
   export const FaRedoAlt: ComponentType<IconProps>;
   export const FaSpinner: ComponentType<IconProps>;
   export const FaCamera: ComponentType<IconProps>;
@@ -124,6 +126,12 @@ declare module 'react-icons/fa' {
   export const FaLayerGroup: ComponentType<IconProps>;
   export const FaFont: ComponentType<IconProps>;
   export const FaRandom: ComponentType<IconProps>;
+  export const FaLifeBuoy: ComponentType<IconProps>;
+  export const FaLightbulb: ComponentType<IconProps>;
+  export const FaLightbulbOn: ComponentType<IconProps>;
+  export const FaLightbulbOff: ComponentType<IconProps>;
+  export const FaLightbulbOnOff: ComponentType<IconProps>;
+  export const FaLightbulbOnOff: ComponentType<IconProps>;
 
 }
 

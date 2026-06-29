@@ -6,7 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../state/context/AuthContext';
 import api from '../../api/client/axiosInstance';
 import toast from 'react-hot-toast';
-import { FaTimes, FaPlus, FaCheck, FaExclamationTriangle, FaCog, FaCloud, FaEye, FaEdit } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
+import { FaTimes, FaPlus, FaCheck, FaExclamationTriangle, FaCog, FaCloud, FaEye, FaEdit, FaEnvelope } from 'react-icons/fa';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { ServiceCardSkeleton } from '../../components/common/skeletons';
 import servicesData from '../../data/services.json';
@@ -710,6 +711,33 @@ const ServicesPage = () => {
           })}
         </div>
       </div>
+
+      <section className="portal-card mt-10 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 to-white p-6 shadow-sm dark:border-indigo-900/50 dark:from-slate-900 dark:to-slate-900">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-300">
+              <FaEnvelope className="h-6 w-6" aria-hidden />
+            </span>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">{t('servicesPage.helpSupportTitle')}</h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{t('servicesPage.helpSupportBody')}</p>
+              <a
+                href="mailto:mobileapps@snssystem.com"
+                className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+              >
+                <FaEnvelope className="h-3.5 w-3.5" />
+                mobileapps@snssystem.com
+              </a>
+            </div>
+          </div>
+          <Link
+            to="/help-support"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+          >
+            {t('servicesPage.helpSupportCta')}
+          </Link>
+        </div>
+      </section>
 
       {/* Service Details Modal */}
       {showDetailsModal && selectedUserService && (
