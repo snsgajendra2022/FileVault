@@ -50,6 +50,8 @@ import './imagesPageTheme.css';
 import ProgressiveImage from '../../components/photo-studio/ProgressiveImage';
 import { LIGHTBOX_PROGRESSIVE_OPTIONS } from '../../utils/progressiveImageConfig';
 import type { ImageVariants } from '../../utils/progressiveImageVariants';
+import HlsVideoPlayer from '../../components/video/HlsVideoPlayer';
+import { resolveVideoPlayback, isVideoProcessing } from '../../utils/videoPlayback';
 import { useProgressiveImageSrc } from '../../hooks/useProgressiveImageSrc';
 import {
   getConnectionHint,
@@ -1282,8 +1284,22 @@ const ClientImagesPage = () => {
     };
   }, []);
 
-  const loadErrorMessage =
-    error instanceof Error ? error.message : error ? String(error) : '';
+  const loadErrorMessage = (() => {
+    if (!error) return '';
+    const ax = error as { response?: { status?: number; data?: unknown }; message?: string };
+    if (ax.response?.data != null) {
+      const body = ax.response.data;
+      if (typeof body === 'string') return body;
+      if (typeof body === 'object' && body !== null && 'error' in body) {
+        return String((body as { error: unknown }).error);
+      }
+      if (typeof body === 'object' && body !== null && 'message' in body) {
+        return String((body as { message: unknown }).message);
+      }
+    }
+    if (error instanceof Error) return error.message;
+    return String(error);
+  })();
 
   const skeletonGridClass = gridCompact
     ? 'lumina-gallery-grid lumina-gallery-grid--compact'
@@ -2133,13 +2149,11 @@ const ClientImagesPage = () => {
               })()
             ) : isVideoType(selectedImage.fileType, selectedImage.filename) ? (
               <div className="relative flex justify-center items-center w-full h-full">
-                <video
-                  src={selectedImage.previewUrl}
+                <HlsVideoPlayer
+                  source={resolveVideoPlayback(selectedImage)}
                   className="w-full h-full object-contain"
                   controls
-                  muted
-                  playsInline
-                  preload="auto"
+                  waitForReady={isVideoProcessing(resolveVideoPlayback(selectedImage))}
                 />
               </div>
             ) : (

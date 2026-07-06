@@ -21,6 +21,7 @@ import {
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useQuery } from '@tanstack/react-query';
 import { getVideoDuration, trimVideoTo30Seconds, isVideoFile, VIDEO_TRIM_THRESHOLD_SECONDS } from '../../utils/videoTrim';
+import { fieldsFromUploadResponse, startVideoProcessingPoll } from '../../utils/mediaUploadQueue';
 
 // ---------------------------------------------------------------------------
 // Persistent queue types and IndexedDB (survives refresh/navigation)
@@ -52,6 +53,11 @@ export interface QueueItemMeta {
     relationshipType?: string;
   };
   imageId?: number | string;
+  videoId?: number;
+  streamUrl?: string;
+  statusPollUrl?: string;
+  mediaType?: 'IMAGE' | 'VIDEO';
+  videoStatus?: string;
   /** When set, this upload will be added to this album once it completes */
   targetAlbumId?: number;
   createdAt: number;
@@ -201,6 +207,11 @@ class UploadManager {
         uploadDestination: item.uploadDestination,
         targetFamilyMember: item.targetFamilyMember,
         imageId: item.imageId,
+        videoId: item.videoId,
+        streamUrl: item.streamUrl,
+        statusPollUrl: item.statusPollUrl,
+        mediaType: item.mediaType,
+        videoStatus: item.videoStatus,
         targetAlbumId: item.targetAlbumId,
         createdAt: item.createdAt,
         blob,
@@ -431,9 +442,9 @@ class UploadManager {
       });
 
       const data = response?.data ?? response;
-      const imageId = data?.id ?? data?.image?.id ?? (data as { imageId?: number })?.imageId;
+      const mediaFields = fieldsFromUploadResponse(data);
       const message =
-        data?.message ??
+        (data as { message?: string })?.message ??
         (isFamily
           ? i18n.t('uploadPage.successOne', {
               fileName: currentItem.fileName,
@@ -446,9 +457,22 @@ class UploadManager {
         progress: 100,
         response: data,
         successMessage: message,
-        imageId,
+        imageId: mediaFields.imageId,
+        videoId: mediaFields.videoId,
+        streamUrl: mediaFields.streamUrl,
+        statusPollUrl: mediaFields.statusPollUrl,
+        mediaType: mediaFields.mediaType,
+        videoStatus: mediaFields.videoStatus,
         error: undefined,
       });
+      if (mediaFields.mediaType === 'VIDEO') {
+        startVideoProcessingPoll(mediaFields, (status) => {
+          this.items = this.items.map((i) =>
+            i.id === item.id ? { ...i, videoStatus: status } : i
+          );
+          this.notify();
+        });
+      }
       setTimeout(() => this.notify(), 0);
     } catch (err: unknown) {
       const isAborted =

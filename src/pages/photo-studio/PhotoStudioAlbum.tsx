@@ -38,6 +38,8 @@ import {
 } from '../../utils/albumImageVariants';
 import type { ImageVariants } from '../../utils/progressiveImageVariants';
 import { getConnectionHint, getSaveData } from '../../utils/progressiveImageConfig';
+import HlsVideoPlayer from '../../components/video/HlsVideoPlayer';
+import { resolveVideoPlayback } from '../../utils/videoPlayback';
 import './photoStudioAlbumTheme.css';
 
 interface Album {
@@ -840,12 +842,12 @@ const PhotoStudioAlbum: React.FC = () => {
 
   const openVideoPlayer = useCallback((image: AlbumImage) => {
     if (!isAlbumVideoType(image)) return;
-    const url = image.previewUrl || image.downloadUrl || getImageUrl(image);
-    if (!url) {
+    const playback = resolveVideoPlayback(image);
+    if (!playback.streamUrl && !playback.fallbackSrc) {
       toast.error('Video preview not available');
       return;
     }
-    setViewingVideo({ ...image, previewUrl: url });
+    setViewingVideo({ ...image, ...playback });
   }, []);
 
   const albumImagesApiTotal = useMemo(() => {
@@ -2597,7 +2599,15 @@ const PhotoStudioAlbum: React.FC = () => {
                                 const isPhoto = isAlbumImageType(image);
                                 const isVideo = isAlbumVideoType(image);
                                 const canOpenPhoto = isPhoto && !!(thumbUrl || image.previewUrl || image.downloadUrl);
-                                const canOpenVideo = isVideo && !!(image.previewUrl || image.downloadUrl || getImageUrl(image));
+                                const canOpenVideo =
+                                  isVideo &&
+                                  !!(
+                                    image.streamUrl ||
+                                    image.mediaType === 'VIDEO' ||
+                                    image.previewUrl ||
+                                    image.downloadUrl ||
+                                    getImageUrl(image)
+                                  );
                                 const isPhotoSelected = selectedPhotoIds.has(image.id);
                                 const isShared = sharedImageIds.has(image.id);
                                 const downloadUrl = image.downloadUrl || image.previewUrl || getImageUrl(image);
@@ -3519,12 +3529,12 @@ const PhotoStudioAlbum: React.FC = () => {
             >
               Close
             </button>
-            <video
-              src={viewingVideo.previewUrl || viewingVideo.downloadUrl || ''}
-              controls
+            <HlsVideoPlayer
+              source={resolveVideoPlayback(viewingVideo)}
+              className="w-full max-h-[80vh] rounded-lg bg-black object-contain"
               autoPlay
-              playsInline
-              className="w-full max-h-[80vh] rounded-lg bg-black"
+              controls
+              waitForReady
             />
             <p className="mt-2 text-center text-sm text-white/70 truncate">
               {getImageFilename(viewingVideo)}

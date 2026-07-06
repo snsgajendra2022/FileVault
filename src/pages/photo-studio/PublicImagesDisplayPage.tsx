@@ -7,6 +7,8 @@ import api from '../../api/client/axiosInstance';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { downloadSingleImage, downloadImagesAsZip } from '../../utils/downloadUtils';
+import HlsVideoPlayer from '../../components/video/HlsVideoPlayer';
+import { isVideoMediaItem, resolveVideoPlayback } from '../../utils/videoPlayback';
 
 interface DisplayImage {
   id: number;
@@ -710,7 +712,8 @@ const PublicImagesDisplayPage: React.FC = () => {
                 const thumbUrl = getThumbnailUrl(img);
                 const filename = getImageFilename(img);
                 const fileType = getFileType(img);
-                const canView = (thumbUrl || imageUrl) && /^(png|jpg|jpeg|gif|webp|MP4|mp4)$/i.test(fileType);
+                const isVideo = isVideoMediaItem(img);
+                const canView = (thumbUrl || imageUrl) && (/^(png|jpg|jpeg|gif|webp)$/i.test(fileType) || isVideo);
                 const isDownloadingThis = downloadingId === img.id;
                 return (
                   <div
@@ -728,12 +731,13 @@ const PublicImagesDisplayPage: React.FC = () => {
                         <FaExpandArrowsAlt className="text-sm" />
                       </button>
                       {canView ? (
-                        fileType === 'mp4' ? (
-                          <video
-                            src={imageUrl!}
+                        isVideo ? (
+                          <HlsVideoPlayer
+                            source={resolveVideoPlayback(img)}
                             className="w-full h-full object-cover cursor-pointer"
-                            controls muted playsInline preload="auto"
-                            onClick={() => openSlider(img)}
+                            controls
+                            muted
+                            waitForReady={false}
                           />
                         ) : (
                           <img
@@ -845,13 +849,15 @@ const PublicImagesDisplayPage: React.FC = () => {
               )}
 
               <div className="max-w-[85vw] max-h-[80vh] flex items-center justify-center">
-                {getImageUrl(fullscreenImage) ? (
-                  getFileType(fullscreenImage) === 'mp4' ? (
-                    <video
+                {getImageUrl(fullscreenImage) || fullscreenImage.streamUrl ? (
+                  isVideoMediaItem(fullscreenImage) ? (
+                    <HlsVideoPlayer
                       key={fullscreenImage.id}
-                      src={getImageUrl(fullscreenImage)!}
-                      className="max-w-full max-h-[80vh] rounded-lg"
-                      controls autoPlay muted playsInline
+                      source={resolveVideoPlayback(fullscreenImage)}
+                      className="max-w-full max-h-[80vh] rounded-lg object-contain"
+                      autoPlay
+                      controls
+                      waitForReady={fullscreenImage.mediaType === 'VIDEO'}
                     />
                   ) : (
                     <img
