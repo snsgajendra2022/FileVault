@@ -56,6 +56,8 @@ import { useProgressiveImageSrc } from '../../hooks/useProgressiveImageSrc';
 import {
   getConnectionHint,
   getSaveData,
+  getVariantsFingerprint,
+  imageVariantsNeedPolling,
   variantsNeedPolling,
 } from '../../utils/progressiveImageVariants';
 const SCROLL_RESTORE_KEY = 'photo-studio-images-scroll';
@@ -309,6 +311,7 @@ const ImageCard = memo(function ImageCard({
   const [imageRetryKey, setImageRetryKey] = useState(0);
   const showImage = isImageType(image.fileType, image.filename);
   const showVideo = isVideoType(image.fileType, image.filename);
+  const variantsFingerprint = getVariantsFingerprint(image);
 
   // When visible and image or video type, start loading
   useEffect(() => {
@@ -316,8 +319,19 @@ const ImageCard = memo(function ImageCard({
     if (loadState === 'idle') setLoadState('loading');
   }, [showImage, showVideo, isVisible, loadState]);
 
+  useEffect(() => {
+    if (loadState !== 'error') return;
+    if (showImage && imageVariantsNeedPolling(image)) {
+      setLoadState('loading');
+      setImageRetryKey((k) => k + 1);
+    }
+  }, [variantsFingerprint, image, loadState, showImage]);
+
   const handleLoad = useCallback(() => setLoadState('loaded'), []);
-  const handleError = useCallback(() => setLoadState('error'), []);
+  const handleError = useCallback(() => {
+    if (showImage && imageVariantsNeedPolling(image)) return;
+    setLoadState('error');
+  }, [image, showImage]);
 
   const handleRetry = useCallback(() => {
     setLoadState('loading');
@@ -360,7 +374,7 @@ const ImageCard = memo(function ImageCard({
               key={imageRetryKey}
               image={image}
               enabled={isVisible}
-              mode="thumbnail"
+              mode="gallery"
               alt={image.filename}
               className="h-full w-full object-cover"
               onLoad={handleLoad}
@@ -474,12 +488,12 @@ const ImageCard = memo(function ImageCard({
         </div>
       </div>
 
-      <div className="lumina-card-footer">
+      {/* <div className="lumina-card-footer">
         <p className="lumina-card-filename" title={image.filename}>
           {image.filename}
         </p>
         <p className="lumina-card-meta">{formatImageCardDate(image.uploadTime)}</p>
-      </div>
+      </div> */}
     </article>
   );
 });

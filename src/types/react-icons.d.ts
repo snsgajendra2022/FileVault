@@ -132,6 +132,8 @@ declare module 'react-icons/fa' {
   export const FaLightbulbOff: ComponentType<IconProps>;
   export const FaLightbulbOnOff: ComponentType<IconProps>;
   export const FaLightbulbOnOff: ComponentType<IconProps>;
+  export const FaChevronDown: ComponentType<IconProps>;
+  export const FaChevronRight: ComponentType<IconProps>;
 
 }
 

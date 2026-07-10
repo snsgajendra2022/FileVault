@@ -11,6 +11,10 @@ import StudioFlipbookPageCanvas from './StudioFlipbookPageCanvas';
 import StudioFlipbookPreview from './StudioFlipbookPreview';
 import LayoutPickerModal from './LayoutPickerModal';
 import ChooseImageModal from './ChooseImageModal';
+import FlipbookElementContextMenu, {
+  type FlipbookContextAction,
+  type FlipbookLivePatch,
+} from './FlipbookElementContextMenu';
 import { getConnectionHint, getSaveData } from '../../../utils/progressiveImageConfig';
 import type { UserImageWithVariants } from '../../../utils/progressiveImageVariants';
 import { previewGenerateFromAlbumImages } from '../api/flipbookService';
@@ -62,11 +66,21 @@ const EVENT_TYPES: { id: EventType; label: string }[] = [
 ];
 
 const FRAME_TYPES: { id: FrameType; label: string }[] = [
-  { id: 'none', label: 'None' }, { id: 'rectangle', label: 'Rectangle' },
-  { id: 'rounded', label: 'Rounded' }, { id: 'circle', label: 'Circle' },
-  { id: 'oval', label: 'Oval' }, { id: 'polaroid', label: 'Polaroid' },
-  { id: 'border', label: 'Border' }, { id: 'golden', label: 'Golden' },
-  { id: 'soft_shadow', label: 'Soft Shadow' }, { id: 'full_bleed', label: 'Full Bleed' },
+  { id: 'none', label: 'Rectangle' },
+  { id: 'rounded', label: 'Rounded' },
+  { id: 'circle', label: 'Circle' },
+  { id: 'oval', label: 'Oval' },
+  { id: 'triangle', label: 'Triangle' },
+  { id: 'diamond', label: 'Diamond' },
+  { id: 'pentagon', label: 'Pentagon' },
+  { id: 'hexagon', label: 'Hexagon' },
+  { id: 'star', label: 'Star' },
+  { id: 'diagonal', label: 'Diagonal' },
+  { id: 'polaroid', label: 'Polaroid' },
+  { id: 'border', label: 'Border' },
+  { id: 'golden', label: 'Golden' },
+  { id: 'soft_shadow', label: 'Soft Shadow' },
+  { id: 'full_bleed', label: 'Full Bleed' },
 ];
 
 const FIT_MODES: { id: FitMode; label: string }[] = [
@@ -204,6 +218,8 @@ const StudioFlipbookBuilderPage: React.FC = () => {
   const [showPreview, setShowPreview] = React.useState(false);
   const [showLayoutPicker, setShowLayoutPicker] = React.useState(false);
   const [rightTab, setRightTab] = React.useState<'template' | 'image' | 'text' | 'page'>('template');
+  const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; elIdx: number } | null>(null);
+  const clipboardRef = React.useRef<GeneratedPageElement | null>(null);
 
   /* ── load ── */
   const loadAlbumAndFlipbook = React.useCallback(async () => {
@@ -290,6 +306,150 @@ const StudioFlipbookBuilderPage: React.FC = () => {
   };
   const handleCanvasElementChange = (elIdx: number, patch: Partial<GeneratedPageElement>) => {
     updateElement(currentPage, elIdx, patch);
+  };
+
+  const removeElement = (pageIdx: number, elIdx: number) => {
+    setPages((prev) =>
+      prev.map((p, i) =>
+        i !== pageIdx ? p : { ...p, elements: p.elements.filter((_, j) => j !== elIdx) }
+      )
+    );
+    setSelectedElement(null);
+  };
+
+  const duplicateElementAt = (pageIdx: number, elIdx: number) => {
+    let newIdx = elIdx;
+    setPages((prev) =>
+      prev.map((p, i) => {
+        if (i !== pageIdx) return p;
+        const el = p.elements[elIdx];
+        if (!el) return p;
+        const dup: GeneratedPageElement = {
+          ...el,
+          x: Math.min(el.x + 2, Math.max(0, 98 - el.width)),
+          y: Math.min(el.y + 2, Math.max(0, 98 - el.height)),
+          zIndex: (el.zIndex ?? 1) + 1,
+        };
+        const elements = [...p.elements];
+        elements.splice(elIdx + 1, 0, dup);
+        newIdx = elIdx + 1;
+        return { ...p, elements };
+      })
+    );
+    setSelectedElement(newIdx);
+  };
+
+  const layerElement = (pageIdx: number, elIdx: number, dir: 'up' | 'down') => {
+    const pg = pages[pageIdx];
+    const el = pg?.elements[elIdx];
+    if (!el) return;
+    const zValues = pg.elements.map((e) => e.zIndex ?? 0);
+    const maxZ = Math.max(...zValues, 0);
+    const minZ = Math.min(...zValues, 0);
+    updateElement(pageIdx, elIdx, {
+      zIndex: dir === 'up' ? maxZ + 1 : Math.max(0, minZ - 1),
+    });
+  };
+
+  const handleElementContextAction = (action: FlipbookContextAction) => {
+    if (contextMenu == null) return;
+    const elIdx = contextMenu.elIdx;
+    const el = pages[currentPage]?.elements[elIdx];
+    if (!el) return;
+
+    switch (action) {
+      case 'cut':
+        clipboardRef.current = { ...el };
+        removeElement(currentPage, elIdx);
+        break;
+      case 'copy':
+        clipboardRef.current = { ...el };
+        break;
+      case 'duplicate':
+        duplicateElementAt(currentPage, elIdx);
+        break;
+      case 'delete':
+        removeElement(currentPage, elIdx);
+        break;
+      case 'reset-crop':
+        updateElement(currentPage, elIdx, {
+          cropX: 50,
+          cropY: 50,
+          fitMode: 'cover',
+          styleJson: { ...el.styleJson, imageZoom: 1 },
+        });
+        break;
+      case 'swap-image':
+        setSelectedElement(elIdx);
+        setRightTab('image');
+        setShowImageLibrary(true);
+        break;
+      case 'bring-forward':
+        layerElement(currentPage, elIdx, 'up');
+        break;
+      case 'send-backward':
+        layerElement(currentPage, elIdx, 'down');
+        break;
+      case 'fit-cover':
+        updateElement(currentPage, elIdx, { fitMode: 'cover' });
+        break;
+      case 'fit-contain':
+        updateElement(currentPage, elIdx, { fitMode: 'contain' });
+        break;
+      case 'edit-text':
+        setSelectedElement(elIdx);
+        setRightTab('text');
+        break;
+      default:
+        if (typeof action === 'object' && action.type === 'shape') {
+          updateElement(currentPage, elIdx, { frameType: action.frameType });
+        } else if (typeof action === 'object' && action.type === 'text-font') {
+          updateElement(currentPage, elIdx, {
+            styleJson: { ...el.styleJson, fontFamily: action.fontFamily },
+          });
+        } else if (typeof action === 'object' && action.type === 'text-size') {
+          updateElement(currentPage, elIdx, {
+            styleJson: { ...el.styleJson, fontSizePx: action.fontSizePx },
+          });
+        } else if (typeof action === 'object' && action.type === 'text-color') {
+          updateElement(currentPage, elIdx, {
+            styleJson: { ...el.styleJson, color: action.color },
+          });
+        } else if (typeof action === 'object' && action.type === 'text-align') {
+          updateElement(currentPage, elIdx, {
+            styleJson: { ...el.styleJson, align: action.align },
+          });
+        } else if (typeof action === 'object' && action.type === 'box-size') {
+          updateElement(currentPage, elIdx, {
+            width: action.width,
+            height: action.height,
+          });
+        } else if (typeof action === 'object' && action.type === 'inner-zoom') {
+          updateElement(currentPage, elIdx, {
+            styleJson: { ...el.styleJson, imageZoom: action.zoom },
+          });
+        }
+        break;
+    }
+  };
+
+  const handleElementContextLivePatch = (patch: FlipbookLivePatch) => {
+    if (contextMenu == null) return;
+    const elIdx = contextMenu.elIdx;
+    const el = pages[currentPage]?.elements[elIdx];
+    if (!el) return;
+    updateElement(currentPage, elIdx, {
+      ...(patch.width != null ? { width: patch.width } : {}),
+      ...(patch.height != null ? { height: patch.height } : {}),
+      ...(patch.styleJson
+        ? { styleJson: { ...el.styleJson, ...patch.styleJson } }
+        : {}),
+    });
+  };
+
+  const handleElementContextMenu = (elIdx: number, event: React.MouseEvent) => {
+    setSelectedElement(elIdx);
+    setContextMenu({ x: event.clientX, y: event.clientY, elIdx });
   };
 
   /* ── image swap ── */
@@ -476,7 +636,8 @@ const StudioFlipbookBuilderPage: React.FC = () => {
                 <StudioFlipbookPageCanvas page={page} imageUrlById={imageUrlById} themeId={theme}
                   interactive fillParent selectedIndex={selectedElement} onSelect={setSelectedElement}
                   onElementChange={handleCanvasElementChange} onTextDoubleClick={handleTextDoubleClick}
-                  builderZoom={zoom} />
+                  onElementContextMenu={handleElementContextMenu}
+                />
               )}
             </div>
             <button type="button" className="studio-flipbook-nav" disabled={currentPage >= pages.length - 1} onClick={() => { setCurrentPage(p => p + 1); setSelectedElement(null); }}>
@@ -484,7 +645,7 @@ const StudioFlipbookBuilderPage: React.FC = () => {
             </button>
           </div>
           <p className="studio-flipbook-page-indicator">
-            Page {currentPage + 1} of {pages.length} · Drag image to reposition (same as photo theme) · Top bar moves frame · Double-click text to edit
+            Page {currentPage + 1} of {pages.length} · Right-click box for options · Drag edges to move · Center drag crops
           </p>
         </main>
 
@@ -545,6 +706,29 @@ const StudioFlipbookBuilderPage: React.FC = () => {
                     </select>
                   </section>
                   <section className="studio-flipbook-section">
+                    <h3>Size &amp; Position</h3>
+                    <label className="studio-flipbook-range-label">Width %</label>
+                    <input type="range" min={5} max={100} step={0.5} value={selectedEl.width}
+                      onChange={e => updateElement(currentPage, selectedElement!, { width: Number(e.target.value) })} />
+                    <span className="studio-flipbook-range-val">{selectedEl.width.toFixed(1)}%</span>
+                    <label className="studio-flipbook-range-label">Height %</label>
+                    <input type="range" min={5} max={100} step={0.5} value={selectedEl.height}
+                      onChange={e => updateElement(currentPage, selectedElement!, { height: Number(e.target.value) })} />
+                    <span className="studio-flipbook-range-val">{selectedEl.height.toFixed(1)}%</span>
+                    <label className="studio-flipbook-range-label">Left %</label>
+                    <input type="range" min={0} max={100 - selectedEl.width} step={0.5} value={selectedEl.x}
+                      onChange={e => updateElement(currentPage, selectedElement!, { x: Number(e.target.value) })} />
+                    <span className="studio-flipbook-range-val">{selectedEl.x.toFixed(1)}%</span>
+                    <label className="studio-flipbook-range-label">Top %</label>
+                    <input type="range" min={0} max={100 - selectedEl.height} step={0.5} value={selectedEl.y}
+                      onChange={e => updateElement(currentPage, selectedElement!, { y: Number(e.target.value) })} />
+                    <span className="studio-flipbook-range-val">{selectedEl.y.toFixed(1)}%</span>
+                    <label className="studio-flipbook-range-label">Rotation</label>
+                    <input type="range" min={-180} max={180} step={1} value={selectedEl.rotation ?? 0}
+                      onChange={e => updateElement(currentPage, selectedElement!, { rotation: Number(e.target.value) })} />
+                    <span className="studio-flipbook-range-val">{selectedEl.rotation ?? 0}°</span>
+                  </section>
+                  <section className="studio-flipbook-section">
                     <h3>Fit Mode</h3>
                     <p className="studio-flipbook-hint" style={{ marginBottom: 6 }}>
                       Cover = fills frame (may crop) · Contain = full image visible · Fill = stretch
@@ -556,7 +740,7 @@ const StudioFlipbookBuilderPage: React.FC = () => {
                   <section className="studio-flipbook-section">
                     <h3>Image Position (inside frame)</h3>
                     <p className="studio-flipbook-hint" style={{ marginBottom: 6 }}>
-                      Click image → drag inside frame to reposition · use top bar to move frame
+                      Drag center to crop · drag edges/top bar to move frame · hold Space to move anywhere
                     </p>
                     <label className="studio-flipbook-range-label">Horizontal</label>
                     <input type="range" min={0} max={100} step={1} value={selectedEl.cropX ?? 50}
@@ -715,6 +899,55 @@ const StudioFlipbookBuilderPage: React.FC = () => {
         images={albumImages}
         onClose={() => setShowImageLibrary(false)}
         onSelect={handleImageSwap}
+      />
+
+      <FlipbookElementContextMenu
+        open={contextMenu != null}
+        x={contextMenu?.x ?? 0}
+        y={contextMenu?.y ?? 0}
+        elementType={
+          contextMenu != null ? pages[currentPage]?.elements[contextMenu.elIdx]?.elementType : undefined
+        }
+        currentFrameType={
+          contextMenu != null
+            ? pages[currentPage]?.elements[contextMenu.elIdx]?.frameType
+            : undefined
+        }
+        currentTextStyle={
+          contextMenu != null
+            ? (() => {
+                const el = pages[currentPage]?.elements[contextMenu.elIdx];
+                if (el?.elementType !== 'text') return undefined;
+                return {
+                  fontFamily: el.styleJson?.fontFamily as string | undefined,
+                  fontSizePx: el.styleJson?.fontSizePx as number | undefined,
+                  color: el.styleJson?.color as string | undefined,
+                  align: el.styleJson?.align as string | undefined,
+                };
+              })()
+            : undefined
+        }
+        currentBoxSize={
+          contextMenu != null
+            ? (() => {
+                const el = pages[currentPage]?.elements[contextMenu.elIdx];
+                if (!el || (el.elementType !== 'image' && el.elementType !== 'text')) {
+                  return undefined;
+                }
+                return {
+                  width: el.width,
+                  height: el.height,
+                  imageZoom:
+                    el.elementType === 'image'
+                      ? ((el.styleJson?.imageZoom as number) ?? 1)
+                      : undefined,
+                };
+              })()
+            : undefined
+        }
+        onAction={handleElementContextAction}
+        onLivePatch={handleElementContextLivePatch}
+        onClose={() => setContextMenu(null)}
       />
 
       {/* ── layout picker modal ── */}

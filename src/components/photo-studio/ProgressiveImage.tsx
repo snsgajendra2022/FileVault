@@ -1,5 +1,9 @@
-import React, { memo } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import type { UserImageWithVariants } from '../../utils/progressiveImageVariants';
+import {
+  getGalleryDisplayCandidates,
+  getVariantsFingerprint,
+} from '../../utils/progressiveImageVariants';
 import {
   useProgressiveImageSrc,
   type ProgressiveDisplayMode,
@@ -13,9 +17,14 @@ export interface ProgressiveImageProps {
   className?: string;
   onLoad?: () => void;
   onError?: () => void;
-  /** Gallery cards use thumbnail only; lightbox uses progressive upgrades. */
+  /** Gallery cards use s01 variants; lightbox uses progressive upgrades. */
   mode?: ProgressiveDisplayMode;
   viewOptions?: Partial<ProgressiveViewOptions>;
+}
+
+function imageKey(image: UserImageWithVariants): string {
+  if (image.id != null && image.id !== '') return String(image.id);
+  return image.previewUrl || image.filename;
 }
 
 const ProgressiveImage = memo(function ProgressiveImage({
@@ -31,17 +40,46 @@ const ProgressiveImage = memo(function ProgressiveImage({
   const { baseSrc, overlaySrc, overlayVisible, markLoaded, markError } =
     useProgressiveImageSrc(image, enabled, mode, viewOptions);
 
-  const handleLoad = onLoad ?? markLoaded;
-  const handleError = onError ?? markError;
+  const variantsFingerprint = getVariantsFingerprint(image);
+  const currentImageKey = imageKey(image);
 
-  if (!enabled || !baseSrc) {
+  const galleryCandidates = useMemo(() => {
+    if (mode !== 'gallery') return [];
+    return getGalleryDisplayCandidates(image);
+  }, [mode, image, variantsFingerprint]);
+
+  const [fallbackIndex, setFallbackIndex] = useState(0);
+
+  useEffect(() => {
+    setFallbackIndex(0);
+  }, [currentImageKey, variantsFingerprint, mode]);
+
+  const displaySrc =
+    mode === 'gallery'
+      ? galleryCandidates[fallbackIndex] || baseSrc
+      : baseSrc;
+
+  const handleLoad = useCallback(() => {
+    (onLoad ?? markLoaded)();
+  }, [onLoad, markLoaded]);
+
+  const handleError = useCallback(() => {
+    if (mode === 'gallery' && fallbackIndex < galleryCandidates.length - 1) {
+      setFallbackIndex((index) => index + 1);
+      return;
+    }
+    (onError ?? markError)();
+  }, [mode, fallbackIndex, galleryCandidates.length, onError, markError]);
+
+  if (!enabled || !displaySrc) {
     return null;
   }
 
   return (
     <div className="absolute inset-0">
       <img
-        src={baseSrc}
+        key={`${currentImageKey}-${displaySrc}`}
+        src={displaySrc}
         alt={alt}
         className={className}
         loading="lazy"

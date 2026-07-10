@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../state/context/AuthContext';
 import { FaBars, FaBell, FaUser, FaSignOutAlt, FaCrown, FaGlobe } from 'react-icons/fa';
@@ -17,6 +17,8 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [colorMode, setColorMode] = useState<DocumentTheme>(() => getStoredTheme());
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,6 +30,31 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
       window.removeEventListener('storage', sync);
     };
   }, []);
+
+  useEffect(() => {
+    if (!userMenuOpen && !notificationsOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        userMenuOpen &&
+        userMenuRef.current &&
+        !userMenuRef.current.contains(target)
+      ) {
+        setUserMenuOpen(false);
+      }
+      if (
+        notificationsOpen &&
+        notificationsRef.current &&
+        !notificationsRef.current.contains(target)
+      ) {
+        setNotificationsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [userMenuOpen, notificationsOpen]);
   const handleLogout = () => {
     logout();
     toast.success(t('header.loggedOut'));
@@ -76,7 +103,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
           </div>
 
           {/* Notifications */}
-          <div className="relative">
+          <div className="relative" ref={notificationsRef}>
             <button
               type="button"
               className="group relative p-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"
@@ -126,7 +153,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
           </div>
 
           {/* Enhanced User menu */}
-          <div className="relative">
+          <div className="relative" ref={userMenuRef}>
             <button
               type="button"
               className="group flex items-center space-x-3 p-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800 transition-colors"

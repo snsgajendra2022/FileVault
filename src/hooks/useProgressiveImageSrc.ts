@@ -10,13 +10,15 @@ import {
   canStartVariantLadder,
   fallbackStaticSrc,
   getFirstVariantSrc,
+  getGalleryDisplaySrc,
   getOriginalViewSrc,
   getStepQualityLabel,
   getThumbnailSrc,
   getVariantsFingerprint,
+  imageVariantsNeedPolling,
 } from '../utils/progressiveImageVariants';
 
-export type ProgressiveDisplayMode = 'thumbnail' | 'progressive';
+export type ProgressiveDisplayMode = 'thumbnail' | 'gallery' | 'progressive';
 
 export interface UseProgressiveImageSrcResult {
   baseSrc: string;
@@ -67,7 +69,9 @@ export function useProgressiveImageSrc(
   const boot =
     mode === 'thumbnail'
       ? getThumbnailSrc(image) || fallbackStaticSrc(image)
-      : getFirstVariantSrc(image) || fallbackStaticSrc(image);
+      : mode === 'gallery'
+        ? getGalleryDisplaySrc(image) || fallbackStaticSrc(image)
+        : getFirstVariantSrc(image) || fallbackStaticSrc(image);
 
   const [baseSrc, setBaseSrc] = useState(boot);
   const [overlaySrc, setOverlaySrc] = useState<string | null>(null);
@@ -160,7 +164,9 @@ export function useProgressiveImageSrc(
       const nextBoot =
         mode === 'thumbnail'
           ? getThumbnailSrc(imageRef.current) || fallbackStaticSrc(imageRef.current)
-          : getFirstVariantSrc(imageRef.current) || fallbackStaticSrc(imageRef.current);
+          : mode === 'gallery'
+            ? getGalleryDisplaySrc(imageRef.current) || fallbackStaticSrc(imageRef.current)
+            : getFirstVariantSrc(imageRef.current) || fallbackStaticSrc(imageRef.current);
       displaySrcRef.current = nextBoot;
       setBaseSrc(nextBoot);
       setOverlaySrc(null);
@@ -180,6 +186,14 @@ export function useProgressiveImageSrc(
     if (mode === 'thumbnail') {
       const thumb = getThumbnailSrc(currentImage) || fallbackStaticSrc(currentImage);
       if (thumb) commitDisplay(thumb, 0, 1, false);
+      return;
+    }
+
+    if (mode === 'gallery') {
+      const display = getGalleryDisplaySrc(currentImage) || fallbackStaticSrc(currentImage);
+      if (display) {
+        commitDisplay(display, 0, 1, imageVariantsNeedPolling(currentImage));
+      }
       return;
     }
 

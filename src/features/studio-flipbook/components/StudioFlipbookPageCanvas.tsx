@@ -3,6 +3,10 @@ import { CropImageDisplay, DraggableCropImage } from '../../../components/photo-
 import { getTheme } from '../themes';
 import type { FitMode, GeneratedPage, GeneratedPageElement, ThemeId } from '../types';
 import { DESIGN_CANVAS } from '../constants/canvas';
+import {
+  combinedFrameStyle,
+  frameLocksAspectRatio,
+} from '../utils/frameShapeStyles';
 
 export type CanvasElement = GeneratedPageElement & { _idx: number };
 
@@ -16,22 +20,10 @@ type Props = {
   onSelect: (index: number | null) => void;
   onElementChange: (index: number, patch: Partial<GeneratedPageElement>) => void;
   onTextDoubleClick?: (index: number) => void;
+  onElementContextMenu?: (index: number, event: React.MouseEvent) => void;
   displayWidth?: number;
-  /** Fill parent box — measures container and scales canvas (flipbook pages) */
   fillParent?: boolean;
-  builderZoom?: number;
 };
-
-function frameBorderStyle(frameType?: string, accent?: string): React.CSSProperties {
-  switch (frameType) {
-    case 'golden': return { border: `2px solid ${accent ?? '#c9a227'}` };
-    case 'border': return { border: '1px solid rgba(255,255,255,0.85)' };
-    case 'circle': return { borderRadius: '50%', overflow: 'hidden' };
-    case 'rounded': return { borderRadius: 16, overflow: 'hidden' };
-    case 'grayscale_fade': return { filter: 'grayscale(1)' };
-    default: return {};
-  }
-}
 
 function resolveFitMode(fit?: string): FitMode {
   if (fit === 'contain' || fit === 'fill') return fit;
@@ -47,6 +39,11 @@ function PageElementView({
   overlay?: string;
   fillParent?: boolean;
 }) {
+  const radius = (el.styleJson?.borderRadius as number) ?? 0;
+  const shadow = (el.styleJson?.shadow as string) ?? '';
+  const fit = resolveFitMode(el.fitMode);
+  const frameStyle = combinedFrameStyle(el.frameType, accent, el.maskType, radius);
+
   const base: React.CSSProperties = fillParent
     ? {
         position: 'absolute', inset: 0, width: '100%', height: '100%',
@@ -65,18 +62,13 @@ function PageElementView({
 
   if (el.elementType === 'image') {
     const url = el.albumImageId ? imageUrlById[el.albumImageId] : undefined;
-    const radius = (el.styleJson?.borderRadius as number) ?? 0;
-    const shadow = (el.styleJson?.shadow as string) ?? '';
-    const fit = resolveFitMode(el.fitMode);
     return (
       <div
         style={{
           ...base,
-          borderRadius: el.frameType === 'circle' ? '50%' : radius ? `${radius}px` : 0,
-          overflow: 'hidden',
-          ...frameBorderStyle(el.frameType, accent),
-          boxShadow: shadow || undefined,
-          background: url ? '#111827' : '#f3f4f6',
+          ...frameStyle,
+          boxShadow: shadow || (frameStyle.boxShadow as string) || undefined,
+          background: url ? 'transparent' : '#f3f4f6',
         }}
       >
         {url ? (
@@ -138,11 +130,13 @@ function PageElementView({
   return null;
 }
 
-type DragMode = 'none' | 'frame' | 'resize';
+type DragMode = 'none' | 'frame' | 'resize' | 'rotate' | 'inner-zoom';
+
+const EDGE_SIZE = 16;
 
 function InteractiveElement({
-  el, idx, imageUrlById, accent, overlay, selected, scale, builderZoom,
-  onSelect, onCommit, onTextDoubleClick,
+  el, idx, imageUrlById, accent, overlay, selected, getPageRect,
+  onSelect, onCommit, onTextDoubleClick, onElementContextMenu,
 }: {
   el: CanvasElement;
   idx: number;
@@ -150,36 +144,67 @@ function InteractiveElement({
   accent: string;
   overlay?: string;
   selected: boolean;
-  scale: number;
-  builderZoom: number;
+  getPageRect: () => DOMRect | null;
   onSelect: (i: number) => void;
   onCommit: (i: number, patch: Partial<GeneratedPageElement>) => void;
   onTextDoubleClick?: (i: number) => void;
+  onElementContextMenu?: (i: number, event: React.MouseEvent) => void;
 }) {
   const [dragMode, setDragMode] = React.useState<DragMode>('none');
+  const [spaceHeld, setSpaceHeld] = React.useState(false);
   const dragStart = React.useRef<{
     mx: number; my: number;
     ex: number; ey: number;
     ew: number; eh: number;
+    er: number;
+    ezoom: number;
+    centerX: number;
+    centerY: number;
   } | null>(null);
 
   const isImage = el.elementType === 'image';
-  const effectiveScale = scale * builderZoom;
-  const canvasW = DESIGN_CANVAS.width * effectiveScale;
-  const canvasH = DESIGN_CANVAS.height * effectiveScale;
+
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat) {
+        e.preventDefault();
+        setSpaceHeld(true);
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') setSpaceHeld(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
 
   const endDrag = React.useCallback(() => {
     setDragMode('none');
     dragStart.current = null;
   }, []);
 
+  const percentDelta = React.useCallback((e: PointerEvent) => {
+    const rect = getPageRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return { dx: 0, dy: 0 };
+    const start = dragStart.current;
+    if (!start) return { dx: 0, dy: 0 };
+    return {
+      dx: ((e.clientX - start.mx) / rect.width) * 100,
+      dy: ((e.clientY - start.my) / rect.height) * 100,
+    };
+  }, [getPageRect]);
+
   const handlePointerMove = React.useCallback((e: PointerEvent) => {
     const start = dragStart.current;
     if (!start || dragMode === 'none') return;
 
+    const { dx, dy } = percentDelta(e);
+
     if (dragMode === 'frame') {
-      const dx = ((e.clientX - start.mx) / canvasW) * 100;
-      const dy = ((e.clientY - start.my) / canvasH) * 100;
       onCommit(idx, {
         x: Math.max(0, Math.min(100 - el.width, start.ex + dx)),
         y: Math.max(0, Math.min(100 - el.height, start.ey + dy)),
@@ -187,14 +212,39 @@ function InteractiveElement({
     }
 
     if (dragMode === 'resize') {
-      const dx = ((e.clientX - start.mx) / canvasW) * 100;
-      const dy = ((e.clientY - start.my) / canvasH) * 100;
+      const lock = frameLocksAspectRatio(el.frameType);
+      if (lock) {
+        const delta = Math.max(dx, dy);
+        const nextW = Math.max(5, Math.min(100 - el.x, start.ew + delta));
+        const nextH = el.frameType === 'oval' ? nextW * 0.72 : nextW;
+        onCommit(idx, {
+          width: nextW,
+          height: Math.min(100 - el.y, Math.max(5, nextH)),
+        });
+      } else {
+        onCommit(idx, {
+          width: Math.max(5, Math.min(100 - el.x, start.ew + dx)),
+          height: Math.max(5, Math.min(100 - el.y, start.eh + dy)),
+        });
+      }
+    }
+
+    if (dragMode === 'rotate') {
+      const angle = (Math.atan2(e.clientY - start.centerY, e.clientX - start.centerX) * 180) / Math.PI + 90;
+      onCommit(idx, { rotation: Math.round(angle) });
+    }
+
+    if (dragMode === 'inner-zoom') {
+      const pixelDy = e.clientY - start.my;
+      const nextZoom = Math.max(1, Math.min(2.5, start.ezoom - pixelDy * 0.005));
       onCommit(idx, {
-        width: Math.max(3, Math.min(100 - el.x, start.ew + dx)),
-        height: Math.max(3, Math.min(100 - el.y, start.eh + dy)),
+        styleJson: {
+          ...el.styleJson,
+          imageZoom: Math.round(nextZoom * 100) / 100,
+        },
       });
     }
-  }, [canvasH, canvasW, dragMode, el.height, el.width, el.x, el.y, idx, onCommit]);
+  }, [dragMode, el.frameType, el.height, el.styleJson, el.width, el.x, el.y, idx, onCommit, percentDelta]);
 
   React.useEffect(() => {
     if (dragMode === 'none') return;
@@ -213,6 +263,15 @@ function InteractiveElement({
     e.stopPropagation();
     e.preventDefault();
     onSelect(idx);
+
+    const rect = getPageRect();
+    const centerX = rect
+      ? rect.left + rect.width * ((el.x + el.width / 2) / 100)
+      : e.clientX;
+    const centerY = rect
+      ? rect.top + rect.height * ((el.y + el.height / 2) / 100)
+      : e.clientY;
+
     dragStart.current = {
       mx: e.clientX,
       my: e.clientY,
@@ -220,6 +279,10 @@ function InteractiveElement({
       ey: el.y,
       ew: el.width,
       eh: el.height,
+      er: el.rotation ?? 0,
+      ezoom: (el.styleJson?.imageZoom as number) ?? 1,
+      centerX,
+      centerY,
     };
     setDragMode(mode);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -237,75 +300,111 @@ function InteractiveElement({
     width: `${el.width}%`,
     height: `${el.height}%`,
     zIndex: el.zIndex,
-    outline: selected ? `2px solid ${accent}` : undefined,
-    outlineOffset: 2,
-    cursor: dragMode === 'frame' ? 'grabbing' : isImage ? 'default' : 'grab',
+    boxShadow: selected ? `0 0 0 2px ${accent}` : undefined,
+    cursor:
+      dragMode === 'frame'
+        ? 'grabbing'
+        : spaceHeld && isImage
+          ? 'grab'
+          : isImage
+            ? 'default'
+            : 'grab',
     userSelect: 'none',
     pointerEvents: el.elementType === 'decorative' ? 'none' : 'auto',
+    transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+    transformOrigin: 'center center',
+    transition: dragMode === 'none' ? 'box-shadow 0.15s ease' : undefined,
+    willChange: dragMode !== 'none' ? 'transform' : undefined,
   };
 
   const imageUrl = isImage && el.albumImageId ? imageUrlById[el.albumImageId] : undefined;
   const radius = (el.styleJson?.borderRadius as number) ?? 0;
   const shadow = (el.styleJson?.shadow as string) ?? '';
   const fit = resolveFitMode(el.fitMode);
+  const frameStyle = combinedFrameStyle(el.frameType, accent, el.maskType, radius);
+  const moveMode = spaceHeld;
+
+  const edgeMoveProps = (mode: DragMode = 'frame') => ({
+    onPointerDown: (e: React.PointerEvent) => startDrag(e, mode),
+    style: { pointerEvents: 'auto' as const, touchAction: 'none' as const },
+  });
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (el.elementType === 'decorative') return;
+    e.preventDefault();
+    e.stopPropagation();
+    onSelect(idx);
+    onElementContextMenu?.(idx, e);
+  };
 
   return (
     <div
-      className={isImage ? 'group/crop' : undefined}
+      className={isImage ? 'group/crop studio-flipbook-interactive-el' : 'studio-flipbook-interactive-el'}
       style={shell}
       onDoubleClick={() => el.elementType === 'text' && onTextDoubleClick?.(idx)}
+      onPointerDown={() => onSelect(idx)}
+      onContextMenu={handleContextMenu}
     >
       {isImage ? (
         <>
           {selected && (
             <div
               className="studio-flipbook-frame-move-handle"
-              onPointerDown={(e) => startDrag(e, 'frame')}
+              {...edgeMoveProps('frame')}
               style={{
                 position: 'absolute',
                 top: 0,
                 left: 0,
                 right: 0,
-                height: 26,
-                background: accent,
+                height: 28,
+                background: `linear-gradient(135deg, ${accent}, #6366f1)`,
                 color: '#fff',
                 fontSize: 10,
                 fontWeight: 600,
                 cursor: dragMode === 'frame' ? 'grabbing' : 'grab',
-                zIndex: 10,
+                zIndex: 20,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 pointerEvents: 'auto',
-                opacity: 0.92,
+                touchAction: 'none',
+                gap: 8,
               }}
             >
-              ↔ Drag to move frame
+              <span>↔ Drag to move</span>
+              <span style={{ opacity: 0.75, fontWeight: 500 }}>· Space+drag · edges · corner resize</span>
             </div>
           )}
+
           <div
             style={{
               position: 'absolute',
               inset: 0,
-              top: selected ? 26 : 0,
+              top: selected ? 28 : 0,
               zIndex: 2,
-              borderRadius: el.frameType === 'circle' ? '50%' : radius ? `${radius}px` : 0,
-              overflow: 'hidden',
-              ...frameBorderStyle(el.frameType, accent),
-              boxShadow: shadow || undefined,
-              background: imageUrl ? '#111827' : '#f3f4f6',
+              ...frameStyle,
+              boxShadow: shadow || (frameStyle.boxShadow as string) || undefined,
+              background: imageUrl ? 'transparent' : '#f3f4f6',
             }}
-            onPointerDown={() => onSelect(idx)}
           >
             {imageUrl ? (
-              <DraggableCropImage
-                src={imageUrl}
-                cropX={el.cropX ?? 50}
-                cropY={el.cropY ?? 50}
-                zoom={(el.styleJson?.imageZoom as number) ?? 1}
-                fit={fit}
-                onCropChange={(x, y) => onCommit(idx, { cropX: x, cropY: y })}
-              />
+              moveMode ? (
+                <div
+                  style={{ position: 'absolute', inset: 0, cursor: dragMode === 'frame' ? 'grabbing' : 'grab' }}
+                  {...edgeMoveProps('frame')}
+                />
+              ) : (
+                <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+                  <DraggableCropImage
+                    src={imageUrl}
+                    cropX={el.cropX ?? 50}
+                    cropY={el.cropY ?? 50}
+                    zoom={(el.styleJson?.imageZoom as number) ?? 1}
+                    fit={fit}
+                    onCropChange={(x, y) => onCommit(idx, { cropX: x, cropY: y })}
+                  />
+                </div>
+              )
             ) : (
               <div style={{
                 width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -313,6 +412,59 @@ function InteractiveElement({
               }}>
                 + Image
               </div>
+            )}
+
+            {selected && !moveMode && (
+              <>
+                <div
+                  className="studio-flipbook-edge-zone studio-flipbook-edge-zone--top"
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, height: EDGE_SIZE, zIndex: 12, cursor: 'grab' }}
+                  {...edgeMoveProps('frame')}
+                />
+                <div
+                  className="studio-flipbook-edge-zone studio-flipbook-edge-zone--bottom"
+                  style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: EDGE_SIZE, zIndex: 12, cursor: 'grab' }}
+                  {...edgeMoveProps('frame')}
+                />
+                <div
+                  className="studio-flipbook-edge-zone studio-flipbook-edge-zone--left"
+                  style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: EDGE_SIZE, zIndex: 12, cursor: 'grab' }}
+                  {...edgeMoveProps('frame')}
+                />
+                <div
+                  className="studio-flipbook-edge-zone studio-flipbook-edge-zone--right"
+                  style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: EDGE_SIZE, zIndex: 12, cursor: 'grab' }}
+                  {...edgeMoveProps('frame')}
+                />
+                <div
+                  className="studio-flipbook-inner-zoom-handle"
+                  title="Drag to resize image inside frame"
+                  onPointerDown={(e) => startDrag(e, 'inner-zoom')}
+                  style={{
+                    position: 'absolute',
+                    bottom: 10,
+                    right: 10,
+                    width: 22,
+                    height: 22,
+                    borderRadius: 6,
+                    background: 'rgba(255,255,255,0.95)',
+                    border: `2px solid ${accent}`,
+                    color: accent,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: dragMode === 'inner-zoom' ? 'grabbing' : 'ns-resize',
+                    zIndex: 14,
+                    pointerEvents: 'auto',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                    touchAction: 'none',
+                  }}
+                >
+                  ⤢
+                </div>
+              </>
             )}
           </div>
         </>
@@ -328,22 +480,45 @@ function InteractiveElement({
       )}
 
       {selected && el.elementType !== 'decorative' && (
-        <div
-          onPointerDown={(e) => startDrag(e, 'resize')}
-          style={{
-            position: 'absolute',
-            bottom: 4,
-            right: 4,
-            width: 14,
-            height: 14,
-            borderRadius: '50%',
-            background: accent,
-            border: '2px solid #fff',
-            cursor: 'nwse-resize',
-            zIndex: 12,
-            pointerEvents: 'auto',
-          }}
-        />
+        <>
+          <div
+            onPointerDown={(e) => startDrag(e, 'resize')}
+            title="Resize box"
+            className="studio-flipbook-box-resize-handle"
+            style={{
+              position: 'absolute',
+              bottom: -2,
+              right: -2,
+              width: 16,
+              height: 16,
+              borderRadius: '50%',
+              background: accent,
+              border: '2px solid #fff',
+              cursor: 'nwse-resize',
+              zIndex: 22,
+              pointerEvents: 'auto',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            }}
+          />
+          <div
+            onPointerDown={(e) => startDrag(e, 'rotate')}
+            title="Rotate"
+            style={{
+              position: 'absolute',
+              top: selected && isImage ? 22 : -10,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: 14,
+              height: 14,
+              borderRadius: '50%',
+              background: '#fff',
+              border: `2px solid ${accent}`,
+              cursor: 'grab',
+              zIndex: 22,
+              pointerEvents: 'auto',
+            }}
+          />
+        </>
       )}
     </div>
   );
@@ -352,13 +527,16 @@ function InteractiveElement({
 const StudioFlipbookPageCanvas: React.FC<Props> = ({
   page, imageUrlById, themeId, className = '',
   interactive = false, selectedIndex, onSelect, onElementChange,
-  onTextDoubleClick, displayWidth, fillParent = false, builderZoom = 1,
+  onTextDoubleClick, onElementContextMenu, displayWidth, fillParent = false,
 }) => {
   const outerRef = React.useRef<HTMLDivElement>(null);
+  const pageRef = React.useRef<HTMLDivElement>(null);
   const [box, setBox] = React.useState({
     w: displayWidth ?? DESIGN_CANVAS.width,
     h: (displayWidth ?? DESIGN_CANVAS.width) * (DESIGN_CANVAS.height / DESIGN_CANVAS.width),
   });
+
+  const getPageRect = React.useCallback(() => pageRef.current?.getBoundingClientRect() ?? null, []);
 
   React.useEffect(() => {
     const el = outerRef.current;
@@ -440,45 +618,46 @@ const StudioFlipbookPageCanvas: React.FC<Props> = ({
           flexShrink: 0,
         }}
       >
-      <div
-        className="studio-flipbook-page"
-        style={{
-          ...bgStyle,
-          transform: `scale(${scale})`,
-          transformOrigin: 'top left',
-        }}
-        onClick={interactive ? handleCanvasClick : undefined}
-      >
-        {overlay && (
-          <div style={{ position: 'absolute', inset: 0, background: overlay, zIndex: 1, pointerEvents: 'none' }} />
-        )}
-        {sorted.map((el) =>
-          interactive ? (
-            <InteractiveElement
-              key={el._idx}
-              el={el}
-              idx={el._idx}
-              imageUrlById={imageUrlById}
-              accent={theme.accentColor}
-              overlay={overlay}
-              selected={selectedIndex === el._idx}
-              scale={scale}
-              builderZoom={builderZoom}
-              onSelect={onSelect}
-              onCommit={onElementChange}
-              onTextDoubleClick={onTextDoubleClick}
-            />
-          ) : (
-            <PageElementView
-              key={el._idx}
-              el={el}
-              imageUrlById={imageUrlById}
-              accent={theme.accentColor}
-              overlay={overlay}
-            />
-          )
-        )}
-      </div>
+        <div
+          ref={pageRef}
+          className="studio-flipbook-page"
+          style={{
+            ...bgStyle,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+          }}
+          onClick={interactive ? handleCanvasClick : undefined}
+        >
+          {overlay && (
+            <div style={{ position: 'absolute', inset: 0, background: overlay, zIndex: 1, pointerEvents: 'none' }} />
+          )}
+          {sorted.map((el) =>
+            interactive ? (
+              <InteractiveElement
+                key={el._idx}
+                el={el}
+                idx={el._idx}
+                imageUrlById={imageUrlById}
+                accent={theme.accentColor}
+                overlay={overlay}
+                selected={selectedIndex === el._idx}
+                getPageRect={getPageRect}
+                onSelect={onSelect}
+                onCommit={onElementChange}
+                onTextDoubleClick={onTextDoubleClick}
+                onElementContextMenu={onElementContextMenu}
+              />
+            ) : (
+              <PageElementView
+                key={el._idx}
+                el={el}
+                imageUrlById={imageUrlById}
+                accent={theme.accentColor}
+                overlay={overlay}
+              />
+            )
+          )}
+        </div>
       </div>
     </div>
   );

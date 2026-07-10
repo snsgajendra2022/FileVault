@@ -56,11 +56,60 @@ export function getThumbnailSrc(image: UserImageWithVariants): string {
   return image.previewUrl || '';
 }
 
-/** Lightbox first paint: lowest variant tier (s01). */
-export function getFirstVariantSrc(image: UserImageWithVariants): string {
+/** Single tier URL when marked available (e.g. s01). */
+export function getTierSrc(image: UserImageWithVariants, tierKey: string): string | null {
+  const tier = image.variants?.tiers?.[tierKey];
+  if (tier?.available && tier.url) return tier.url;
+  return null;
+}
+
+/**
+ * Gallery grid display — prefer s01 variant, never thumbnail endpoints.
+ * Use while variants are still processing via preview / auto URLs.
+ */
+export function getGalleryDisplaySrc(image: UserImageWithVariants): string {
+  const s01 = getTierSrc(image, 's01');
+  if (s01) return s01;
+
   const ordered = getOrderedVariantUrls(image);
   if (ordered.length > 0) return ordered[0];
-  return getThumbnailSrc(image) || image.previewUrl || '';
+
+  const v = image.variants;
+  if (v?.autoUrl) return v.autoUrl;
+  if (v?.recommendedUrl) return v.recommendedUrl;
+  if (v?.previewFallbackUrl) return v.previewFallbackUrl;
+  if (image.previewUrl) return image.previewUrl;
+  return '';
+}
+
+/** Ordered gallery candidates (no thumbnail); used for img onError fallbacks. */
+export function getGalleryDisplayCandidates(image: UserImageWithVariants): string[] {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  const push = (url?: string | null) => {
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    urls.push(url);
+  };
+
+  push(getTierSrc(image, 's01'));
+  for (const url of getOrderedVariantUrls(image)) push(url);
+
+  const v = image.variants;
+  push(v?.autoUrl);
+  push(v?.recommendedUrl);
+  push(v?.previewFallbackUrl);
+  push(image.previewUrl);
+  push(image.downloadUrl);
+
+  return urls;
+}
+
+/** Lightbox first paint: lowest variant tier (s01). */
+export function getFirstVariantSrc(image: UserImageWithVariants): string {
+  const gallery = getGalleryDisplaySrc(image);
+  if (gallery) return gallery;
+  return image.previewUrl || '';
 }
 
 /** Full original (preview) — final step in lightbox ladder when distinct from tiers. */
@@ -73,17 +122,17 @@ export function getOriginalViewSrc(image: UserImageWithVariants): string {
   );
 }
 
-/** Lightbox ladder: thumb → s01 → … → recommended → final (deduped, in order). */
+/** Lightbox ladder: s01 → … → recommended → final (deduped, no thumbnail). */
 export function getProgressiveLadderUrls(
   image: UserImageWithVariants,
   finalTarget: 'original' | 'recommended' = 'original'
 ): string[] {
   const urls: string[] = [];
   const seen = new Set<string>();
-  const thumb = getThumbnailSrc(image);
-  if (thumb) {
-    seen.add(thumb);
-    urls.push(thumb);
+  const boot = getGalleryDisplaySrc(image);
+  if (boot) {
+    seen.add(boot);
+    urls.push(boot);
   }
   for (const url of getOrderedVariantUrls(image)) {
     if (url && !seen.has(url)) {
@@ -221,7 +270,19 @@ export function canStartVariantLadder(image: UserImageWithVariants): boolean {
 }
 
 export function fallbackStaticSrc(image: UserImageWithVariants): string {
-  return image.thumbnailUrl || image.previewUrl || '';
+  return getGalleryDisplaySrc(image) || image.previewUrl || '';
+}
+
+export function imageVariantsNeedPolling(image: UserImageWithVariants): boolean {
+  const v = image.variants;
+  if (!v) return false;
+  if (v.status === 'processing') return true;
+  if (v.status === 'partial') {
+    const ready = v.readyCount ?? 0;
+    const expected = v.expectedCount ?? 0;
+    return expected > 0 && ready < expected;
+  }
+  return false;
 }
 
 /** Stable key so the ladder effect re-runs when variants change, not on every query object reference. */
@@ -234,6 +295,8 @@ export function getVariantsFingerprint(image: UserImageWithVariants): string {
     v.readyCount ?? 0,
     v.expectedCount ?? 0,
     v.recommendedUrl ?? '',
+    v.previewFallbackUrl ?? '',
+    v.autoUrl ?? '',
     tierUrls,
   ].join(':');
 }
