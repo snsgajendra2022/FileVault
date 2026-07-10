@@ -36,6 +36,7 @@ import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { useQuery } from '@tanstack/react-query';
 import { FamilyMemberSkeleton } from '../../components/common/skeletons';
 import { getVideoDuration, trimVideoTo30Seconds, isVideoFile, VIDEO_TRIM_THRESHOLD_SECONDS } from '../../utils/videoTrim';
+import { fieldsFromUploadResponse, startVideoProcessingPoll } from '../../utils/mediaUploadQueue';
 import JSZip from 'jszip';
 import { addImagesToMemoriesEvent, listMemoriesEvents } from '../../api/services/memoriesService';
 
@@ -77,6 +78,11 @@ export interface QueueItemMeta {
     inviterApiToken: string;
   }>;
   imageId?: number | string;
+  videoId?: number;
+  streamUrl?: string;
+  statusPollUrl?: string;
+  mediaType?: 'IMAGE' | 'VIDEO';
+  videoStatus?: string;
   /** When set, this upload will be added to this album once it completes */
   targetAlbumId?: number;
   /** When set, this upload will be added to this Our Memories event once it completes */
@@ -285,6 +291,11 @@ class UploadManager {
         uploadDestination: item.uploadDestination,
         targetFamilyMember: item.targetFamilyMember,
         imageId: item.imageId,
+        videoId: item.videoId,
+        streamUrl: item.streamUrl,
+        statusPollUrl: item.statusPollUrl,
+        mediaType: item.mediaType,
+        videoStatus: item.videoStatus,
         targetAlbumId: item.targetAlbumId,
         targetMemoriesEventId: item.targetMemoriesEventId,
         createdAt: item.createdAt,
@@ -521,7 +532,6 @@ class UploadManager {
 
     try {
       let lastData: unknown = null;
-      let lastImageId: number | string | undefined;
       const totalTargets = Math.max(1, familyTargets.length);
       const progressPerTarget = totalTargets > 1 ? Math.floor(100 / totalTargets) : 100;
 
@@ -542,8 +552,6 @@ class UploadManager {
           },
         });
         lastData = response?.data ?? response;
-        const d = lastData as { id?: number; image?: { id?: number }; imageId?: number };
-        lastImageId = d?.id ?? d?.image?.id ?? d?.imageId;
       } else {
         for (let i = 0; i < familyTargets.length; i++) {
           if (signal.aborted) {
@@ -571,12 +579,11 @@ class UploadManager {
             },
           });
           lastData = response?.data ?? response;
-          const d = lastData as { id?: number; image?: { id?: number }; imageId?: number };
-          lastImageId = d?.id ?? d?.image?.id ?? d?.imageId;
         }
         update({ progress: 100 });
       }
 
+      const mediaFields = fieldsFromUploadResponse(lastData);
       const message =
         (lastData as { message?: string })?.message ??
         (isFamily && familyTargets.length > 1
@@ -596,9 +603,22 @@ class UploadManager {
         progress: 100,
         response: lastData,
         successMessage: message,
-        imageId: lastImageId,
+        imageId: mediaFields.imageId,
+        videoId: mediaFields.videoId,
+        streamUrl: mediaFields.streamUrl,
+        statusPollUrl: mediaFields.statusPollUrl,
+        mediaType: mediaFields.mediaType,
+        videoStatus: mediaFields.videoStatus,
         error: undefined,
       });
+      if (mediaFields.mediaType === 'VIDEO') {
+        startVideoProcessingPoll(mediaFields, (status) => {
+          this.items = this.items.map((i) =>
+            i.id === item.id ? { ...i, videoStatus: status } : i
+          );
+          this.notify();
+        });
+      }
       setTimeout(() => this.notify(), 0);
     } catch (err: unknown) {
       const isAborted =
@@ -1206,6 +1226,8 @@ const UploadFamilyImagesPage = () => {
   }, []);
 
   const getThumbnailUrl = (item: QueueItem): string | null => {
+    const resp = item.response as { thumbnailUrl?: string } | undefined;
+    if (typeof resp?.thumbnailUrl === 'string') return resp.thumbnailUrl;
     if (thumbnailUrlsRef.current.has(item.id)) return thumbnailUrlsRef.current.get(item.id)!;
     const isImage = item.file.type.startsWith('image/');
     const isVideo = item.file.type.startsWith('video/');
@@ -1902,7 +1924,9 @@ const UploadFamilyImagesPage = () => {
                         <div className="mb-1 flex items-center justify-between">
                           {isCompleted ? (
                             <span className="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">
-                              {getStatusLabel(item.status)}
+                              {item.mediaType === 'VIDEO' && item.videoStatus && item.videoStatus !== 'READY'
+                                ? 'Transcoding'
+                                : getStatusLabel(item.status)}
                             </span>
                           ) : isFailed ? (
                             <span className="text-xs font-bold text-[#ba1a1a]">{getStatusLabel(item.status)}</span>
