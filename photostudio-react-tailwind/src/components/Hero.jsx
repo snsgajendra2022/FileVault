@@ -11,13 +11,13 @@ const stats = [
 
 export default function Hero() {
   return (
-    <section id="home" className="relative isolate overflow-hidden">
+    <section id="home" className="relative isolate w-full overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute left-1/2 top-0 h-[420px] w-[min(800px,100%)] -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-100 via-sky-50 to-blue-50 blur-3xl" />
       </div>
 
-      <div className="container-page grid gap-10 pb-14 pt-10 md:pb-20 md:pt-12 lg:grid-cols-[1fr_0.95fr] lg:items-center lg:gap-12">
-        <div className="max-w-xl lg:max-w-none">
+      <div className="container-page grid gap-10 pb-14 pt-10 md:pb-20 md:pt-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-16 xl:gap-20">
+        <div className="max-w-2xl lg:max-w-none">
           <div className="mb-5 flex items-center gap-3">
             <BrandLogo size="md" />
             <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
@@ -50,7 +50,7 @@ export default function Hero() {
           </div>
         </div>
 
-        <div className="relative mx-auto w-full max-w-[480px]">
+        <div className="relative mx-auto w-full max-w-[520px] lg:max-w-none lg:justify-self-end">
           <div className="absolute -left-3 top-8 z-10 hidden rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-lg md:block">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
               <BadgeCheck className="text-emerald-500" size={17} />

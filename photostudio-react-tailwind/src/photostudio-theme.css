@@ -1,5 +1,9 @@
 /* CRA integration: mirrors index.css utilities scoped to marketing layout */
 .photostudio-marketing {
+  width: 100%;
+  max-width: 100vw;
+  min-height: 100vh;
+  min-height: 100dvh;
   scroll-behavior: smooth;
   background:
     radial-gradient(circle at 8% 0%, rgba(37, 99, 235, 0.08), transparent 28%),
@@ -21,9 +25,27 @@ html.dark .photostudio-marketing {
 }
 
 .photostudio-marketing .container-page {
-  width: min(1140px, calc(100% - 2rem));
+  width: 100%;
+  max-width: none;
+  padding-left: clamp(1.25rem, 5vw, 4rem);
+  padding-right: clamp(1.25rem, 5vw, 4rem);
   margin-left: auto;
   margin-right: auto;
+  box-sizing: border-box;
+}
+
+.photostudio-marketing > header,
+.photostudio-marketing > footer,
+.photostudio-marketing > main {
+  width: 100%;
+}
+
+.photostudio-marketing #features,
+.photostudio-marketing #how,
+.photostudio-marketing #users,
+.photostudio-marketing #blogs,
+.photostudio-marketing #home {
+  scroll-margin-top: 5.5rem;
 }
 
 .photostudio-marketing .section-padding {

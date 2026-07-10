@@ -1,22 +1,40 @@
-import { useState } from "react";
-import { ExternalLink, Menu, X } from "lucide-react";
+import { useCallback, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { ArrowRight, Menu, X } from "lucide-react";
 import { appConfig } from "../data/config";
 import BrandLogo from "./BrandLogo";
 
 const links = [
-  { label: "Features", href: "#features" },
-  { label: "How it Works", href: "#how" },
-  { label: "Users", href: "#users" },
-  { label: "Blog", href: "#blogs" },
+  { label: "Features", hash: "features" },
+  { label: "How it Works", hash: "how" },
+  { label: "Users", hash: "users" },
+  { label: "Blog", hash: "blogs" },
 ];
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const location = useLocation();
+
+  const handleSectionNav = useCallback(
+    (event, hash) => {
+      setOpen(false);
+      const onHome = location.pathname === "/" || location.pathname === "";
+      if (!onHome) return;
+
+      event.preventDefault();
+      const el = document.getElementById(hash);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        window.history.replaceState(null, "", `/#${hash}`);
+      }
+    },
+    [location.pathname]
+  );
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
       <div className="container-page flex h-16 items-center justify-between md:h-[4.5rem]">
-        <a href="/" className="group flex items-center gap-3" onClick={() => setOpen(false)}>
+        <Link to="/" className="group flex items-center gap-3" onClick={() => setOpen(false)}>
           <BrandLogo size="sm" className="transition group-hover:opacity-100 opacity-95" />
           <span>
             <span className="block text-base font-bold leading-tight tracking-tight text-slate-900 md:text-lg">
@@ -26,27 +44,41 @@ export default function Header() {
               Digital memories
             </span>
           </span>
-        </a>
+        </Link>
 
         <nav className="hidden items-center gap-0.5 lg:flex">
           {links.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
+            <Link
+              key={item.hash}
+              to={{ pathname: "/", hash: `#${item.hash}` }}
+              onClick={(event) => handleSectionNav(event, item.hash)}
               className="rounded-lg px-3.5 py-2 text-sm font-semibold text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
             >
               {item.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
         <div className="flex items-center gap-2">
           <a
             href={appConfig.mainAppUrl}
-            className="hidden items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700 sm:inline-flex"
+            className="group hidden items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 py-2 pl-4 pr-2 shadow-lg shadow-blue-600/25 ring-1 ring-blue-500/20 transition hover:from-blue-700 hover:via-blue-700 hover:to-indigo-700 sm:inline-flex"
           >
-            {appConfig.ctaLabelShort}
-            <ExternalLink size={15} />
+            <span className="min-w-0 text-left">
+              <span className="block text-sm font-bold leading-tight text-white">
+                {appConfig.ctaLabelShort}
+              </span>
+              <span className="mt-0.5 block text-[10px] font-medium leading-tight text-blue-100">
+                {appConfig.ctaLabelHint}
+              </span>
+            </span>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 transition group-hover:bg-white/25">
+              <ArrowRight
+                size={16}
+                className="text-white transition group-hover:translate-x-0.5"
+                aria-hidden
+              />
+            </span>
           </a>
           <button
             type="button"
@@ -63,21 +95,27 @@ export default function Header() {
         <div className="border-t border-slate-100 bg-white px-4 py-3 lg:hidden">
           <nav className="flex flex-col gap-0.5">
             {links.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
+              <Link
+                key={item.hash}
+                to={{ pathname: "/", hash: `#${item.hash}` }}
+                onClick={(event) => handleSectionNav(event, item.hash)}
                 className="rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
-                onClick={() => setOpen(false)}
               >
                 {item.label}
-              </a>
+              </Link>
             ))}
             <a
               href={appConfig.mainAppUrl}
-              className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white"
+              className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white shadow-md shadow-blue-600/20"
               onClick={() => setOpen(false)}
             >
-              {appConfig.ctaLabel} <ExternalLink size={15} />
+              <span className="text-left">
+                <span className="block text-sm font-bold">{appConfig.ctaLabel}</span>
+                <span className="mt-0.5 block text-[11px] font-medium text-blue-100">
+                  {appConfig.ctaLabelHint}
+                </span>
+              </span>
+              <ArrowRight size={18} aria-hidden />
             </a>
           </nav>
         </div>
