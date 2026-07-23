@@ -1,7 +1,8 @@
 // export const appConfig = {
 //   appName: "Our Memories",
-//   domain: "http://localhost:3000",
-//   mainAppUrl: "http://localhost:3000/memories",
+//   domain: typeof window !== "undefined" ? window.location.origin : "http://localhost:3000",
+//   /** Primary CTA — always open the login page (not /memories). */
+//   mainAppUrl: "/login",
 //   playStoreUrl: "https://play.google.com/store/apps/details?id=com.sns.om&pcampaignid=web_share",
 //   appStoreUrl: "https://apps.apple.com/us/app/om-our-memories/id6760222023",
 //   supportEmail: "ourmemories@snssystem.us",
@@ -14,8 +15,8 @@
 
 export const appConfig = {
   appName: "Our Memories",
-  domain: "https://photostudio.mytiny.us",
-  mainAppUrl: "https://photostudio.mytiny.us/memories",
+  domain: typeof window !== "undefined" ? window.location.origin : "https://photostudio.mytiny.us",
+  mainAppUrl: "/login",
   playStoreUrl: "https://play.google.com/store/apps/details?id=com.sns.om&pcampaignid=web_share",
   appStoreUrl: "https://apps.apple.com/us/app/om-our-memories/id6760222023",
   supportEmail: "ourmemories@snssystem.us",
@@ -25,3 +26,4 @@ export const appConfig = {
   ctaLabelHint: "Web app · Free to start",
   ctaLabelHero: "Get started free",
 };
+

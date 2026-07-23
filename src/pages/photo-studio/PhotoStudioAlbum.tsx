@@ -266,13 +266,48 @@ function groupAlbumImagesByDay(
     }));
 }
 
-// Normalize infinite-query cache so pages/pageParams are always arrays (prevents getNextPageParam .length crash)
+/** Infinite-query key — must stay distinct from plain useQuery(['albums']) on upload/checkout. */
+const ALBUMS_INFINITE_QUERY_KEY = ['albums', 'infinite'] as const;
+
+// Normalize infinite-query cache so pages/pageParams are always arrays (prevents getNextPageParam .length crash).
+// Also converts flat AlbumListResponse / Album[] (from other pages' useQuery) into infinite pages.
 function normalizeInfiniteCache(old: unknown): { pages: unknown[]; pageParams: number[] } {
-  if (old == null || typeof old !== 'object') return { pages: [], pageParams: [0] };
-  const o = old as Record<string, unknown> & { pages?: unknown; pageParams?: unknown };
-  const pages = Array.isArray(o.pages) ? o.pages : [];
-  const pageParams = Array.isArray(o.pageParams) ? o.pageParams : [0];
-  return { ...o, pages, pageParams };
+  if (old == null) return { pages: [], pageParams: [0] };
+
+  if (Array.isArray(old)) {
+    return {
+      pages: [{ albums: old, page: 0, totalPages: 1, total: old.length }],
+      pageParams: [0],
+    };
+  }
+
+  if (typeof old !== 'object') return { pages: [], pageParams: [0] };
+
+  const o = old as Record<string, unknown> & { pages?: unknown; pageParams?: unknown; albums?: unknown };
+  if (Array.isArray(o.pages) && o.pages.length > 0) {
+    const pageParams = Array.isArray(o.pageParams) ? (o.pageParams as number[]) : [0];
+    return { pages: o.pages, pageParams };
+  }
+
+  // Flat list payload from useQuery({ queryKey: ['albums'] }) — wrap as page 0
+  // Also handles poisoned cache: { albums: [...], pages: [] }
+  if (Array.isArray(o.albums)) {
+    const albums = o.albums;
+    const total = typeof o.total === 'number' ? o.total : albums.length;
+    const page = typeof o.page === 'number' ? o.page : 0;
+    const totalPages = typeof o.totalPages === 'number' && o.totalPages >= 1 ? o.totalPages : 1;
+    return {
+      pages: [{ albums, page, totalPages, total }],
+      pageParams: [page],
+    };
+  }
+
+  if (Array.isArray(o.pages)) {
+    const pageParams = Array.isArray(o.pageParams) ? (o.pageParams as number[]) : [0];
+    return { pages: o.pages, pageParams };
+  }
+
+  return { pages: [], pageParams: [0] };
 }
 
 /** Full-page skeleton while albums are loading (matches header + toolbar + grid layout). */
@@ -435,7 +470,7 @@ const PhotoStudioAlbum: React.FC = () => {
     hasNextPage: hasMoreAlbums,
     fetchNextPage: fetchMoreAlbums,
   } = useInfiniteQuery({
-    queryKey: ['albums'],
+    queryKey: ALBUMS_INFINITE_QUERY_KEY,
     enabled: !authLoading,
     queryFn: async ({ pageParam }): Promise<{ albums: Album[]; page: number; totalPages: number; total?: number }> => {
       try {
@@ -476,7 +511,7 @@ const PhotoStudioAlbum: React.FC = () => {
       }
     },
     initialPageParam: 0,
-    refetchOnMount: false,
+    refetchOnMount: true,
     getNextPageParam: (lastPage: unknown): number | undefined => {
       if (lastPage == null || typeof lastPage !== 'object') return undefined;
       const p = lastPage as { page?: number; totalPages?: number };
@@ -3575,10 +3610,29 @@ function PhotoStudioAlbumWrapper() {
   const [cacheReady, setCacheReady] = useState(false);
   const queryClient = useQueryClient();
   useLayoutEffect(() => {
-    // Only fix malformed cache — do not seed empty pages (that blocks the real fetch).
-    const albumsCache = queryClient.getQueryData(['albums']);
+    // Repair older bug: infinite normalize rewrote plain useQuery(['albums']) into { pages: [] }.
+    const plainAlbums = queryClient.getQueryData(['albums']);
+    if (plainAlbums != null && typeof plainAlbums === 'object' && Array.isArray((plainAlbums as { pages?: unknown }).pages)) {
+      const repaired = normalizeInfiniteCache(plainAlbums);
+      const page0 = repaired.pages[0] as
+        | { albums?: unknown[]; total?: number; page?: number; totalPages?: number }
+        | undefined;
+      if (page0 && Array.isArray(page0.albums)) {
+        queryClient.setQueryData(['albums'], {
+          albums: page0.albums,
+          total: page0.total ?? page0.albums.length,
+          page: page0.page ?? 0,
+          totalPages: page0.totalPages ?? 1,
+        });
+      } else {
+        queryClient.removeQueries({ queryKey: ['albums'], exact: true });
+      }
+    }
+
+    // Only fix malformed infinite cache — never rewrite plain useQuery(['albums']) from upload/checkout.
+    const albumsCache = queryClient.getQueryData(ALBUMS_INFINITE_QUERY_KEY);
     if (albumsCache != null) {
-      queryClient.setQueryData(['albums'], normalizeInfiniteCache);
+      queryClient.setQueryData(ALBUMS_INFINITE_QUERY_KEY, normalizeInfiniteCache);
     }
     const galleryCache = queryClient.getQueryData(['userImages-gallery']);
     if (galleryCache != null) {
