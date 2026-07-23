@@ -1,44 +1,44 @@
 /* Lumina Library — My Images (Stitch design tokens, no sidebar) */
 
 .images-library-scope {
-  --lumina-bg: #f7f9fb;
-  --lumina-surface: #ffffff;
-  --lumina-on-surface: #191c1e;
-  --lumina-on-surface-variant: #4a4455;
-  --lumina-primary: #630ed4;
-  --lumina-on-primary: #ffffff;
-  --lumina-primary-container: #7c3aed;
-  --lumina-secondary-container: #645efb;
-  --lumina-outline-variant: #ccc3d8;
-  --lumina-surface-container: #eceef0;
-  --lumina-surface-container-high: #e6e8ea;
-  --lumina-surface-container-low: #f2f4f6;
-  --lumina-inverse-surface: #191c1e;
-  --lumina-inverse-on-surface: #eff1f3;
-  --lumina-error: #ba1a1a;
+  --lumina-bg: #f7f6f3;
+  --lumina-surface: #fffcf8;
+  --lumina-on-surface: #141210;
+  --lumina-on-surface-variant: #5c574f;
+  --lumina-primary: #141210;
+  --lumina-on-primary: #fffcf8;
+  --lumina-primary-container: #1f3a34;
+  --lumina-secondary-container: #5c574f;
+  --lumina-outline-variant: rgba(20, 18, 16, 0.14);
+  --lumina-surface-container: #eceae4;
+  --lumina-surface-container-high: #e4e1d9;
+  --lumina-surface-container-low: #f7f6f3;
+  --lumina-inverse-surface: #141210;
+  --lumina-inverse-on-surface: #fffcf8;
+  --lumina-error: #8a5a2b;
   --lumina-gutter: 1.5rem;
   --lumina-margin: 1rem;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: "Outfit", "Segoe UI", system-ui, -apple-system, sans-serif;
   background-color: var(--lumina-bg);
   color: var(--lumina-on-surface);
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 html.dark .images-library-scope {
-  --lumina-bg: #0f172a;
-  --lumina-surface: #1e293b;
-  --lumina-on-surface: #f1f5f9;
-  --lumina-on-surface-variant: #94a3b8;
-  --lumina-primary: #a78bfa;
-  --lumina-on-primary: #0f172a;
-  --lumina-primary-container: #8b5cf6;
-  --lumina-secondary-container: #6366f1;
-  --lumina-outline-variant: #475569;
-  --lumina-surface-container: #334155;
-  --lumina-surface-container-high: #3f4f63;
-  --lumina-surface-container-low: #1e293b;
-  --lumina-inverse-surface: #f1f5f9;
-  --lumina-inverse-on-surface: #0f172a;
+  --lumina-bg: #151412;
+  --lumina-surface: #1c1a18;
+  --lumina-on-surface: #fffcf8;
+  --lumina-on-surface-variant: #a8a399;
+  --lumina-primary: #fffcf8;
+  --lumina-on-primary: #141210;
+  --lumina-primary-container: #c5c0b6;
+  --lumina-secondary-container: #8a847a;
+  --lumina-outline-variant: rgba(255, 255, 255, 0.12);
+  --lumina-surface-container: #2a2622;
+  --lumina-surface-container-high: #332f2a;
+  --lumina-surface-container-low: #1c1a18;
+  --lumina-inverse-surface: #fffcf8;
+  --lumina-inverse-on-surface: #141210;
 }
 
 @media (min-width: 768px) {
@@ -128,7 +128,7 @@ html.dark .images-library-scope .text-\[\#7b7487\] {
   color: var(--lumina-on-surface-variant) !important;
 }
 
-html.dark .images-library-scope .text-\[\#630ed4\] {
+html.dark .images-library-scope .text-\[\#141210\] {
   color: var(--lumina-primary) !important;
 }
 
@@ -654,10 +654,21 @@ html.dark .images-library-scope .lumina-top-bar {
 
 /* Legacy aliases used in modals */
 .images-library-scope .il-primary-gradient {
-  background: linear-gradient(135deg, #630ed4, #7c3aed);
+  background: linear-gradient(135deg, #141210, #1f3a34);
   color: #fff;
 }
 
 .images-library-scope .il-shadow-elegant {
-  box-shadow: 0 0 20px rgba(99, 14, 212, 0.28);
+  box-shadow: 0 0 20px rgba(20, 18, 16, 0.16);
+}
+
+/* Legacy purple accent classes → ink */
+.images-library-scope .text-\[\#630ed4\],
+.images-library-scope .text-\[\#7c3aed\] {
+  color: var(--lumina-primary) !important;
+}
+.images-library-scope .bg-\[\#630ed4\],
+.images-library-scope .bg-\[\#7c3aed\] {
+  background-color: var(--lumina-primary) !important;
+  color: var(--lumina-on-primary) !important;
 }

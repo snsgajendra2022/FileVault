@@ -66,7 +66,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #667eea;
+  color: #141210;
   text-decoration: none;
   font-weight: 600;
   padding: 8px 16px;
@@ -88,7 +88,7 @@
 
 .title-icon {
   font-size: 1.5rem;
-  color: #667eea;
+  color: #141210;
 }
 
 .page-title h1 {
@@ -107,7 +107,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #141210 0%, #1f3a34 100%);
   color: white;
   border: none;
   padding: 12px 24px;
@@ -185,7 +185,7 @@ ease;
 
 .search-box input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #141210;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
@@ -250,7 +250,7 @@ ease;
 }
 
 .view-btn.active {
-  background: #667eea;
+  background: #141210;
   /* color: white !important; */
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
@@ -386,7 +386,7 @@ ease;
 }
 
 .media-item.selected {
-  border-color: #667eea;
+  border-color: #141210;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
 }
 
@@ -433,7 +433,7 @@ ease;
 /* Fallback for missing images */
 .media-preview img[src=""],
 .media-preview img:not([src]) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #141210 0%, #1f3a34 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -517,7 +517,7 @@ ease;
   right: 10px;
   width: 30px;
   height: 30px;
-  background: #667eea;
+  background: #141210;
   color: white;
   border-radius: 50%;
   display: flex;
@@ -670,7 +670,7 @@ ease;
   width: 40px;
   height: 40px;
   border: 4px solid #e2e8f0;
-  border-top: 4px solid #667eea;
+  border-top: 4px solid #141210;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 20px;
@@ -756,7 +756,7 @@ ease;
 }
 
 .upload-dropzone:hover {
-  border-color: #667eea;
+  border-color: #141210;
   background: #edf2f7;
 }
 
@@ -792,7 +792,7 @@ ease;
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #141210 0%, #1f3a34 100%);
   transition: width 0.3s ease;
 }
 
@@ -825,7 +825,7 @@ ease;
 
 .option-group select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #141210;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 

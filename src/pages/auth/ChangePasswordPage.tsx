@@ -11,7 +11,7 @@ const ChangePasswordPage = () => {
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',
-    confirmPassword: ''
+    confirmPassword: '',
   });
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -30,18 +30,16 @@ const ChangePasswordPage = () => {
     onError: (error: any) => {
       const message = error.response?.data?.message || t('changePassword.toastError');
       toast.error(message);
-    }
+    },
   });
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    // Current password validation
     if (!formData.currentPassword.trim()) {
       newErrors.currentPassword = t('changePassword.errCurrentRequired');
     }
 
-    // New password validation
     if (!formData.newPassword.trim()) {
       newErrors.newPassword = t('changePassword.errNewRequired');
     } else if (formData.newPassword.length < 8) {
@@ -56,14 +54,12 @@ const ChangePasswordPage = () => {
       newErrors.newPassword = t('changePassword.errNewSpecial');
     }
 
-    // Confirm password validation
     if (!formData.confirmPassword.trim()) {
       newErrors.confirmPassword = t('changePassword.errConfirmRequired');
     } else if (formData.newPassword !== formData.confirmPassword) {
       newErrors.confirmPassword = t('changePassword.errMismatch');
     }
 
-    // Check if new password is same as current
     if (formData.currentPassword === formData.newPassword) {
       newErrors.newPassword = t('changePassword.errSameAsCurrent');
     }
@@ -77,22 +73,21 @@ const ChangePasswordPage = () => {
     if (validateForm()) {
       changePasswordMutation.mutate({
         currentPassword: formData.currentPassword,
-        newPassword: formData.newPassword
+        newPassword: formData.newPassword,
       });
     }
   };
 
   const handleFieldChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+      setErrors((prev) => ({ ...prev, [field]: '' }));
     }
   };
 
   const getPasswordStrength = (password: string) => {
     if (!password) return { score: 0, label: '', color: '' };
-    
+
     let score = 0;
     if (password.length >= 8) score++;
     if (/(?=.*[a-z])/.test(password)) score++;
@@ -104,9 +99,9 @@ const ChangePasswordPage = () => {
       0: { label: t('changePassword.strengthVeryWeak'), color: 'bg-red-500' },
       1: { label: t('changePassword.strengthWeak'), color: 'bg-orange-500' },
       2: { label: t('changePassword.strengthFair'), color: 'bg-yellow-500' },
-      3: { label: t('changePassword.strengthGood'), color: 'bg-blue-500' },
+      3: { label: t('changePassword.strengthGood'), color: 'bg-[#1f3a34]' },
       4: { label: t('changePassword.strengthStrong'), color: 'bg-green-500' },
-      5: { label: t('changePassword.strengthVeryStrong'), color: 'bg-emerald-500' }
+      5: { label: t('changePassword.strengthVeryStrong'), color: 'bg-emerald-500' },
     };
 
     return { score, ...strengthMap[score as keyof typeof strengthMap] };
@@ -114,258 +109,216 @@ const ChangePasswordPage = () => {
 
   const passwordStrength = getPasswordStrength(formData.newPassword);
 
+  const fieldClass = (hasError: boolean) =>
+    `w-full rounded-full border bg-white py-3.5 pl-12 pr-12 text-sm text-[#141210] placeholder:text-[#8a847a] focus:border-[#1f3a34] focus:outline-none focus:ring-2 focus:ring-[rgba(31,58,52,0.18)] transition-all ${
+      hasError ? 'border-red-300' : 'border-[rgba(20,18,16,0.14)]'
+    }`;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="mx-auto h-16 w-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mb-4">
-            <FaShieldAlt className="h-8 w-8 text-white" />
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('changePassword.title')}</h2>
-          <p className="text-gray-600">{t('changePassword.subtitle')}</p>
+    <div className="mx-auto max-w-md px-2 py-8 sm:py-10">
+      <div className="mb-8 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#141210] text-[#fffcf8]">
+          <FaShieldAlt className="h-6 w-6" />
         </div>
+        <h2
+          className="text-3xl font-semibold tracking-tight text-[#141210]"
+          style={{ fontFamily: '"Cormorant Garamond", Georgia, serif' }}
+        >
+          {t('changePassword.title')}
+        </h2>
+        <p className="mt-2 text-[#5c574f]">{t('changePassword.subtitle')}</p>
+      </div>
 
-        {/* Form Card */}
-        <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Current Password */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                {t('changePassword.currentLabel')} <span className="text-red-500">*</span>
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FaLock className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                </div>
-                <input
-                  type={showCurrentPassword ? 'text' : 'password'}
-                  required
-                  className={`w-full pl-12 pr-12 py-4 border rounded-2xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                    errors.currentPassword ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder={t('changePassword.placeholderCurrent')}
-                  value={formData.currentPassword}
-                  onChange={(e) => handleFieldChange('currentPassword', e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center"
-                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                >
-                  {showCurrentPassword ? (
-                    <FaEyeSlash className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
-                  ) : (
-                    <FaEye className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
-                  )}
-                </button>
+      <div className="rounded-[18px] border border-[rgba(20,18,16,0.1)] bg-[#fffcf8] p-6 shadow-[0_4px_24px_rgba(20,18,16,0.04)] sm:p-8">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a847a]">
+              {t('changePassword.currentLabel')} <span className="text-red-500">*</span>
+            </label>
+            <div className="relative group">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                <FaLock className="h-4 w-4 text-[#8a847a] group-focus-within:text-[#1f3a34]" />
               </div>
-              {errors.currentPassword && (
-                <p className="text-red-500 text-sm mt-2 flex items-center">
-                  <FaTimes className="h-4 w-4 mr-1" />
-                  {errors.currentPassword}
-                </p>
-              )}
-            </div>
-
-            {/* New Password */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                {t('changePassword.newLabel')} <span className="text-red-500">*</span>
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FaLock className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                </div>
-                <input
-                  type={showNewPassword ? 'text' : 'password'}
-                  required
-                  className={`w-full pl-12 pr-12 py-4 border rounded-2xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                    errors.newPassword ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder={t('changePassword.placeholderNew')}
-                  value={formData.newPassword}
-                  onChange={(e) => handleFieldChange('newPassword', e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                >
-                  {showNewPassword ? (
-                    <FaEyeSlash className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
-                  ) : (
-                    <FaEye className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
-                  )}
-                </button>
-              </div>
-              
-              {/* Password Strength Indicator */}
-              {formData.newPassword && (
-                <div className="mt-3">
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-gray-600">{t('changePassword.strengthLabel')}</span>
-                    <span className={`font-medium ${passwordStrength.color.replace('bg-', 'text-')}`}>
-                      {passwordStrength.label}
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.color}`}
-                      style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
-
-              {errors.newPassword && (
-                <p className="text-red-500 text-sm mt-2 flex items-center">
-                  <FaTimes className="h-4 w-4 mr-1" />
-                  {errors.newPassword}
-                </p>
-              )}
-            </div>
-
-            {/* Confirm New Password */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                {t('changePassword.confirmLabel')} <span className="text-red-500">*</span>
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FaLock className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                </div>
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  required
-                  className={`w-full pl-12 pr-12 py-4 border rounded-2xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
-                    errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder={t('changePassword.placeholderConfirm')}
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleFieldChange('confirmPassword', e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? (
-                    <FaEyeSlash className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
-                  ) : (
-                    <FaEye className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors" />
-                  )}
-                </button>
-              </div>
-              
-              {/* Password Match Indicator */}
-              {formData.confirmPassword && (
-                <div className="mt-2">
-                  {formData.newPassword === formData.confirmPassword ? (
-                    <p className="text-green-600 text-sm flex items-center">
-                      <FaCheck className="h-4 w-4 mr-1" />
-                      {t('changePassword.matchOk')}
-                    </p>
-                  ) : (
-                    <p className="text-red-500 text-sm flex items-center">
-                      <FaTimes className="h-4 w-4 mr-1" />
-                      {t('changePassword.matchNo')}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {errors.confirmPassword && (
-                <p className="text-red-500 text-sm mt-2 flex items-center">
-                  <FaTimes className="h-4 w-4 mr-1" />
-                  {errors.confirmPassword}
-                </p>
-              )}
-            </div>
-
-            {/* Password Requirements */}
-            <div className="bg-gray-50 rounded-xl p-4">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3">{t('changePassword.requirementsTitle')}</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
-                <li className="flex items-center">
-                  <FaCheck className={`h-4 w-4 mr-2 ${formData.newPassword.length >= 8 ? 'text-green-500' : 'text-gray-300'}`} />
-                  {t('changePassword.reqLen')}
-                </li>
-                <li className="flex items-center">
-                  <FaCheck className={`h-4 w-4 mr-2 ${/(?=.*[a-z])/.test(formData.newPassword) ? 'text-green-500' : 'text-gray-300'}`} />
-                  {t('changePassword.reqLower')}
-                </li>
-                <li className="flex items-center">
-                  <FaCheck className={`h-4 w-4 mr-2 ${/(?=.*[A-Z])/.test(formData.newPassword) ? 'text-green-500' : 'text-gray-300'}`} />
-                  {t('changePassword.reqUpper')}
-                </li>
-                <li className="flex items-center">
-                  <FaCheck className={`h-4 w-4 mr-2 ${/(?=.*\d)/.test(formData.newPassword) ? 'text-green-500' : 'text-gray-300'}`} />
-                  {t('changePassword.reqNum')}
-                </li>
-                <li className="flex items-center">
-                  <FaCheck className={`h-4 w-4 mr-2 ${/(?=.*[@$!%*?&])/.test(formData.newPassword) ? 'text-green-500' : 'text-gray-300'}`} />
-                  {t('changePassword.reqSpecial')}
-                </li>
-              </ul>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-6">
-              {/* <button
-                type="button"
-                onClick={() => navigate('/profile')}
-                className="flex-1 px-6 py-4 border border-gray-300 text-gray-700 rounded-2xl font-semibold hover:bg-gray-50 transition-all duration-300"
-                disabled={changePasswordMutation.isPending}
-              >
-                Cancel
-              </button> */}
+              <input
+                type={showCurrentPassword ? 'text' : 'password'}
+                required
+                className={fieldClass(!!errors.currentPassword)}
+                placeholder={t('changePassword.placeholderCurrent')}
+                value={formData.currentPassword}
+                onChange={(e) => handleFieldChange('currentPassword', e.target.value)}
+              />
               <button
-                type="submit"
-                className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={changePasswordMutation.isPending}
+                type="button"
+                className="absolute inset-y-0 right-0 flex items-center pr-4 text-[#8a847a] hover:text-[#141210]"
+                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
               >
-                {changePasswordMutation.isPending ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mr-2"></div>
-                    {t('changePassword.submitting')}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center">
-                    <FaShieldAlt className="h-5 w-5 mr-2" />
-                    {t('changePassword.submit')}
-                  </div>
-                )}
+                {showCurrentPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
               </button>
             </div>
-          </form>
-        </div>
+            {errors.currentPassword && (
+              <p className="mt-2 flex items-center text-sm text-red-500">
+                <FaTimes className="mr-1 h-4 w-4" />
+                {errors.currentPassword}
+              </p>
+            )}
+          </div>
 
-        {/* Security Tips */}
-        <div className="mt-8 bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <FaShieldAlt className="h-5 w-5 text-blue-600 mr-2" />
-            {t('changePassword.securityTips')}
-          </h3>
-          <ul className="space-y-3 text-sm text-gray-600">
-            <li className="flex items-start">
-              <div className="h-2 w-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <span>{t('changePassword.tip1')}</span>
+          <div>
+            <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a847a]">
+              {t('changePassword.newLabel')} <span className="text-red-500">*</span>
+            </label>
+            <div className="relative group">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                <FaLock className="h-4 w-4 text-[#8a847a] group-focus-within:text-[#1f3a34]" />
+              </div>
+              <input
+                type={showNewPassword ? 'text' : 'password'}
+                required
+                className={fieldClass(!!errors.newPassword)}
+                placeholder={t('changePassword.placeholderNew')}
+                value={formData.newPassword}
+                onChange={(e) => handleFieldChange('newPassword', e.target.value)}
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 flex items-center pr-4 text-[#8a847a] hover:text-[#141210]"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+              >
+                {showNewPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
+              </button>
+            </div>
+
+            {formData.newPassword && (
+              <div className="mt-3">
+                <div className="mb-2 flex items-center justify-between text-sm">
+                  <span className="text-[#5c574f]">{t('changePassword.strengthLabel')}</span>
+                  <span className="font-medium text-[#1f3a34]">{passwordStrength.label}</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-[#eceae4]">
+                  <div
+                    className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.color}`}
+                    style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {errors.newPassword && (
+              <p className="mt-2 flex items-center text-sm text-red-500">
+                <FaTimes className="mr-1 h-4 w-4" />
+                {errors.newPassword}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a847a]">
+              {t('changePassword.confirmLabel')} <span className="text-red-500">*</span>
+            </label>
+            <div className="relative group">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                <FaLock className="h-4 w-4 text-[#8a847a] group-focus-within:text-[#1f3a34]" />
+              </div>
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                required
+                className={fieldClass(!!errors.confirmPassword)}
+                placeholder={t('changePassword.placeholderConfirm')}
+                value={formData.confirmPassword}
+                onChange={(e) => handleFieldChange('confirmPassword', e.target.value)}
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 flex items-center pr-4 text-[#8a847a] hover:text-[#141210]"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
+              </button>
+            </div>
+
+            {formData.confirmPassword && (
+              <div className="mt-2">
+                {formData.newPassword === formData.confirmPassword ? (
+                  <p className="flex items-center text-sm text-[#1f3a34]">
+                    <FaCheck className="mr-1 h-4 w-4" />
+                    {t('changePassword.matchOk')}
+                  </p>
+                ) : (
+                  <p className="flex items-center text-sm text-red-500">
+                    <FaTimes className="mr-1 h-4 w-4" />
+                    {t('changePassword.matchNo')}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {errors.confirmPassword && (
+              <p className="mt-2 flex items-center text-sm text-red-500">
+                <FaTimes className="mr-1 h-4 w-4" />
+                {errors.confirmPassword}
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-[rgba(20,18,16,0.08)] bg-[#f7f6f3] p-4">
+            <h4 className="mb-3 text-sm font-semibold text-[#141210]">{t('changePassword.requirementsTitle')}</h4>
+            <ul className="space-y-2 text-sm text-[#5c574f]">
+              <li className="flex items-center">
+                <FaCheck className={`mr-2 h-4 w-4 ${formData.newPassword.length >= 8 ? 'text-[#1f3a34]' : 'text-[#c5c0b6]'}`} />
+                {t('changePassword.reqLen')}
+              </li>
+              <li className="flex items-center">
+                <FaCheck className={`mr-2 h-4 w-4 ${/(?=.*[a-z])/.test(formData.newPassword) ? 'text-[#1f3a34]' : 'text-[#c5c0b6]'}`} />
+                {t('changePassword.reqLower')}
+              </li>
+              <li className="flex items-center">
+                <FaCheck className={`mr-2 h-4 w-4 ${/(?=.*[A-Z])/.test(formData.newPassword) ? 'text-[#1f3a34]' : 'text-[#c5c0b6]'}`} />
+                {t('changePassword.reqUpper')}
+              </li>
+              <li className="flex items-center">
+                <FaCheck className={`mr-2 h-4 w-4 ${/(?=.*\d)/.test(formData.newPassword) ? 'text-[#1f3a34]' : 'text-[#c5c0b6]'}`} />
+                {t('changePassword.reqNum')}
+              </li>
+              <li className="flex items-center">
+                <FaCheck className={`mr-2 h-4 w-4 ${/(?=.*[@$!%*?&])/.test(formData.newPassword) ? 'text-[#1f3a34]' : 'text-[#c5c0b6]'}`} />
+                {t('changePassword.reqSpecial')}
+              </li>
+            </ul>
+          </div>
+
+          <button
+            type="submit"
+            className="flex w-full items-center justify-center rounded-full bg-[#141210] px-6 py-3.5 text-sm font-semibold text-[#fffcf8] transition-colors hover:bg-[#1f3a34] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={changePasswordMutation.isPending}
+          >
+            {changePasswordMutation.isPending ? (
+              <>
+                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-[#fffcf8] border-t-transparent" />
+                {t('changePassword.submitting')}
+              </>
+            ) : (
+              <>
+                <FaShieldAlt className="mr-2 h-4 w-4" />
+                {t('changePassword.submit')}
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+
+      <div className="mt-6 rounded-[18px] border border-[rgba(20,18,16,0.1)] bg-[#fffcf8] p-6">
+        <h3 className="mb-4 flex items-center text-lg font-semibold text-[#141210]">
+          <FaShieldAlt className="mr-2 h-5 w-5 text-[#1f3a34]" />
+          {t('changePassword.securityTips')}
+        </h3>
+        <ul className="space-y-3 text-sm text-[#5c574f]">
+          {[1, 2, 3, 4].map((n) => (
+            <li key={n} className="flex items-start">
+              <span className="mr-3 mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-[#1f3a34]" />
+              <span>{t(`changePassword.tip${n}`)}</span>
             </li>
-            <li className="flex items-start">
-              <div className="h-2 w-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <span>{t('changePassword.tip2')}</span>
-            </li>
-            <li className="flex items-start">
-              <div className="h-2 w-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <span>{t('changePassword.tip3')}</span>
-            </li>
-            <li className="flex items-start">
-              <div className="h-2 w-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-              <span>{t('changePassword.tip4')}</span>
-            </li>
-          </ul>
-        </div>
+          ))}
+        </ul>
       </div>
     </div>
   );

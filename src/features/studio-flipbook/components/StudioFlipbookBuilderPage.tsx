@@ -17,6 +17,7 @@ import FlipbookElementContextMenu, {
 } from './FlipbookElementContextMenu';
 import { getConnectionHint, getSaveData } from '../../../utils/progressiveImageConfig';
 import type { UserImageWithVariants } from '../../../utils/progressiveImageVariants';
+import { isHlsStreamUrl, isVideoMediaItem } from '../../../utils/videoPlayback';
 import { previewGenerateFromAlbumImages } from '../api/flipbookService';
 import { exportPagesToPdf } from '../utils/pdfExport';
 import { loadFlipbookFromStorage, saveFlipbookToStorage } from '../utils/localFlipbookStorage';
@@ -34,27 +35,47 @@ function buildPreviewUrl(imageId: number): string {
   return token ? `${base}/api/images/${imageId}/preview?token=${encodeURIComponent(token)}` : `${base}/api/images/${imageId}/preview`;
 }
 
+function stillMediaUrl(url?: string | null): string {
+  if (!url || isHlsStreamUrl(url)) return '';
+  return url;
+}
+
 function mapAlbumImage(img: Record<string, unknown>): UserImageWithVariants {
   const id = Number(img.id);
-  const previewUrl = String(img.previewUrl ?? img.url ?? img.imageUrl ?? buildPreviewUrl(id));
+  const thumb = stillMediaUrl(typeof img.thumbnailUrl === 'string' ? img.thumbnailUrl : '');
+  const rawPreview = String(img.previewUrl ?? img.url ?? img.imageUrl ?? '');
+  const isVideo = isVideoMediaItem(img) || isHlsStreamUrl(rawPreview);
+  const previewUrl = isVideo
+    ? thumb || stillMediaUrl(rawPreview) || ''
+    : stillMediaUrl(rawPreview) || thumb || buildPreviewUrl(id);
+
   return {
     id,
-    previewUrl,
-    thumbnailUrl: String(img.thumbnailUrl ?? previewUrl),
+    previewUrl: previewUrl || (isVideo ? '' : buildPreviewUrl(id)),
+    thumbnailUrl: thumb || (isVideo ? '' : previewUrl),
     filename: String(img.filename ?? img.originalFilename ?? `image-${id}`),
-    downloadUrl: String(img.downloadUrl ?? previewUrl),
-    fileType: String(img.fileType ?? 'image/jpeg'),
+    downloadUrl: String(img.downloadUrl ?? rawPreview ?? previewUrl),
+    fileType: String(img.fileType ?? (isVideo ? 'mp4' : 'image/jpeg')),
+    mediaType: typeof img.mediaType === 'string' ? img.mediaType : isVideo ? 'VIDEO' : undefined,
     uploadTime: String(img.uploadTime ?? ''),
     variants: img.variants as UserImageWithVariants['variants'],
   };
 }
 
+/** Flipbook canvas: photos use preview; videos use thumbnail still (never HLS). */
 function canvasImageUrl(img: UserImageWithVariants): string {
-  return img.previewUrl || img.thumbnailUrl || buildPreviewUrl(Number(img.id));
+  if (isVideoMediaItem(img) || isHlsStreamUrl(img.previewUrl)) {
+    return stillMediaUrl(img.thumbnailUrl) || stillMediaUrl(img.previewUrl) || '';
+  }
+  return stillMediaUrl(img.previewUrl) || stillMediaUrl(img.thumbnailUrl) || buildPreviewUrl(Number(img.id));
 }
 
 function thumbImageUrl(img: UserImageWithVariants): string {
-  return img.thumbnailUrl || img.previewUrl || buildPreviewUrl(Number(img.id));
+  return (
+    stillMediaUrl(img.thumbnailUrl) ||
+    stillMediaUrl(img.previewUrl) ||
+    (isVideoMediaItem(img) ? '' : buildPreviewUrl(Number(img.id)))
+  );
 }
 
 const EVENT_TYPES: { id: EventType; label: string }[] = [

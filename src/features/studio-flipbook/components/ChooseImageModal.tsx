@@ -7,6 +7,7 @@ import { getThumbnailSrc } from '../../../utils/progressiveImageVariants';
 import { getConnectionHint, getSaveData } from '../../../utils/progressiveImageConfig';
 import { toProgressiveImage } from '../../../utils/albumImageVariants';
 import type { AlbumImageLike } from '../../../utils/albumImageVariants';
+import { isHlsStreamUrl, isVideoMediaItem } from '../../../utils/videoPlayback';
 import api from '../../../api/client/axiosInstance';
 
 const PAGE_SIZE = 5;
@@ -14,20 +15,32 @@ const SCROLL_LOAD_OFFSET = 120;
 
 function mapRawImage(raw: Record<string, unknown>): UserImageWithVariants {
   const id = Number(raw.id);
-  const previewUrl = String(
-    raw.previewUrl ?? raw.url ?? raw.imageUrl ?? raw.thumbnailUrl ?? raw.downloadUrl ?? ''
+  const thumb = typeof raw.thumbnailUrl === 'string' && !isHlsStreamUrl(raw.thumbnailUrl)
+    ? raw.thumbnailUrl
+    : '';
+  const rawPreview = String(
+    raw.previewUrl ?? raw.url ?? raw.imageUrl ?? raw.downloadUrl ?? ''
   );
-  const thumb: AlbumImageLike = {
+  const isVideo = isVideoMediaItem(raw) || isHlsStreamUrl(rawPreview);
+  const previewUrl = isVideo
+    ? thumb || ''
+    : (isHlsStreamUrl(rawPreview) ? thumb : rawPreview) || thumb;
+
+  const mapped: AlbumImageLike = {
     id,
     previewUrl,
-    thumbnailUrl: String(raw.thumbnailUrl ?? previewUrl),
+    thumbnailUrl: thumb || (isVideo ? '' : previewUrl),
     filename: String(raw.filename ?? raw.originalFilename ?? `image-${id}`),
-    downloadUrl: String(raw.downloadUrl ?? previewUrl),
-    fileType: String(raw.fileType ?? 'image/jpeg'),
+    downloadUrl: String(raw.downloadUrl ?? rawPreview ?? previewUrl),
+    fileType: String(raw.fileType ?? (isVideo ? 'mp4' : 'image/jpeg')),
     uploadTime: String(raw.uploadTime ?? ''),
     variants: raw.variants as ImageVariants | undefined,
   };
-  return toProgressiveImage(thumb, thumb.fileType);
+  const progressive = toProgressiveImage(mapped, mapped.fileType);
+  return {
+    ...progressive,
+    mediaType: typeof raw.mediaType === 'string' ? raw.mediaType : isVideo ? 'VIDEO' : undefined,
+  };
 }
 
 function getImagesFromResponse(res: any): Record<string, unknown>[] {
@@ -237,7 +250,7 @@ const ChooseImageModal: React.FC<Props> = ({ open, albumId, images: propImages, 
 
   useEffect(() => {
     for (const img of images) {
-      const url = getThumbnailSrc(img) || img.thumbnailUrl || img.previewUrl;
+      const url = getThumbnailSrc(img) || img.thumbnailUrl || (!isHlsStreamUrl(img.previewUrl) ? img.previewUrl : '');
       if (url) { const el = new Image(); el.fetchPriority = 'low'; el.src = url; }
     }
   }, [images]);

@@ -1,31 +1,31 @@
-/* Portal routes: light/dark via html.dark (filevault-theme) */
+/* Portal routes: Our Memories ink / stone — light/dark via html.dark */
 
-/* ── Studio Dashboard ── */
+/* ── Studio Dashboard (legacy premium-dashboard) ── */
 .premium-dashboard {
-  --sd-page-bg: #f8fafc;
-  --sd-text: #0f172a;
-  --sd-text-muted: #64748b;
-  --sd-text-secondary: #475569;
-  --sd-card: #ffffff;
-  --sd-card-border: #dbeafe;
-  --sd-hero: linear-gradient(135deg, #eef4ff 0%, #e7f0ff 35%, #f5f9ff 100%);
-  --sd-hero-border: #e9eaf0;
-  --sd-chip-bg: rgba(255, 255, 255, 0.72);
-  --sd-accent-soft: #eff6ff;
-  --sd-shadow: 0 10px 40px rgba(15, 23, 42, 0.08);
+  --sd-page-bg: #f7f6f3;
+  --sd-text: #141210;
+  --sd-text-muted: #8a847a;
+  --sd-text-secondary: #5c574f;
+  --sd-card: #fffcf8;
+  --sd-card-border: rgba(20, 18, 16, 0.1);
+  --sd-hero: linear-gradient(135deg, #fffcf8 0%, #f7f6f3 35%, #eceae4 100%);
+  --sd-hero-border: rgba(20, 18, 16, 0.1);
+  --sd-chip-bg: rgba(255, 252, 248, 0.85);
+  --sd-accent-soft: #eceae4;
+  --sd-shadow: 0 10px 40px rgba(20, 18, 16, 0.06);
 }
 
 html.dark .premium-dashboard {
-  --sd-page-bg: #0f172a;
-  --sd-text: #f1f5f9;
-  --sd-text-muted: #94a3b8;
-  --sd-text-secondary: #cbd5e1;
-  --sd-card: #1e293b;
-  --sd-card-border: #334155;
-  --sd-hero: linear-gradient(135deg, #1e293b 0%, #0f172a 35%, #020617 100%);
-  --sd-hero-border: #334155;
-  --sd-chip-bg: rgba(30, 41, 59, 0.85);
-  --sd-accent-soft: #1e3a5f;
+  --sd-page-bg: #151412;
+  --sd-text: #fffcf8;
+  --sd-text-muted: #a8a399;
+  --sd-text-secondary: #c5c0b6;
+  --sd-card: #1c1a18;
+  --sd-card-border: rgba(255, 255, 255, 0.1);
+  --sd-hero: linear-gradient(135deg, #1c1a18 0%, #151412 35%, #0f0e0c 100%);
+  --sd-hero-border: rgba(255, 255, 255, 0.1);
+  --sd-chip-bg: rgba(28, 26, 24, 0.9);
+  --sd-accent-soft: #2a2622;
   --sd-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
 }
 
@@ -60,27 +60,27 @@ html.dark .premium-dashboard {
 
 /* ── Upload Family Images ── */
 .upload-family-page {
-  --uf-bg: #faf8ff;
-  --uf-text: #191b23;
-  --uf-muted: #505f76;
-  --uf-border: #c3c6d7;
-  --uf-surface: #ffffff;
-  --uf-surface-soft: #f3f3fe;
-  --uf-accent: #004ac6;
-  --uf-accent-soft: #d0e1fb;
-  --uf-tab-track: #e7e7f3;
+  --uf-bg: #f7f6f3;
+  --uf-text: #141210;
+  --uf-muted: #5c574f;
+  --uf-border: rgba(20, 18, 16, 0.14);
+  --uf-surface: #fffcf8;
+  --uf-surface-soft: #eceae4;
+  --uf-accent: #1f3a34;
+  --uf-accent-soft: #eceae4;
+  --uf-tab-track: #eceae4;
 }
 
 html.dark .upload-family-page {
-  --uf-bg: #0f172a;
-  --uf-text: #e2e8f0;
-  --uf-muted: #94a3b8;
-  --uf-border: #475569;
-  --uf-surface: #1e293b;
-  --uf-surface-soft: #334155;
-  --uf-accent: #60a5fa;
-  --uf-accent-soft: #1e3a5f;
-  --uf-tab-track: #1e293b;
+  --uf-bg: #151412;
+  --uf-text: #fffcf8;
+  --uf-muted: #a8a399;
+  --uf-border: rgba(255, 255, 255, 0.12);
+  --uf-surface: #1c1a18;
+  --uf-surface-soft: #2a2622;
+  --uf-accent: #c5c0b6;
+  --uf-accent-soft: #2a2622;
+  --uf-tab-track: #1c1a18;
 }
 
 .upload-family-page {
@@ -116,17 +116,17 @@ html.dark .upload-family-page {
 
 /* ── Photo Themes hub ── */
 .photo-themes-hub {
-  --pt-text: #0b1c30;
-  --pt-muted: #464554;
-  --pt-card: rgba(255, 255, 255, 0.85);
-  --pt-card-border: #e2e8f0;
+  --pt-text: #141210;
+  --pt-muted: #5c574f;
+  --pt-card: rgba(255, 252, 248, 0.9);
+  --pt-card-border: rgba(20, 18, 16, 0.1);
 }
 
 html.dark .photo-themes-hub {
-  --pt-text: #f1f5f9;
-  --pt-muted: #94a3b8;
-  --pt-card: rgba(30, 41, 59, 0.9);
-  --pt-card-border: #475569;
+  --pt-text: #fffcf8;
+  --pt-muted: #a8a399;
+  --pt-card: rgba(28, 26, 24, 0.92);
+  --pt-card-border: rgba(255, 255, 255, 0.1);
 }
 
 .photo-themes-hub {
@@ -156,27 +156,32 @@ html.dark .photo-themes-hub {
   color: var(--pt-muted);
 }
 
-/* ── Portal layout shell (all nav routes from portalSettings) ── */
+/* ── Portal layout shell (all nav routes) ── */
 .portal-page-surface {
-  --pp-bg: #f8fafc;
-  --pp-surface: #ffffff;
-  --pp-surface-muted: #f1f5f9;
-  --pp-text: #0f172a;
-  --pp-text-muted: #475569;
-  --pp-text-faint: #64748b;
-  --pp-border: #e2e8f0;
+  --pp-bg: #f7f6f3;
+  --pp-surface: #fffcf8;
+  --pp-surface-muted: #eceae4;
+  --pp-text: #141210;
+  --pp-text-muted: #5c574f;
+  --pp-text-faint: #8a847a;
+  --pp-border: rgba(20, 18, 16, 0.1);
+  --pp-accent: #1f3a34;
+  --pp-ink: #141210;
   color: var(--pp-text);
+  font-family: "Outfit", "Segoe UI", sans-serif;
   transition: color 0.2s ease, background-color 0.2s ease;
 }
 
 html.dark .portal-page-surface {
-  --pp-bg: #0f172a;
-  --pp-surface: #1e293b;
-  --pp-surface-muted: #334155;
-  --pp-text: #f1f5f9;
-  --pp-text-muted: #cbd5e1;
-  --pp-text-faint: #94a3b8;
-  --pp-border: #475569;
+  --pp-bg: #151412;
+  --pp-surface: #1c1a18;
+  --pp-surface-muted: #2a2622;
+  --pp-text: #fffcf8;
+  --pp-text-muted: #a8a399;
+  --pp-text-faint: #78746c;
+  --pp-border: rgba(255, 255, 255, 0.1);
+  --pp-accent: #c5c0b6;
+  --pp-ink: #fffcf8;
   color-scheme: dark;
 }
 
@@ -184,7 +189,7 @@ html.dark .portal-page-surface {
   border-radius: 1rem;
   border: 1px solid var(--pp-border);
   background-color: var(--pp-surface);
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  box-shadow: 0 4px 16px rgba(20, 18, 16, 0.04);
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
@@ -235,6 +240,98 @@ html.dark .portal-page-surface {
 .portal-page-surface .text-slate-500,
 .portal-page-surface .text-slate-400 {
   color: var(--pp-text-faint) !important;
+}
+
+/* Remap SaaS blues / violets / purples / indigos → ink / stone
+   (skip .sd-dash which has its own premium tokens) */
+.portal-page-surface:not(:has(.sd-dash)) .bg-blue-50,
+.portal-page-surface:not(:has(.sd-dash)) .bg-violet-50,
+.portal-page-surface:not(:has(.sd-dash)) .bg-purple-50,
+.portal-page-surface:not(:has(.sd-dash)) .bg-indigo-50,
+.portal-page-surface:not(:has(.sd-dash)) .bg-fuchsia-50,
+.portal-page-surface:not(:has(.sd-dash)) .bg-sky-50 {
+  background-color: var(--pp-surface-muted) !important;
+}
+
+.portal-page-surface:not(:has(.sd-dash)) .bg-blue-100,
+.portal-page-surface:not(:has(.sd-dash)) .bg-violet-100,
+.portal-page-surface:not(:has(.sd-dash)) .bg-purple-100,
+.portal-page-surface:not(:has(.sd-dash)) .bg-indigo-100 {
+  background-color: #eceae4 !important;
+}
+
+.portal-page-surface:not(:has(.sd-dash)) .bg-blue-500,
+.portal-page-surface:not(:has(.sd-dash)) .bg-blue-600,
+.portal-page-surface:not(:has(.sd-dash)) .bg-violet-500,
+.portal-page-surface:not(:has(.sd-dash)) .bg-violet-600,
+.portal-page-surface:not(:has(.sd-dash)) .bg-purple-500,
+.portal-page-surface:not(:has(.sd-dash)) .bg-purple-600,
+.portal-page-surface:not(:has(.sd-dash)) .bg-indigo-500,
+.portal-page-surface:not(:has(.sd-dash)) .bg-indigo-600,
+.portal-page-surface:not(:has(.sd-dash)) .bg-fuchsia-500,
+.portal-page-surface:not(:has(.sd-dash)) .bg-fuchsia-600 {
+  background-color: var(--pp-ink) !important;
+  color: #fffcf8 !important;
+}
+
+.portal-page-surface:not(:has(.sd-dash)) .text-blue-500,
+.portal-page-surface:not(:has(.sd-dash)) .text-blue-600,
+.portal-page-surface:not(:has(.sd-dash)) .text-blue-700,
+.portal-page-surface:not(:has(.sd-dash)) .text-violet-500,
+.portal-page-surface:not(:has(.sd-dash)) .text-violet-600,
+.portal-page-surface:not(:has(.sd-dash)) .text-violet-700,
+.portal-page-surface:not(:has(.sd-dash)) .text-purple-500,
+.portal-page-surface:not(:has(.sd-dash)) .text-purple-600,
+.portal-page-surface:not(:has(.sd-dash)) .text-purple-700,
+.portal-page-surface:not(:has(.sd-dash)) .text-indigo-500,
+.portal-page-surface:not(:has(.sd-dash)) .text-indigo-600,
+.portal-page-surface:not(:has(.sd-dash)) .text-indigo-700,
+.portal-page-surface:not(:has(.sd-dash)) .text-fuchsia-500,
+.portal-page-surface:not(:has(.sd-dash)) .text-fuchsia-600 {
+  color: var(--pp-accent) !important;
+}
+
+.portal-page-surface:not(:has(.sd-dash)) .border-blue-100,
+.portal-page-surface:not(:has(.sd-dash)) .border-blue-200,
+.portal-page-surface:not(:has(.sd-dash)) .border-violet-100,
+.portal-page-surface:not(:has(.sd-dash)) .border-violet-200,
+.portal-page-surface:not(:has(.sd-dash)) .border-purple-100,
+.portal-page-surface:not(:has(.sd-dash)) .border-purple-200,
+.portal-page-surface:not(:has(.sd-dash)) .border-indigo-100,
+.portal-page-surface:not(:has(.sd-dash)) .border-indigo-200 {
+  border-color: var(--pp-border) !important;
+}
+
+.portal-page-surface:not(:has(.sd-dash)) .border-blue-500,
+.portal-page-surface:not(:has(.sd-dash)) .border-violet-500,
+.portal-page-surface:not(:has(.sd-dash)) .border-purple-500,
+.portal-page-surface:not(:has(.sd-dash)) .border-indigo-500 {
+  border-color: var(--pp-accent) !important;
+}
+
+.portal-page-surface:not(:has(.sd-dash)) .ring-blue-500,
+.portal-page-surface:not(:has(.sd-dash)) .ring-violet-500,
+.portal-page-surface:not(:has(.sd-dash)) .ring-purple-500,
+.portal-page-surface:not(:has(.sd-dash)) .ring-indigo-400,
+.portal-page-surface:not(:has(.sd-dash)) .focus\:ring-blue-500:focus,
+.portal-page-surface:not(:has(.sd-dash)) .focus\:ring-violet-500:focus,
+.portal-page-surface:not(:has(.sd-dash)) .focus\:ring-purple-500:focus,
+.portal-page-surface:not(:has(.sd-dash)) .focus\:ring-indigo-500:focus {
+  --tw-ring-color: rgba(31, 58, 52, 0.35) !important;
+}
+
+.portal-page-surface:not(:has(.sd-dash)) .hover\:bg-blue-50:hover,
+.portal-page-surface:not(:has(.sd-dash)) .hover\:bg-violet-50:hover,
+.portal-page-surface:not(:has(.sd-dash)) .hover\:bg-purple-50:hover,
+.portal-page-surface:not(:has(.sd-dash)) .hover\:bg-indigo-50:hover {
+  background-color: var(--pp-surface-muted) !important;
+}
+
+.portal-page-surface:not(:has(.sd-dash)) .hover\:text-blue-600:hover,
+.portal-page-surface:not(:has(.sd-dash)) .hover\:text-violet-600:hover,
+.portal-page-surface:not(:has(.sd-dash)) .hover\:text-purple-600:hover,
+.portal-page-surface:not(:has(.sd-dash)) .hover\:text-indigo-600:hover {
+  color: var(--pp-accent) !important;
 }
 
 html.dark .portal-page-surface .hover\:bg-gray-50:hover,
@@ -333,8 +430,8 @@ html.dark .family-tree-scope .family-tree-panel {
 }
 
 html.dark .family-tree-scope .family-tree-action:hover {
-  background-color: rgba(37, 99, 235, 0.12) !important;
-  border-color: #60a5fa !important;
+  background-color: rgba(31, 58, 52, 0.2) !important;
+  border-color: #c5c0b6 !important;
 }
 
 /* ── Photo themes category (builder pages) ── */
@@ -349,21 +446,21 @@ html.dark .photo-themes-category .text-\[\#464554\] {
 }
 
 html.dark .category-quantum-studio {
-  background: #0f172a;
-  color: #f1f5f9;
+  background: #151412;
+  color: #fffcf8;
 }
 
 html.dark .category-quantum-studio .bg-white,
 html.dark .category-quantum-studio .bg-white\/90,
 html.dark .category-quantum-studio .category-editor-panel,
 html.dark .category-quantum-studio footer {
-  background-color: #1e293b !important;
-  border-color: #475569 !important;
+  background-color: #1c1a18 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 html.dark .category-quantum-studio .bg-slate-50,
 html.dark .category-quantum-studio .bg-slate-50\/80 {
-  background-color: #334155 !important;
+  background-color: #2a2622 !important;
 }
 
 html.dark .category-quantum-studio .text-\[\#0b1c30\],
@@ -371,19 +468,19 @@ html.dark .category-quantum-studio .text-slate-900,
 html.dark .category-quantum-studio h1,
 html.dark .category-quantum-studio h2,
 html.dark .category-quantum-studio h3 {
-  color: #f1f5f9 !important;
+  color: #fffcf8 !important;
 }
 
 html.dark .category-quantum-studio .text-\[\#464554\],
 html.dark .category-quantum-studio .text-slate-600,
 html.dark .category-quantum-studio .text-slate-500 {
-  color: #94a3b8 !important;
+  color: #a8a399 !important;
 }
 
 html.dark .category-quantum-studio .border-slate-100,
 html.dark .category-quantum-studio .border-slate-200,
 html.dark .category-quantum-studio .border-slate-200\/60 {
-  border-color: #475569 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 /* ── Studio Albums + Client Images (scoped in page CSS) ── */

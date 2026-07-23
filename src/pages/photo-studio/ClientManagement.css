@@ -872,7 +872,7 @@
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #141210;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
@@ -908,7 +908,7 @@
 
 .save-btn {
   padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #141210 0%, #1f3a34 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -951,7 +951,7 @@
 
 .filter-dropdown select:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #141210;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
@@ -959,7 +959,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #141210 0%, #1f3a34 100%);
   color: white;
   border: none;
   padding: 12px 24px;

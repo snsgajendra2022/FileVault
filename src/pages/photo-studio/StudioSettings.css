@@ -1,6 +1,6 @@
 .studio-settings {
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #f7f6f3 0%, #eceae4 100%);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
@@ -11,14 +11,14 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #f7f6f3 0%, #eceae4 100%);
 }
 
 .loading-spinner {
   width: 50px;
   height: 50px;
   border: 4px solid #e2e8f0;
-  border-top: 4px solid #667eea;
+  border-top: 4px solid #141210;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 20px;
@@ -56,14 +56,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #667eea;
+  color: #141210;
   text-decoration: none;
   font-weight: 600;
   transition: color 0.3s ease;
 }
 
 .back-link:hover {
-  color: #5a67d8;
+  color: #1f3a34;
 }
 
 .page-title {
@@ -74,7 +74,7 @@
 
 .title-icon {
   font-size: 1.8rem;
-  color: #667eea;
+  color: #141210;
 }
 
 .page-title h1 {
@@ -96,7 +96,7 @@
   width: 16px;
   height: 16px;
   border: 2px solid #e2e8f0;
-  border-top: 2px solid #667eea;
+  border-top: 2px solid #141210;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -144,11 +144,11 @@
 
 .nav-item:hover {
   background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  color: #141210;
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #141210 0%, #1f3a34 100%);
   color: white;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
@@ -249,7 +249,7 @@
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #141210;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
@@ -371,7 +371,7 @@
   align-items: center;
   gap: 10px;
   padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #141210 0%, #1f3a34 100%);
   color: white;
   border: none;
   border-radius: 10px;
@@ -480,7 +480,7 @@
 }
 
 input:checked + .slider {
-  background-color: #667eea;
+  background-color: #141210;
 }
 
 input:checked + .slider:before {
@@ -666,7 +666,7 @@ input:checked + .slider:before {
 }
 
 .password-toggle:hover {
-  color: #667eea;
+  color: #141210;
 }
 
 .modal-actions {

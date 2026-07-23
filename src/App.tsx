@@ -145,10 +145,10 @@ const ProtectedRoute = ({ children, adminOnly = false }: { children: React.React
   // Show loading state while checking authentication
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f7f6f3] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#141210] border-t-transparent mx-auto mb-4"></div>
+          <p className="text-[#5c574f]">Loading...</p>
         </div>
       </div>
     );
@@ -325,8 +325,10 @@ function App() {
                 toastOptions={{
                   duration: 4000,
                   style: {
-                    background: '#363636',
-                    color: '#fff',
+                    background: '#141210',
+                    color: '#fffcf8',
+                    borderRadius: '14px',
+                    border: '1px solid rgba(255,252,248,0.08)',
                   },
                 }}
               />
