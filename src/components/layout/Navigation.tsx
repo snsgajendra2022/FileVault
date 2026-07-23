@@ -58,17 +58,22 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
   const displayName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'User';
   const accountType = user?.accountType ?? 'FREE';
   const badgeCls    = accountType === 'ADMIN'
-    ? 'bg-purple-100 text-purple-600'
+    ? 'bg-[#eceae4] text-[#1f3a34]'
     : accountType === 'PREMIUM'
-    ? 'bg-amber-100 text-amber-600'
-    : 'bg-slate-100 text-slate-500';
+    ? 'bg-[#eceae4] text-[#5c574f]'
+    : 'bg-[#f7f6f3] text-[#8a847a]';
   const badgeLabel  = accountType === 'ADMIN' ? 'Admin' : accountType === 'PREMIUM' ? 'Premium' : 'Free';
+
+  const navActive = 'bg-[#eceae4] text-[#141210]';
+  const navIdle = 'text-[#5c574f] hover:bg-[#f7f6f3] hover:text-[#141210]';
+  const iconActive = 'text-[#1f3a34]';
+  const iconIdle = 'text-[#8a847a] group-hover:text-[#5c574f]';
 
   return (
     <>
       {/* Soft overlay */}
       <div
-        className={`fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-[2px] transition-opacity duration-300 lg:hidden
+        className={`fixed inset-0 z-40 bg-[#141210]/40 backdrop-blur-[2px] transition-opacity duration-300 lg:hidden
           ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
         aria-hidden
@@ -76,20 +81,23 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
 
       {/* Drawer — same premium style as desktop sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 flex w-[290px] flex-col border-r border-slate-100 bg-white shadow-[4px_0_32px_rgba(0,0,0,0.08)] transition-transform duration-300 ease-in-out dark:border-slate-800 dark:bg-slate-900 dark:shadow-[4px_0_32px_rgba(0,0,0,0.45)] lg:hidden
+        className={`fixed inset-y-0 left-0 z-50 flex w-[290px] flex-col border-r border-[rgba(20,18,16,0.1)] bg-[#fffcf8] shadow-[4px_0_32px_rgba(20,18,16,0.08)] transition-transform duration-300 ease-in-out dark:border-white/10 dark:bg-[#1c1a18] lg:hidden
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         {/* ── Brand ──────────────────────────────────────────────────── */}
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 pb-4 pt-5 dark:border-slate-800">
+        <div className="flex shrink-0 items-center justify-between border-b border-[rgba(20,18,16,0.1)] px-5 pb-4 pt-5 dark:border-white/10">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-300 shadow-sm">
-              <FaHeart className="h-3.5 w-3.5 text-red-500" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#141210] shadow-sm">
+              <FaHeart className="h-3.5 w-3.5 text-[#fffcf8]" />
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 leading-none mb-0.5">
-              {portalName} Platform
+              <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] leading-none text-[#8a847a]">
+                Our Memories
               </p>
-              <p className="text-[15px] font-bold text-slate-800 dark:text-slate-100 leading-tight">
+              <p
+                className="leading-tight text-[#141210] dark:text-[#fffcf8]"
+                style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontSize: '1.15rem', fontWeight: 600 }}
+              >
                 {showAdminNav ? 'Admin Panel' : portalName}
               </p>
             </div>
@@ -97,7 +105,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            className="rounded-full p-2 text-[#8a847a] transition-colors hover:bg-[#eceae4] hover:text-[#141210] dark:hover:bg-white/10 dark:hover:text-[#fffcf8]"
             aria-label="Close menu"
           >
             <FaTimes className="h-4 w-4" />
@@ -133,12 +141,12 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
                               to={item.href}
                               onClick={onClose}
                               className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors duration-150 select-none ${
-                                active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                                active ? navActive : navIdle
                               }`}
                             >
                               <Icon
                                 className={`h-[15px] w-[15px] shrink-0 transition-colors duration-150 ${
-                                  active ? 'text-violet-600' : 'text-slate-400 group-hover:text-slate-500'
+                                  active ? iconActive : iconIdle
                                 }`}
                               />
                               <span className="truncate leading-none">{t(item.labelKey)}</span>
@@ -160,7 +168,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
                       to={item.href}
                       onClick={onClose}
                       className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors duration-150 select-none ${
-                        active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                        active ? navActive : navIdle
                       }`}
                     >
                       <Icon className="h-[15px] w-[15px] shrink-0" />
@@ -196,7 +204,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
                               to={item.href}
                               onClick={onClose}
                               className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors duration-150 select-none ${
-                                active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                                active ? navActive : navIdle
                               }`}
                             >
                               <Icon className="h-[15px] w-[15px] shrink-0" />
@@ -240,7 +248,7 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
                     to={item.href}
                     onClick={onClose}
                     className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors duration-150 ${
-                      active ? 'bg-violet-50 text-violet-700' : 'text-slate-500 hover:bg-slate-50'
+                      active ? navActive : navIdle
                     }`}
                   >
                     <Icon className="h-[15px] w-[15px] shrink-0" />
@@ -254,9 +262,9 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
           {isAdmin && isRoleMenuVisible('admin', portalConfig) && roleNav.active && (
               <div>
               <>
-              <div className="mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-50 border border-purple-100">
-                <FaCrown className="h-3.5 w-3.5 text-purple-500 shrink-0" />
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-purple-600">Admin Panel</p>
+              <div className="mb-2 flex items-center gap-2 rounded-xl border border-[rgba(20,18,16,0.1)] bg-[#eceae4] px-3 py-2">
+                <FaCrown className="h-3.5 w-3.5 shrink-0 text-[#1f3a34]" />
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#5c574f]">Admin Panel</p>
               </div>
               
               {roleNav.active === true && roleItems.filter(i=>i.enabled!==false).map((item) => {
@@ -269,50 +277,38 @@ const Navigation = ({ isOpen, onClose }: NavigationProps) => {
                   to={item.href}
                   data-ai-action={`open-route-${item.href.replace(/[/?=&]/g, '-').replace(/^-+/, '')}`}
                   className={
-                    `group relative flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg ${
+                    `group relative flex items-center rounded-xl px-4 py-3 text-sm font-medium transition-colors duration-150 ${
                       isAdminItemActive
-                        ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-xl border-r-4 border-purple-400'
-                        : 'text-gray-700 hover:text-gray-900 hover:bg-gradient-to-r hover:from-purple-50 hover:to-pink-50 border-r-4 border-transparent hover:border-purple-200'
+                        ? 'bg-[#141210] text-[#fffcf8]'
+                        : 'text-[#5c574f] hover:bg-[#f7f6f3] hover:text-[#141210]'
                     }`
                   }
                 >
                   <>
-                    {/* Active indicator */}
-                    {isAdminItemActive && (
-                      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-white rounded-r-full shadow-lg"></div>
-                    )}
-                    
-                    <div className={`relative ${isAdminItemActive ? 'text-white' : 'text-gray-600 group-hover:text-purple-700'}`}>
-                      <item.icon className="h-5 w-5 mr-3 transition-transform duration-300 group-hover:scale-110" />
+                    <div className={`relative ${isAdminItemActive ? 'text-[#fffcf8]' : 'text-[#8a847a] group-hover:text-[#5c574f]'}`}>
+                      <item.icon className="mr-3 h-5 w-5" />
                     </div>
                     <span className="font-semibold">{t(item.labelKey)}</span>
-                    
-                    {/* Hover glow effect */}
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-400 to-pink-500 opacity-0 group-hover:opacity-5 transition-opacity duration-300"></div>
                   </>
                 </NavLink>
                 );
               })}
             </>
-              {/* <div className="space-y-1">
-                {adminItems.map((item) => (
-                  <NavItem key={item.href} item={item} isActive={isAdminActive(item.href)} />
-                ))}
-              </div> */}
             </div>
           )}
         </nav>
 
         {/* ── Bottom ─────────────────────────────────────────────────── */}
-        <div className="shrink-0 border-t border-slate-100 px-3 py-2.5 space-y-0.5">
+        <div className="shrink-0 space-y-0.5 border-t border-[rgba(20,18,16,0.1)] px-3 py-2.5 dark:border-white/10">
           {typeof logout === 'function' && (
             <button
               type="button"
               onClick={() => { logout(); onClose(); }}
-              className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5
-                text-[13px] font-medium text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors duration-150"
+              className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5
+                text-[13px] font-medium text-[#5c574f] transition-colors duration-150
+                hover:bg-[#8a5a2b]/10 hover:text-[#141210]"
             >
-              <FaSignOutAlt className="h-[15px] w-[15px] shrink-0 text-slate-400 group-hover:text-red-500" />
+              <FaSignOutAlt className="h-[15px] w-[15px] shrink-0 text-[#8a847a]" />
               <span>{t('nav.regular.signOut')}</span>
             </button>
           )}

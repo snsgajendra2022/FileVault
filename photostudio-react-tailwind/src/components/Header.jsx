@@ -32,58 +32,36 @@ export default function Header() {
   );
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-      <div className="container-page flex h-16 items-center justify-between md:h-[4.5rem]">
-        <Link to="/" className="group flex items-center gap-3" onClick={() => setOpen(false)}>
-          <BrandLogo size="sm" className="transition group-hover:opacity-100 opacity-95" />
-          <span>
-            <span className="block text-base font-bold leading-tight tracking-tight text-slate-900 md:text-lg">
-              {appConfig.appName}
-            </span>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-600 md:text-[11px]">
-              Digital memories
-            </span>
-          </span>
+    <header className="om-header">
+      <div className="container-page om-header__bar">
+        <Link to="/" className="om-header__brand" onClick={() => setOpen(false)}>
+          <BrandLogo size="sm" />
+          <span className="om-header__name">{appConfig.appName}</span>
         </Link>
 
-        <nav className="hidden items-center gap-0.5 lg:flex">
+        <nav className="om-header__nav" aria-label="Primary">
           {links.map((item) => (
             <Link
               key={item.hash}
               to={{ pathname: "/", hash: `#${item.hash}` }}
               onClick={(event) => handleSectionNav(event, item.hash)}
-              className="rounded-lg px-3.5 py-2 text-sm font-semibold text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
+              className="om-header__link"
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
-          <a
-            href={appConfig.mainAppUrl}
-            className="group hidden items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 py-2 pl-4 pr-2 shadow-lg shadow-blue-600/25 ring-1 ring-blue-500/20 transition hover:from-blue-700 hover:via-blue-700 hover:to-indigo-700 sm:inline-flex"
-          >
-            <span className="min-w-0 text-left">
-              <span className="block text-sm font-bold leading-tight text-white">
-                {appConfig.ctaLabelShort}
-              </span>
-              <span className="mt-0.5 block text-[10px] font-medium leading-tight text-blue-100">
-                {appConfig.ctaLabelHint}
-              </span>
-            </span>
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 transition group-hover:bg-white/25">
-              <ArrowRight
-                size={16}
-                className="text-white transition group-hover:translate-x-0.5"
-                aria-hidden
-              />
-            </span>
+        <div className="om-header__actions">
+          <a href={appConfig.mainAppUrl} className="om-btn om-btn--dark om-btn--compact om-header__cta">
+            {appConfig.ctaLabelShort}
+            <ArrowRight size={15} aria-hidden />
           </a>
           <button
             type="button"
             aria-label={open ? "Close menu" : "Open menu"}
-            className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-700 lg:hidden"
+            aria-expanded={open}
+            className="om-header__menu-btn"
             onClick={() => setOpen((v) => !v)}
           >
             {open ? <X size={20} /> : <Menu size={20} />}
@@ -91,35 +69,30 @@ export default function Header() {
         </div>
       </div>
 
-      {open && (
-        <div className="border-t border-slate-100 bg-white px-4 py-3 lg:hidden">
-          <nav className="flex flex-col gap-0.5">
+      {open ? (
+        <div className="om-header__drawer">
+          <nav className="container-page" aria-label="Mobile">
             {links.map((item) => (
               <Link
                 key={item.hash}
                 to={{ pathname: "/", hash: `#${item.hash}` }}
                 onClick={(event) => handleSectionNav(event, item.hash)}
-                className="rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                className="om-header__drawer-link"
               >
                 {item.label}
               </Link>
             ))}
             <a
               href={appConfig.mainAppUrl}
-              className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white shadow-md shadow-blue-600/20"
+              className="om-btn om-btn--dark om-btn--block"
               onClick={() => setOpen(false)}
             >
-              <span className="text-left">
-                <span className="block text-sm font-bold">{appConfig.ctaLabel}</span>
-                <span className="mt-0.5 block text-[11px] font-medium text-blue-100">
-                  {appConfig.ctaLabelHint}
-                </span>
-              </span>
-              <ArrowRight size={18} aria-hidden />
+              {appConfig.ctaLabel}
+              <ArrowRight size={16} aria-hidden />
             </a>
           </nav>
         </div>
-      )}
+      ) : null}
     </header>
   );
 }

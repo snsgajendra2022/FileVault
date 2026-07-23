@@ -33,7 +33,8 @@ export function getAlbumThumbnailUrl(image: AlbumImageLike, fileType = 'jpg'): s
   const fromVariants = getThumbnailSrc(progressive);
   if (fromVariants) return fromVariants;
   if (image.thumbnailUrl) return image.thumbnailUrl;
-  if (image.previewUrl) return image.previewUrl;
-  if (image.downloadUrl) return image.downloadUrl;
+  // Never use HLS stream URLs as image thumbnails
+  if (image.previewUrl && !/\.m3u8(\?|$)/i.test(image.previewUrl)) return image.previewUrl;
+  if (image.downloadUrl && !/\.m3u8(\?|$)/i.test(image.downloadUrl)) return image.downloadUrl;
   return null;
 }

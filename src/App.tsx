@@ -88,7 +88,6 @@ import StudioFlipbookBuilderPage from './features/studio-flipbook/components/Stu
 import PhotoBook from './pages/photo-book/PhotoBookPage';
 
 // memories pages
-import MemoriesLandingPage from './pages/memories/MemoriesLandingPage';
 import MemoriesPublicGalleryPage from './pages/memories/MemoriesPublicGalleryPage';
 import MemoriesDashboardPage from './pages/memories/MemoriesDashboardPage';
 import MemoriesEventsListPage from './pages/memories/MemoriesEventsListPage';
@@ -156,7 +155,7 @@ const ProtectedRoute = ({ children, adminOnly = false }: { children: React.React
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/memories" />;
+    return <Navigate to="/" />;
   }
 
   if (adminOnly && !isAdmin) {
@@ -175,8 +174,8 @@ const AppRoutes = () => {
       <Route path="/view" element={<ViewImagePage />} />
       <Route path="/our-memories-privacy-policy" element={<OMPrivacyPolicyPage />} />
       <Route path="/owm-privacy-policy" element={<PrivacyPolicyPage />} />
-      {/* Our Memories — public landing & guest gallery (no app shell) */}
-      <Route path="/memories" element={<MemoriesLandingPage />} />
+      {/* Our Memories — guest gallery (public). /memories marketing redirects to login. */}
+      <Route path="/memories" element={<Navigate to="/login" replace />} />
       <Route path="/memories/e/:eventSlug" element={<MemoriesPublicGalleryPage />} />
       <Route path="/login" element={
         !isLoading && isAuthenticated ?

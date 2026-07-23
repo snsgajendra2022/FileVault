@@ -34,19 +34,28 @@ const PublicMemoriesShell: React.FC<PublicMemoriesShellProps> = ({
       <header className={omHeader}>
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           {showBrandBlock ? (
-            <Link to="/memories" className="flex min-w-0 items-center gap-3 group">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-sm font-black text-white shadow-lg shadow-violet-500/30 transition-transform group-hover:scale-[1.02]">
-                <img src="/favicon.svg" alt={t('brand.ourMemories')} className="h-7 w-7" />
-              </div>
+            <Link to="/" className="flex min-w-0 items-center gap-3 group">
+              <img
+                src="/favicon.svg"
+                alt=""
+                className="h-9 w-9 shrink-0 rounded-xl object-contain"
+              />
               <div className="min-w-0">
-                <span className={`block truncate text-sm font-semibold tracking-[0.2em] uppercase ${omBrandAccent}`}>
+                <span
+                  className={`om-auth-display block truncate text-[1.35rem] font-semibold leading-tight tracking-[-0.02em] ${omBrandAccent}`}
+                >
                   {t('brand.ourMemories')}
                 </span>
-                <span className="block truncate text-[10px] text-slate-500">{t('login.omFooterProduct')}</span>
+                <span className="block truncate text-[11px] font-medium text-[#8a847a] dark:text-[#78746c]">
+                  {t('login.omFooterProduct')}
+                </span>
               </div>
             </Link>
           ) : (
-            <Link to="/memories" className={`text-sm font-semibold tracking-[0.2em] uppercase ${omBrandAccent}`}>
+            <Link
+              to="/"
+              className={`om-auth-display text-[1.25rem] font-semibold tracking-[-0.02em] ${omBrandAccent}`}
+            >
               {t('brand.ourMemories')}
             </Link>
           )}

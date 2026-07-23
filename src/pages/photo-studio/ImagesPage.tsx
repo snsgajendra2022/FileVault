@@ -78,6 +78,8 @@ interface UserImage {
   enabledServices: { [key: string]: string };
   uploadTime: string;
   fileType: string;
+  mediaType?: string;
+  hasThumbnail?: boolean;
   variants?: ImageVariants;
 }
 
@@ -245,7 +247,8 @@ function isImageType(fileType: string, filename?: string): boolean {
   return false;
 }
 
-function isVideoType(fileType: string, filename?: string): boolean {
+function isVideoType(fileType: string, filename?: string, mediaType?: string): boolean {
+  if (mediaType === 'VIDEO') return true;
   const ext = (filename || '').split('.').pop()?.toLowerCase() || '';
   const videoExt = ['mov', 'mp4', 'avi', 'mkv', 'webm', 'm4v'];
   if (videoExt.includes(ext)) return true;
@@ -310,8 +313,9 @@ const ImageCard = memo(function ImageCard({
   const [loadState, setLoadState] = useState<ImageLoadState>('idle');
   const [imageRetryKey, setImageRetryKey] = useState(0);
   const showImage = isImageType(image.fileType, image.filename);
-  const showVideo = isVideoType(image.fileType, image.filename);
+  const showVideo = isVideoType(image.fileType, image.filename, image.mediaType);
   const variantsFingerprint = getVariantsFingerprint(image);
+  const videoPosterUrl = image.thumbnailUrl || '';
 
   // When visible and image or video type, start loading
   useEffect(() => {
@@ -385,17 +389,30 @@ const ImageCard = memo(function ImageCard({
 
         {showVideo && (
           <>
-            <video
-              src={isVisible ? image.previewUrl : undefined}
-              className="h-full w-full object-cover"
-              style={{ opacity: loadState === 'loaded' ? 1 : 0, transition: 'opacity 0.4s ease' }}
-              onLoadedData={handleLoad}
-              onError={handleError}
-              controls
-              muted
-              playsInline
-              preload="metadata"
-            />
+            {videoPosterUrl ? (
+              <img
+                src={isVisible ? videoPosterUrl : undefined}
+                alt=""
+                className="h-full w-full object-cover"
+                style={{ opacity: loadState === 'loaded' ? 1 : 0, transition: 'opacity 0.4s ease' }}
+                onLoad={handleLoad}
+                onError={handleError}
+                loading="lazy"
+                decoding="async"
+              />
+            ) : (
+              <video
+                src={isVisible ? image.previewUrl : undefined}
+                className="h-full w-full object-cover"
+                style={{ opacity: loadState === 'loaded' ? 1 : 0, transition: 'opacity 0.4s ease' }}
+                onLoadedData={handleLoad}
+                onError={handleError}
+                controls
+                muted
+                playsInline
+                preload="metadata"
+              />
+            )}
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/10 transition-colors group-hover:bg-black/20">
               <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/40 bg-white/30 text-white backdrop-blur-md">
                 <Play className="h-6 w-6 fill-white" />
@@ -2161,7 +2178,7 @@ const ClientImagesPage = () => {
                   </div>
                 );
               })()
-            ) : isVideoType(selectedImage.fileType, selectedImage.filename) ? (
+            ) : isVideoType(selectedImage.fileType, selectedImage.filename, selectedImage.mediaType) ? (
               <div className="relative flex justify-center items-center w-full h-full">
                 <HlsVideoPlayer
                   source={resolveVideoPlayback(selectedImage)}

@@ -246,11 +246,11 @@ const RegisterPage = () => {
   if (isLoading) {
     return (
       <div className={omLoadingPage}>
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-lg font-black text-white shadow-lg shadow-violet-500/30 animate-pulse">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#141210] dark:bg-[#fffcf8] animate-pulse">
           OM
         </div>
         <div className="h-1.5 w-24 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
-          <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 animate-pulse" />
+          <div className="h-full w-2/3 rounded-full bg-[#141210] dark:bg-[#fffcf8] animate-pulse" />
         </div>
         <p className={`text-xs ${omMuted}`}>{t('registerPage.creatingAccount')}</p>
       </div>
@@ -472,7 +472,7 @@ const RegisterPage = () => {
           type="button"
           onClick={handleSubmit}
           disabled={loading}
-          className={`flex-1 group flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg shadow-violet-500/20`}
+          className={`flex-1 group flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-white bg-[#141210] hover:bg-[#2a2622] dark:bg-[#fffcf8] dark:text-[#141210] dark:hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#1f3a34]/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300`}
         >
           {loading ? (
             <div className="flex items-center">
@@ -495,7 +495,7 @@ const RegisterPage = () => {
       showBrandBlock
       headerActions={
         <>
-          <Link to="/memories" className={`hidden sm:inline ${omNavLink}`}>
+          <Link to="/" className={`hidden sm:inline ${omNavLink}`}>
             {t('login.omExplore')}
           </Link>
           <Link to="/login" className={`${omCtaSolid} px-3 py-2 text-xs sm:px-4 sm:text-sm`}>
@@ -519,7 +519,7 @@ const RegisterPage = () => {
 
           <div className="w-full max-w-2xl mx-auto lg:mx-0 lg:max-w-none">
             <div className="mb-6 text-center lg:hidden">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-base font-black text-white shadow-lg shadow-violet-500/30">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#141210] dark:bg-[#fffcf8]">
                 OM
               </div>
               <h1 className={`text-2xl font-bold ${omHeading}`}>{t('registerPage.joinTitle')}</h1>

@@ -54,7 +54,7 @@ const ForgotPasswordPage = () => {
       showBrandBlock
       headerActions={
         <>
-          <Link to="/memories" className={`hidden sm:inline ${omNavLink}`}>
+          <Link to="/" className={`hidden sm:inline ${omNavLink}`}>
             {t('login.omExplore')}
           </Link>
           <Link to="/login" className={`${omCtaSolid} px-3 py-2 text-xs sm:px-4 sm:text-sm`}>
@@ -76,7 +76,7 @@ const ForgotPasswordPage = () => {
             {t('forgotPassword.subtitle')}
           </p>
           <div className="mt-10 flex items-start gap-4 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] p-5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-lg shadow-violet-500/25">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#141210] dark:bg-[#fffcf8]">
               <FaShieldAlt className="h-5 w-5" />
             </div>
             <p className={`text-sm leading-relaxed ${omMuted}`}>{t('forgotPassword.sentHint')}</p>
@@ -85,7 +85,7 @@ const ForgotPasswordPage = () => {
 
         <div className="w-full max-w-md mx-auto lg:mx-0 lg:max-w-none">
           <div className="mb-6 text-center lg:hidden">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg shadow-violet-500/30">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#141210] dark:bg-[#fffcf8]">
               <FaShieldAlt className="h-7 w-7 text-white" />
             </div>
             <h1 className={`text-2xl font-bold ${omHeading}`}>{t('forgotPassword.title')}</h1>
@@ -103,8 +103,8 @@ const ForgotPasswordPage = () => {
 
             {submitted ? (
               <div className="space-y-6 text-center sm:text-left">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-violet-500/10 dark:bg-violet-500/20 sm:mx-0">
-                  <FaEnvelope className="h-8 w-8 text-violet-600 dark:text-violet-300" />
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#eceae4] dark:bg-white/10 sm:mx-0">
+                  <FaEnvelope className="h-8 w-8 text-[#1f3a34] dark:text-[#c5c0b6]" />
                 </div>
                 <div>
                   <h2 className={omCardTitle}>{t('forgotPassword.sentTitle')}</h2>

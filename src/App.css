@@ -38,27 +38,48 @@
   }
 }
 
-/* Fix autofill background color and make autofill text white */
+/* Autofill: readable on light + dark login/register forms */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 30px rgba(0, 0, 0, 0.1) inset !important;
-  -webkit-text-fill-color: #ffffff !important;
-  color: #ffffff !important;
-  background-color: rgba(0, 0, 0, 0.1) !important;
-  transition: background-color 5000s ease-in-out 0s;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #0f172a !important;
+  color: #0f172a !important;
+  caret-color: #0f172a !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  transition: background-color 99999s ease-in-out 0s;
+}
+
+html.dark input:-webkit-autofill,
+html.dark input:-webkit-autofill:hover,
+html.dark input:-webkit-autofill:focus,
+html.dark input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #121214 inset !important;
+  box-shadow: 0 0 0 1000px #121214 inset !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  color: #f8fafc !important;
+  caret-color: #f8fafc !important;
+  background-color: #121214 !important;
+  background-image: none !important;
 }
 
 input:-internal-autofill-selected {
   appearance: menulist-button;
   background-image: none !important;
-  background-color: rgba(0, 0, 0, 0.1) !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
 }
 
-/* Make icons visible when autofill is active */
+html.dark input:-internal-autofill-selected {
+  background-color: #121214 !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
 input:-webkit-autofill ~ .text-icon,
 input:-webkit-autofill:hover ~ .text-icon,
 input:-webkit-autofill:focus ~ .text-icon,
@@ -67,8 +88,18 @@ input:-webkit-autofill + .text-icon,
 input:-webkit-autofill:hover + .text-icon,
 input:-webkit-autofill:focus + .text-icon,
 input:-webkit-autofill:active + .text-icon {
-  --tw-text-opacity: 1 !important;
-  color: rgb(255 255 255) !important;
+  color: #64748b !important;
   opacity: 1 !important;
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) !important;
+  filter: none !important;
+}
+
+html.dark input:-webkit-autofill ~ .text-icon,
+html.dark input:-webkit-autofill:hover ~ .text-icon,
+html.dark input:-webkit-autofill:focus ~ .text-icon,
+html.dark input:-webkit-autofill:active ~ .text-icon,
+html.dark input:-webkit-autofill + .text-icon,
+html.dark input:-webkit-autofill:hover + .text-icon,
+html.dark input:-webkit-autofill:focus + .text-icon,
+html.dark input:-webkit-autofill:active + .text-icon {
+  color: #94a3b8 !important;
 }

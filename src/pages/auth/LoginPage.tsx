@@ -11,18 +11,12 @@ import {
   FaArrowRight,
   FaEnvelope,
   FaPhone,
-  FaStar,
-  FaImages,
-  FaQrcode,
-  FaShieldAlt,
 } from 'react-icons/fa';
 import api from '../../api/client/axiosInstance';
 import PublicMemoriesShell from '../../components/auth/PublicMemoriesShell';
 import {
-  omAltBtn,
   omCard,
   omCardTitle,
-  omDivider,
   omHeading,
   omInput,
   omInputPlain,
@@ -37,19 +31,27 @@ import {
   omBadge,
 } from '../../components/auth/publicMemoriesTheme';
 
+const LOGIN_VISUALS = [
+  '/marketing/feat-1.jpg',
+  '/marketing/feat-2.jpg',
+  '/marketing/feat-3.jpg',
+];
+
+type LoginMode = 'password' | 'emailOtp' | 'phoneOtp';
+
 const LoginPage = () => {
   const { t } = useTranslation();
   const [formData, setFormData] = useState({
     username: '',
-    password: ''
+    password: '',
   });
-  const [loginMode, setLoginMode] = useState<'password' | 'emailOtp' | 'phoneOtp'>('emailOtp');
+  const [loginMode, setLoginMode] = useState<LoginMode>('password');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [otpRequested, setOtpRequested] = useState(false);
-  const [showEmailOtp, setShowEmailOtp] = useState(false);
-  const [showPhoneOtp, setShowPhoneOtp] = useState(false);
+  const [showEmailOtp, setShowEmailOtp] = useState(true);
+  const [showPhoneOtp, setShowPhoneOtp] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { login, requestLoginOtp, verifyLoginOtp, user, isLoading } = useAuth();
@@ -76,21 +78,31 @@ const LoginPage = () => {
         const canPhone = phoneFlag?.value ?? true;
         setShowEmailOtp(canEmail);
         setShowPhoneOtp(canPhone);
-        if (loginMode === 'emailOtp' && !canEmail) setLoginMode(canPhone ? 'phoneOtp' : 'password');
-        if (loginMode === 'phoneOtp' && !canPhone) setLoginMode(canEmail ? 'emailOtp' : 'password');
+        if (!canEmail && loginMode === 'emailOtp') {
+          setLoginMode(canPhone ? 'phoneOtp' : 'password');
+        }
+        if (!canPhone && loginMode === 'phoneOtp') {
+          setLoginMode(canEmail ? 'emailOtp' : 'password');
+        }
       } catch {
         setShowEmailOtp(false);
         setShowPhoneOtp(false);
         setLoginMode('password');
       }
     };
-    fetchFlags();
-  }, [loginMode]);
+    void fetchFlags();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const selectMode = (mode: LoginMode) => {
+    setLoginMode(mode);
+    setOtpRequested(false);
+    setOtp('');
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       await login(formData.username, formData.password);
       toast.success(t('login.welcomeBackToast'));
@@ -154,38 +166,16 @@ const LoginPage = () => {
   if (isLoading) {
     return (
       <div className={omLoadingPage}>
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-lg font-black text-white shadow-lg shadow-violet-500/30 animate-pulse">
-          <img src="/favicon.svg" alt={t('brand.ourMemories')} className="h-10 w-10" />
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#141210] dark:bg-[#fffcf8]">
+          <img src="/favicon.svg" alt={t('brand.ourMemories')} className="h-8 w-8" />
         </div>
-        <div className="h-1.5 w-24 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
-          <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 animate-pulse" />
+        <div className="h-1 w-24 overflow-hidden rounded-full bg-[#eceae4] dark:bg-white/10">
+          <div className="h-full w-2/3 animate-pulse rounded-full bg-[#141210] dark:bg-[#fffcf8]" />
         </div>
         <p className={`text-xs ${omMuted}`}>{t('login.signingIn')}</p>
       </div>
     );
   }
-
-  const inputClass = omInput;
-  const otpInputClass = omInputPlain;
-  const primaryBtn = omPrimaryBtn;
-  const altOptionBtn = omAltBtn;
-
-  const switchMode = (mode: 'password' | 'emailOtp' | 'phoneOtp') => {
-    setLoginMode(mode);
-    setOtpRequested(false);
-    setOtp('');
-  };
-
-  const showAltPassword = loginMode !== 'password';
-  const showAltEmail = showEmailOtp && loginMode !== 'emailOtp';
-  const showAltPhone = showPhoneOtp && loginMode !== 'phoneOtp';
-  const hasAlternateOptions = showAltPassword || showAltEmail || showAltPhone;
-  const alternateOptionCount =
-    Number(showAltPassword) + Number(showAltEmail) + Number(showAltPhone);
-  const alternateOptionsGridClass =
-    alternateOptionCount <= 1
-      ? 'grid grid-cols-1 gap-2'
-      : 'grid grid-cols-1 gap-2 sm:grid-cols-2';
 
   const cardTitle =
     loginMode === 'password'
@@ -201,12 +191,23 @@ const LoginPage = () => {
         ? t('login.emailOtpCardSubtitle')
         : t('login.phoneOtpCardSubtitle');
 
+  const alternateActions: Array<{ id: LoginMode; label: string; icon: typeof FaUser }> = [];
+  if (loginMode !== 'password') {
+    alternateActions.push({ id: 'password', label: 'Sign in with password', icon: FaUser });
+  }
+  if (showEmailOtp && loginMode !== 'emailOtp') {
+    alternateActions.push({ id: 'emailOtp', label: 'Sign in with email OTP', icon: FaEnvelope });
+  }
+  if (showPhoneOtp && loginMode !== 'phoneOtp') {
+    alternateActions.push({ id: 'phoneOtp', label: 'Sign in with mobile OTP', icon: FaPhone });
+  }
+
   return (
     <PublicMemoriesShell
       showBrandBlock
       headerActions={
         <>
-          <Link to="/memories" className={`hidden sm:inline ${omNavLink}`}>
+          <Link to="/" className={`hidden sm:inline ${omNavLink}`}>
             {t('login.omExplore')}
           </Link>
           <Link to="/register" className={`${omCtaSolid} px-3 py-2 text-xs sm:px-4 sm:text-sm`}>
@@ -215,340 +216,346 @@ const LoginPage = () => {
         </>
       }
     >
-        <div className="grid gap-12 lg:grid-cols-[1fr_min(28rem,100%)] lg:items-center lg:gap-16">
-        
-          
-          <div className="hidden lg:block max-w-lg xl:max-w-xl">
-            <p className={`mb-5 ${omBadge} text-[11px] uppercase tracking-[0.2em] px-3.5 py-1.5`}>
-              <FaStar className="h-3 w-3 text-amber-500 dark:text-amber-300" />
-              {t('memoriesPlatform.badge')}
-            </p>
-            <h1 className={`text-4xl font-semibold tracking-tight xl:text-[2.75rem] xl:leading-[1.1] ${omHeading}`}>
-              {t('login.omSignInTitle')}
-            </h1>
-            <p className={`mt-6 text-base leading-relaxed xl:text-lg ${omLead}`}>{t('login.omSignInLead')}</p>
-            <p className={`mt-4 text-sm ${omMuted}`}>{t('login.signInSubtitle')}</p>
+      <div className="grid gap-12 lg:grid-cols-[1.05fr_min(26.5rem,100%)] lg:items-center lg:gap-16">
+        <div className="hidden lg:block max-w-xl">
+          <p className={`mb-5 ${omBadge} text-[11px] uppercase tracking-[0.14em] px-3.5 py-1.5`}>
+            {t('memoriesPlatform.badge')}
+          </p>
+          <h1
+            className={`om-auth-display text-[2.65rem] font-semibold leading-[1.12] tracking-[-0.03em] xl:text-[3.1rem] ${omHeading}`}
+          >
+            {t('login.omSignInTitle')}
+          </h1>
+          <p className={`mt-5 max-w-md text-base leading-relaxed xl:text-[1.05rem] ${omLead}`}>
+            {t('login.omSignInLead')}
+          </p>
+          <p className={`mt-3 text-sm ${omMuted}`}>{t('login.signInSubtitle')}</p>
 
-            <div className="mt-11">
-              <div className="rounded-[1.75rem] bg-gradient-to-br from-violet-500/25 via-fuchsia-500/15 to-violet-600/10 dark:from-violet-500/35 dark:via-fuchsia-500/20 p-px shadow-[0_0_0_1px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06)]">
-                <div className="overflow-hidden rounded-[1.7rem] bg-slate-100 dark:bg-[#070708]">
-                  <div className="relative aspect-[16/10] w-full overflow-hidden" aria-hidden>
-                    <div className="absolute inset-0 bg-[conic-gradient(from_200deg_at_65%_15%,#5b21b6,#be185d,#0f172a,#6d28d9)] opacity-[0.92]" />
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_90%_70%_at_50%_120%,rgba(0,0,0,0.88),transparent_65%)]" />
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_35%,rgba(255,255,255,0.14),transparent_45%)]" />
-                    <div
-                      className="absolute inset-0 opacity-[0.12]"
-                      style={{
-                        backgroundImage: `linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-                          linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)`,
-                        backgroundSize: '28px 28px',
-                      }}
-                    />
-                    <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 to-transparent" />
-                    <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-2.5 rounded-2xl border border-white/10 bg-black/40 px-3 py-2 backdrop-blur-md">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg shadow-violet-900/40">
-                          <img src="/favicon.svg" alt="" className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-semibold text-white">{t('brand.ourMemories')}</p>
-                          <p className="truncate text-[10px] text-slate-400">{t('memoriesPlatform.heroTitle')}</p>
-                        </div>
-                      </div>
-                      <div className="hidden shrink-0 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-slate-300 sm:block">
-                        {t('memoriesPlatform.ctaLearn')}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+          <div className="mt-10">
+            <div className="om-auth-collage" aria-hidden="true">
+              <div className="om-auth-collage__main">
+                <img src={LOGIN_VISUALS[0]} alt="" width={837} height={1024} loading="eager" decoding="async" />
               </div>
-              <p className={`mt-5 max-w-md text-xs leading-relaxed ${omMuted}`}>{t('memoriesPlatform.heroSubtitle')}</p>
+              <div className="om-auth-collage__side">
+                <img src={LOGIN_VISUALS[1]} alt="" width={837} height={1024} loading="eager" decoding="async" />
+              </div>
+              <div className="om-auth-collage__side">
+                <img src={LOGIN_VISUALS[2]} alt="" width={837} height={1024} loading="lazy" decoding="async" />
+              </div>
             </div>
-          </div>
-
-          <div className="w-full max-w-md mx-auto lg:mx-0 lg:max-w-none">
-            <div className="mb-6 text-center lg:hidden">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-base font-black text-white shadow-lg shadow-violet-500/30">
-                <img src="/favicon.svg" alt={t('brand.ourMemories')} className="h-10 w-10" />
-              </div>
-              <h1 className={`text-2xl font-bold ${omHeading}`}>{t('login.omSignInTitle')}</h1>
-              <p className={`mt-2 text-sm ${omLead}`}>{t('login.omSignInLead')}</p>
-            </div>
-
-            <div className={`${omCard} p-6 sm:p-8`}>
-              <div className="mb-6 text-center sm:text-left">
-                <h2 className={omCardTitle}>{cardTitle}</h2>
-                <p className={`mt-1.5 text-sm leading-relaxed ${omMuted}`}>{cardSubtitle}</p>
-              </div>
-
-              {loginMode === 'password' && (
-                <form className="space-y-5" onSubmit={handleSubmit}>
-                  <div>
-                    <label htmlFor="username" className={`mb-1.5 block ${omLabel}`}>
-                      {t('login.username')}
-                    </label>
-                    <div className="relative">
-                      <FaUser className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                      <input
-                        id="username"
-                        name="username"
-                        type="text"
-                        required
-                        className={inputClass}
-                        placeholder={t('login.usernamePlaceholder')}
-                        value={formData.username}
-                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                        autoComplete="username"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="password" className={`mb-1.5 block ${omLabel}`}>
-                      {t('login.password')}
-                    </label>
-                    <div className="relative">
-                      <FaLock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                      <input
-                        id="password"
-                        name="password"
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        className={`${inputClass} pr-12`}
-                        placeholder={t('login.passwordPlaceholder')}
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        autoComplete="current-password"
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-colors"
-                        onClick={() => setShowPassword(!showPassword)}
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                    <label className={`flex cursor-pointer items-center gap-2 ${omLead}`}>
-                      <input
-                        id="remember-me"
-                        name="remember-me"
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 dark:border-white/20 bg-white dark:bg-white/5 text-violet-600 focus:ring-violet-500/40"
-                      />
-                      <span>{t('login.rememberMe')}</span>
-                    </label>
-                    <Link to="/forgot-password" className={omLinkAccent}>
-                      {t('login.forgotPassword')}
-                    </Link>
-                  </div>
-
-                  <button type="submit" disabled={loading} className={primaryBtn}>
-                    {loading ? (
-                      <>
-                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                        {t('login.signingIn')}
-                      </>
-                    ) : (
-                      <>
-                        {t('login.signIn')}
-                        <FaArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                      </>
-                    )}
-                  </button>
-                </form>
-              )}
-
-              {loginMode === 'emailOtp' && (
-                <form className="space-y-5" onSubmit={otpRequested ? handleVerifyOtp : handleRequestOtp}>
-                  <div>
-                    <label htmlFor="email-login" className={`mb-1.5 block ${omLabel}`}>
-                      {t('login.email')}
-                    </label>
-                    <div className="relative">
-                      <FaEnvelope className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                      <input
-                        id="email-login"
-                        name="email"
-                        type="email"
-                        required
-                        className={inputClass}
-                        placeholder={t('login.emailPlaceholder')}
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        disabled={otpRequested}
-                        autoComplete="email"
-                      />
-                    </div>
-                  </div>
-
-                  {otpRequested && (
-                    <div>
-                      <label htmlFor="otp-email" className={`mb-1.5 block ${omLabel}`}>
-                        {t('login.verificationOtp')}
-                      </label>
-                      <input
-                        id="otp-email"
-                        name="otp"
-                        type="text"
-                        required
-                        className={otpInputClass}
-                        placeholder={t('login.otpPlaceholder')}
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                      />
-                    </div>
-                  )}
-
-                  <button type="submit" disabled={loading} className={primaryBtn}>
-                    {loading ? (
-                      <>
-                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                        {otpRequested ? t('login.verifying') : t('login.sendingOtp')}
-                      </>
-                    ) : (
-                      <>
-                        {otpRequested ? t('login.verifyAndSignIn') : t('login.sendOtp')}
-                        <FaArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                      </>
-                    )}
-                  </button>
-
-                  {otpRequested && (
-                    <button
-                      type="button"
-                      onClick={() => setOtpRequested(false)}
-                      className={`w-full py-2 text-sm ${omLead} hover:text-slate-900 dark:hover:text-white transition-colors`}
-                    >
-                      {t('login.changeEmail')}
-                    </button>
-                  )}
-                </form>
-              )}
-
-              {loginMode === 'phoneOtp' && (
-                <form className="space-y-5" onSubmit={otpRequested ? handleVerifyOtp : handleRequestOtp}>
-                  <div>
-                    <label htmlFor="phone-login" className={`mb-1.5 block ${omLabel}`}>
-                      {t('login.mobileNumber')}
-                    </label>
-                    <div className="relative">
-                      <FaPhone className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                      <input
-                        id="phone-login"
-                        name="phone"
-                        type="tel"
-                        required
-                        className={inputClass}
-                        placeholder={t('login.mobilePlaceholder')}
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        disabled={otpRequested}
-                        autoComplete="tel"
-                      />
-                    </div>
-                  </div>
-
-                  {otpRequested && (
-                    <div>
-                      <label htmlFor="otp-phone" className={`mb-1.5 block ${omLabel}`}>
-                        {t('login.verificationOtp')}
-                      </label>
-                      <input
-                        id="otp-phone"
-                        name="otp"
-                        type="text"
-                        required
-                        className={otpInputClass}
-                        placeholder={t('login.otpPlaceholder')}
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value)}
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                      />
-                    </div>
-                  )}
-
-                  <button type="submit" disabled={loading} className={primaryBtn}>
-                    {loading ? (
-                      <>
-                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                        {otpRequested ? t('login.verifying') : t('login.sendingOtp')}
-                      </>
-                    ) : (
-                      <>
-                        {otpRequested ? t('login.verifyAndSignIn') : t('login.sendOtp')}
-                        <FaArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                      </>
-                    )}
-                  </button>
-
-                  {otpRequested && (
-                    <button
-                      type="button"
-                      onClick={() => setOtpRequested(false)}
-                      className={`w-full py-2 text-sm ${omLead} hover:text-slate-900 dark:hover:text-white transition-colors`}
-                    >
-                      {t('login.changeMobile')}
-                    </button>
-                  )}
-                </form>
-              )}
-
-              {hasAlternateOptions && (
-                <div className={`mt-8 ${omDivider} pt-6`}>
-                  <p className={`mb-4 text-center text-xs font-semibold uppercase tracking-wide ${omMuted}`}>
-                    {t('login.otherSignInOptions')}
-                  </p>
-                  <div className={alternateOptionsGridClass}>
-                    {showAltPassword && (
-                      <button type="button" className={altOptionBtn} onClick={() => switchMode('password')}>
-                        <FaUser className="h-4 w-4 shrink-0 text-violet-300" />
-                        {t('login.usePasswordInstead')}
-                      </button>
-                    )}
-                    {showAltEmail && (
-                      <button type="button" className={altOptionBtn} onClick={() => switchMode('emailOtp')}>
-                        <FaEnvelope className="h-4 w-4 shrink-0 text-violet-300" />
-                        {t('login.useEmailCodeInstead')}
-                      </button>
-                    )}
-                    {showAltPhone && (
-                      <button type="button" className={altOptionBtn} onClick={() => switchMode('phoneOtp')}>
-                        <FaPhone className="h-4 w-4 shrink-0 text-violet-300" />
-                        {t('login.useMobileCodeInstead')}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <p className={`mt-8 text-center text-sm ${omMuted}`}>
-                {t('login.noAccount')}{' '}
-                <Link to="/register" className={omLinkAccent}>
-                  {t('login.signUpHere')}
-                </Link>
+            <div className="om-auth-story">
+              <p className="om-auth-story__title">{t('brand.ourMemories')}</p>
+              <p className="om-auth-story__text">
+                Premium memories, shared in seconds. Create events, upload your best shots, and let
+                guests open the gallery instantly — QR or invite link. Built for photographers who
+                care about speed and polish.
               </p>
             </div>
+          </div>
+        </div>
 
-            <p className={`mt-8 text-center text-xs leading-relaxed ${omMuted}`}>
-              {t('login.termsPrefix')}{' '}
-              <Link to="/privacy-policy" className={`${omLinkAccent} underline-offset-2 hover:underline`}>
-                {t('login.termsOfService')}
-              </Link>
-              {' '}
-              {t('login.and')}{' '}
-              <Link to="/privacy-policy" className={`${omLinkAccent} underline-offset-2 hover:underline`}>
-                {t('login.privacyPolicy')}
+        <div className="w-full max-w-md mx-auto lg:mx-0 lg:max-w-none">
+          <div className="mb-6 text-center lg:hidden">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#141210] dark:bg-[#fffcf8]">
+              <img src="/favicon.svg" alt={t('brand.ourMemories')} className="h-8 w-8" />
+            </div>
+            <h1 className={`om-auth-display text-[1.85rem] font-semibold tracking-[-0.02em] ${omHeading}`}>
+              {t('login.omSignInTitle')}
+            </h1>
+            <p className={`mt-2 text-sm ${omLead}`}>{t('login.omSignInLead')}</p>
+          </div>
+
+          <div className={`${omCard} p-6 sm:p-8`}>
+            <div className="mb-6 text-center sm:text-left">
+              <h2 className={omCardTitle}>{cardTitle}</h2>
+              <p className={`mt-1.5 text-sm leading-relaxed ${omMuted}`}>{cardSubtitle}</p>
+            </div>
+
+            {/* Only one form shows inside the card at a time */}
+            {loginMode === 'password' ? (
+              <form className="om-login-form" onSubmit={handlePasswordSubmit}>
+                <div className="om-login-field">
+                  <label htmlFor="username" className={omLabel}>
+                    {t('login.username')}
+                  </label>
+                  <div className="om-login-field__control">
+                    <FaUser className="om-login-field__icon" aria-hidden />
+                    <input
+                      id="username"
+                      name="username"
+                      type="text"
+                      required
+                      className={omInput}
+                      placeholder={t('login.usernamePlaceholder')}
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      autoComplete="username"
+                    />
+                  </div>
+                </div>
+
+                <div className="om-login-field">
+                  <label htmlFor="password" className={omLabel}>
+                    {t('login.password')}
+                  </label>
+                  <div className="om-login-field__control">
+                    <FaLock className="om-login-field__icon" aria-hidden />
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      className={`${omInput} pr-12`}
+                      placeholder={t('login.passwordPlaceholder')}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      autoComplete="current-password"
+                    />
+                    <button
+                      type="button"
+                      className="om-login-field__toggle"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="om-login-row">
+                  <label className={`om-login-remember ${omLead}`}>
+                    <input id="remember-me" name="remember-me" type="checkbox" className="om-login-remember__box" />
+                    <span>{t('login.rememberMe')}</span>
+                  </label>
+                  <Link to="/forgot-password" className={omLinkAccent}>
+                    {t('login.forgotPassword')}
+                  </Link>
+                </div>
+
+                <button type="submit" disabled={loading} className={omPrimaryBtn}>
+                  {loading ? (
+                    <>
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      {t('login.signingIn')}
+                    </>
+                  ) : (
+                    <>
+                      {t('login.signIn')}
+                      <FaArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : null}
+
+            {loginMode === 'emailOtp' ? (
+              <form
+                className="om-login-form"
+                onSubmit={otpRequested ? handleVerifyOtp : handleRequestOtp}
+              >
+                <div className="om-login-field">
+                  <label htmlFor="email-login" className={omLabel}>
+                    {t('login.email')}
+                  </label>
+                  <div className="om-login-field__control">
+                    <FaEnvelope className="om-login-field__icon" aria-hidden />
+                    <input
+                      id="email-login"
+                      name="email"
+                      type="email"
+                      required
+                      className={omInput}
+                      placeholder={t('login.emailPlaceholder')}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={otpRequested}
+                      autoComplete="email"
+                    />
+                  </div>
+                </div>
+
+                {otpRequested ? (
+                  <div className="om-login-field">
+                    <label htmlFor="otp-email" className={omLabel}>
+                      {t('login.verificationOtp')}
+                    </label>
+                    <input
+                      id="otp-email"
+                      name="otp"
+                      type="text"
+                      required
+                      className={`${omInputPlain} om-login-otp-code`}
+                      placeholder={t('login.otpPlaceholder')}
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                    />
+                  </div>
+                ) : null}
+
+                <button type="submit" disabled={loading} className={omPrimaryBtn}>
+                  {loading ? (
+                    <>
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      {otpRequested ? t('login.verifying') : t('login.sendingOtp')}
+                    </>
+                  ) : (
+                    <>
+                      {otpRequested ? t('login.verifyAndSignIn') : t('login.sendOtp')}
+                      <FaArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+
+                {otpRequested ? (
+                  <button
+                    type="button"
+                    className="om-login-change"
+                    onClick={() => {
+                      setOtpRequested(false);
+                      setOtp('');
+                    }}
+                  >
+                    {t('login.changeEmail')}
+                  </button>
+                ) : null}
+              </form>
+            ) : null}
+
+            {loginMode === 'phoneOtp' ? (
+              <form
+                className="om-login-form"
+                onSubmit={otpRequested ? handleVerifyOtp : handleRequestOtp}
+              >
+                <div className="om-login-field">
+                  <label htmlFor="phone-login" className={omLabel}>
+                    {t('login.mobileNumber')}
+                  </label>
+                  <div className="om-login-field__control">
+                    <FaPhone className="om-login-field__icon" aria-hidden />
+                    <input
+                      id="phone-login"
+                      name="phone"
+                      type="tel"
+                      required
+                      className={omInput}
+                      placeholder={t('login.mobilePlaceholder')}
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      disabled={otpRequested}
+                      autoComplete="tel"
+                    />
+                  </div>
+                </div>
+
+                {otpRequested ? (
+                  <div className="om-login-field">
+                    <label htmlFor="otp-phone" className={omLabel}>
+                      {t('login.verificationOtp')}
+                    </label>
+                    <input
+                      id="otp-phone"
+                      name="otp"
+                      type="text"
+                      required
+                      className={`${omInputPlain} om-login-otp-code`}
+                      placeholder={t('login.otpPlaceholder')}
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                    />
+                  </div>
+                ) : null}
+
+                <button type="submit" disabled={loading} className={omPrimaryBtn}>
+                  {loading ? (
+                    <>
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      {otpRequested ? t('login.verifying') : t('login.sendingOtp')}
+                    </>
+                  ) : (
+                    <>
+                      {otpRequested ? t('login.verifyAndSignIn') : t('login.sendOtp')}
+                      <FaArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+
+                {otpRequested ? (
+                  <button
+                    type="button"
+                    className="om-login-change"
+                    onClick={() => {
+                      setOtpRequested(false);
+                      setOtp('');
+                    }}
+                  >
+                    {t('login.changeMobile')}
+                  </button>
+                ) : null}
+              </form>
+            ) : null}
+
+            <p className={`mt-6 text-center text-sm ${omMuted}`}>
+              {t('login.noAccount')}{' '}
+              <Link to="/register" className={omLinkAccent}>
+                {t('login.signUpHere')}
               </Link>
             </p>
           </div>
+
+          {/* Alternate actions — not a switch. Only other methods as full buttons. */}
+          {alternateActions.length > 0 ? (
+            <div className="om-login-actions">
+              {alternateActions.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  className="om-login-actions__btn"
+                  onClick={() => selectMode(id)}
+                >
+                  <Icon className="om-login-actions__icon" aria-hidden />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          <p className={`mt-6 text-center text-xs leading-relaxed ${omMuted}`}>
+            {t('login.termsPrefix')}{' '}
+            <Link to="/privacy-policy" className={`${omLinkAccent} underline-offset-2 hover:underline`}>
+              {t('login.termsOfService')}
+            </Link>{' '}
+            {t('login.and')}{' '}
+            <Link to="/privacy-policy" className={`${omLinkAccent} underline-offset-2 hover:underline`}>
+              {t('login.privacyPolicy')}
+            </Link>
+          </p>
+
+          <div className="mt-8 lg:hidden">
+            <div className="om-auth-collage" aria-hidden="true">
+              <div className="om-auth-collage__main">
+                <img src={LOGIN_VISUALS[0]} alt="" loading="lazy" decoding="async" />
+              </div>
+              <div className="om-auth-collage__side">
+                <img src={LOGIN_VISUALS[1]} alt="" loading="lazy" decoding="async" />
+              </div>
+              <div className="om-auth-collage__side">
+                <img src={LOGIN_VISUALS[2]} alt="" loading="lazy" decoding="async" />
+              </div>
+            </div>
+            <div className="om-auth-story">
+              <p className="om-auth-story__title">{t('brand.ourMemories')}</p>
+              <p className="om-auth-story__text">
+                Premium memories, shared in seconds. Create events, upload your best shots, and let
+                guests open the gallery instantly — QR or invite link.
+              </p>
+            </div>
+          </div>
         </div>
+      </div>
     </PublicMemoriesShell>
   );
 };

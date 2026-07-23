@@ -13,7 +13,7 @@ import {
 } from './navConfig';
 import { getResolvedPortalRole, loadPortalGeneralSettings } from '../../utils/portalSettings';
 import { usePortalSettingsOptional } from '../../state/context/PortalSettingsContext';
-import { FaCog, FaCrown, FaSignOutAlt, FaHeart, FaImage, FaCamera} from 'react-icons/fa';
+import { FaCrown, FaSignOutAlt } from 'react-icons/fa';
 import { THEME } from '../../pages/photo-studio/studioDashboardTheme';
 
 function NavItem({
@@ -30,13 +30,17 @@ function NavItem({
       to={item.href}
       title={t(item.labelKey)}
       data-ai-action={`open-route-${item.href.replace(/[/?=&]/g, '-').replace(/^-+/, '')}`}
-      className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium
+      className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium
         transition-colors duration-150 select-none
-        ${isActive ? 'bg-[#EFF6FF] text-[#3B82F6] font-semibold' : 'text-slate-700 hover:bg-slate-50 hover:text-slate-800 dark:text-slate-300 dark:hover:bg-slate-800'}`}
+        ${
+          isActive
+            ? 'bg-[#eceae4] text-[#141210] font-semibold dark:bg-white/10 dark:text-[#fffcf8]'
+            : 'text-[#5c574f] hover:bg-[#f7f6f3] hover:text-[#141210] dark:text-[#a8a399] dark:hover:bg-white/5 dark:hover:text-[#fffcf8]'
+        }`}
     >
       <Icon
         className={`h-4 w-4 shrink-0 transition-colors duration-150
-        ${isActive ? 'text-[#3B82F6]' : 'text-slate-400 group-hover:text-slate-500'}`}
+        ${isActive ? 'text-[#1f3a34] dark:text-[#c5c0b6]' : 'text-[#8a847a] group-hover:text-[#5c574f]'}`}
       />
       <span className="truncate">{t(item.labelKey)}</span>
     </NavLink>
@@ -61,7 +65,7 @@ function NavGroups({
         if (!groupItems?.length) return null;
         return (
           <div key={label} className="mb-6 last:mb-0">
-            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em] text-[#8a847a] dark:text-[#78746c]">
               {label}
             </p>
             <div className="space-y-1">
@@ -100,7 +104,6 @@ function NavGroups({
 const Sidebar = () => {
   const { user, logout } = useAuth() as any;
   const location = useLocation();
-  const route = useNavigate();
   const { t } = useTranslation();
   const portalCtx = usePortalSettingsOptional();
 
@@ -132,48 +135,61 @@ const Sidebar = () => {
   return (
     <div className="hidden lg:block lg:fixed lg:inset-y-0 lg:z-50 w-[240px]">
       <div
-        className="h-full bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 overflow-y-auto
-        scrollbar-thin scrollbar-thumb-slate-100 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent transition-colors duration-200"
+        className="h-full overflow-y-auto border-r border-[rgba(20,18,16,0.1)] bg-[#fffcf8]
+        scrollbar-thin scrollbar-thumb-[#eceae4] scrollbar-track-transparent transition-colors duration-200
+        dark:border-white/10 dark:bg-[#1c1a18] dark:scrollbar-thumb-white/10"
       >
-        <div className="px-5 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3 flex-col">
-            {/* <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm shrink-0">
-              <FaImage className="h-6 w-6 text-blue-400" />
-            </div> */}
-                          <div className="hidden sm:flex items-end gap-2 opacity-90 select-none pointer-events-none">
-                <div className="relative">
-                  {/* Camera body */}
-                  <div className="w-20 h-14 rounded-xl shadow-xl flex items-center justify-center"
-                    style={{ background: THEME.glassBgLight, border: `1px solid ${THEME.border}`, boxShadow: THEME.shadowMedium }}>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center"
-                      style={{ border: '4px solid rgba(37 99 235 / 83%)' }}>
-                      <div className="w-4 h-4 rounded-full" style={{ background: 'rgba(37 99 235 / 83%)' }} />
-                    </div>
-                    <div className="absolute top-1.5 right-2 w-2 h-1.5 rounded-sm" style={{ background: 'rgba(37 99 235 / 83%)' }} />
+        <div className="border-b border-[rgba(20,18,16,0.1)] px-5 pb-4 pt-5 dark:border-white/10">
+          <div className="flex flex-col items-center gap-3">
+            <div className="hidden items-end gap-2 opacity-90 select-none pointer-events-none sm:flex">
+              <div className="relative">
+                <div
+                  className="flex h-14 w-20 items-center justify-center rounded-xl"
+                  style={{
+                    background: '#f7f6f3',
+                    border: '1px solid rgba(20,18,16,0.1)',
+                    boxShadow: '0 8px 24px rgba(20,18,16,0.06)',
+                  }}
+                >
+                  <div
+                    className="flex h-8 w-8 items-center justify-center rounded-full"
+                    style={{ border: '4px solid rgba(20, 18, 16, 0.75)' }}
+                  >
+                    <div className="h-4 w-4 rounded-full" style={{ background: 'rgba(20, 18, 16, 0.75)' }} />
                   </div>
-                  {/* Flash */}
-                  <div className="absolute -top-1.5 left-3 w-5 h-2 rounded-sm"
-                    style={{ background: '#EFF6FF', border: `1px solid ${THEME.borderLight}` }} />
+                  <div
+                    className="absolute right-2 top-1.5 h-1.5 w-2 rounded-sm"
+                    style={{ background: 'rgba(31, 58, 52, 0.85)' }}
+                  />
                 </div>
-                {/* Flower pot */}
-                <div className="flex flex-col items-center mb-1">
-                  <div className="text-lg">🌸</div>
-                  <div className="w-5 h-6 rounded-b-lg"
-                    style={{ background: `linear-gradient(135deg, ${THEME.primary} 0%, ${THEME.primaryLight} 100%)` }} />
-                </div>
+                <div
+                  className="absolute -top-1.5 left-3 h-2 w-5 rounded-sm"
+                  style={{ background: '#eceae4', border: '1px solid rgba(20,18,16,0.1)' }}
+                />
               </div>
-            <div>
-              {/* <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500 leading-none mb-0.5">
-              {portalName} Platform
-              </p> */}
-              <p className="text-[15px] font-bold text-slate-800 dark:text-slate-100 leading-tight">
+              <div className="mb-1 flex flex-col items-center">
+                <div className="text-lg">🌸</div>
+                <div
+                  className="h-6 w-5 rounded-b-lg"
+                  style={{ background: `linear-gradient(135deg, ${THEME.primary} 0%, ${THEME.primaryLight} 100%)` }}
+                />
+              </div>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8a847a] dark:text-[#78746c]">
+                Our Memories
+              </p>
+              <p
+                className="leading-tight text-[#141210] dark:text-[#fffcf8]"
+                style={{ fontFamily: '"Cormorant Garamond", Georgia, serif', fontSize: '1.25rem', fontWeight: 600 }}
+              >
                 {showAdminNav ? 'Admin Panel' : portalName}
               </p>
             </div>
           </div>
         </div>
 
-        <nav className="px-4 pt-5 pb-3">
+        <nav className="px-3 pb-3 pt-5">
           {showStudioNav && (
             <NavGroups groups={STUDIO_SIDEBAR_GROUPS} items={roleItems} location={location} />
           )}
@@ -196,9 +212,9 @@ const Sidebar = () => {
 
           {showAdminNav && (
             <div>
-              <div className="mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900">
-                <FaCrown className="h-3.5 w-3.5 text-purple-500 shrink-0" />
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-purple-600 dark:text-purple-400">
+              <div className="mb-2 flex items-center gap-2 rounded-xl border border-[rgba(20,18,16,0.1)] bg-[#eceae4] px-3 py-2 dark:border-white/10 dark:bg-white/5">
+                <FaCrown className="h-3.5 w-3.5 shrink-0 text-[#1f3a34] dark:text-[#c5c0b6]" />
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#5c574f] dark:text-[#a8a399]">
                   Admin Panel
                 </p>
               </div>
@@ -211,16 +227,17 @@ const Sidebar = () => {
           )}
         </nav>
 
-        <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-3 space-y-1">
+        <div className="border-t border-[rgba(20,18,16,0.1)] px-3 py-3 space-y-1 dark:border-white/10">
           {typeof logout === 'function' && (
             <button
               type="button"
               onClick={logout}
-              className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5
-                text-sm font-medium text-slate-500 dark:text-slate-400
-                hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-600 dark:hover:text-red-400 transition-colors duration-150"
+              className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5
+                text-sm font-medium text-[#5c574f] transition-colors duration-150
+                hover:bg-[#8a5a2b]/10 hover:text-[#141210]
+                dark:text-[#a8a399] dark:hover:bg-white/5 dark:hover:text-[#fffcf8]"
             >
-              <FaSignOutAlt className="h-4 w-4 shrink-0 text-slate-400 group-hover:text-red-500 dark:group-hover:text-red-400" />
+              <FaSignOutAlt className="h-4 w-4 shrink-0 text-[#8a847a]" />
               <span>{t('nav.regular.signOut')}</span>
             </button>
           )}

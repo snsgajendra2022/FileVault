@@ -1,12 +1,11 @@
 import {
   BookOpen,
+  Camera,
   Gift,
+  Heart,
   ImagePlus,
-  Palette,
   Share2,
-  Sparkles,
   Users,
-  Wand2,
 } from "lucide-react";
 import { appConfig } from "../data/config";
 import StoreButtons from "./StoreButtons";
@@ -38,9 +37,9 @@ const features = [
     text: "Guide users from landing page to your main memories app with a clear call-to-action.",
   },
   {
-    icon: Palette,
+    icon: Camera,
     title: "Clean Visual UI",
-    text: "Modern spacing, rounded cards, soft shadows, and a professional memory-book look.",
+    text: "Modern spacing, refined typography, and a professional memory-book look.",
   },
 ];
 
@@ -55,35 +54,47 @@ const audiences = [
 
 const steps = [
   "Land on the page and instantly see what Our Memories offers.",
-  "Tap Explore Our Memories to open the app.",
+  "Tap Open Our Memories to go to the login page.",
   "Create or browse digital albums, flipbooks, and guest books.",
   "Share the experience with family, clients, or friends.",
 ];
 
+const FEATURE_IMAGES = [
+  "/marketing/feat-1.jpg",
+  "/marketing/feat-2.jpg",
+  "/marketing/feat-3.jpg",
+];
+
 export function FeaturesSection() {
   return (
-    <section id="features" className="section-padding ps-section ps-section--white">
+    <section id="features" className="om-section">
       <div className="container-page">
-        <div className="ps-section-head">
-          <div className="ps-section-head__main">
-            <span className="section-label">Features</span>
-            <h2 className="ps-heading-lg">
-              A landing page that sells the experience, not only the app.
-            </h2>
-          </div>
-          <p className="ps-section-head__aside">
+        <div className="om-section__intro">
+          <p className="om-kicker">Features</p>
+          <h2 className="om-heading">
+            A landing page that sells the experience, not only the app.
+          </h2>
+          <p className="om-subcopy">
             Built to look trustworthy, modern, and clear before users open your main memories app.
           </p>
         </div>
 
-        <div className="ps-features-grid">
+        <div className="om-feature-showcase" aria-hidden="true">
+          {FEATURE_IMAGES.map((src) => (
+            <figure key={src} className="om-feature-showcase__frame">
+              <img src={src} alt="" loading="lazy" decoding="async" />
+            </figure>
+          ))}
+        </div>
+
+        <div className="om-feature-list">
           {features.map((feature) => (
-            <article key={feature.title} className="ps-feature-card">
-              <div className="ps-feature-card__icon">
-                <feature.icon size={22} />
+            <article key={feature.title} className="om-feature-item">
+              <feature.icon className="om-feature-item__icon" size={20} aria-hidden />
+              <div>
+                <h3 className="om-feature-item__title">{feature.title}</h3>
+                <p className="om-feature-item__text">{feature.text}</p>
               </div>
-              <h3 className="ps-feature-card__title">{feature.title}</h3>
-              <p className="ps-feature-card__text">{feature.text}</p>
             </article>
           ))}
         </div>
@@ -94,35 +105,37 @@ export function FeaturesSection() {
 
 export function HowItWorksSection() {
   return (
-    <section id="how" className="section-padding ps-how">
-      <div className="ps-how__glow" aria-hidden />
-      <div className="container-page ps-how__inner">
-        <div className="ps-how__steps-col">
-          <span className="ps-how__label">User journey</span>
-          <h2 className="ps-how__title">
+    <section id="how" className="om-section om-section--ink">
+      <div className="container-page om-journey">
+        <div className="om-journey__copy">
+          <p className="om-kicker om-kicker--light">User journey</p>
+          <h2 className="om-heading om-heading--light">
             From landing page to your memories in one tap.
           </h2>
 
-          <div className="ps-how__steps">
+          <ol className="om-steps">
             {steps.map((step, index) => (
-              <div key={step} className="ps-how__step">
-                <span className="ps-how__step-num">{index + 1}</span>
-                <p className="ps-how__step-text">{step}</p>
-              </div>
+              <li key={step} className="om-steps__item">
+                <span className="om-steps__num" aria-hidden>
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <p>{step}</p>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
 
-        <div className="ps-how__goal">
-          <Wand2 className="ps-how__goal-icon" size={32} />
-          <h3 className="ps-how__goal-title">Ready to begin?</h3>
-          <p className="ps-how__goal-text">
-            One clear button takes visitors straight into the Our Memories app — albums, flipbooks, and guest books in one place.
+        <aside className="om-journey__panel">
+          <p className="om-kicker om-kicker--light">Ready to begin?</p>
+          <h3 className="om-journey__panel-title">Open the app in one step</h3>
+          <p className="om-journey__panel-text">
+            One clear button takes visitors straight into the Our Memories app —
+            albums, flipbooks, and guest books in one place.
           </p>
-          <a href={appConfig.mainAppUrl} className="ps-how__cta">
+          <a href={appConfig.mainAppUrl} className="om-btn om-btn--light om-btn--block">
             {appConfig.ctaLabel}
           </a>
-        </div>
+        </aside>
       </div>
     </section>
   );
@@ -130,25 +143,23 @@ export function HowItWorksSection() {
 
 export function AudienceSection() {
   return (
-    <section id="users" className="section-padding ps-section ps-section--muted">
+    <section id="users" className="om-section">
       <div className="container-page">
-        <div className="ps-section-head__main mb-10">
-          <span className="section-label">Target users</span>
-          <h2 className="ps-heading-lg">
+        <div className="om-section__intro om-section__intro--narrow">
+          <p className="om-kicker">Target users</p>
+          <h2 className="om-heading">
             Designed for people who care about beautiful memories.
           </h2>
         </div>
 
-        <div className="ps-audience-grid">
+        <ul className="om-audience">
           {audiences.map((item) => (
-            <div key={item} className="ps-audience-card">
-              <div className="ps-audience-card__icon">
-                <Sparkles size={20} />
-              </div>
-              <p className="ps-audience-card__label">{item}</p>
-            </div>
+            <li key={item} className="om-audience__item">
+              <Heart size={16} aria-hidden />
+              <span>{item}</span>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </section>
   );
@@ -156,20 +167,19 @@ export function AudienceSection() {
 
 export function CtaSection() {
   return (
-    <section className="bg-slate-50 py-14 md:py-16">
-      <div className="container-page overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-blue-600 to-sky-500 px-6 py-12 text-center text-white shadow-xl shadow-blue-600/20 md:px-10 md:py-14">
-        <Sparkles className="mx-auto mb-4" size={36} />
-        <h2 className="mx-auto max-w-3xl text-2xl font-bold leading-tight tracking-tight md:text-4xl">
+    <section className="om-section om-cta">
+      <div className="container-page om-cta__inner">
+        <h2 className="om-heading">
           Make users feel your app is premium before they even open it.
         </h2>
-        <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-white/90">
+        <p className="om-subcopy">
           Use this landing page as the public front page, then send users directly to your memories app.
         </p>
-        <div className="mt-7">
+        <div className="om-cta__actions">
           <StoreButtons
             center
             mainLabel={appConfig.ctaLabelHero}
-            mainClassName="ps-cta-btn-light"
+            mainClassName="om-btn om-btn--dark"
           />
         </div>
       </div>

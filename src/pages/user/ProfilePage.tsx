@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import api from '../../api/client/axiosInstance';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { FaUser, FaEnvelope, FaPhone, FaLock, FaSave } from 'react-icons/fa';
-import DashboardLoading from '../../components/common/DashboardLoading';
-import { ProfileFormSkeleton } from '../../components/common/skeletons';
-import { useNavigate } from 'react-router-dom';
+import api from '../../api/client/axiosInstance';
+import './ProfilePage.css';
 
 interface ProfileData {
   id: number;
@@ -41,13 +40,12 @@ const ProfilePage = () => {
     phone: '',
   });
 
-  // Fetch profile data from API
   const { data: profileData, isLoading: profileLoading } = useQuery({
     queryKey: ['profile'],
     queryFn: async () => {
       const response = await api.get('/api/auth/profile');
       return response.data as ProfileData;
-    }
+    },
   });
 
   useEffect(() => {
@@ -73,334 +71,174 @@ const ProfilePage = () => {
     },
     onError: () => {
       toast.error(t('profile.updateFailed'));
-    }
+    },
   });
 
   const handleSubmit = (e?: React.FormEvent) => {
-    if (e) {
-      e.preventDefault();
-    }
+    if (e) e.preventDefault();
     updateProfileMutation.mutate(formData);
   };
 
   const handleCancel = () => {
-    if (profileData) {
-      setFormData({
-        firstName: profileData.firstName || '',
-        lastName: profileData.lastName || '',
-        email: profileData.email || '',
-        phone: profileData.phone || '',
-      });
-    }
+    if (!profileData) return;
+    setFormData({
+      firstName: profileData.firstName || '',
+      lastName: profileData.lastName || '',
+      email: profileData.email || '',
+      phone: profileData.phone || '',
+    });
   };
 
   if (profileLoading) {
     return (
-      <div className="space-y-8">
-        <div className="text-center mb-10">
-          <div className="h-12 w-64 mx-auto rounded-xl bg-slate-200 animate-pulse mb-4" />
-          <div className="h-5 w-96 mx-auto rounded-lg bg-slate-100 animate-pulse" />
-        </div>
-        <ProfileFormSkeleton />
+      <div className="profile-page" aria-busy="true" aria-label="Loading profile">
+        <div className="profile-page__skel-title" />
+        <div className="profile-page__skel-sub" />
+        <div className="profile-page__skel-card" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="text-center mb-10">
-        <h1 className="text-5xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-4">
-          {t('profile.title')}
-        </h1>
-        <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          {t('profile.subtitle')}
-        </p>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'end', alignItems: 'center', gap: '10px' }}>
-        <div className="flex justify-center ">
-          <button
-            type="button"
-            onClick={() => navigate('/change-password')}
-            className="bg-gradient-to-r from-red-600 to-pink-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-red-700 hover:to-pink-700 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
-          >
-            <FaLock className="h-5 w-5" />
-            <span>{t('profile.changePassword')}</span>
-          </button>
+    <div className="profile-page">
+      <header className="profile-page__header">
+        <div>
+          <p className="profile-page__eyebrow">Account</p>
+          <h1 className="profile-page__title">{t('profile.title')}</h1>
+          <p className="profile-page__subtitle">{t('profile.subtitle')}</p>
         </div>
-      </div>
-      {/* Profile Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
-        {/* <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-2xl p-8 border border-blue-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm font-medium mb-2">Account Type</p>
-              <p className="text-3xl font-bold text-gray-800">{profileData?.accountType || 'N/A'}</p>
-            </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-              <FaUser className="h-6 w-6 text-white" />
-            </div>
-          </div>
-        </div> */}
+        <button
+          type="button"
+          className="profile-page__btn profile-page__btn--danger"
+          onClick={() => navigate('/change-password')}
+        >
+          <FaLock aria-hidden />
+          <span>{t('profile.changePassword')}</span>
+        </button>
+      </header>
 
-        {/* <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/30 rounded-2xl p-8 border border-green-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm font-medium mb-2">Account Status</p>
-              <p className="text-3xl font-bold text-gray-800">{profileData?.status || 'N/A'}</p>
-            </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
-              <FaShieldAlt className="h-6 w-6 text-white" />
-            </div>
+      <section className="profile-page__card" aria-labelledby="personal-info-heading">
+        <div className="profile-page__card-head">
+          <div className="profile-page__card-icon" aria-hidden>
+            <FaUser />
           </div>
-        </div> */}
-
-        {/* <div className="bg-gradient-to-br from-white via-yellow-50/30 to-orange-50/30 rounded-2xl p-8 border border-yellow-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm font-medium mb-2">Storage Quota</p>
-              <p className="text-3xl font-bold text-gray-800">{profileData ? `${Math.round(profileData.storageQuotaMB / 1024)}GB` : 'N/A'}</p>
-            </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
-              <FaUpload className="h-6 w-6 text-white" />
-            </div>
+          <div>
+            <h2 id="personal-info-heading" className="profile-page__card-title">
+              {t('profile.personalInfo')}
+            </h2>
+            <p className="profile-page__card-desc">
+              Update your name, email, and phone number.
+            </p>
           </div>
-        </div> */}
-
-        {/* <div className="bg-gradient-to-br from-white via-purple-50/30 to-pink-50/30 rounded-2xl p-8 border border-purple-100/50 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm font-medium mb-2">Max File Size</p>
-              <p className="text-3xl font-bold text-gray-800">{profileData ? `${Math.round(profileData.maxFileSizeMB / 1024)}GB` : 'N/A'}</p>
-            </div>
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
-              <FaEdit className="h-6 w-6 text-white" />
-            </div>
-          </div>
-        </div> */}
-      </div>
-
-      {/* Edit Button */}
-
-      {/* Security Actions */}
-      {/* Personal Information */}
-      <div className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 rounded-3xl shadow-2xl border border-blue-100/50 p-8">
-        <div className="flex items-center space-x-4 mb-8">
-          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <FaUser className="h-6 w-6 text-white" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800">{t('profile.personalInfo')}</h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-blue-100/50">
-              <label className="block text-base font-semibold text-gray-800 mb-3">{t('profile.firstName')}</label>
+        <form onSubmit={handleSubmit}>
+          <div className="profile-page__grid">
+            <div className="profile-page__field">
+              <label className="profile-page__label" htmlFor="profile-first-name">
+                {t('profile.firstName')}
+              </label>
               <input
+                id="profile-first-name"
                 type="text"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
+                className="profile-page__input"
+                autoComplete="given-name"
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
               />
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-blue-100/50">
-              <label className="block text-base font-semibold text-gray-800 mb-3">{t('profile.lastName')}</label>
+
+            <div className="profile-page__field">
+              <label className="profile-page__label" htmlFor="profile-last-name">
+                {t('profile.lastName')}
+              </label>
               <input
+                id="profile-last-name"
                 type="text"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
+                className="profile-page__input"
+                autoComplete="family-name"
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-blue-100/50">
-              <label className="block text-base font-semibold text-gray-800 mb-3 flex items-center">
-                <FaEnvelope className="h-4 w-4 mr-2 text-indigo-600" />
+            <div className="profile-page__field">
+              <label className="profile-page__label" htmlFor="profile-email">
+                <FaEnvelope aria-hidden />
                 {t('profile.email')}
               </label>
               <input
+                id="profile-email"
                 type="email"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
+                className="profile-page__input"
+                autoComplete="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-blue-100/50">
-              <label className="block text-base font-semibold text-gray-800 mb-3 flex items-center">
-                <FaPhone className="h-4 w-4 mr-2 text-indigo-600" />
+
+            <div className="profile-page__field">
+              <label className="profile-page__label" htmlFor="profile-phone">
+                <FaPhone aria-hidden />
                 {t('profile.phone')}
               </label>
               <input
+                id="profile-phone"
                 type="tel"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
+                className="profile-page__input"
+                autoComplete="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
             </div>
           </div>
+
+          {(profileData?.username || profileData?.accountType || profileData?.status) && (
+            <div className="profile-page__meta" aria-label="Account details">
+              {profileData.username ? (
+                <div className="profile-page__meta-item">
+                  <p className="profile-page__meta-label">Username</p>
+                  <p className="profile-page__meta-value">{profileData.username}</p>
+                </div>
+              ) : null}
+              {profileData.accountType ? (
+                <div className="profile-page__meta-item">
+                  <p className="profile-page__meta-label">Account type</p>
+                  <p className="profile-page__meta-value">{profileData.accountType}</p>
+                </div>
+              ) : null}
+              {profileData.status ? (
+                <div className="profile-page__meta-item">
+                  <p className="profile-page__meta-label">Status</p>
+                  <p className="profile-page__meta-value">{profileData.status}</p>
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          <div className="profile-page__actions">
+            <button
+              type="button"
+              className="profile-page__btn profile-page__btn--ghost"
+              onClick={handleCancel}
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="submit"
+              className="profile-page__btn profile-page__btn--primary"
+              disabled={updateProfileMutation.isPending}
+            >
+              <FaSave aria-hidden />
+              <span>
+                {updateProfileMutation.isPending
+                  ? t('common.saving')
+                  : t('profile.saveChanges')}
+              </span>
+            </button>
+          </div>
         </form>
-      </div>
-
-      {/* Professional Information */}
-      {/* <div className="bg-gradient-to-br from-white via-green-50/30 to-emerald-50/30 rounded-3xl shadow-2xl border border-green-100/50 p-8">
-        <div className="flex items-center space-x-4 mb-8">
-          <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <FaBuilding className="h-6 w-6 text-white" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800">Professional Information</h2>
-        </div>
-
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-green-100/50">
-              <label className="block text-base font-semibold text-gray-800 mb-3 flex items-center">
-                <FaBuilding className="h-4 w-4 mr-2 text-green-600" />
-                Company
-              </label>
-              <input
-                type="text"
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-50 text-base"
-                value={formData.company}
-                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-              />
-            </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-green-100/50">
-              <label className="block text-base font-semibold text-gray-800 mb-3">Role</label>
-              <input
-                type="text"
-                disabled
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-50 text-base"
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-              />
-            </div>
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-green-100/50">
-              <label className="block text-base font-semibold text-gray-800 mb-3">Department</label>
-              <input
-                type="text"
-                disabled={!isEditing}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-50 text-base"
-                value={formData.department}
-                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-              />
-            </div>
-          </div>
-        </div>
-      </div> */}
-
-
-      {/* Account Information */}
-      {/* <div className="bg-gradient-to-br from-white via-yellow-50/30 to-orange-50/30 rounded-3xl shadow-2xl border border-yellow-100/50 p-8">
-        <div className="flex items-center space-x-4 mb-8">
-          <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <FaShieldAlt className="h-6 w-6 text-white" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800">Account Information</h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-yellow-100/50">
-            <label className="block text-base font-semibold text-gray-800 mb-3">Username</label>
-            <input
-              type="text"
-              disabled
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-base"
-              value={profileData?.username || ''}
-            />
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-yellow-100/50">
-            <label className="block text-base font-semibold text-gray-800 mb-3">Account Type</label>
-            <input
-              type="text"
-              disabled
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-base"
-              value={profileData?.accountType || ''}
-            />
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-yellow-100/50">
-            <label className="block text-base font-semibold text-gray-800 mb-3">Status</label>
-            <input
-              type="text"
-              disabled
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-base"
-              value={profileData?.status || ''}
-            />
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-yellow-100/50">
-            <label className="block text-base font-semibold text-gray-800 mb-3">Member Since</label>
-            <input
-              type="text"
-              disabled
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-base"
-              value={profileData?.createdAt ? new Date(profileData.createdAt).toLocaleDateString() : ''}
-            />
-          </div>
-        </div>
-      </div> */}
-
-      {/* Storage & Security Settings */}
-      {/* <div className="bg-gradient-to-br from-white via-indigo-50/30 to-blue-50/30 rounded-3xl shadow-2xl border border-indigo-100/50 p-8">
-        <div className="flex items-center space-x-4 mb-8">
-          <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <FaUpload className="h-6 w-6 text-white" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800">Storage & Security Settings</h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-indigo-100/50">
-            <label className="block text-base font-semibold text-gray-800 mb-3">Allowed File Types</label>
-            <input
-              type="text"
-              disabled
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-base"
-              value={profileData?.allowedFileTypes || 'N/A'}
-            />
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-indigo-100/50">
-            <label className="block text-base font-semibold text-gray-800 mb-3">Two-Factor Auth</label>
-            <input
-              type="text"
-              disabled
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-base"
-              value={profileData?.twoFactorEnabled ? 'Enabled' : 'Disabled'}
-            />
-          </div>
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 border border-indigo-100/50">
-            <label className="block text-base font-semibold text-gray-800 mb-3">Last Login</label>
-            <input
-              type="text"
-              disabled
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-base"
-              value={profileData?.lastLoginAt ? new Date(profileData.lastLoginAt).toLocaleString() : 'N/A'}
-            />
-          </div>
-        </div>
-      </div> */}
-
-      {/* Action Buttons */}
-      <div className="flex justify-center space-x-6">
-        <button
-          type="button"
-          onClick={handleCancel}
-          className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 px-8 py-4 rounded-xl font-semibold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 shadow-lg transform hover:scale-105"
-        >
-          {t('common.cancel')}
-        </button>
-        <button
-          type="submit"
-          onClick={handleSubmit}
-          disabled={updateProfileMutation.isPending}
-          className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 transition-all duration-300 shadow-lg transform hover:scale-105 flex items-center space-x-3"
-        >
-          <FaSave className="h-5 w-5" />
-          <span>{updateProfileMutation.isPending ? t('common.saving') : t('profile.saveChanges')}</span>
-        </button>
-      </div>
-
+      </section>
     </div>
   );
 };

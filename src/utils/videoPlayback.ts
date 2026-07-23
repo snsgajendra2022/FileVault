@@ -59,8 +59,9 @@ export function resolveVideoPlayback(item: object): VideoPlaybackSource {
     (typeof d.previewUrl === 'string' ? d.previewUrl : undefined) ||
     (typeof d.downloadUrl === 'string' ? d.downloadUrl : undefined);
   const posterUrl =
-    (typeof d.thumbnailUrl === 'string' ? d.thumbnailUrl : undefined) ||
-    previewUrl;
+    (typeof d.thumbnailUrl === 'string' && !isHlsStreamUrl(d.thumbnailUrl)
+      ? d.thumbnailUrl
+      : undefined) || undefined;
   const shareToken = typeof d.shareToken === 'string' ? d.shareToken : undefined;
   const statusPollUrl =
     typeof d.statusPollUrl === 'string' ? d.statusPollUrl : undefined;

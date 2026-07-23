@@ -1,6 +1,5 @@
-/** Backend variant payload from GET /api/images/user/all */
-
 import type { ProgressiveFinalTarget, ProgressiveStrategy } from './progressiveImageConfig';
+import { isHlsStreamUrl, isVideoMediaItem } from './videoPlayback';
 
 export type VariantStatus = 'processing' | 'partial' | 'ready';
 
@@ -34,6 +33,7 @@ export interface UserImageWithVariants {
   enabledServices?: { [key: string]: string };
   uploadTime: string;
   fileType: string;
+  mediaType?: string;
   variants?: ImageVariants;
 }
 
@@ -41,9 +41,25 @@ export { getConnectionHint, getSaveData } from './progressiveImageConfig';
 
 const TIER_KEY_PATTERN = /^s(\d+)$/i;
 
+function isVideoDisplayItem(image: UserImageWithVariants): boolean {
+  return isVideoMediaItem(image) || isHlsStreamUrl(image.previewUrl) || isHlsStreamUrl(image.downloadUrl);
+}
+
+function stillImageUrl(url?: string | null): string {
+  if (!url || isHlsStreamUrl(url)) return '';
+  return url;
+}
+
 /** Gallery card: smallest/fastest src only (no variant ladder). */
 export function getThumbnailSrc(image: UserImageWithVariants): string {
   const v = image.variants;
+  if (isVideoDisplayItem(image)) {
+    const videoThumb =
+      stillImageUrl(image.thumbnailUrl) ||
+      stillImageUrl(v?.thumbnailUrl) ||
+      stillImageUrl(v?.previewFallbackUrl);
+    if (videoThumb) return videoThumb;
+  }
   if (v?.thumbnailUrl) return v.thumbnailUrl;
   if (image.thumbnailUrl) return image.thumbnailUrl;
   const thumbKey = v?.thumbnailVariant;
@@ -53,7 +69,7 @@ export function getThumbnailSrc(image: UserImageWithVariants): string {
   const ordered = getOrderedVariantUrls(image);
   if (ordered.length > 0) return ordered[0];
   if (v?.recommendedUrl) return v.recommendedUrl;
-  return image.previewUrl || '';
+  return stillImageUrl(image.previewUrl) || '';
 }
 
 /** Single tier URL when marked available (e.g. s01). */
@@ -64,10 +80,14 @@ export function getTierSrc(image: UserImageWithVariants, tierKey: string): strin
 }
 
 /**
- * Gallery grid display — prefer s01 variant, never thumbnail endpoints.
- * Use while variants are still processing via preview / auto URLs.
+ * Gallery grid display — prefer s01 variant for photos.
+ * For videos, always use thumbnailUrl (never HLS m3u8 as an <img> src).
  */
 export function getGalleryDisplaySrc(image: UserImageWithVariants): string {
+  if (isVideoDisplayItem(image)) {
+    return getThumbnailSrc(image);
+  }
+
   const s01 = getTierSrc(image, 's01');
   if (s01) return s01;
 
@@ -78,12 +98,26 @@ export function getGalleryDisplaySrc(image: UserImageWithVariants): string {
   if (v?.autoUrl) return v.autoUrl;
   if (v?.recommendedUrl) return v.recommendedUrl;
   if (v?.previewFallbackUrl) return v.previewFallbackUrl;
-  if (image.previewUrl) return image.previewUrl;
-  return '';
+  return stillImageUrl(image.previewUrl) || stillImageUrl(image.thumbnailUrl) || '';
 }
 
-/** Ordered gallery candidates (no thumbnail); used for img onError fallbacks. */
+/** Ordered gallery candidates (no thumbnail for photos); used for img onError fallbacks. */
 export function getGalleryDisplayCandidates(image: UserImageWithVariants): string[] {
+  if (isVideoDisplayItem(image)) {
+    const urls: string[] = [];
+    const seen = new Set<string>();
+    const push = (url?: string | null) => {
+      const still = stillImageUrl(url);
+      if (!still || seen.has(still)) return;
+      seen.add(still);
+      urls.push(still);
+    };
+    push(image.thumbnailUrl);
+    push(image.variants?.thumbnailUrl);
+    push(image.variants?.previewFallbackUrl);
+    return urls;
+  }
+
   const urls: string[] = [];
   const seen = new Set<string>();
   const push = (url?: string | null) => {
@@ -99,8 +133,8 @@ export function getGalleryDisplayCandidates(image: UserImageWithVariants): strin
   push(v?.autoUrl);
   push(v?.recommendedUrl);
   push(v?.previewFallbackUrl);
-  push(image.previewUrl);
-  push(image.downloadUrl);
+  push(stillImageUrl(image.previewUrl));
+  push(stillImageUrl(image.downloadUrl));
 
   return urls;
 }
