@@ -255,7 +255,7 @@ const Lightbox: React.FC<LightboxProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] bg-black/95 flex flex-col"
+      className="fixed inset-0 z-[10050] bg-black/95 flex flex-col"
       role="dialog"
       aria-modal="true"
       aria-label="Image viewer"

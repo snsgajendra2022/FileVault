@@ -53,7 +53,7 @@ const Header = ({ setSidebarOpen }: HeaderProps) => {
   const initials = user?.firstName?.charAt(0) || user?.username?.charAt(0) || 'U';
 
   return (
-    <header className="sticky top-0 z-[9999] overflow-visible border-b border-[rgba(20,18,16,0.1)] bg-[#fffcf8]/95 dark:border-white/10 dark:bg-[#1c1a18]/95 backdrop-blur-sm transition-colors duration-200">
+    <header className="sticky top-0 z-40 overflow-visible border-b border-[rgba(20,18,16,0.1)] bg-[#fffcf8]/95 dark:border-white/10 dark:bg-[#1c1a18]/95 backdrop-blur-sm transition-colors duration-200">
       <div className="mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center">
           <button

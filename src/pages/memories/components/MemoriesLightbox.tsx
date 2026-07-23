@@ -116,7 +116,7 @@ export const MemoriesLightbox: React.FC<Props> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 text-white">
+    <div className="fixed inset-0 z-[10050] flex flex-col bg-black/90 text-white">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-24 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-violet-600/18 blur-[120px]" />
         <div className="absolute -bottom-28 right-[-120px] h-[520px] w-[520px] rounded-full bg-fuchsia-500/14 blur-[140px]" />

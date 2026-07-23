@@ -1695,7 +1695,7 @@ const PublicCheckoutPage: React.FC = () => {
         {/* Full-screen image view modal */}
         {fullscreenImage && (
           <div
-            className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[10050] bg-black/95 flex items-center justify-center p-4"
             onClick={closeFullscreenImage}
             role="dialog"
             aria-modal="true"

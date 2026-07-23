@@ -96,7 +96,7 @@ export function MemoriesLightbox({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/90 text-white">
+    <div className="fixed inset-0 z-[10050] bg-black/90 text-white">
       <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent p-4">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">

@@ -33,13 +33,14 @@ import ProgressiveImage from '../../components/photo-studio/ProgressiveImage';
 import AlbumGalleryThumb from '../../components/photo-studio/AlbumGalleryThumb';
 import { getImagePreloadManager } from '../../utils/imagePreloader/ImagePreloadManager';
 import {
+  ensureVideoThumbnailAuth,
   getAlbumThumbnailUrl,
   toProgressiveImage,
 } from '../../utils/albumImageVariants';
 import type { ImageVariants } from '../../utils/progressiveImageVariants';
 import { getConnectionHint, getSaveData } from '../../utils/progressiveImageConfig';
 import HlsVideoPlayer from '../../components/video/HlsVideoPlayer';
-import { resolveVideoPlayback } from '../../utils/videoPlayback';
+import { isHlsStreamUrl, isVideoMediaItem, resolveVideoPlayback } from '../../utils/videoPlayback';
 import './photoStudioAlbumTheme.css';
 
 interface Album {
@@ -113,7 +114,17 @@ function getFileTypeFromAlbumImage(image: AlbumImage): string {
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp']);
 const VIDEO_EXTENSIONS = new Set(['mov', 'mp4', 'avi', 'mkv', 'webm', 'm4v']);
 
+function isAlbumVideoType(image: AlbumImage): boolean {
+  if (isVideoMediaItem(image)) return true;
+  const fileType = getFileTypeFromAlbumImage(image);
+  if (VIDEO_EXTENSIONS.has(fileType.toLowerCase())) return true;
+  const filename = image.originalFilename || image.filename || '';
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  return VIDEO_EXTENSIONS.has(ext);
+}
+
 function isAlbumImageType(image: AlbumImage): boolean {
+  if (isAlbumVideoType(image)) return false;
   const fileType = getFileTypeFromAlbumImage(image);
   if (IMAGE_EXTENSIONS.has(fileType.toLowerCase())) return true;
   const filename = image.originalFilename || image.filename || '';
@@ -121,12 +132,30 @@ function isAlbumImageType(image: AlbumImage): boolean {
   return IMAGE_EXTENSIONS.has(ext);
 }
 
-function isAlbumVideoType(image: AlbumImage): boolean {
-  const fileType = getFileTypeFromAlbumImage(image);
-  if (VIDEO_EXTENSIONS.has(fileType.toLowerCase())) return true;
-  const filename = image.originalFilename || image.filename || '';
-  const ext = filename.split('.').pop()?.toLowerCase() || '';
-  return VIDEO_EXTENSIONS.has(ext);
+/** Still-image URL for album grid cells — prefer thumbnailUrl, never HLS. */
+function getAlbumGridThumbUrl(image: AlbumImage): string | null {
+  return getAlbumThumbnailUrl(image, getFileTypeFromAlbumImage(image));
+}
+
+/**
+ * Video poster for album grid — always a still image URL.
+ * Builds /api/videos/{id}/thumbnail?token= when API omits thumbnailUrl.
+ */
+function getAlbumVideoPosterUrl(image: AlbumImage): string | null {
+  const fromThumb = getAlbumGridThumbUrl(image);
+  if (fromThumb && !isHlsStreamUrl(fromThumb)) return fromThumb;
+
+  const direct = ensureVideoThumbnailAuth(image.thumbnailUrl);
+  if (direct) return direct;
+
+  const videoId = image.videoId != null ? Number(image.videoId) : NaN;
+  if (!Number.isFinite(videoId)) return null;
+
+  const apiBase = (process.env.REACT_APP_API_URL || '').replace(/\/$/, '');
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') || '' : '';
+  let url = `${apiBase}/api/videos/${videoId}/thumbnail`;
+  if (token) url += `?token=${encodeURIComponent(token)}`;
+  return url;
 }
 
 function filterAlbumImagesOnly(images: AlbumImage[]): AlbumImage[] {
@@ -1319,18 +1348,21 @@ const PhotoStudioAlbum: React.FC = () => {
 
   const apiBaseUrl = (process.env.REACT_APP_API_URL || '').replace(/\/$/, '');
 
-  // Cover image: photo thumbnail only (never video)
+  // Cover image: prefer API cover thumbnail (still), else first photo — never HLS
   const getCoverImageUrl = useCallback((album: Album): string | null => {
+    if (album.coverImageUrl && !isHlsStreamUrl(album.coverImageUrl)) {
+      if (!coverImageErrors.has(album.id)) return album.coverImageUrl;
+    }
+
     const images = albumImages.get(album.id) || extractAlbumImages(album);
     const coverPhoto = pickAlbumCoverImage(images, album);
 
     if (coverPhoto) {
-      const thumb =
-        getAlbumThumbnailUrl(coverPhoto, getFileTypeFromAlbumImage(coverPhoto)) ||
-        getThumbnailUrl(coverPhoto);
+      const thumb = getAlbumGridThumbUrl(coverPhoto);
       if (thumb) return thumb;
       if (!coverImageErrors.has(album.id)) {
-        return getImageUrl(coverPhoto);
+        const url = getImageUrl(coverPhoto);
+        if (url && !isHlsStreamUrl(url)) return url;
       }
     }
 
@@ -2625,27 +2657,28 @@ const PhotoStudioAlbum: React.FC = () => {
                               {group.items.map((image) => {
                                 const fileType = getFileTypeFromAlbumImage(image);
                                 const filename = getImageFilename(image);
-                                const thumbUrl =
-                                  getAlbumThumbnailUrl(image, fileType) ||
-                                  getThumbnailUrl(image) ||
-                                  image.thumbnailUrl ||
-                                  image.previewUrl ||
-                                  null;
                                 const isPhoto = isAlbumImageType(image);
                                 const isVideo = isAlbumVideoType(image);
-                                const canOpenPhoto = isPhoto && !!(thumbUrl || image.previewUrl || image.downloadUrl);
+                                const thumbUrl = isVideo
+                                  ? getAlbumVideoPosterUrl(image)
+                                  : getAlbumGridThumbUrl(image);
+                                const canOpenPhoto = isPhoto && !!(thumbUrl || (image.previewUrl && !isHlsStreamUrl(image.previewUrl)) || image.downloadUrl);
                                 const canOpenVideo =
                                   isVideo &&
                                   !!(
                                     image.streamUrl ||
                                     image.mediaType === 'VIDEO' ||
-                                    image.previewUrl ||
+                                    image.videoId ||
+                                    (image.previewUrl && isHlsStreamUrl(image.previewUrl)) ||
                                     image.downloadUrl ||
                                     getImageUrl(image)
                                   );
                                 const isPhotoSelected = selectedPhotoIds.has(image.id);
                                 const isShared = sharedImageIds.has(image.id);
-                                const downloadUrl = image.downloadUrl || image.previewUrl || getImageUrl(image);
+                                const downloadUrl =
+                                  (image.downloadUrl && !isHlsStreamUrl(image.downloadUrl) ? image.downloadUrl : null) ||
+                                  (image.previewUrl && !isHlsStreamUrl(image.previewUrl) ? image.previewUrl : null) ||
+                                  getImageUrl(image);
                                 return (
                                   <div
                                     key={image.id}
@@ -2698,20 +2731,26 @@ const PhotoStudioAlbum: React.FC = () => {
                                         }
                                       }}
                                     >
-                                      {isPhoto && thumbUrl ? (
+                                      {isVideo ? (
+                                        thumbUrl ? (
+                                          <img
+                                            src={thumbUrl}
+                                            alt={filename}
+                                            loading="lazy"
+                                            decoding="async"
+                                            className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                          />
+                                        ) : (
+                                          <div className="absolute inset-0 flex items-center justify-center bg-gray-200 text-gray-500 text-xs">
+                                            VIDEO
+                                          </div>
+                                        )
+                                      ) : thumbUrl ? (
                                         <AlbumGalleryThumb
                                           image={image}
                                           fileType={fileType}
                                           alt={filename}
                                           eager={(viewingAlbumThumbEagerIndex.get(image.id) ?? 99) < 30}
-                                        />
-                                      ) : thumbUrl ? (
-                                        <img
-                                          src={thumbUrl}
-                                          alt={filename}
-                                          loading="lazy"
-                                          decoding="async"
-                                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                                         />
                                       ) : (
                                         <div className="flex items-center justify-center h-full text-gray-500 text-xs">
@@ -3548,7 +3587,7 @@ const PhotoStudioAlbum: React.FC = () => {
       {/* Full Screen Image Viewer — powered by ImagePreloadManager */}
       {viewingVideo && (
         <div
-          className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/90 p-4"
+          className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/90 p-4"
           role="dialog"
           aria-modal="true"
           onClick={() => setViewingVideo(null)}

@@ -304,7 +304,8 @@ export function canStartVariantLadder(image: UserImageWithVariants): boolean {
 }
 
 export function fallbackStaticSrc(image: UserImageWithVariants): string {
-  return getGalleryDisplaySrc(image) || image.previewUrl || '';
+  // Never fall back to HLS m3u8 — browsers cannot render it in <img>
+  return getGalleryDisplaySrc(image) || stillImageUrl(image.previewUrl) || stillImageUrl(image.thumbnailUrl) || '';
 }
 
 export function imageVariantsNeedPolling(image: UserImageWithVariants): boolean {

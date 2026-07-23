@@ -795,7 +795,7 @@ const PublicImagesDisplayPage: React.FC = () => {
         {/* Image Slider / Lightbox */}
         {fullscreenImage && (
           <div
-            className="fixed inset-0 z-[100] bg-black/95 flex flex-col"
+            className="fixed inset-0 z-[10050] bg-black/95 flex flex-col"
             role="dialog"
             aria-modal="true"
           >
