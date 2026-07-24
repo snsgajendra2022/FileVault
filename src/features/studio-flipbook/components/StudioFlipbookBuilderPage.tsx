@@ -18,7 +18,14 @@ import FlipbookElementContextMenu, {
 import { getConnectionHint, getSaveData } from '../../../utils/progressiveImageConfig';
 import type { UserImageWithVariants } from '../../../utils/progressiveImageVariants';
 import { isHlsStreamUrl, isVideoMediaItem } from '../../../utils/videoPlayback';
-import { previewGenerateFromAlbumImages } from '../api/flipbookService';
+import {
+  createFlipbookFromAlbum,
+  dtoToGeneratedPages,
+  getFlipbook,
+  listFlipbooksByAlbum,
+  previewGenerateFromAlbumImages,
+  saveFlipbookAll,
+} from '../api/flipbookService';
 import { exportPagesToPdf } from '../utils/pdfExport';
 import { loadFlipbookFromStorage, saveFlipbookToStorage } from '../utils/localFlipbookStorage';
 import { autoFillPageText, createFreeTextElement, resolveAutoTextContent, type TextContext } from '../utils/pageTextDefaults';
@@ -224,6 +231,7 @@ const StudioFlipbookBuilderPage: React.FC = () => {
   const [saving, setSaving] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [flipbookId, setFlipbookId] = React.useState<number | null>(null);
   const [albumTitle, setAlbumTitle] = React.useState('');
   const [pages, setPages] = React.useState<GeneratedPage[]>([]);
   const [currentPage, setCurrentPage] = React.useState(0);
@@ -242,7 +250,7 @@ const StudioFlipbookBuilderPage: React.FC = () => {
   const [contextMenu, setContextMenu] = React.useState<{ x: number; y: number; elIdx: number } | null>(null);
   const clipboardRef = React.useRef<GeneratedPageElement | null>(null);
 
-  /* ── load ── */
+  /* ── load album + flipbook from API (localStorage as offline cache only) ── */
   const loadAlbumAndFlipbook = React.useCallback(async () => {
     if (!Number.isFinite(albumId) || albumId <= 0) { setError('Invalid album'); setLoading(false); return; }
     setLoading(true); setError(null);
@@ -259,7 +267,8 @@ const StudioFlipbookBuilderPage: React.FC = () => {
         }),
       ]);
       const album = albumRes.data;
-      setAlbumTitle(album?.name ?? 'Album');
+      const titleFromAlbum = album?.name ?? 'Album';
+      setAlbumTitle(titleFromAlbum);
       const raw = imagesRes.data?.images ?? imagesRes.data?.content ?? (Array.isArray(imagesRes.data) ? imagesRes.data : []);
       const imgs = (Array.isArray(raw) ? raw : []).map((img: Record<string, unknown>) => mapAlbumImage(img));
       const urlMap: Record<number, string> = {};
@@ -273,23 +282,54 @@ const StudioFlipbookBuilderPage: React.FC = () => {
       setThumbUrlById(thumbMap);
       setAlbumImages(imgs);
 
-      const stored = loadFlipbookFromStorage(albumId);
-      if (stored) {
-        setEventType(stored.eventType);
-        setTheme(stored.theme);
-        setPages(stored.pages);
-        setAlbumTitle(stored.title || (album?.name ?? 'Album'));
-      } else {
-        const draft = previewGenerateFromAlbumImages(albumId, album?.name ?? 'Studio Album', 'wedding', imgs.map(i => ({
-          id: Number(i.id),
-          imageUrl: canvasImageUrl(i),
-          thumbnailUrl: thumbImageUrl(i),
-          width: undefined,
-          height: undefined,
-        })));
-        setPages(draft.pages);
-        setEventType(draft.eventType);
-        setTheme(draft.theme);
+      const imageMetas = imgs.map((i) => ({
+        id: Number(i.id),
+        imageUrl: canvasImageUrl(i),
+        thumbnailUrl: thumbImageUrl(i),
+        width: undefined as number | undefined,
+        height: undefined as number | undefined,
+      }));
+
+      let loadedFromApi = false;
+      try {
+        const list = await listFlipbooksByAlbum(albumId);
+        const latest = list[0];
+        if (latest?.id != null) {
+          const full = await getFlipbook(latest.id);
+          setFlipbookId(full.id);
+          if (full.title) setAlbumTitle(full.title);
+          if (full.eventType) setEventType(full.eventType as EventType);
+          if (full.theme) setTheme(full.theme as ThemeId);
+          const apiPages = dtoToGeneratedPages(full.pages ?? []);
+          if (apiPages.length > 0) {
+            setPages(apiPages);
+            loadedFromApi = true;
+          }
+        }
+      } catch (apiErr) {
+        console.warn('Flipbook API load failed, falling back to local draft', apiErr);
+      }
+
+      if (!loadedFromApi) {
+        const stored = loadFlipbookFromStorage(albumId);
+        if (stored?.pages?.length) {
+          setFlipbookId(null);
+          setEventType(stored.eventType);
+          setTheme(stored.theme);
+          setPages(stored.pages);
+          setAlbumTitle(stored.title || titleFromAlbum);
+        } else {
+          const draft = previewGenerateFromAlbumImages(
+            albumId,
+            titleFromAlbum,
+            'wedding',
+            imageMetas
+          );
+          setFlipbookId(null);
+          setPages(draft.pages);
+          setEventType(draft.eventType);
+          setTheme(draft.theme);
+        }
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load album');
@@ -298,14 +338,58 @@ const StudioFlipbookBuilderPage: React.FC = () => {
 
   React.useEffect(() => { void loadAlbumAndFlipbook(); }, [loadAlbumAndFlipbook]);
 
-  /* ── save locally ── */
-  const handleSave = () => {
-    setSaving(true); setSaveStatus('idle');
+  /* ── save to API (+ local cache) ── */
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveStatus('idle');
     try {
-      saveFlipbookToStorage({ albumId, title: albumTitle, eventType, theme, pages, updatedAt: new Date().toISOString() });
+      let id = flipbookId;
+      if (id == null) {
+        const created = await createFlipbookFromAlbum({
+          albumId,
+          title: albumTitle,
+          eventType,
+          theme,
+          pages,
+        });
+        id = created.id;
+        setFlipbookId(id);
+      } else {
+        await saveFlipbookAll(id, {
+          title: albumTitle,
+          eventType,
+          theme,
+          pages,
+        });
+      }
+      saveFlipbookToStorage({
+        albumId,
+        title: albumTitle,
+        eventType,
+        theme,
+        pages,
+        updatedAt: new Date().toISOString(),
+      });
       setSaveStatus('saved');
-    } catch { setSaveStatus('error'); }
-    finally { setSaving(false); }
+    } catch (err) {
+      console.error('Flipbook save failed:', err);
+      // Keep a local draft so work is not lost if API is down
+      try {
+        saveFlipbookToStorage({
+          albumId,
+          title: albumTitle,
+          eventType,
+          theme,
+          pages,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch {
+        // ignore
+      }
+      setSaveStatus('error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   /* ── PDF export ── */
@@ -604,9 +688,15 @@ const StudioFlipbookBuilderPage: React.FC = () => {
         <h1 className="studio-flipbook-title">{albumTitle}</h1>
         <div className="studio-flipbook-topbar-actions">
           <span className="studio-flipbook-save-status">
-            {saveStatus === 'saved' ? '✓ Saved locally' : saveStatus === 'error' ? '✗ Save failed' : 'Ready'}
+            {saveStatus === 'saved'
+              ? '✓ Saved'
+              : saveStatus === 'error'
+                ? '✗ Save failed (kept local draft)'
+                : flipbookId
+                  ? `Ready · #${flipbookId}`
+                  : 'Ready · unsaved'}
           </span>
-          <button type="button" onClick={handleSave} disabled={saving}>
+          <button type="button" onClick={() => void handleSave()} disabled={saving}>
             {saving ? <FaSpinner className="animate-spin" /> : <FaSave />} Save
           </button>
           <button type="button" onClick={() => setZoom(z => Math.min(1.5, z + 0.1))}>+</button>
