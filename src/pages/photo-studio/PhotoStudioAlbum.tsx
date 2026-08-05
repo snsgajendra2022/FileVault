@@ -29,7 +29,6 @@ import ShareAlbumModal from './ShareAlbumModal';
 import PublicShareModal from '../../components/modals/PublicShareModal';
 import { downloadSingleImage, downloadImagesAsZip as downloadZip } from '../../utils/downloadUtils';
 import Lightbox, { LightboxItem } from '../../components/lightbox/Lightbox';
-import ProgressiveImage from '../../components/photo-studio/ProgressiveImage';
 import AlbumGalleryThumb from '../../components/photo-studio/AlbumGalleryThumb';
 import { getImagePreloadManager } from '../../utils/imagePreloader/ImagePreloadManager';
 import {
@@ -38,6 +37,7 @@ import {
   toProgressiveImage,
 } from '../../utils/albumImageVariants';
 import type { ImageVariants } from '../../utils/progressiveImageVariants';
+import { getGalleryDisplaySrc } from '../../utils/progressiveImageVariants';
 import { getConnectionHint, getSaveData } from '../../utils/progressiveImageConfig';
 import HlsVideoPlayer from '../../components/video/HlsVideoPlayer';
 import { isHlsStreamUrl, isVideoMediaItem, resolveVideoPlayback } from '../../utils/videoPlayback';
@@ -60,6 +60,20 @@ interface Album {
   [key: string]: any;
 }
 
+
+interface UserImage {
+  id: number | string;
+  filename: string;
+  previewUrl: string;
+  downloadUrl: string;
+  fileType: string;
+  thumbnailUrl?: string;
+  uploadTime?: string;
+  mediaType?: string;
+  videoId?: number | string;
+  variants?: ImageVariants;
+  [key: string]: any;
+}
 
 interface UserImagesResponse {
   totalImages: number;
@@ -87,13 +101,62 @@ interface AlbumImage {
   [key: string]: any;
 }
 
-interface UserImage {
-  id: number | string;
-  filename: string;
-  previewUrl: string;
-  downloadUrl: string;
-  fileType: string;
-  [key: string]: any;
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp']);
+const VIDEO_EXTENSIONS = new Set(['mov', 'mp4', 'avi', 'mkv', 'webm', 'm4v']);
+
+function getUserImageExt(image: UserImage): string {
+  const fromName = (image.filename || '').split('.').pop()?.toLowerCase() || '';
+  const fromType = String(image.fileType || '')
+    .toLowerCase()
+    .replace(/^\./, '')
+    .replace(/^image\//, '')
+    .replace(/^video\//, '');
+  if (IMAGE_EXTENSIONS.has(fromName) || VIDEO_EXTENSIONS.has(fromName)) return fromName;
+  if (IMAGE_EXTENSIONS.has(fromType) || VIDEO_EXTENSIONS.has(fromType)) return fromType;
+  return fromName || fromType || 'unknown';
+}
+
+function isUserImageVideo(image: UserImage): boolean {
+  if (isVideoMediaItem(image)) return true;
+  return VIDEO_EXTENSIONS.has(getUserImageExt(image));
+}
+
+/** Still URL for Add-Images modal — never HLS; videos use thumbnailUrl (+ token). */
+function getUserImageModalThumb(image: UserImage): string | null {
+  if (isUserImageVideo(image)) {
+    const videoThumb =
+      ensureVideoThumbnailAuth(image.thumbnailUrl) ||
+      (image.thumbnailUrl && !isHlsStreamUrl(image.thumbnailUrl) ? image.thumbnailUrl : null);
+    if (videoThumb) return videoThumb;
+    const videoId = image.videoId != null ? Number(image.videoId) : NaN;
+    if (Number.isFinite(videoId) && videoId > 0) {
+      const apiBase = (process.env.REACT_APP_API_URL || '').replace(/\/$/, '');
+      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') || '' : '';
+      let url = `${apiBase}/api/videos/${videoId}/thumbnail`;
+      if (token) url += `?token=${encodeURIComponent(token)}`;
+      return url;
+    }
+    return null;
+  }
+
+  const progressive = {
+    id: image.id,
+    previewUrl: image.previewUrl || '',
+    filename: image.filename || 'image',
+    downloadUrl: image.downloadUrl || image.previewUrl || '',
+    thumbnailUrl: image.thumbnailUrl || '',
+    uploadTime: image.uploadTime || '',
+    fileType: getUserImageExt(image),
+    mediaType: image.mediaType,
+    variants: image.variants,
+  };
+  const fromGallery = getGalleryDisplaySrc(progressive);
+  if (fromGallery && !isHlsStreamUrl(fromGallery)) return fromGallery;
+  if (image.thumbnailUrl && !isHlsStreamUrl(image.thumbnailUrl)) {
+    return ensureVideoThumbnailAuth(image.thumbnailUrl) || image.thumbnailUrl;
+  }
+  if (image.previewUrl && !isHlsStreamUrl(image.previewUrl)) return image.previewUrl;
+  return null;
 }
 
 // Album responses include their images; keep these helpers module-level so hook deps stay stable.
@@ -110,9 +173,6 @@ function getFileTypeFromAlbumImage(image: AlbumImage): string {
   const extension = filename.split('.').pop()?.toLowerCase() || '';
   return extension || image.fileType || 'unknown';
 }
-
-const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp']);
-const VIDEO_EXTENSIONS = new Set(['mov', 'mp4', 'avi', 'mkv', 'webm', 'm4v']);
 
 function isAlbumVideoType(image: AlbumImage): boolean {
   if (isVideoMediaItem(image)) return true;
@@ -3386,7 +3446,7 @@ const PhotoStudioAlbum: React.FC = () => {
 
       {/* Add Images to Album Modal */}
       {showAddImagesModal !== null && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-[10050] p-0 sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">
@@ -3410,11 +3470,13 @@ const PhotoStudioAlbum: React.FC = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {userImages.map((image, index) => {
-                    // Normalize ID to string for consistent comparison
+                  {userImages.map((image) => {
                     const imageId = String(image.id);
                     const isSelected = selectedImages.has(imageId);
-                    
+                    const isVideo = isUserImageVideo(image);
+                    const thumbSrc = getUserImageModalThumb(image);
+                    const extLabel = getUserImageExt(image).toUpperCase() || 'FILE';
+
                     return (
                       <div
                         key={image.id}
@@ -3431,26 +3493,50 @@ const PhotoStudioAlbum: React.FC = () => {
                         }`}
                       >
                         <div className="relative h-32 bg-gray-100 overflow-hidden">
-                          {image.fileType.toLowerCase().match(/^(png|jpg|jpeg|gif|webp)$/) ? (
-                            <ProgressiveImage
-                              image={{
-                                id: image.id,
-                                previewUrl: image.previewUrl,
-                                filename: image.filename,
-                                downloadUrl: image.downloadUrl,
-                                thumbnailUrl: image.thumbnailUrl || image.previewUrl,
-                                uploadTime: (image as { uploadTime?: string }).uploadTime || '',
-                                fileType: image.fileType,
-                                variants: (image as { variants?: ImageVariants }).variants,
-                              }}
-                              enabled
-                              mode="thumbnail"
-                              alt={image.filename}
-                              className="h-full w-full object-cover pointer-events-none"
-                            />
+                          {thumbSrc ? (
+                            <>
+                              <img
+                                src={thumbSrc}
+                                alt=""
+                                className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                                loading="eager"
+                                decoding="async"
+                                onError={(e) => {
+                                  const el = e.currentTarget;
+                                  const tried = el.dataset.fallback || '0';
+                                  const preview =
+                                    image.previewUrl && !isHlsStreamUrl(image.previewUrl)
+                                      ? image.previewUrl
+                                      : '';
+                                  const thumb =
+                                    image.thumbnailUrl && !isHlsStreamUrl(image.thumbnailUrl)
+                                      ? ensureVideoThumbnailAuth(image.thumbnailUrl) || image.thumbnailUrl
+                                      : '';
+                                  if (tried === '0' && preview && preview !== thumbSrc) {
+                                    el.dataset.fallback = '1';
+                                    el.src = preview;
+                                    return;
+                                  }
+                                  if (tried !== '2' && thumb && thumb !== el.src) {
+                                    el.dataset.fallback = '2';
+                                    el.src = thumb;
+                                    return;
+                                  }
+                                  el.style.display = 'none';
+                                }}
+                              />
+                              {isVideo && (
+                                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/15">
+                                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-800 shadow">
+                                    <FaPlay className="h-3.5 w-3.5 ml-0.5" />
+                                  </div>
+                                </div>
+                              )}
+                            </>
                           ) : (
-                            <div className="flex items-center justify-center h-full text-gray-500 text-xs">
-                              {image.fileType.toUpperCase()}
+                            <div className="flex h-full flex-col items-center justify-center gap-1 text-gray-500 text-xs px-2 text-center">
+                              <span className="font-semibold tracking-wide">{extLabel}</span>
+                              <span className="truncate w-full opacity-70">{image.filename}</span>
                             </div>
                           )}
                         </div>
