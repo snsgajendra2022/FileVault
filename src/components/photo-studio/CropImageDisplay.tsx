@@ -32,7 +32,11 @@ type CropImageDisplayProps = {
   crossOrigin?: 'anonymous' | 'use-credentials' | '';
 };
 
-/** Static image — builder preview, PDF, non-interactive canvas. */
+/**
+ * Static crop image — must match DraggableCropImage fill math
+ * (absolute inset img inside a sized overflow frame) so builder
+ * thumbnails, preview, and PDF look identical to the live canvas.
+ */
 export function CropImageDisplay({
   src,
   alt = '',
@@ -44,14 +48,26 @@ export function CropImageDisplay({
   crossOrigin = 'anonymous',
 }: CropImageDisplayProps) {
   return (
-    <img
-      src={src}
-      alt={alt}
-      draggable={false}
-      crossOrigin={crossOrigin || undefined}
-      className={className}
-      style={cropImageDisplayStyle(cropX, cropY, zoom, fit)}
-    />
+    <div
+      className={`overflow-hidden ${className}`}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        width: 'auto',
+        height: 'auto',
+        minWidth: 0,
+        minHeight: 0,
+      }}
+    >
+      <img
+        src={src}
+        alt={alt}
+        draggable={false}
+        crossOrigin={crossOrigin || undefined}
+        className="absolute inset-0 h-full w-full select-none"
+        style={cropImageDisplayStyle(cropX, cropY, zoom, fit)}
+      />
+    </div>
   );
 }
 
@@ -114,8 +130,15 @@ export function DraggableCropImage({
   return (
     <div
       ref={frameRef}
-      className={`relative overflow-hidden ${className}`}
-      style={{ width: '100%', height: '100%', minWidth: 0, minHeight: 0 }}
+      className={`overflow-hidden ${className}`}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        width: 'auto',
+        height: 'auto',
+        minWidth: 0,
+        minHeight: 0,
+      }}
     >
       <img
         src={src}

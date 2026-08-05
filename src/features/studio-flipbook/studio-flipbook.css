@@ -91,9 +91,9 @@
 .studio-flipbook-left {
   flex-shrink: 0;
   width: 280px;
-  background: #fff;
-  border-right: 1px solid #e5e7eb;
-  overflow-y: auto;
+  background: #f7f6f3;
+  border-right: 1px solid rgba(20, 18, 16, 0.1);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -102,83 +102,120 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
-  font-weight: 600;
+  padding: 14px 14px 12px;
+  font-weight: 700;
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #6b7280;
-  border-bottom: 1px solid #f3f4f6;
+  letter-spacing: 0.08em;
+  color: #5c574f;
+  border-bottom: 1px solid rgba(20, 18, 16, 0.08);
+  background: #fffcf8;
+  flex-shrink: 0;
 }
 
 .studio-flipbook-icon-btn {
   border: none;
   background: transparent;
   cursor: pointer;
-  color: #4648d4;
+  color: #1f3a34;
   font-size: 14px;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
 }
 
 .studio-flipbook-icon-btn:hover {
-  background: #eef2ff;
+  background: rgba(31, 58, 52, 0.1);
 }
 
 .studio-flipbook-thumbnails {
-  padding: 10px;
+  padding: 12px 10px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .studio-flipbook-thumb-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
 }
 
 .studio-flipbook-thumb {
-  border: 2px solid transparent;
-  border-radius: 6px;
-  padding: 3px;
-  background: #f9fafb;
+  border: 1.5px solid rgba(20, 18, 16, 0.1);
+  border-radius: 10px;
+  padding: 0;
+  background: #fffcf8;
   cursor: pointer;
   text-align: left;
   width: 100%;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(20, 18, 16, 0.06);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.studio-flipbook-thumb:hover {
+  border-color: rgba(31, 58, 52, 0.35);
+  box-shadow: 0 4px 14px rgba(20, 18, 16, 0.1);
 }
 
 .studio-flipbook-thumb-wrapper.selected .studio-flipbook-thumb {
-  border-color: #4648d4;
+  border-color: #1f3a34;
+  box-shadow:
+    0 0 0 1px #1f3a34,
+    0 6px 18px rgba(31, 58, 52, 0.18);
+}
+
+.studio-flipbook-thumb .studio-flipbook-page-outer {
+  border-radius: 0;
+  pointer-events: none;
 }
 
 .studio-flipbook-thumb-label {
   display: block;
-  font-size: 10px;
-  color: #6b7280;
-  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #5c574f;
+  margin: 0;
+  padding: 6px 8px 8px;
   text-align: center;
+  background: #fffcf8;
+}
+
+.studio-flipbook-thumb-wrapper.selected .studio-flipbook-thumb-label {
+  color: #1f3a34;
 }
 
 .studio-flipbook-thumb-actions {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   justify-content: center;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+.studio-flipbook-thumb-wrapper:hover .studio-flipbook-thumb-actions,
+.studio-flipbook-thumb-wrapper.selected .studio-flipbook-thumb-actions {
+  opacity: 1;
 }
 
 .studio-flipbook-thumb-actions button {
   border: none;
   background: transparent;
   cursor: pointer;
-  color: #9ca3af;
-  font-size: 10px;
-  padding: 2px 4px;
-  border-radius: 3px;
+  color: #8a847a;
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  line-height: 1;
 }
 
 .studio-flipbook-thumb-actions button:hover {
-  color: #4648d4;
-  background: #eef2ff;
+  color: #1f3a34;
+  background: rgba(31, 58, 52, 0.1);
 }
 
 .studio-flipbook-thumb-actions button:disabled {

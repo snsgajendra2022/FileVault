@@ -1,7 +1,10 @@
 import type { CSSProperties } from 'react';
 import type { FrameType } from '../types';
 
-/** Clip-path and border styles for dynamic frame shapes. */
+/** Clip-path and border styles for dynamic frame shapes.
+ *  Polaroid does NOT use CSS padding — padding collapses %height images.
+ *  Use getFrameMediaInset() for the photo slot instead.
+ */
 export function getFrameShapeStyle(
   frameType?: FrameType | string,
   maskType?: string
@@ -41,13 +44,31 @@ export function getFrameShapeStyle(
       return {
         borderRadius: 4,
         overflow: 'hidden',
-        padding: '8% 8% 18% 8%',
         background: '#fff',
         boxSizing: 'border-box',
       };
     default:
       return { overflow: 'hidden' };
   }
+}
+
+/** Absolute photo slot inside a frame — polaroid keeps a white border via insets. */
+export function getFrameMediaInset(frameType?: FrameType | string): CSSProperties {
+  if (frameType === 'polaroid') {
+    return {
+      position: 'absolute',
+      top: '8%',
+      right: '8%',
+      bottom: '18%',
+      left: '8%',
+      overflow: 'hidden',
+    };
+  }
+  return {
+    position: 'absolute',
+    inset: 0,
+    overflow: 'hidden',
+  };
 }
 
 export function getFrameBorderStyle(frameType?: FrameType | string, accent?: string): CSSProperties {
@@ -77,18 +98,20 @@ export function combinedFrameStyle(
 ): CSSProperties {
   const shape = getFrameShapeStyle(frameType, maskType);
   const border = getFrameBorderStyle(frameType, accent);
+  // Never keep padding on frame chrome — it breaks image fill in scaled thumbs.
+  const { padding: _p, paddingTop: _pt, paddingRight: _pr, paddingBottom: _pb, paddingLeft: _pl, ...shapeNoPad } = shape as CSSProperties & Record<string, unknown>;
 
   if (frameType === 'rounded' && borderRadiusPx) {
-    return { ...shape, ...border, borderRadius: borderRadiusPx };
+    return { ...shapeNoPad, ...border, borderRadius: borderRadiusPx };
   }
 
   if (frameType === 'circle' || frameType === 'oval') {
-    return { ...shape, ...border };
+    return { ...shapeNoPad, ...border };
   }
 
-  if (!shape.clipPath && borderRadiusPx) {
-    return { ...shape, ...border, borderRadius: borderRadiusPx };
+  if (!shapeNoPad.clipPath && borderRadiusPx) {
+    return { ...shapeNoPad, ...border, borderRadius: borderRadiusPx };
   }
 
-  return { ...shape, ...border };
+  return { ...shapeNoPad, ...border };
 }

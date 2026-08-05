@@ -344,6 +344,7 @@ const StudioFlipbookBuilderPage: React.FC = () => {
     setSaveStatus('idle');
     try {
       let id = flipbookId;
+      let savedPages = pages;
       if (id == null) {
         const created = await createFlipbookFromAlbum({
           albumId,
@@ -354,20 +355,28 @@ const StudioFlipbookBuilderPage: React.FC = () => {
         });
         id = created.id;
         setFlipbookId(id);
+        if (created.pages?.length) {
+          savedPages = dtoToGeneratedPages(created.pages);
+          setPages(savedPages);
+        }
       } else {
-        await saveFlipbookAll(id, {
+        const saved = await saveFlipbookAll(id, {
           title: albumTitle,
           eventType,
           theme,
           pages,
         });
+        if (saved.pages?.length) {
+          savedPages = dtoToGeneratedPages(saved.pages);
+          setPages(savedPages);
+        }
       }
       saveFlipbookToStorage({
         albumId,
         title: albumTitle,
         eventType,
         theme,
-        pages,
+        pages: savedPages,
         updatedAt: new Date().toISOString(),
       });
       setSaveStatus('saved');
@@ -403,15 +412,25 @@ const StudioFlipbookBuilderPage: React.FC = () => {
   };
 
   /* ── element mutation ── */
-  const updateElement = (pageIdx: number, elIdx: number, patch: Partial<GeneratedPageElement>) => {
-    setPages(prev => prev.map((p, i) => {
+  const updateElement = React.useCallback((pageIdx: number, elIdx: number, patch: Partial<GeneratedPageElement>) => {
+    setPages((prev) => prev.map((p, i) => {
       if (i !== pageIdx) return p;
-      return { ...p, elements: p.elements.map((el, j) => j === elIdx ? { ...el, ...patch } : el) };
+      return {
+        ...p,
+        elements: p.elements.map((el, j) => {
+          if (j !== elIdx) return el;
+          const next = { ...el, ...patch };
+          if (patch.styleJson) {
+            next.styleJson = { ...el.styleJson, ...patch.styleJson };
+          }
+          return next;
+        }),
+      };
     }));
-  };
-  const handleCanvasElementChange = (elIdx: number, patch: Partial<GeneratedPageElement>) => {
+  }, []);
+  const handleCanvasElementChange = React.useCallback((elIdx: number, patch: Partial<GeneratedPageElement>) => {
     updateElement(currentPage, elIdx, patch);
-  };
+  }, [currentPage, updateElement]);
 
   const removeElement = (pageIdx: number, elIdx: number) => {
     setPages((prev) =>

@@ -65,6 +65,16 @@ const StudioFlipbookPreview: React.FC<Props> = ({
     computeFlipbookPageSize('landscape'),
   );
 
+  /** Force HTMLFlipBook remount when box geometry changes (library caches page DOM). */
+  const pagesLayoutKey = React.useMemo(
+    () => pages.map((p) =>
+      `${p.pageNumber}:${p.elements.map((e) =>
+        [e.x, e.y, e.width, e.height, e.rotation ?? 0, e.cropX ?? 50, e.cropY ?? 50, e.styleJson?.imageZoom ?? 1, e.albumImageId ?? ''].join(',')
+      ).join('|')}`
+    ).join('/'),
+    [pages],
+  );
+
   React.useEffect(() => {
     const update = () => setBookSize(computeFlipbookPageSize(orientation));
     update();
@@ -178,7 +188,7 @@ const StudioFlipbookPreview: React.FC<Props> = ({
             style={{ width: bookSize.width, height: bookSize.height }}
           >
             <HTMLFlipBook
-              key={`${orientation}-${bookSize.width}-${bookSize.height}`}
+              key={`${orientation}-${bookSize.width}-${bookSize.height}-${pagesLayoutKey}`}
               ref={bookRef}
               width={bookSize.width}
               height={bookSize.height}
@@ -224,7 +234,7 @@ const StudioFlipbookPreview: React.FC<Props> = ({
           <div
             className="studio-flipbook-page-preview-frame"
             style={frameStyle}
-            key={`${currentPage}-${orientation}`}
+            key={`${currentPage}-${orientation}-${pagesLayoutKey}`}
           >
             {activePage && (
               <StudioFlipbookPageCanvas

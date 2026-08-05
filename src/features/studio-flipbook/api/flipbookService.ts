@@ -51,6 +51,11 @@ export type FlipbookPageElementDto = {
 };
 
 function pagesToPayload(pages: GeneratedPage[]) {
+  const num = (value: unknown, fallback: number) => {
+    const n = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
   return pages.map((p) => ({
     pageNumber: p.pageNumber,
     pageType: p.pageType,
@@ -61,23 +66,23 @@ function pagesToPayload(pages: GeneratedPage[]) {
     settingsJson: p.settingsJson,
     elements: p.elements.map((e) => ({
       elementType: e.elementType,
-      albumImageId: e.albumImageId,
+      albumImageId: e.albumImageId != null ? Number(e.albumImageId) : undefined,
       content: e.content,
-      x: e.x,
-      y: e.y,
-      width: e.width,
-      height: e.height,
-      rotation: e.rotation,
-      zIndex: e.zIndex,
-      opacity: e.opacity,
+      x: num(e.x, 0),
+      y: num(e.y, 0),
+      width: num(e.width, 10),
+      height: num(e.height, 10),
+      rotation: e.rotation != null ? num(e.rotation, 0) : undefined,
+      zIndex: e.zIndex != null ? Math.round(num(e.zIndex, 1)) : 1,
+      opacity: e.opacity != null ? num(e.opacity, 1) : undefined,
       maskType: e.maskType,
       frameType: e.frameType,
       fitMode: e.fitMode,
-      cropX: e.cropX,
-      cropY: e.cropY,
-      cropWidth: e.cropWidth,
-      cropHeight: e.cropHeight,
-      styleJson: e.styleJson,
+      cropX: e.cropX != null ? num(e.cropX, 50) : undefined,
+      cropY: e.cropY != null ? num(e.cropY, 50) : undefined,
+      cropWidth: e.cropWidth != null ? num(e.cropWidth, 100) : undefined,
+      cropHeight: e.cropHeight != null ? num(e.cropHeight, 100) : undefined,
+      styleJson: e.styleJson ?? undefined,
     })),
   }));
 }
@@ -223,6 +228,11 @@ function parseJsonField<T>(raw?: string | T | null): T | undefined {
 }
 
 export function dtoToGeneratedPages(dto: FlipbookPageDto[]): GeneratedPage[] {
+  const num = (value: unknown, fallback: number) => {
+    const n = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
   return (dto ?? []).map((p) => ({
     pageNumber: p.pageNumber,
     pageType: p.pageType as GeneratedPage['pageType'],
@@ -233,22 +243,22 @@ export function dtoToGeneratedPages(dto: FlipbookPageDto[]): GeneratedPage[] {
     settingsJson: parseJsonField<Record<string, unknown>>(p.settingsJson),
     elements: (p.elements ?? []).map((e) => ({
       elementType: e.elementType as GeneratedPage['elements'][0]['elementType'],
-      albumImageId: e.albumImageId,
+      albumImageId: e.albumImageId != null ? Number(e.albumImageId) : undefined,
       content: e.content,
-      x: e.x,
-      y: e.y,
-      width: e.width,
-      height: e.height,
-      rotation: e.rotation,
-      zIndex: e.zIndex,
-      opacity: e.opacity,
+      x: num(e.x, 0),
+      y: num(e.y, 0),
+      width: num(e.width, 10),
+      height: num(e.height, 10),
+      rotation: e.rotation != null ? num(e.rotation, 0) : undefined,
+      zIndex: e.zIndex != null ? Math.round(num(e.zIndex, 1)) : 1,
+      opacity: e.opacity != null ? num(e.opacity, 1) : undefined,
       maskType: e.maskType,
       frameType: e.frameType as GeneratedPage['elements'][0]['frameType'],
       fitMode: e.fitMode as GeneratedPage['elements'][0]['fitMode'],
-      cropX: e.cropX,
-      cropY: e.cropY,
-      cropWidth: e.cropWidth,
-      cropHeight: e.cropHeight,
+      cropX: e.cropX != null ? num(e.cropX, 50) : undefined,
+      cropY: e.cropY != null ? num(e.cropY, 50) : undefined,
+      cropWidth: e.cropWidth != null ? num(e.cropWidth, 100) : undefined,
+      cropHeight: e.cropHeight != null ? num(e.cropHeight, 100) : undefined,
       styleJson: parseJsonField<Record<string, unknown>>(e.styleJson),
     })),
   }));

@@ -6,6 +6,7 @@ import { DESIGN_CANVAS } from '../constants/canvas';
 import {
   combinedFrameStyle,
   frameLocksAspectRatio,
+  getFrameMediaInset,
 } from '../utils/frameShapeStyles';
 
 export type CanvasElement = GeneratedPageElement & { _idx: number };
@@ -28,6 +29,56 @@ type Props = {
 function resolveFitMode(fit?: string): FitMode {
   if (fit === 'contain' || fit === 'fill') return fit;
   return 'cover';
+}
+
+function resolveImageFrameBackground(
+  frameType: string | undefined,
+  frameStyle: React.CSSProperties,
+  hasUrl: boolean,
+): string {
+  if (frameType === 'polaroid') {
+    return (frameStyle.background as string) || '#ffffff';
+  }
+  if (hasUrl) return 'transparent';
+  return '#f3f4f6';
+}
+
+/** Shared chrome + media slot — identical on canvas, thumbs, and flipbook preview. */
+function ImageFrameChrome({
+  frameType,
+  frameStyle,
+  background,
+  boxShadow,
+  topOffset = 0,
+  children,
+}: {
+  frameType?: string;
+  frameStyle: React.CSSProperties;
+  background: string;
+  boxShadow?: string;
+  topOffset?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        top: topOffset || 0,
+        zIndex: 2,
+        overflow: 'hidden',
+        ...frameStyle,
+        // Absolute media inset replaces any leftover padding
+        padding: 0,
+        boxShadow,
+        background,
+      }}
+    >
+      <div style={getFrameMediaInset(frameType)}>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 function PageElementView({
@@ -61,32 +112,34 @@ function PageElementView({
       };
 
   if (el.elementType === 'image') {
-    const url = el.albumImageId ? imageUrlById[el.albumImageId] : undefined;
+    const url = el.albumImageId != null
+      ? imageUrlById[Number(el.albumImageId)] || imageUrlById[el.albumImageId]
+      : undefined;
     return (
-      <div
-        style={{
-          ...base,
-          ...frameStyle,
-          boxShadow: shadow || (frameStyle.boxShadow as string) || undefined,
-          background: url ? 'transparent' : '#f3f4f6',
-        }}
-      >
-        {url ? (
-          <CropImageDisplay
-            src={url}
-            cropX={el.cropX ?? 50}
-            cropY={el.cropY ?? 50}
-            zoom={(el.styleJson?.imageZoom as number) ?? 1}
-            fit={fit}
-          />
-        ) : (
-          <div style={{
-            width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#9ca3af', fontSize: 13, border: '2px dashed #d1d5db',
-          }}>
-            + Image
-          </div>
-        )}
+      <div style={{ ...base, overflow: 'visible' }}>
+        <ImageFrameChrome
+          frameType={el.frameType}
+          frameStyle={frameStyle}
+          background={resolveImageFrameBackground(el.frameType, frameStyle, !!url)}
+          boxShadow={shadow || (frameStyle.boxShadow as string) || undefined}
+        >
+          {url ? (
+            <CropImageDisplay
+              src={url}
+              cropX={el.cropX ?? 50}
+              cropY={el.cropY ?? 50}
+              zoom={(el.styleJson?.imageZoom as number) ?? 1}
+              fit={fit}
+            />
+          ) : (
+            <div style={{
+              width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#9ca3af', fontSize: 13, border: '2px dashed #d1d5db', boxSizing: 'border-box',
+            }}>
+              + Image
+            </div>
+          )}
+        </ImageFrameChrome>
       </div>
     );
   }
@@ -152,6 +205,9 @@ function InteractiveElement({
 }) {
   const [dragMode, setDragMode] = React.useState<DragMode>('none');
   const [spaceHeld, setSpaceHeld] = React.useState(false);
+  const elRef = React.useRef(el);
+  elRef.current = el;
+  const dragModeRef = React.useRef<DragMode>('none');
   const dragStart = React.useRef<{
     mx: number; my: number;
     ex: number; ey: number;
@@ -183,107 +239,111 @@ function InteractiveElement({
   }, []);
 
   const endDrag = React.useCallback(() => {
+    dragModeRef.current = 'none';
     setDragMode('none');
     dragStart.current = null;
   }, []);
 
-  const percentDelta = React.useCallback((e: PointerEvent) => {
-    const rect = getPageRect();
-    if (!rect || rect.width <= 0 || rect.height <= 0) return { dx: 0, dy: 0 };
-    const start = dragStart.current;
-    if (!start) return { dx: 0, dy: 0 };
-    return {
-      dx: ((e.clientX - start.mx) / rect.width) * 100,
-      dy: ((e.clientY - start.my) / rect.height) * 100,
-    };
-  }, [getPageRect]);
-
-  const handlePointerMove = React.useCallback((e: PointerEvent) => {
-    const start = dragStart.current;
-    if (!start || dragMode === 'none') return;
-
-    const { dx, dy } = percentDelta(e);
-
-    if (dragMode === 'frame') {
-      onCommit(idx, {
-        x: Math.max(0, Math.min(100 - el.width, start.ex + dx)),
-        y: Math.max(0, Math.min(100 - el.height, start.ey + dy)),
-      });
-    }
-
-    if (dragMode === 'resize') {
-      const lock = frameLocksAspectRatio(el.frameType);
-      if (lock) {
-        const delta = Math.max(dx, dy);
-        const nextW = Math.max(5, Math.min(100 - el.x, start.ew + delta));
-        const nextH = el.frameType === 'oval' ? nextW * 0.72 : nextW;
-        onCommit(idx, {
-          width: nextW,
-          height: Math.min(100 - el.y, Math.max(5, nextH)),
-        });
-      } else {
-        onCommit(idx, {
-          width: Math.max(5, Math.min(100 - el.x, start.ew + dx)),
-          height: Math.max(5, Math.min(100 - el.y, start.eh + dy)),
-        });
-      }
-    }
-
-    if (dragMode === 'rotate') {
-      const angle = (Math.atan2(e.clientY - start.centerY, e.clientX - start.centerX) * 180) / Math.PI + 90;
-      onCommit(idx, { rotation: Math.round(angle) });
-    }
-
-    if (dragMode === 'inner-zoom') {
-      const pixelDy = e.clientY - start.my;
-      const nextZoom = Math.max(1, Math.min(2.5, start.ezoom - pixelDy * 0.005));
-      onCommit(idx, {
-        styleJson: {
-          ...el.styleJson,
-          imageZoom: Math.round(nextZoom * 100) / 100,
-        },
-      });
-    }
-  }, [dragMode, el.frameType, el.height, el.styleJson, el.width, el.x, el.y, idx, onCommit, percentDelta]);
+  const roundPct = (n: number) => Math.round(n * 100) / 100;
 
   React.useEffect(() => {
     if (dragMode === 'none') return;
+
+    const onMove = (e: PointerEvent) => {
+      const start = dragStart.current;
+      const mode = dragModeRef.current;
+      const cur = elRef.current;
+      if (!start || mode === 'none') return;
+
+      const rect = getPageRect();
+      if (!rect || rect.width <= 0 || rect.height <= 0) return;
+
+      const dx = ((e.clientX - start.mx) / rect.width) * 100;
+      const dy = ((e.clientY - start.my) / rect.height) * 100;
+
+      if (mode === 'frame') {
+        onCommit(idx, {
+          x: roundPct(Math.max(0, Math.min(100 - cur.width, start.ex + dx))),
+          y: roundPct(Math.max(0, Math.min(100 - cur.height, start.ey + dy))),
+        });
+        return;
+      }
+
+      if (mode === 'resize') {
+        const lock = frameLocksAspectRatio(cur.frameType);
+        if (lock) {
+          const delta = Math.max(dx, dy);
+          const nextW = Math.max(5, Math.min(100 - cur.x, start.ew + delta));
+          const nextH = cur.frameType === 'oval' ? nextW * 0.72 : nextW;
+          onCommit(idx, {
+            width: roundPct(nextW),
+            height: roundPct(Math.min(100 - cur.y, Math.max(5, nextH))),
+          });
+        } else {
+          onCommit(idx, {
+            width: roundPct(Math.max(5, Math.min(100 - cur.x, start.ew + dx))),
+            height: roundPct(Math.max(5, Math.min(100 - cur.y, start.eh + dy))),
+          });
+        }
+        return;
+      }
+
+      if (mode === 'rotate') {
+        const angle = (Math.atan2(e.clientY - start.centerY, e.clientX - start.centerX) * 180) / Math.PI + 90;
+        onCommit(idx, { rotation: Math.round(angle) });
+        return;
+      }
+
+      if (mode === 'inner-zoom') {
+        const pixelDy = e.clientY - start.my;
+        const nextZoom = Math.max(1, Math.min(2.5, start.ezoom - pixelDy * 0.005));
+        onCommit(idx, {
+          styleJson: {
+            ...cur.styleJson,
+            imageZoom: Math.round(nextZoom * 100) / 100,
+          },
+        });
+      }
+    };
+
     const onUp = () => endDrag();
-    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
     return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
     };
-  }, [dragMode, endDrag, handlePointerMove]);
+  }, [dragMode, endDrag, getPageRect, idx, onCommit]);
 
   const startDrag = (e: React.PointerEvent, mode: DragMode) => {
     e.stopPropagation();
     e.preventDefault();
     onSelect(idx);
 
+    const cur = elRef.current;
     const rect = getPageRect();
     const centerX = rect
-      ? rect.left + rect.width * ((el.x + el.width / 2) / 100)
+      ? rect.left + rect.width * ((cur.x + cur.width / 2) / 100)
       : e.clientX;
     const centerY = rect
-      ? rect.top + rect.height * ((el.y + el.height / 2) / 100)
+      ? rect.top + rect.height * ((cur.y + cur.height / 2) / 100)
       : e.clientY;
 
     dragStart.current = {
       mx: e.clientX,
       my: e.clientY,
-      ex: el.x,
-      ey: el.y,
-      ew: el.width,
-      eh: el.height,
-      er: el.rotation ?? 0,
-      ezoom: (el.styleJson?.imageZoom as number) ?? 1,
+      ex: cur.x,
+      ey: cur.y,
+      ew: cur.width,
+      eh: cur.height,
+      er: cur.rotation ?? 0,
+      ezoom: (cur.styleJson?.imageZoom as number) ?? 1,
       centerX,
       centerY,
     };
+    dragModeRef.current = mode;
     setDragMode(mode);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -317,7 +377,9 @@ function InteractiveElement({
     willChange: dragMode !== 'none' ? 'transform' : undefined,
   };
 
-  const imageUrl = isImage && el.albumImageId ? imageUrlById[el.albumImageId] : undefined;
+  const imageUrl = isImage && el.albumImageId != null
+    ? imageUrlById[Number(el.albumImageId)] || imageUrlById[el.albumImageId]
+    : undefined;
   const radius = (el.styleJson?.borderRadius as number) ?? 0;
   const shadow = (el.styleJson?.shadow as string) ?? '';
   const fit = resolveFitMode(el.fitMode);
@@ -376,16 +438,12 @@ function InteractiveElement({
             </div>
           )}
 
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              top: selected ? 28 : 0,
-              zIndex: 2,
-              ...frameStyle,
-              boxShadow: shadow || (frameStyle.boxShadow as string) || undefined,
-              background: imageUrl ? 'transparent' : '#f3f4f6',
-            }}
+          <ImageFrameChrome
+            frameType={el.frameType}
+            frameStyle={frameStyle}
+            background={resolveImageFrameBackground(el.frameType, frameStyle, !!imageUrl)}
+            boxShadow={shadow || (frameStyle.boxShadow as string) || undefined}
+            topOffset={selected ? 28 : 0}
           >
             {imageUrl ? (
               moveMode ? (
@@ -394,31 +452,30 @@ function InteractiveElement({
                   {...edgeMoveProps('frame')}
                 />
               ) : (
-                <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
-                  <DraggableCropImage
-                    src={imageUrl}
-                    cropX={el.cropX ?? 50}
-                    cropY={el.cropY ?? 50}
-                    zoom={(el.styleJson?.imageZoom as number) ?? 1}
-                    fit={fit}
-                    onCropChange={(x, y) => onCommit(idx, { cropX: x, cropY: y })}
-                  />
-                </div>
+                <DraggableCropImage
+                  src={imageUrl}
+                  cropX={el.cropX ?? 50}
+                  cropY={el.cropY ?? 50}
+                  zoom={(el.styleJson?.imageZoom as number) ?? 1}
+                  fit={fit}
+                  onCropChange={(x, y) => onCommit(idx, { cropX: x, cropY: y })}
+                />
               )
             ) : (
               <div style={{
                 width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#9ca3af', fontSize: 13, border: '2px dashed #d1d5db',
+                color: '#9ca3af', fontSize: 13, border: '2px dashed #d1d5db', boxSizing: 'border-box',
               }}>
                 + Image
               </div>
             )}
+          </ImageFrameChrome>
 
-            {selected && !moveMode && (
+          {selected && !moveMode && (
               <>
                 <div
                   className="studio-flipbook-edge-zone studio-flipbook-edge-zone--top"
-                  style={{ position: 'absolute', top: 0, left: 0, right: 0, height: EDGE_SIZE, zIndex: 12, cursor: 'grab' }}
+                  style={{ position: 'absolute', top: selected ? 28 : 0, left: 0, right: 0, height: EDGE_SIZE, zIndex: 12, cursor: 'grab' }}
                   {...edgeMoveProps('frame')}
                 />
                 <div
@@ -428,12 +485,12 @@ function InteractiveElement({
                 />
                 <div
                   className="studio-flipbook-edge-zone studio-flipbook-edge-zone--left"
-                  style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: EDGE_SIZE, zIndex: 12, cursor: 'grab' }}
+                  style={{ position: 'absolute', top: selected ? 28 : 0, bottom: 0, left: 0, width: EDGE_SIZE, zIndex: 12, cursor: 'grab' }}
                   {...edgeMoveProps('frame')}
                 />
                 <div
                   className="studio-flipbook-edge-zone studio-flipbook-edge-zone--right"
-                  style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: EDGE_SIZE, zIndex: 12, cursor: 'grab' }}
+                  style={{ position: 'absolute', top: selected ? 28 : 0, bottom: 0, right: 0, width: EDGE_SIZE, zIndex: 12, cursor: 'grab' }}
                   {...edgeMoveProps('frame')}
                 />
                 <div
@@ -466,7 +523,6 @@ function InteractiveElement({
                 </div>
               </>
             )}
-          </div>
         </>
       ) : el.elementType === 'text' ? (
         <div
