@@ -2,7 +2,7 @@
 
 This folder is home. Treat it that way.
 
-This panel uses the Filevault dev helper on port 9093 (npm run openclaw-server), not the OpenClaw Gateway alone. Put OPENAI_API_KEY (+ OPENAI_API_BASE for OpenRouter) in the repo .env, or an HTTP OPENCLAW_BRIDGE_URL — see backend.md and **docs/BACKEND-OM-ASSISTANT.md** (WhatsApp + OM API tools). Production: `/api/openclaw/*` and `/api/whatsapp/*` on your API. Persona: **OM-ASSISTANT.md**.
+OpenClaw and WhatsApp channel helpers were removed from this frontend. Portal menu settings still use `npm run portal-server` (port 9093) when needed.
 
 ## First Run
 

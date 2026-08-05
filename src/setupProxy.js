@@ -18,18 +18,16 @@ module.exports = function setupProxy(app) {
   app.use(['/api/people', '/api/photos', '/api/person', '/api/suggestions', '/api/album', '/api/ops', '/api/presets', '/api/pipeline', '/api/search'], proxy);
   app.use(['/upload-images', '/upload-images/async', '/jobs'], proxy);
 
-  // OM assistant dev server (WhatsApp UI + optional when not using REACT_APP_OPENCLAW_DEV_URL for chat)
-  const omDev =
-    (process.env.REACT_APP_OPENCLAW_DEV_URL || `http://127.0.0.1:${process.env.OPENCLAW_DEV_PORT || 9093}`).replace(
+  // Portal settings (sidebar menus) — portal-dev-server on 9093
+  const portalDev =
+    (process.env.REACT_APP_PORTAL_DEV_URL || `http://127.0.0.1:${process.env.PORTAL_DEV_PORT || process.env.OPENCLAW_DEV_PORT || 9093}`).replace(
       /\/$/,
       ''
     );
-  const omProxy = createProxyMiddleware({
-    target: omDev,
+  const portalProxy = createProxyMiddleware({
+    target: portalDev,
     changeOrigin: true,
     logLevel: 'warn',
   });
-  // WhatsApp real QR: proxy to openclaw-dev-server (9093) when page uses same-origin /api/whatsapp
-  app.use('/api/whatsapp', omProxy);
-  app.use('/api/portal', omProxy);
+  app.use('/api/portal', portalProxy);
 };

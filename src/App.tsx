@@ -100,10 +100,7 @@ import PhoneBookListPage from './pages/PhoneBook/PhoneBookListPage';
 import PhoneBookCreatePage from './pages/PhoneBook/PhoneBookCreatePage';
 import PhoneBookDetailPage from './pages/PhoneBook/PhoneBookDetailPage';
 import PhoneBookEditPage from './pages/PhoneBook/PhoneBookEditPage';
-import OpenClawAssistantPage from './pages/OpenClawAssistantPage';
-import WhatsAppConfigPage from './pages/WhatsAppConfigPage';
 import FilterImagesPage from './pages/filter-images/FilterImagesPage';
-import OpenClawAgentDock from './components/openclaw/OpenClawAgentDock';
 
 // misc pages
 import NotFoundPage from './pages/misc/NotFoundPage';
@@ -235,7 +232,6 @@ const AppRoutes = () => {
         <Route path="services/config/:serviceId" element={<ServiceConfigPage />} />
         {/* PhotoStudio Pro Routes */}
         <Route path="studio/dashboard" element={<StudioDashboard />} />
-        <Route path="studio/openclaw" element={<OpenClawAssistantPage />} />
         <Route path="studio/clients" element={<ClientManagement />} />
         <Route path="studio/gallery" element={<PhotoGallery />} />
         <Route path="studio/barcodes" element={<BarcodeSystem />} />
@@ -254,7 +250,6 @@ const AppRoutes = () => {
         {/* Photo Themes */}
         <Route path="photo-themes" element={<PhotoThemesPage />} />
         <Route path="photo-book" element={<PhotoBook />} />
-        <Route path="studio/whatsapp" element={<WhatsAppConfigPage />} />
         <Route path="memories/dashboard" element={<MemoriesDashboardPage />} />
         <Route path="memories/events" element={<MemoriesEventsListPage />} />
         <Route path="memories/events/new" element={<MemoriesCreateEventPage />} />
@@ -319,7 +314,6 @@ function App() {
             <PortalSettingsProvider>
             <Router>
               <AppRoutes />
-              <OpenClawAgentDock />
               <Toaster
                 position="top-right"
                 toastOptions={{

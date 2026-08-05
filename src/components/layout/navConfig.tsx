@@ -139,7 +139,6 @@ export const STUDIO_SIDEBAR_GROUPS = [
       'nav.studio.paymentManagement',
       'nav.studio.services',
       'nav.studio.helpSupport',
-      'nav.studio.whatsapp',
     ],
   },
 ] as const;
