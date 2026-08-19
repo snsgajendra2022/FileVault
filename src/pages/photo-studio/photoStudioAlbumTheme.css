@@ -1,20 +1,20 @@
 /* Photo Studio Albums — light/dark via html.dark (filevault-theme) */
 
 .studio-albums-scope {
-  --sa-bg: #f7f6f3;
-  --sa-surface: #fffcf8;
-  --sa-surface-muted: #eceae4;
-  --sa-surface-elevated: #fffcf8;
-  --sa-border: rgba(20, 18, 16, 0.1);
+  --sa-bg: #ffffff;
+  --sa-surface: #ffffff;
+  --sa-surface-muted: #f1f5f9;
+  --sa-surface-elevated: #ffffff;
+  --sa-border: rgba(15, 23, 42, 0.1);
   --sa-border-accent: rgba(31, 58, 52, 0.2);
-  --sa-text: #141210;
-  --sa-text-muted: #5c574f;
-  --sa-text-faint: #8a847a;
-  --sa-hero: linear-gradient(135deg, #fffcf8 0%, #f7f6f3 35%, #eceae4 100%);
-  --sa-accent: #1f3a34;
+  --sa-text: #0f172a;
+  --sa-text-muted: #64748b;
+  --sa-text-faint: #94a3b8;
+  --sa-hero: linear-gradient(135deg, #ffffff 0%, #ffffff 35%, #eff6ff 100%);
+  --sa-accent: #2563eb;
   --sa-accent-soft: rgba(31, 58, 52, 0.1);
-  --sa-shadow: 0 4px 20px rgba(20, 18, 16, 0.06);
-  --sa-pulse: #eceae4;
+  --sa-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+  --sa-pulse: #f1f5f9;
   --sa-pulse-strong: #e4e1d9;
   color: var(--sa-text);
   transition: background-color 0.2s ease, color 0.2s ease;
@@ -23,18 +23,18 @@
 html.dark .studio-albums-scope {
   --sa-bg: #151412;
   --sa-surface: #1c1a18;
-  --sa-surface-muted: #2a2622;
+  --sa-surface-muted: #1d4ed8;
   --sa-surface-elevated: #1c1a18;
   --sa-border: rgba(255, 255, 255, 0.1);
   --sa-border-accent: rgba(197, 192, 182, 0.25);
-  --sa-text: #fffcf8;
+  --sa-text: #ffffff;
   --sa-text-muted: #a8a399;
   --sa-text-faint: #78746c;
   --sa-hero: linear-gradient(135deg, #1c1a18 0%, #151412 40%, #0f0e0c 100%);
-  --sa-accent: #c5c0b6;
+  --sa-accent: #e2e8f0;
   --sa-accent-soft: rgba(197, 192, 182, 0.15);
   --sa-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
-  --sa-pulse: #2a2622;
+  --sa-pulse: #1d4ed8;
   --sa-pulse-strong: #332f2a;
 }
 
@@ -98,24 +98,24 @@ html.dark .studio-albums-scope {
   color: var(--sa-text-faint) !important;
 }
 
-.studio-albums-scope .text-\[\#1f3a34\],
+.studio-albums-scope .text-\[\#2563eb\],
 .studio-albums-scope .text-\[\#2731db\] {
   color: var(--sa-accent) !important;
 }
 
-.studio-albums-scope .bg-\[\#1f3a34\]\/10,
+.studio-albums-scope .bg-\[\#2563eb\]\/10,
 .studio-albums-scope .bg-\[\#2731db\]\/10 {
   background-color: var(--sa-accent-soft) !important;
 }
 
 .studio-albums-scope .bg-\[\#2731db\],
-.studio-albums-scope .bg-\[\#1f3a34\] {
+.studio-albums-scope .bg-\[\#2563eb\] {
   background-color: var(--sa-accent) !important;
-  color: #fffcf8 !important;
+  color: #ffffff !important;
 }
 
 .studio-albums-scope .border-\[\#2731db\],
-.studio-albums-scope .border-\[\#1f3a34\] {
+.studio-albums-scope .border-\[\#2563eb\] {
   border-color: var(--sa-accent) !important;
 }
 

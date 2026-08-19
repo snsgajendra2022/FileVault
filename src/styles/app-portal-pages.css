@@ -2,30 +2,30 @@
 
 /* ── Studio Dashboard (legacy premium-dashboard) ── */
 .premium-dashboard {
-  --sd-page-bg: #f7f6f3;
-  --sd-text: #141210;
-  --sd-text-muted: #8a847a;
-  --sd-text-secondary: #5c574f;
-  --sd-card: #fffcf8;
-  --sd-card-border: rgba(20, 18, 16, 0.1);
-  --sd-hero: linear-gradient(135deg, #fffcf8 0%, #f7f6f3 35%, #eceae4 100%);
-  --sd-hero-border: rgba(20, 18, 16, 0.1);
+  --sd-page-bg: #ffffff;
+  --sd-text: #0f172a;
+  --sd-text-muted: #94a3b8;
+  --sd-text-secondary: #64748b;
+  --sd-card: #ffffff;
+  --sd-card-border: rgba(15, 23, 42, 0.1);
+  --sd-hero: linear-gradient(135deg, #ffffff 0%, #ffffff 35%, #eff6ff 100%);
+  --sd-hero-border: rgba(15, 23, 42, 0.1);
   --sd-chip-bg: rgba(255, 252, 248, 0.85);
-  --sd-accent-soft: #eceae4;
-  --sd-shadow: 0 10px 40px rgba(20, 18, 16, 0.06);
+  --sd-accent-soft: #f1f5f9;
+  --sd-shadow: 0 10px 40px rgba(15, 23, 42, 0.06);
 }
 
 html.dark .premium-dashboard {
   --sd-page-bg: #151412;
-  --sd-text: #fffcf8;
+  --sd-text: #ffffff;
   --sd-text-muted: #a8a399;
-  --sd-text-secondary: #c5c0b6;
+  --sd-text-secondary: #e2e8f0;
   --sd-card: #1c1a18;
   --sd-card-border: rgba(255, 255, 255, 0.1);
   --sd-hero: linear-gradient(135deg, #1c1a18 0%, #151412 35%, #0f0e0c 100%);
   --sd-hero-border: rgba(255, 255, 255, 0.1);
   --sd-chip-bg: rgba(28, 26, 24, 0.9);
-  --sd-accent-soft: #2a2622;
+  --sd-accent-soft: #1d4ed8;
   --sd-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
 }
 
@@ -60,26 +60,26 @@ html.dark .premium-dashboard {
 
 /* ── Upload Family Images ── */
 .upload-family-page {
-  --uf-bg: #f7f6f3;
-  --uf-text: #141210;
-  --uf-muted: #5c574f;
-  --uf-border: rgba(20, 18, 16, 0.14);
-  --uf-surface: #fffcf8;
-  --uf-surface-soft: #eceae4;
-  --uf-accent: #1f3a34;
-  --uf-accent-soft: #eceae4;
-  --uf-tab-track: #eceae4;
+  --uf-bg: #ffffff;
+  --uf-text: #0f172a;
+  --uf-muted: #64748b;
+  --uf-border: rgba(15, 23, 42, 0.14);
+  --uf-surface: #ffffff;
+  --uf-surface-soft: #f1f5f9;
+  --uf-accent: #2563eb;
+  --uf-accent-soft: #f1f5f9;
+  --uf-tab-track: #f1f5f9;
 }
 
 html.dark .upload-family-page {
   --uf-bg: #151412;
-  --uf-text: #fffcf8;
+  --uf-text: #ffffff;
   --uf-muted: #a8a399;
   --uf-border: rgba(255, 255, 255, 0.12);
   --uf-surface: #1c1a18;
-  --uf-surface-soft: #2a2622;
-  --uf-accent: #c5c0b6;
-  --uf-accent-soft: #2a2622;
+  --uf-surface-soft: #1d4ed8;
+  --uf-accent: #e2e8f0;
+  --uf-accent-soft: #1d4ed8;
   --uf-tab-track: #1c1a18;
 }
 
@@ -116,14 +116,14 @@ html.dark .upload-family-page {
 
 /* ── Photo Themes hub ── */
 .photo-themes-hub {
-  --pt-text: #141210;
-  --pt-muted: #5c574f;
-  --pt-card: rgba(255, 252, 248, 0.9);
-  --pt-card-border: rgba(20, 18, 16, 0.1);
+  --pt-text: #0f172a;
+  --pt-muted: #64748b;
+  --pt-card: rgba(255, 255, 255, 0.95);
+  --pt-card-border: rgba(15, 23, 42, 0.1);
 }
 
 html.dark .photo-themes-hub {
-  --pt-text: #fffcf8;
+  --pt-text: #ffffff;
   --pt-muted: #a8a399;
   --pt-card: rgba(28, 26, 24, 0.92);
   --pt-card-border: rgba(255, 255, 255, 0.1);
@@ -158,15 +158,15 @@ html.dark .photo-themes-hub {
 
 /* ── Portal layout shell (all nav routes) ── */
 .portal-page-surface {
-  --pp-bg: #f7f6f3;
-  --pp-surface: #fffcf8;
-  --pp-surface-muted: #eceae4;
-  --pp-text: #141210;
-  --pp-text-muted: #5c574f;
-  --pp-text-faint: #8a847a;
-  --pp-border: rgba(20, 18, 16, 0.1);
-  --pp-accent: #1f3a34;
-  --pp-ink: #141210;
+  --pp-bg: #ffffff;
+  --pp-surface: #ffffff;
+  --pp-surface-muted: #f1f5f9;
+  --pp-text: #0f172a;
+  --pp-text-muted: #64748b;
+  --pp-text-faint: #94a3b8;
+  --pp-border: rgba(15, 23, 42, 0.1);
+  --pp-accent: #2563eb;
+  --pp-ink: #0f172a;
   color: var(--pp-text);
   font-family: "Outfit", "Segoe UI", sans-serif;
   transition: color 0.2s ease, background-color 0.2s ease;
@@ -175,13 +175,13 @@ html.dark .photo-themes-hub {
 html.dark .portal-page-surface {
   --pp-bg: #151412;
   --pp-surface: #1c1a18;
-  --pp-surface-muted: #2a2622;
-  --pp-text: #fffcf8;
+  --pp-surface-muted: #1d4ed8;
+  --pp-text: #ffffff;
   --pp-text-muted: #a8a399;
   --pp-text-faint: #78746c;
   --pp-border: rgba(255, 255, 255, 0.1);
-  --pp-accent: #c5c0b6;
-  --pp-ink: #fffcf8;
+  --pp-accent: #e2e8f0;
+  --pp-ink: #ffffff;
   color-scheme: dark;
 }
 
@@ -189,12 +189,12 @@ html.dark .portal-page-surface {
   border-radius: 1rem;
   border: 1px solid var(--pp-border);
   background-color: var(--pp-surface);
-  box-shadow: 0 4px 16px rgba(20, 18, 16, 0.04);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .portal-page-surface .portal-header-bar {
-  background-color: var(--pp-surface);
+  background-color: var(--pp-bg);
   border-bottom: 1px solid var(--pp-border);
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
@@ -257,7 +257,7 @@ html.dark .portal-page-surface {
 .portal-page-surface:not(:has(.sd-dash)) .bg-violet-100,
 .portal-page-surface:not(:has(.sd-dash)) .bg-purple-100,
 .portal-page-surface:not(:has(.sd-dash)) .bg-indigo-100 {
-  background-color: #eceae4 !important;
+  background-color: #f1f5f9 !important;
 }
 
 .portal-page-surface:not(:has(.sd-dash)) .bg-blue-500,
@@ -270,8 +270,8 @@ html.dark .portal-page-surface {
 .portal-page-surface:not(:has(.sd-dash)) .bg-indigo-600,
 .portal-page-surface:not(:has(.sd-dash)) .bg-fuchsia-500,
 .portal-page-surface:not(:has(.sd-dash)) .bg-fuchsia-600 {
-  background-color: var(--pp-ink) !important;
-  color: #fffcf8 !important;
+  background-color: var(--pp-accent) !important;
+  color: #ffffff !important;
 }
 
 .portal-page-surface:not(:has(.sd-dash)) .text-blue-500,
@@ -317,7 +317,7 @@ html.dark .portal-page-surface {
 .portal-page-surface:not(:has(.sd-dash)) .focus\:ring-violet-500:focus,
 .portal-page-surface:not(:has(.sd-dash)) .focus\:ring-purple-500:focus,
 .portal-page-surface:not(:has(.sd-dash)) .focus\:ring-indigo-500:focus {
-  --tw-ring-color: rgba(31, 58, 52, 0.35) !important;
+  --tw-ring-color: rgba(37, 99, 235, 0.35) !important;
 }
 
 .portal-page-surface:not(:has(.sd-dash)) .hover\:bg-blue-50:hover,
@@ -431,7 +431,7 @@ html.dark .family-tree-scope .family-tree-panel {
 
 html.dark .family-tree-scope .family-tree-action:hover {
   background-color: rgba(31, 58, 52, 0.2) !important;
-  border-color: #c5c0b6 !important;
+  border-color: #e2e8f0 !important;
 }
 
 /* ── Photo themes category (builder pages) ── */
@@ -447,7 +447,7 @@ html.dark .photo-themes-category .text-\[\#464554\] {
 
 html.dark .category-quantum-studio {
   background: #151412;
-  color: #fffcf8;
+  color: #ffffff;
 }
 
 html.dark .category-quantum-studio .bg-white,
@@ -460,7 +460,7 @@ html.dark .category-quantum-studio footer {
 
 html.dark .category-quantum-studio .bg-slate-50,
 html.dark .category-quantum-studio .bg-slate-50\/80 {
-  background-color: #2a2622 !important;
+  background-color: #1d4ed8 !important;
 }
 
 html.dark .category-quantum-studio .text-\[\#0b1c30\],
@@ -468,7 +468,7 @@ html.dark .category-quantum-studio .text-slate-900,
 html.dark .category-quantum-studio h1,
 html.dark .category-quantum-studio h2,
 html.dark .category-quantum-studio h3 {
-  color: #fffcf8 !important;
+  color: #ffffff !important;
 }
 
 html.dark .category-quantum-studio .text-\[\#464554\],

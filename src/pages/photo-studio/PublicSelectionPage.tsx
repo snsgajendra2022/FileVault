@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaImages, FaDownload, FaExclamationTriangle, FaFolder, FaFolderOpen, FaChevronRight, FaCheckCircle, FaCheck, FaCopy, FaShare, FaExpandArrowsAlt } from 'react-icons/fa';
 import api from '../../api/client/axiosInstance';
+import { useAuth } from '../../state/context/AuthContext';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { decryptImageIds, decryptCheckoutPayload } from '../../utils/encryption';
@@ -76,13 +77,13 @@ interface FlagsResponse {
 
 const PublicSelectionPage: React.FC = () => {
   const { t } = useTranslation();
+  const { isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const queryClient = useQueryClient();
   const [expandedAlbums, setExpandedAlbums] = useState<Set<number>>(new Set());
   const [selectedAlbums, setSelectedAlbums] = useState<Set<number>>(new Set());
-  const [selectedAlbumId, setSelectedAlbumId] = useState<number | null>(null);
   const [userSelectedImages, setUserSelectedImages] = useState<Map<number, Set<number>>>(new Map()); // albumId -> Set of imageIds
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOnlySelected, setShowOnlySelected] = useState(false);
@@ -115,13 +116,22 @@ const PublicSelectionPage: React.FC = () => {
   const albumId = albumIdParam ? parseInt(albumIdParam, 10) : null;
   const hasValidAlbumId = albumId != null && !isNaN(albumId) && albumId > 0;
 
-  // Protect: do not open this page without a complete share URL (sid, q, or token)
+  // Guest share links need sid, q, or token. Logged-in portal users can open albums without those.
   const hasShareIdentifier = !!(sid.trim() || qParam.trim() || token.trim());
+  const isPortalMode = isAuthenticated && !hasShareIdentifier;
+  const portalAuthToken =
+    typeof window !== 'undefined' ? localStorage.getItem('token') || '' : '';
 
   const payloadFromQ = useMemo(() => (qParam.trim() ? decryptCheckoutPayload(qParam.trim()) : null), [qParam]);
   const qInvalid = qParam.trim() !== '' && payloadFromQ === null;
 
-  type ResolvedFromSid = { token: string; albumId: number | null; fileNames: string[]; imageIds?: number[] };
+  type ResolvedFromSid = {
+    token: string;
+    albumId: number | null;
+    fileNames: string[];
+    imageIds?: number[];
+    shareAlbumId?: number | null;
+  };
   const [resolvedFromSid, setResolvedFromSid] = useState<ResolvedFromSid | null>(null);
   const [sidLoading, setSidLoading] = useState(false);
   const [sidError, setSidError] = useState(false);
@@ -135,7 +145,13 @@ const PublicSelectionPage: React.FC = () => {
     let cancelled = false;
     setSidLoading(true);
     setSidError(false);
-    api.get<{ token: string; albumId?: number | null; fileNames?: string[]; imageIds?: number[] }>(`/api/public/share-link/${encodeURIComponent(sid)}`)
+    api.get<{
+      token: string;
+      albumId?: number | null;
+      fileNames?: string[];
+      imageIds?: number[];
+      shareAlbumId?: number | null;
+    }>(`/api/public/share-link/${encodeURIComponent(sid)}`)
       .then((res) => {
         if (cancelled) return;
         const data = res.data;
@@ -145,7 +161,20 @@ const PublicSelectionPage: React.FC = () => {
         const albumIdVal = Number.isFinite(n) ? n : null;
         const fileNamesVal = Array.isArray(data?.fileNames) ? data.fileNames : [];
         const imageIdsVal = Array.isArray(data?.imageIds) ? data.imageIds.filter((id): id is number => typeof id === 'number') : [];
-        setResolvedFromSid({ token: tokenVal, albumId: albumIdVal, fileNames: fileNamesVal, imageIds: imageIdsVal.length > 0 ? imageIdsVal : undefined });
+        const rawShareAlbumId = data?.shareAlbumId;
+        const sa =
+          rawShareAlbumId == null
+            ? null
+            : Number.isFinite(Number(rawShareAlbumId))
+              ? Number(rawShareAlbumId)
+              : null;
+        setResolvedFromSid({
+          token: tokenVal,
+          albumId: albumIdVal,
+          fileNames: fileNamesVal,
+          imageIds: imageIdsVal.length > 0 ? imageIdsVal : undefined,
+          shareAlbumId: sa,
+        });
       })
       .catch(() => {
         if (!cancelled) {
@@ -159,14 +188,15 @@ const PublicSelectionPage: React.FC = () => {
     return () => { cancelled = true; };
   }, [sid]);
 
-  const effectiveToken = resolvedFromSid?.token ?? payloadFromQ?.token ?? token;
+  const shareToken = resolvedFromSid?.token ?? payloadFromQ?.token ?? token;
+  const effectiveToken = shareToken || (isPortalMode ? portalAuthToken : '');
   const effectiveAlbumId = resolvedFromSid != null ? resolvedFromSid.albumId : (payloadFromQ != null ? payloadFromQ.albumId : albumId);
   const effectiveHasValidAlbumId = effectiveAlbumId != null && !isNaN(effectiveAlbumId) && effectiveAlbumId > 0;
 
   // Verification gate (OTP / existing user) – same as PublicCheckoutPage
   const verifyStorageKey = useMemo(() => `public_selection_verified_${effectiveToken.slice(0, 24)}`, [effectiveToken]);
   type VerifyStatus = 'idle' | 'checking' | 'skip' | 'existing_user' | 'show_message' | 'needs_input' | 'otp_sent' | 'verified';
-  const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>('idle');
+  const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>(isPortalMode ? 'verified' : 'idle');
   const [verifyEmail, setVerifyEmail] = useState('');
   const [verifyOtp, setVerifyOtp] = useState('');
   const [verifySending, setVerifySending] = useState(false);
@@ -175,6 +205,10 @@ const PublicSelectionPage: React.FC = () => {
   const [verifyUserId, setVerifyUserId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isPortalMode) {
+      setVerifyStatus('verified');
+      return;
+    }
     if (!effectiveToken) return;
     const stored = sessionStorage.getItem(verifyStorageKey);
     if (stored === '1') {
@@ -218,7 +252,7 @@ const PublicSelectionPage: React.FC = () => {
         setVerifyStatus('needs_input'); // API failed or not implemented – still show verification page
       });
     return () => { cancelled = true; };
-  }, [effectiveToken, verifyStorageKey, validShareId]);
+  }, [isPortalMode, effectiveToken, verifyStorageKey, validShareId]);
 
   const handleVerifySubmit = async () => {
     const email = verifyEmail.trim();
@@ -458,11 +492,11 @@ const PublicSelectionPage: React.FC = () => {
     hasNextPage: albumsHasNextPage,
     fetchNextPage: albumsFetchNextPage,
   } = useInfiniteQuery({
-    queryKey: ['publicSelectionAlbums', effectiveToken, effectiveHasValidAlbumId ? effectiveAlbumId : null],
-    enabled: !!effectiveToken && (!sid || !!resolvedFromSid || sidError) && !isBulkMode,
+    queryKey: ['publicSelectionAlbums', isPortalMode ? 'portal' : effectiveToken, effectiveHasValidAlbumId ? effectiveAlbumId : null],
+    enabled: !!effectiveToken && (isPortalMode || ((!sid || !!resolvedFromSid || sidError) && !isBulkMode)),
     queryFn: async ({ pageParam }) => {
-      const headers = effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {};
-      const params: Record<string, string | number> = effectiveToken ? { token: effectiveToken } : {};
+      const headers = isPortalMode ? {} : (effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {});
+      const params: Record<string, string | number> = isPortalMode ? {} : (effectiveToken ? { token: effectiveToken } : {});
       if (effectiveHasValidAlbumId && effectiveAlbumId != null) {
         const response = await api.get(`/api/albums/${effectiveAlbumId}`, { headers, params });
         const album = response.data as Album;
@@ -503,7 +537,7 @@ const PublicSelectionPage: React.FC = () => {
       albumImagesInflightRef.current.add(albumId);
       setAlbumImagesLoadingIds((prev) => new Set(prev).add(albumId));
       try {
-        const headers = effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {};
+        const headers = isPortalMode ? {} : (effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {});
         const merged: AlbumImage[] = [];
         let page = 0;
         let totalPages = 1;
@@ -515,7 +549,7 @@ const PublicSelectionPage: React.FC = () => {
           }>(`/api/albums/${albumId}/images`, {
             headers,
             params: {
-              token: effectiveToken,
+              ...(isPortalMode ? {} : { token: effectiveToken }),
               page,
               size: ALBUM_IMAGES_FETCH_SIZE,
               variantDetail: 'full',
@@ -544,7 +578,7 @@ const PublicSelectionPage: React.FC = () => {
         });
       }
     },
-    [effectiveToken, albumImagesById, t]
+    [effectiveToken, isPortalMode, albumImagesById, t]
   );
 
   const getImagesForAlbum = useCallback(
@@ -913,35 +947,100 @@ const PublicSelectionPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      // Extract only selected image IDs
       const selectedImageIds = allSelectedImages.map(img => img.id);
-      
-      // Prepare the request payload
-      const payload = {
-        imageIds: selectedImageIds,
-      };
 
-      console.log('Submitting selected images:', payload);
+      // Determine which studio album these images belong to.
+      const targetAlbumId =
+        effectiveHasValidAlbumId && effectiveAlbumId != null
+          ? effectiveAlbumId
+          : selectedAlbums.size === 1
+            ? Array.from(selectedAlbums)[0] ?? null
+            : null;
 
-      // Call PUT API to submit selected images
-      const response = await api.put(`/api/albums/${selectedAlbumId}/images`, payload, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      if (!targetAlbumId) {
+        toast.error(t('publicSelectionPage.toastSubmitFailed') || 'Please select a single album to update.');
+        return;
+      }
+
+      const headers = isPortalMode ? {} : (effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {});
+
+      // Look up the public-share album record for this studio album so we can use
+      // the correct update endpoint: PUT /api/public-share/albums/:shareAlbumId/images
+      // This replaces the album's shared image list with only the selected images.
+      let shareAlbumId: number | null = resolvedFromSid?.shareAlbumId ?? null;
+      try {
+        // If we already have shareAlbumId from the sid record, prefer it.
+        if (!shareAlbumId) {
+          const shareListRes = await api.get<{ albums?: { shareAlbumId: number; token: string; status?: string | null }[] }>(
+            '/api/public-share/albums/source/list',
+            { headers, params: { albumId: targetAlbumId } }
+          );
+          const shareAlbums = Array.isArray(shareListRes.data?.albums) ? shareListRes.data.albums : [];
+          const active = shareAlbums.find(a => String(a.status ?? '').toUpperCase() === 'ACTIVE') ?? shareAlbums[0] ?? null;
+          shareAlbumId = active?.shareAlbumId ?? null;
+        }
+      } catch {
+        // /api/public-share/albums/source/list not available for guests — fall through
+      }
+
+      if (shareAlbumId) {
+        // Updates the shared link AND (after backend restart) the studio album.
+        await api.put(
+          `/api/public-share/albums/${shareAlbumId}/images`,
+          { imageIds: selectedImageIds },
+          { headers }
+        );
+      }
+
+      // Replace the studio album with only the selected images so
+      // /studio/albums, checkout, and every other album view hide unselected photos.
+      try {
+        await api.put(`/api/albums/${targetAlbumId}/images`, { imageIds: selectedImageIds }, { headers });
+      } catch (putErr: unknown) {
+        const status = (putErr as { response?: { status?: number } })?.response?.status;
+        if (status !== 404 && status !== 405) throw putErr;
+        const current = albumImagesById.get(targetAlbumId) ?? [];
+        const selectedSet = new Set(selectedImageIds);
+        const toRemove = current.map((img) => img.id).filter((id) => !selectedSet.has(id));
+        if (toRemove.length > 0) {
+          await api.delete(`/api/albums/${targetAlbumId}/images`, { headers, data: { imageIds: toRemove } });
+        }
+      }
+
+      setAlbumImagesById((prev) => {
+        const next = new Map(prev);
+        next.delete(targetAlbumId);
+        return next;
       });
 
-      console.log('Submission response:', response.data);
-
-      // Invalidate and refetch albums data after successful update
-      await queryClient.invalidateQueries({ queryKey: ['publicSelectionAlbums', effectiveToken] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['publicSelectionAlbums'] }),
+        queryClient.invalidateQueries({ queryKey: ['albums'] }),
+        queryClient.invalidateQueries({ queryKey: ['albumImages'] }),
+      ]);
 
       toast.success(
         t('publicSelectionPage.toastSubmitSuccess', { count: allSelectedImages.length }),
         { duration: 5000 }
       );
-      
+
+      // After saving, immediately show the shared album view with ONLY the selected images.
+      // This avoids relying on any potentially-stale `sid`-resolved image list.
+      try {
+        if (effectiveToken?.slice) {
+          sessionStorage.setItem(`public_images_display_verified_${effectiveToken.slice(0, 24)}`, '1');
+        }
+      } catch {
+        // sessionStorage can fail in some embedded browsers; ignore.
+      }
+
+      const params = new URLSearchParams();
+      params.set('token', effectiveToken);
+      params.set('imageIds', selectedImageIds.join(','));
+      if (validShareId != null) params.set('shareId', String(validShareId));
+      navigate(`/public/images-display?${params.toString()}`);
+
     } catch (error: any) {
-      console.error('Submission error:', error);
       const errorMessage = error.response?.data?.message || error.message || t('publicSelectionPage.toastSubmitFailed');
       toast.error(errorMessage);
     } finally {
@@ -949,8 +1048,8 @@ const PublicSelectionPage: React.FC = () => {
     }
   };
 
-  // Incomplete URL – no sid, q, or token: do not show selection page, show error only
-  if (!hasShareIdentifier) {
+  // Incomplete URL – no sid, q, or token (guests only). Portal users can open albums.
+  if (!hasShareIdentifier && !isPortalMode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">
@@ -1003,7 +1102,7 @@ const PublicSelectionPage: React.FC = () => {
     );
   }
 
-  if (!effectiveToken) {
+  if (!effectiveToken && !isPortalMode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-md border border-gray-100 p-6 text-center">

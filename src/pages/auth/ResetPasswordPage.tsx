@@ -91,7 +91,7 @@ const ResetPasswordPage = () => {
     return shell(
       <div className="mx-auto max-w-md">
         <div className={`${omCard} p-8 text-center`}>
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[#141210] text-[#fffcf8] dark:bg-[#fffcf8] dark:text-[#141210]">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[#0f172a] text-[#ffffff] dark:bg-[#ffffff] dark:text-[#0f172a]">
             <FaShieldAlt className="h-6 w-6" />
           </div>
           <h1 className={omCardTitle}>{t('passwordReset.invalidLinkTitle')}</h1>
@@ -114,7 +114,7 @@ const ResetPasswordPage = () => {
     return shell(
       <div className="mx-auto max-w-md">
         <div className={`${omCard} p-8 text-center`}>
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[#1f3a34] text-[#fffcf8]">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-[#2563eb] text-[#ffffff]">
             <FaShieldAlt className="h-6 w-6" />
           </div>
           <h1 className={omCardTitle}>{t('passwordReset.successTitle')}</h1>
@@ -153,7 +153,7 @@ const ResetPasswordPage = () => {
             </label>
             <div className="relative group">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                <FaLock className="h-4 w-4 text-[#8a847a] group-focus-within:text-[#1f3a34]" />
+                <FaLock className="h-4 w-4 text-[#94a3b8] group-focus-within:text-[#2563eb]" />
               </div>
               <input
                 id="newPassword"
@@ -170,7 +170,7 @@ const ResetPasswordPage = () => {
               <button
                 type="button"
                 onClick={() => setShowNewPassword((s) => !s)}
-                className="absolute inset-y-0 right-0 flex items-center pr-4 text-[#8a847a] hover:text-[#141210]"
+                className="absolute inset-y-0 right-0 flex items-center pr-4 text-[#94a3b8] hover:text-[#0f172a]"
                 aria-label={showNewPassword ? t('passwordReset.hidePassword') : t('passwordReset.showPassword')}
               >
                 {showNewPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
@@ -184,7 +184,7 @@ const ResetPasswordPage = () => {
             </label>
             <div className="relative group">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                <FaLock className="h-4 w-4 text-[#8a847a] group-focus-within:text-[#1f3a34]" />
+                <FaLock className="h-4 w-4 text-[#94a3b8] group-focus-within:text-[#2563eb]" />
               </div>
               <input
                 id="confirmPassword"
@@ -201,7 +201,7 @@ const ResetPasswordPage = () => {
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword((s) => !s)}
-                className="absolute inset-y-0 right-0 flex items-center pr-4 text-[#8a847a] hover:text-[#141210]"
+                className="absolute inset-y-0 right-0 flex items-center pr-4 text-[#94a3b8] hover:text-[#0f172a]"
                 aria-label={showConfirmPassword ? t('passwordReset.hidePassword') : t('passwordReset.showPassword')}
               >
                 {showConfirmPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
@@ -212,7 +212,7 @@ const ResetPasswordPage = () => {
           <button type="submit" disabled={loading} className={omPrimaryBtn}>
             {loading ? (
               <>
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#fffcf8] border-t-transparent" />
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#ffffff] border-t-transparent" />
                 {t('passwordReset.submitting')}
               </>
             ) : (

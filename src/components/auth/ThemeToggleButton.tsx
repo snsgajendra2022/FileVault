@@ -51,7 +51,7 @@ const ThemeToggleButton: React.FC<{ className?: string }> = ({ className = '' })
       type="button"
       onClick={() => cycleTheme()}
       title={resolvedHint ? `${label} · ${resolvedHint}` : label}
-      className={`relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-slate-200 bg-white/80 p-2.5 text-slate-600 shadow-sm transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 hover:shadow dark:border-white/10 dark:bg-white/5 dark:text-amber-200 dark:hover:bg-white/10 dark:hover:text-amber-100 sm:min-h-0 sm:min-w-0 ${className}`}
+      className={`relative inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-[rgba(20,18,16,0.12)] bg-[#ffffff] p-2.5 text-[#64748b] shadow-sm transition-all duration-200 hover:bg-[#eff6ff] hover:text-[#0f172a] dark:border-white/10 dark:bg-white/5 dark:text-amber-200 dark:hover:bg-white/10 dark:hover:text-amber-100 sm:min-h-0 sm:min-w-0 ${className}`}
       aria-label={`${label}. ${nextHint}`}
       aria-pressed={preference !== 'system' && theme === 'dark'}
     >

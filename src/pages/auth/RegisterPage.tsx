@@ -246,11 +246,11 @@ const RegisterPage = () => {
   if (isLoading) {
     return (
       <div className={omLoadingPage}>
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#141210] dark:bg-[#fffcf8] animate-pulse">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0f172a] dark:bg-[#ffffff] animate-pulse">
           OM
         </div>
         <div className="h-1.5 w-24 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden">
-          <div className="h-full w-2/3 rounded-full bg-[#141210] dark:bg-[#fffcf8] animate-pulse" />
+          <div className="h-full w-2/3 rounded-full bg-[#0f172a] dark:bg-[#ffffff] animate-pulse" />
         </div>
         <p className={`text-xs ${omMuted}`}>{t('registerPage.creatingAccount')}</p>
       </div>
@@ -294,7 +294,7 @@ const RegisterPage = () => {
         <label className={`block ${omLabel}`}>{t('registerPage.labelUsername')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <FaUser className="h-4 w-4 text-slate-500 group-focus-within:text-[#1f3a34] transition-colors" />
+            <FaUser className="h-4 w-4 text-slate-500 group-focus-within:text-[#2563eb] transition-colors" />
           </div>
           <input
             type="text"
@@ -313,7 +313,7 @@ const RegisterPage = () => {
         <label className={`block ${omLabel}`}>{t('registerPage.labelEmail')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <FaEnvelope className="h-4 w-4 text-slate-500 group-focus-within:text-[#1f3a34] transition-colors" />
+            <FaEnvelope className="h-4 w-4 text-slate-500 group-focus-within:text-[#2563eb] transition-colors" />
           </div>
           <input
             type="email"
@@ -332,7 +332,7 @@ const RegisterPage = () => {
         <label className={`block ${omLabel}`}>{t('registerPage.labelPhone')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <FaPhone className="h-4 w-4 text-slate-500 group-focus-within:text-[#1f3a34] transition-colors" />
+            <FaPhone className="h-4 w-4 text-slate-500 group-focus-within:text-[#2563eb] transition-colors" />
           </div>
           <input
             type="tel"
@@ -350,7 +350,7 @@ const RegisterPage = () => {
         <label className={`block ${omLabel}`}>{t('registerPage.labelPassword')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <FaShieldAlt className="h-4 w-4 text-slate-500 group-focus-within:text-[#1f3a34] transition-colors" />
+            <FaShieldAlt className="h-4 w-4 text-slate-500 group-focus-within:text-[#2563eb] transition-colors" />
           </div>
           <input
             type={showPassword ? 'text' : 'password'}
@@ -410,7 +410,7 @@ const RegisterPage = () => {
         <label className={`block text-sm font-semibold ${omHeading}`}>{t('registerPage.labelCompany')}</label>
         <div className="relative group">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-            <FaBuilding className="h-5 w-5 text-slate-500 group-focus-within:text-[#1f3a34] dark:group-focus-within:text-[#1f3a34] transition-colors" />
+            <FaBuilding className="h-5 w-5 text-slate-500 group-focus-within:text-[#2563eb] dark:group-focus-within:text-[#2563eb] transition-colors" />
           </div>
           <input
             type="text"
@@ -429,7 +429,7 @@ const RegisterPage = () => {
           <label className={`block text-sm font-semibold ${omHeading}`}>{t('registerPage.labelRole')}</label>
           <div className="relative group">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <FaBriefcase className="h-5 w-5 text-slate-500 group-focus-within:text-[#1f3a34] dark:group-focus-within:text-[#1f3a34] transition-colors" />
+              <FaBriefcase className="h-5 w-5 text-slate-500 group-focus-within:text-[#2563eb] dark:group-focus-within:text-[#2563eb] transition-colors" />
             </div>
             <select
               className={`${inputWithIcon} py-4 rounded-2xl appearance-none ${errors.role ? inputErr : inputOk}`}
@@ -461,7 +461,7 @@ const RegisterPage = () => {
         <button
           type="button"
           onClick={prevStep}
-          className="flex-1 group flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-slate-800 dark:text-white bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/20 hover:bg-slate-200 dark:hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-[#1f3a34]/30 transition-all duration-300"
+          className="flex-1 group flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-slate-800 dark:text-white bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/20 hover:bg-slate-200 dark:hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-[#2563eb]/30 transition-all duration-300"
         >
           <div className="flex items-center">
             <FaArrowLeft className="mr-2 h-5 w-5 group-hover:-translate-x-1 transition-transform" />
@@ -472,7 +472,7 @@ const RegisterPage = () => {
           type="button"
           onClick={handleSubmit}
           disabled={loading}
-          className={`flex-1 group flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-white bg-[#141210] hover:bg-[#2a2622] dark:bg-[#fffcf8] dark:text-[#141210] dark:hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#1f3a34]/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300`}
+          className={`flex-1 group flex justify-center py-4 px-6 text-lg font-semibold rounded-2xl text-white bg-[#0f172a] hover:bg-[#1d4ed8] dark:bg-[#ffffff] dark:text-[#0f172a] dark:hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#2563eb]/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300`}
         >
           {loading ? (
             <div className="flex items-center">
@@ -519,7 +519,7 @@ const RegisterPage = () => {
 
           <div className="w-full max-w-2xl mx-auto lg:mx-0 lg:max-w-none">
             <div className="mb-6 text-center lg:hidden">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#141210] dark:bg-[#fffcf8]">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0f172a] dark:bg-[#ffffff]">
                 OM
               </div>
               <h1 className={`text-2xl font-bold ${omHeading}`}>{t('registerPage.joinTitle')}</h1>

@@ -531,6 +531,7 @@ const PhotoStudioAlbum: React.FC = () => {
   const [sharedImagesOnly, setSharedImagesOnly] = useState(false);
   const [shareRecipientEmail, setShareRecipientEmail] = useState('');
   const [addingRecipient, setAddingRecipient] = useState(false);
+  const albumSelectionSyncKeyRef = useRef('');
 
   // Share link modal (public URL – send to contacts / email / SMS, same as StudioCheckout)
   const [showShareLinkModal, setShowShareLinkModal] = useState(false);
@@ -660,7 +661,7 @@ const PhotoStudioAlbum: React.FC = () => {
       }
     },
     initialPageParam: 0,
-    refetchOnMount: false,
+    refetchOnMount: true,
     getNextPageParam: (lastPage) => {
       const totalPages = Number(lastPage?.totalPages ?? 1);
       const page = Number(lastPage?.page ?? 0);
@@ -1637,6 +1638,39 @@ const PhotoStudioAlbum: React.FC = () => {
     };
   }, [selectedShareAlbum, selectedShareAlbumId]);
 
+  // If the shared/submitted selection is smaller than the studio album, persist it
+  // so /studio/albums and every other album view drop the unselected photos.
+  useEffect(() => {
+    if (viewingAlbumId == null || isEditingSharedImages) return;
+    if (sharedImageIds.size === 0 || viewingAlbumSourceImages.length === 0) return;
+    const extras = viewingAlbumSourceImages.filter((img) => !sharedImageIds.has(img.id));
+    if (extras.length === 0) return;
+    const key = `${viewingAlbumId}:${Array.from(sharedImageIds).sort((a, b) => a - b).join(',')}`;
+    if (albumSelectionSyncKeyRef.current === key) return;
+    albumSelectionSyncKeyRef.current = key;
+    const selectedIds = Array.from(sharedImageIds);
+    api
+      .put(`/api/albums/${viewingAlbumId}/images`, { imageIds: selectedIds })
+      .catch((putErr: unknown) => {
+        const status = (putErr as { response?: { status?: number } })?.response?.status;
+        if (status !== 404 && status !== 405) throw putErr;
+        const toRemove = extras.map((img) => img.id);
+        return api.delete(`/api/albums/${viewingAlbumId}/images`, { data: { imageIds: toRemove } });
+      })
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ['albums'] });
+        queryClient.invalidateQueries({ queryKey: ['albumImages', viewingAlbumId] });
+        setAlbumImages((prev) => {
+          const next = new Map(prev);
+          next.delete(viewingAlbumId);
+          return next;
+        });
+      })
+      .catch(() => {
+        albumSelectionSyncKeyRef.current = '';
+      });
+  }, [viewingAlbumId, sharedImageIds, viewingAlbumSourceImages, isEditingSharedImages, queryClient]);
+
   const publicImagesDisplayUrl = useMemo(() => {
     if (shareLinkSelectedImages.length === 0) return '';
     if (shareLinkAlbumTokenLoading) return '';
@@ -1852,11 +1886,14 @@ const PhotoStudioAlbum: React.FC = () => {
   }, []);
 
   const viewingAlbumBaseImages = useMemo((): AlbumImage[] => {
-    if (sharedImagesOnly) {
+    const hasSharedSelection = sharedImageIds.size > 0;
+    // While not editing, only show the submitted/shared selection so unselected
+    // photos never appear in this album view.
+    if (hasSharedSelection && (!isEditingSharedImages || sharedImagesOnly)) {
       return viewingAlbumSourceImages.filter((img) => sharedImageIds.has(img.id));
     }
     return viewingAlbumSourceImages;
-  }, [viewingAlbumSourceImages, sharedImagesOnly, sharedImageIds]);
+  }, [viewingAlbumSourceImages, sharedImagesOnly, sharedImageIds, isEditingSharedImages]);
 
   const viewingAlbumAvailableDays = useMemo(() => {
     const keys = new Set<string>();
@@ -2139,7 +2176,7 @@ const PhotoStudioAlbum: React.FC = () => {
           </h1>
           <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-[#D9E7FF] bg-white/70 px-2.5 py-0.5 text-[11px] font-medium text-[#2731db] backdrop-blur">
             <span className="h-1.5 w-1.5 rounded-full bg-[#2731db]" />
-            {albumsTotal} {t('photoStudioAlbumPage.albums') || 'albums'}
+            {t('photoStudioAlbumPage.albumsCount', { count: albumsTotal })}
           </span>
         </div>
         <p className="mt-1.5 text-sm leading-6 text-slate-500 max-w-xl">
@@ -2150,7 +2187,7 @@ const PhotoStudioAlbum: React.FC = () => {
         {selectedAlbums.size > 0 && (
           <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#2731db]/10 px-3 py-1 text-xs font-medium text-[#2731db]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#2731db] animate-pulse" />
-            {selectedAlbums.size} {t('photoStudioAlbumPage.selected') || 'selected'}
+            {t('photoStudioAlbumPage.selectedCountBadge', { count: selectedAlbums.size })}
           </div>
         )}
       </div>
@@ -2454,8 +2491,29 @@ const PhotoStudioAlbum: React.FC = () => {
                                 return;
                               }
                               await api.put(`/api/public-share/albums/${selectedShareAlbum.shareAlbumId}/images`, { imageIds: ids });
+                              try {
+                                await api.put(`/api/albums/${album.id}/images`, { imageIds: ids });
+                              } catch (putErr: unknown) {
+                                const status = (putErr as { response?: { status?: number } })?.response?.status;
+                                if (status !== 404 && status !== 405) throw putErr;
+                                const toRemove = viewingAlbumSourceImages
+                                  .map((img) => img.id)
+                                  .filter((id) => !ids.includes(id));
+                                if (toRemove.length > 0) {
+                                  await api.delete(`/api/albums/${album.id}/images`, { data: { imageIds: toRemove } });
+                                }
+                              }
                               setSharedImageIds(new Set(ids));
-                              toast.success('Shared images updated');
+                              setSharedImagesOnly(true);
+                              setIsEditingSharedImages(false);
+                              queryClient.invalidateQueries({ queryKey: ['albums'] });
+                              queryClient.invalidateQueries({ queryKey: ['albumImages', album.id] });
+                              setAlbumImages((prev) => {
+                                const next = new Map(prev);
+                                next.delete(album.id);
+                                return next;
+                              });
+                              toast.success('Album updated with selected images only');
                             } catch {
                               toast.error('Failed to update shared images');
                             } finally {

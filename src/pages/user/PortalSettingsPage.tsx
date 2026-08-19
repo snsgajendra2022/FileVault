@@ -89,11 +89,11 @@ const SETTINGS_STORAGE_KEY = "portal_settings";
 const ROLE_PERMISSIONS_STORAGE_KEY = "portal_role_menu_permissions";
 
 /** Shared field styles — follow html.dark (system / light / dark via filevault-theme). */
-const SETTINGS_LABEL_CLASS = "text-sm font-semibold text-[#5c574f] dark:text-[#a8a399]";
+const SETTINGS_LABEL_CLASS = "text-sm font-semibold text-[#64748b] dark:text-[#a8a399]";
 const SETTINGS_INPUT_CLASS =
-  "mt-2 w-full rounded-2xl border border-[rgba(20,18,16,0.14)] bg-white px-4 py-3 text-sm text-[#141210] outline-none transition focus:border-[#1f3a34] focus:ring-4 focus:ring-[rgba(31,58,52,0.12)] dark:border-white/12 dark:bg-[#1c1a18] dark:text-[#fffcf8] dark:placeholder:text-[#78746c] dark:focus:border-[#c5c0b6] dark:focus:ring-white/10";
+  "mt-2 w-full rounded-2xl border border-[rgba(20,18,16,0.14)] bg-white px-4 py-3 text-sm text-[#0f172a] outline-none transition focus:border-[#2563eb] focus:ring-4 focus:ring-[rgba(31,58,52,0.12)] dark:border-white/12 dark:bg-[#1c1a18] dark:text-[#ffffff] dark:placeholder:text-[#78746c] dark:focus:border-[#e2e8f0] dark:focus:ring-white/10";
 const SETTINGS_CARD_CLASS =
-  "rounded-3xl border border-[rgba(20,18,16,0.1)] bg-[#fffcf8] p-5 shadow-sm dark:border-white/10 dark:bg-[#1c1a18]";
+  "rounded-3xl border border-[rgba(20,18,16,0.1)] bg-[#ffffff] p-5 shadow-sm dark:border-white/10 dark:bg-[#1c1a18]";
 
 const defaultSettings: PortalSettings = {
   portalName: "Our Memories Portal",
@@ -129,7 +129,7 @@ const TAB_DEFS: Array<{
   { id: "general", labelKey: "portalSettingsPage.tabs.general", descKey: "portalSettingsPage.tabs.generalDesc", icon: FaCog },
   { id: "language", labelKey: "portalSettingsPage.tabs.language", descKey: "portalSettingsPage.tabs.languageDesc", icon: FaGlobe },
   { id: "permissions", labelKey: "portalSettingsPage.tabs.permissions", descKey: "portalSettingsPage.tabs.permissionsDesc", icon: FaUserCog },
-  { id: "ai", labelKey: "portalSettingsPage.tabs.omAssistant", descKey: "portalSettingsPage.tabs.omAssistantDesc", icon: FaRobot },
+  // { id: "ai", labelKey: "portalSettingsPage.tabs.omAssistant", descKey: "portalSettingsPage.tabs.omAssistantDesc", icon: FaRobot },
   { id: "notifications", labelKey: "portalSettingsPage.tabs.notifications", descKey: "portalSettingsPage.tabs.notificationsDesc", icon: FaBell },
   { id: "security", labelKey: "portalSettingsPage.tabs.security", descKey: "portalSettingsPage.tabs.securityDesc", icon: FaLock },
   { id: "appearance", labelKey: "portalSettingsPage.tabs.appearance", descKey: "portalSettingsPage.tabs.appearanceDesc", icon: FaPalette },
@@ -147,6 +147,7 @@ const menuSeed: Array<{ group: MenuPermission["group"]; label: string; path: str
   { group: "Studio", label: "Studio Dashboard", path: "/studio/dashboard" },
   { group: "Studio", label: "Upload Family Images", path: "/upload-family-images" },
   { group: "Studio", label: "My Images", path: "/client-images" },
+  { group: "Studio", label: "AI", path: "/ai" },
   { group: "Studio", label: "Our Memories", path: "/memories/events" },
   { group: "Studio", label: "Albums", path: "/studio/albums" },
   { group: "Studio", label: "Photo Books", path: "/photo-book" },
@@ -264,11 +265,11 @@ function SettingSwitch({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-[rgba(20,18,16,0.1)] bg-[#fffcf8] p-4 shadow-sm dark:border-white/10 dark:bg-[#1c1a18]">
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-[rgba(20,18,16,0.1)] bg-[#ffffff] p-4 shadow-sm dark:border-white/10 dark:bg-[#1c1a18]">
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-[#141210] dark:text-[#fffcf8]">{label}</p>
+        <p className="text-sm font-semibold text-[#0f172a] dark:text-[#ffffff]">{label}</p>
         {description ? (
-          <p className="mt-1 text-xs leading-5 text-[#8a847a] dark:text-[#78746c]">{description}</p>
+          <p className="mt-1 text-xs leading-5 text-[#94a3b8] dark:text-[#78746c]">{description}</p>
         ) : null}
       </div>
 
@@ -276,14 +277,14 @@ function SettingSwitch({
         type="button"
         onClick={() => onChange(!checked)}
         className={`relative inline-flex h-7 w-12 shrink-0 rounded-full transition ${
-          checked ? "bg-[#141210] dark:bg-[#fffcf8]" : "bg-[#c5c0b6] dark:bg-[#5c574f]"
+          checked ? "bg-[#0f172a] dark:bg-[#ffffff]" : "bg-[#e2e8f0] dark:bg-[#64748b]"
         }`}
         aria-pressed={checked}
       >
         <span
           className={`absolute top-1 h-5 w-5 rounded-full shadow transition ${
             checked
-              ? "left-6 bg-[#fffcf8] dark:bg-[#141210]"
+              ? "left-6 bg-[#ffffff] dark:bg-[#0f172a]"
               : "left-1 bg-white"
           }`}
         />
@@ -594,7 +595,7 @@ export default function PortalSettingsPage() {
           <div>
             <label className="text-sm font-semibold text-slate-700">{t("portalSettingsPage.permissions.role")}</label>
             <div
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#1f3a34] focus:ring-4 focus:ring-[rgba(31,58,52,0.12)]"
+              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#2563eb] focus:ring-4 focus:ring-[rgba(31,58,52,0.12)]"
             >
               {roleLabel(portalRole)}
             </div>
@@ -606,7 +607,7 @@ export default function PortalSettingsPage() {
               value={permissionSearch}
               onChange={(e) => setPermissionSearch(e.target.value)}
               placeholder={t("portalSettingsPage.permissions.searchPlaceholder")}
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#1f3a34] focus:ring-4 focus:ring-[rgba(31,58,52,0.12)]"
+              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-[#2563eb] focus:ring-4 focus:ring-[rgba(31,58,52,0.12)]"
             />
           </div>
         </div>
@@ -652,7 +653,7 @@ export default function PortalSettingsPage() {
                   {t("portalSettingsPage.permissions.menuCount", { count: rows.length })}
                 </p>
               </div>
-              <span className="rounded-full bg-[#eceae4] px-3 py-1 text-xs font-bold text-[#1f3a34]">
+              <span className="rounded-full bg-[#f1f5f9] px-3 py-1 text-xs font-bold text-[#2563eb]">
                 {roleLabel(selectedRole)}
               </span>
             </div>
@@ -801,31 +802,31 @@ export default function PortalSettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f6f3] dark:bg-[#151412] px-4 py-6 text-[#141210] dark:text-[#fffcf8] sm:px-6 lg:px-8 transition-colors duration-200">
+    <div className="min-h-screen bg-[#ffffff] dark:bg-[#151412] px-4 py-6 text-[#0f172a] dark:text-[#ffffff] sm:px-6 lg:px-8 transition-colors duration-200">
       <div className="mx-auto max-w-7xl">
-        <header className="mb-6 overflow-hidden rounded-[2rem] border border-[rgba(20,18,16,0.1)] dark:border-white/10 bg-[#fffcf8]/90 dark:bg-[#1c1a18]/90 p-6 shadow-[0_16px_40px_rgba(20,18,16,0.06)] dark:shadow-[0_20px_70px_rgba(0,0,0,0.35)] backdrop-blur-xl">
+        <header className="mb-6 overflow-hidden rounded-[2rem] border border-[rgba(20,18,16,0.1)] dark:border-white/10 bg-[#ffffff]/90 dark:bg-[#1c1a18]/90 p-6 shadow-[0_16px_40px_rgba(20,18,16,0.06)] dark:shadow-[0_20px_70px_rgba(0,0,0,0.35)] backdrop-blur-xl">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(20,18,16,0.12)] dark:border-white/12 bg-[#f7f6f3] dark:bg-white/5 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#5c574f] dark:text-[#a8a399]">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(20,18,16,0.12)] dark:border-white/12 bg-[#ffffff] dark:bg-white/5 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#64748b] dark:text-[#a8a399]">
                 <FaSlidersH className="h-3 w-3" />
                 {t("portalSettingsPage.badge")}
               </div>
 
               <h1
-                className="mt-4 text-3xl font-semibold tracking-tight text-[#141210] dark:text-[#fffcf8] sm:text-4xl"
+                className="mt-4 text-3xl font-semibold tracking-tight text-[#0f172a] dark:text-[#ffffff] sm:text-4xl"
                 style={{ fontFamily: '"Cormorant Garamond", Georgia, serif' }}
               >
                 {t("portalSettingsPage.title")}
               </h1>
 
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#5c574f] dark:text-[#a8a399]">{t("portalSettingsPage.subtitle")}</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#64748b] dark:text-[#a8a399]">{t("portalSettingsPage.subtitle")}</p>
             </div>
 
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
                 onClick={handleReset}
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-[rgba(20,18,16,0.14)] bg-[#fffcf8] px-4 py-3 text-sm font-semibold text-[#141210] shadow-sm transition hover:bg-[#eceae4] dark:border-white/12 dark:bg-[#1c1a18] dark:text-[#fffcf8] dark:hover:bg-white/5"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-[rgba(20,18,16,0.14)] bg-[#ffffff] px-4 py-3 text-sm font-semibold text-[#0f172a] shadow-sm transition hover:bg-[#f1f5f9] dark:border-white/12 dark:bg-[#1c1a18] dark:text-[#ffffff] dark:hover:bg-white/5"
               >
                 <FaUndo className="h-4 w-4" />
                 {t("portalSettingsPage.reset")}
@@ -835,7 +836,7 @@ export default function PortalSettingsPage() {
                 type="button"
                 onClick={() => void handleSave()}
                 disabled={saving}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#141210] px-5 py-3 text-sm font-semibold text-[#fffcf8] shadow-sm transition hover:bg-[#1f3a34] disabled:opacity-60 dark:bg-[#fffcf8] dark:text-[#141210] dark:hover:bg-white"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0f172a] px-5 py-3 text-sm font-semibold text-[#ffffff] shadow-sm transition hover:bg-[#2563eb] disabled:opacity-60 dark:bg-[#ffffff] dark:text-[#0f172a] dark:hover:bg-white"
               >
                 <FaSave className="h-4 w-4" />
                 {saving ? t("portalSettingsPage.saving") : t("portalSettingsPage.save")}
@@ -844,7 +845,7 @@ export default function PortalSettingsPage() {
           </div>
 
           {savedMessage ? (
-            <div className="mt-5 flex items-center gap-2 rounded-2xl border border-[rgba(31,58,52,0.2)] bg-[#eceae4] px-4 py-3 text-sm font-semibold text-[#1f3a34] dark:border-white/10 dark:bg-white/5 dark:text-[#c5c0b6]">
+            <div className="mt-5 flex items-center gap-2 rounded-2xl border border-[rgba(31,58,52,0.2)] bg-[#f1f5f9] px-4 py-3 text-sm font-semibold text-[#2563eb] dark:border-white/10 dark:bg-white/5 dark:text-[#e2e8f0]">
               <FaCheck className="h-4 w-4" />
               {savedMessage}
             </div>
@@ -852,7 +853,7 @@ export default function PortalSettingsPage() {
         </header>
 
         <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
-          <aside className="rounded-[2rem] border border-[rgba(20,18,16,0.1)] bg-[#fffcf8]/90 p-3 shadow-[0_12px_32px_rgba(20,18,16,0.05)] backdrop-blur-xl dark:border-white/10 dark:bg-[#1c1a18]/90 dark:shadow-[0_18px_60px_rgba(0,0,0,0.35)]">
+          <aside className="rounded-[2rem] border border-[rgba(20,18,16,0.1)] bg-[#ffffff]/90 p-3 shadow-[0_12px_32px_rgba(20,18,16,0.05)] backdrop-blur-xl dark:border-white/10 dark:bg-[#1c1a18]/90 dark:shadow-[0_18px_60px_rgba(0,0,0,0.35)]">
             <nav className="space-y-2">
               {visibleTabs.map((tab) => {
                 const Icon = tab.icon;
@@ -865,15 +866,15 @@ export default function PortalSettingsPage() {
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition ${
                       active
-                        ? "bg-[#141210] text-[#fffcf8] shadow-sm dark:bg-[#fffcf8] dark:text-[#141210]"
-                        : "text-[#5c574f] hover:bg-[#eceae4] hover:text-[#141210] dark:text-[#a8a399] dark:hover:bg-white/5 dark:hover:text-[#fffcf8]"
+                        ? "bg-[#0f172a] text-[#ffffff] shadow-sm dark:bg-[#ffffff] dark:text-[#0f172a]"
+                        : "text-[#64748b] hover:bg-[#f1f5f9] hover:text-[#0f172a] dark:text-[#a8a399] dark:hover:bg-white/5 dark:hover:text-[#ffffff]"
                     }`}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
                     <span className="min-w-0">
                       <span className="block text-sm font-bold">{tab.label}</span>
                       <span
-                        className={`block truncate text-xs ${active ? "text-[#fffcf8]/75 dark:text-[#141210]/70" : "text-[#8a847a] dark:text-[#78746c]"}`}
+                        className={`block truncate text-xs ${active ? "text-[#ffffff]/75 dark:text-[#0f172a]/70" : "text-[#94a3b8] dark:text-[#78746c]"}`}
                       >
                         {tab.description}
                       </span>
@@ -917,12 +918,12 @@ function SettingMiniSwitch({
       onClick={() => onChange(!checked)}
       className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-xs font-bold transition ${
         checked
-          ? "border-[rgba(20,18,16,0.14)] bg-[#eceae4] text-[#141210]"
-          : "border-[rgba(20,18,16,0.1)] bg-[#fffcf8] text-[#8a847a] hover:bg-[#f7f6f3]"
+          ? "border-[rgba(20,18,16,0.14)] bg-[#f1f5f9] text-[#0f172a]"
+          : "border-[rgba(20,18,16,0.1)] bg-[#ffffff] text-[#94a3b8] hover:bg-[#eff6ff]"
       }`}
     >
       <span>{label}</span>
-      <span className={`h-2.5 w-2.5 rounded-full ${checked ? "bg-[#141210]" : "bg-[#c5c0b6]"}`} />
+      <span className={`h-2.5 w-2.5 rounded-full ${checked ? "bg-[#0f172a]" : "bg-[#e2e8f0]"}`} />
     </button>
   );
 }

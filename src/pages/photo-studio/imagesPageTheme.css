@@ -1,20 +1,20 @@
 /* Lumina Library — My Images (Stitch design tokens, no sidebar) */
 
 .images-library-scope {
-  --lumina-bg: #f7f6f3;
-  --lumina-surface: #fffcf8;
-  --lumina-on-surface: #141210;
-  --lumina-on-surface-variant: #5c574f;
-  --lumina-primary: #141210;
-  --lumina-on-primary: #fffcf8;
-  --lumina-primary-container: #1f3a34;
-  --lumina-secondary-container: #5c574f;
-  --lumina-outline-variant: rgba(20, 18, 16, 0.14);
-  --lumina-surface-container: #eceae4;
+  --lumina-bg: #ffffff;
+  --lumina-surface: #ffffff;
+  --lumina-on-surface: #0f172a;
+  --lumina-on-surface-variant: #64748b;
+  --lumina-primary: #0f172a;
+  --lumina-on-primary: #ffffff;
+  --lumina-primary-container: #2563eb;
+  --lumina-secondary-container: #64748b;
+  --lumina-outline-variant: rgba(15, 23, 42, 0.14);
+  --lumina-surface-container: #f1f5f9;
   --lumina-surface-container-high: #e4e1d9;
-  --lumina-surface-container-low: #f7f6f3;
-  --lumina-inverse-surface: #141210;
-  --lumina-inverse-on-surface: #fffcf8;
+  --lumina-surface-container-low: #ffffff;
+  --lumina-inverse-surface: #0f172a;
+  --lumina-inverse-on-surface: #ffffff;
   --lumina-error: #8a5a2b;
   --lumina-gutter: 1.5rem;
   --lumina-margin: 1rem;
@@ -27,18 +27,18 @@
 html.dark .images-library-scope {
   --lumina-bg: #151412;
   --lumina-surface: #1c1a18;
-  --lumina-on-surface: #fffcf8;
+  --lumina-on-surface: #ffffff;
   --lumina-on-surface-variant: #a8a399;
-  --lumina-primary: #fffcf8;
-  --lumina-on-primary: #141210;
-  --lumina-primary-container: #c5c0b6;
-  --lumina-secondary-container: #8a847a;
+  --lumina-primary: #ffffff;
+  --lumina-on-primary: #0f172a;
+  --lumina-primary-container: #e2e8f0;
+  --lumina-secondary-container: #94a3b8;
   --lumina-outline-variant: rgba(255, 255, 255, 0.12);
-  --lumina-surface-container: #2a2622;
+  --lumina-surface-container: #1d4ed8;
   --lumina-surface-container-high: #332f2a;
   --lumina-surface-container-low: #1c1a18;
-  --lumina-inverse-surface: #fffcf8;
-  --lumina-inverse-on-surface: #141210;
+  --lumina-inverse-surface: #ffffff;
+  --lumina-inverse-on-surface: #0f172a;
 }
 
 @media (min-width: 768px) {
@@ -128,7 +128,7 @@ html.dark .images-library-scope .text-\[\#7b7487\] {
   color: var(--lumina-on-surface-variant) !important;
 }
 
-html.dark .images-library-scope .text-\[\#141210\] {
+html.dark .images-library-scope .text-\[\#0f172a\] {
   color: var(--lumina-primary) !important;
 }
 
@@ -654,12 +654,12 @@ html.dark .images-library-scope .lumina-top-bar {
 
 /* Legacy aliases used in modals */
 .images-library-scope .il-primary-gradient {
-  background: linear-gradient(135deg, #141210, #1f3a34);
+  background: linear-gradient(135deg, #0f172a, #2563eb);
   color: #fff;
 }
 
 .images-library-scope .il-shadow-elegant {
-  box-shadow: 0 0 20px rgba(20, 18, 16, 0.16);
+  box-shadow: 0 0 20px rgba(15, 23, 42, 0.16);
 }
 
 /* Legacy purple accent classes → ink */

@@ -34,7 +34,7 @@ const InviteUserPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 py-8 px-4 transition-colors duration-200">
+    <div className="min-h-screen bg-[#ffffff] dark:bg-[#151412] text-[#0f172a] dark:text-[#ffffff] py-8 px-4 transition-colors duration-200">
       <div className="max-w-xl mx-auto space-y-6">
         <header className="space-y-2">
           <h1 className="text-2xl font-bold text-slate-900">{t('inviteUserPage.title')}</h1>

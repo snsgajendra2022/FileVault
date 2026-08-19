@@ -358,14 +358,18 @@ const PublicImagesDisplayPage: React.FC = () => {
       const start = pageParam * IMAGES_PAGE_SIZE;
       const chunk = bulkIds.slice(start, start + IMAGES_PAGE_SIZE);
       if (chunk.length === 0) return [];
+      const chunkIdSet = new Set(chunk);
       const ids = chunk.join(',');
       const res = await api.get<DisplayImage[] | { images?: DisplayImage[] }>('/api/images/bulk', {
         params: { ids, token: effectiveToken },
       });
       const raw = res.data;
-      if (Array.isArray(raw)) return raw;
+      const filterToRequested = (arr: DisplayImage[]) =>
+        arr.filter((img) => typeof img?.id === 'number' && chunkIdSet.has(img.id));
+
+      if (Array.isArray(raw)) return filterToRequested(raw);
       if (raw && typeof raw === 'object' && Array.isArray((raw as { images?: DisplayImage[] }).images)) {
-        return (raw as { images: DisplayImage[] }).images;
+        return filterToRequested((raw as { images: DisplayImage[] }).images);
       }
       return [];
     },
@@ -673,7 +677,7 @@ const PublicImagesDisplayPage: React.FC = () => {
                 {t('publicImagesDisplay.photoCount', { count: images.length })}
               </p>
             </div>
-            {images.length > 0 && (
+            {/* {images.length > 0 && (
               <button
                 type="button"
                 onClick={handleDownloadAll}
@@ -687,7 +691,7 @@ const PublicImagesDisplayPage: React.FC = () => {
                 )}
                 {isDownloadingAll ? 'Downloading...' : `Download All (${images.length})`}
               </button>
-            )}
+            )} */}
           </div>
         </header>
 
@@ -762,7 +766,7 @@ const PublicImagesDisplayPage: React.FC = () => {
                           {new Date(img.uploadTime).toLocaleString()}
                         </p>
                       )}
-                      <div className="mt-2 flex items-center justify-end">
+                      {/* <div className="mt-2 flex items-center justify-end">
                         <button
                           type="button"
                           onClick={() => handleForceDownload(img)}
@@ -776,7 +780,7 @@ const PublicImagesDisplayPage: React.FC = () => {
                           )}
                           Download
                         </button>
-                      </div>
+                      </div> */}
                     </div>
                   </div>
                 );

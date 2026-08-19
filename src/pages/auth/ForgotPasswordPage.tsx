@@ -76,7 +76,7 @@ const ForgotPasswordPage = () => {
             {t('forgotPassword.subtitle')}
           </p>
           <div className="mt-10 flex items-start gap-4 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-white/70 dark:bg-white/[0.03] p-5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#141210] dark:bg-[#fffcf8]">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0f172a] dark:bg-[#ffffff]">
               <FaShieldAlt className="h-5 w-5" />
             </div>
             <p className={`text-sm leading-relaxed ${omMuted}`}>{t('forgotPassword.sentHint')}</p>
@@ -85,7 +85,7 @@ const ForgotPasswordPage = () => {
 
         <div className="w-full max-w-md mx-auto lg:mx-0 lg:max-w-none">
           <div className="mb-6 text-center lg:hidden">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#141210] dark:bg-[#fffcf8]">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0f172a] dark:bg-[#ffffff]">
               <FaShieldAlt className="h-7 w-7 text-white" />
             </div>
             <h1 className={`text-2xl font-bold ${omHeading}`}>{t('forgotPassword.title')}</h1>
@@ -103,8 +103,8 @@ const ForgotPasswordPage = () => {
 
             {submitted ? (
               <div className="space-y-6 text-center sm:text-left">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#eceae4] dark:bg-white/10 sm:mx-0">
-                  <FaEnvelope className="h-8 w-8 text-[#1f3a34] dark:text-[#c5c0b6]" />
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#f1f5f9] dark:bg-white/10 sm:mx-0">
+                  <FaEnvelope className="h-8 w-8 text-[#2563eb] dark:text-[#e2e8f0]" />
                 </div>
                 <div>
                   <h2 className={omCardTitle}>{t('forgotPassword.sentTitle')}</h2>

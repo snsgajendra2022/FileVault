@@ -1,7 +1,12 @@
 import React from 'react';
 import type { ComponentType } from 'react';
 import { fetchPortalConfig } from '../../api/services/portalSettingsService';
-import { getPortalConfigCache, setPortalConfigCache } from '../../utils/portalSettings';
+import {
+  buildDefaultRolePermissions,
+  getPortalConfigCache,
+  normalizeRoleMenuPermissions,
+  setPortalConfigCache,
+} from '../../utils/portalSettings';
 import { usePortalSettingsOptional } from '../../state/context/PortalSettingsContext';
 import {
   FaHome,
@@ -24,6 +29,10 @@ import {
   FaFlag,
   FaCog,
   FaQuestionCircle,
+  FaRobot,
+  FaCheckSquare,
+  FaImage,
+  FaShare,
 } from 'react-icons/fa';
 import type { RoleMenuPermission, RoleType } from '../../types/permissions';
 import type { PortalConfigResponse, PortalMenuFlags, PortalNavigationOverride } from '../../types/portalApi';
@@ -58,8 +67,17 @@ const NAV_ICON_BY_LABEL_KEY: Record<string, ComponentType<{ className?: string }
   'nav.studio.uploadFamily': FaUpload,
   'nav.studio.myImages': FaImages,
   'nav.studio.filterImages': FaUsers,
+  'nav.studio.ai': FaRobot,
+  'nav.studio.publicSelection': FaCheckSquare,
+  'nav.studio.publicImagesDisplay': FaImage,
   'nav.studio.album': FaFolder,
   'nav.studio.ourMemories': FaHeart,
+  'nav.studio.photoBooks': FaBook,
+  'nav.studio.ourMemoriesShared': FaShare,
+  'nav.studio.sharedAlbums': FaShare,
+  'nav.studio.sharedPhotoLinks': FaShare,
+  'nav.studio.selectPay': FaRupeeSign,
+  'nav.studio.paymentManagement': FaRupeeSign,
   'nav.studio.phoneBook': FaBook,
   'nav.studio.photoThemes': FaPalette,
   'nav.studio.createMembers': FaUserPlus,
@@ -89,8 +107,16 @@ const NAV_ICON_BY_HREF: Record<string, ComponentType<{ className?: string }>> = 
   '/upload-family-images': FaUpload,
   '/client-images': FaImages,
   '/filter-images': FaUsers,
+  '/ai': FaRobot,
+  '/public/selection': FaCheckSquare,
+  '/public/images-display': FaImage,
   '/studio/albums': FaFolder,
   '/memories/events': FaHeart,
+  '/memories/shared': FaShare,
+  '/photo-book': FaBook,
+  '/studio/shared-albums': FaShare,
+  '/studio/shared-photo-links': FaShare,
+  '/studio/payment-management': FaRupeeSign,
   '/phonebook': FaBook,
   '/photo-themes': FaPalette,
   '/invitations': FaUserPlus,
@@ -121,11 +147,21 @@ export const STUDIO_SIDEBAR_GROUPS = [
       'nav.studio.myImages',
       'nav.studio.album',
       'nav.studio.filterImages',
+      'nav.studio.ai',
+      'nav.studio.publicSelection',
+      'nav.studio.publicImagesDisplay',
     ],
   },
   {
     label: 'Memories',
-    keys: ['nav.studio.ourMemories', 'nav.studio.photoBooks', 'nav.studio.photoThemes'],
+    keys: [
+      'nav.studio.ourMemories',
+      'nav.studio.ourMemoriesShared',
+      'nav.studio.photoBooks',
+      'nav.studio.photoThemes',
+      'nav.studio.sharedAlbums',
+      'nav.studio.sharedPhotoLinks',
+    ],
   },
   {
     label: 'People',
@@ -152,11 +188,14 @@ export const USERS_SIDEBAR_GROUPS = [
       'nav.studio.myImages',
       'nav.studio.filterImages',
       'nav.studio.album',
+      'nav.studio.ai',
+      'nav.studio.publicSelection',
+      'nav.studio.publicImagesDisplay',
     ],
   },
-  { label: 'Memories', keys: ['nav.studio.ourMemories'] },
-  { label: 'People', keys: ['nav.studio.createMembers'] },
-  { label: 'Account', keys: ['nav.studio.settings', 'nav.studio.services', 'nav.studio.helpSupport'] },
+  { label: 'Memories', keys: ['nav.studio.ourMemories', 'nav.studio.ourMemoriesShared', 'nav.studio.photoBooks', 'nav.studio.photoThemes', 'nav.studio.sharedAlbums', 'nav.studio.sharedPhotoLinks'] },
+  { label: 'People', keys: ['nav.studio.createMembers', 'nav.studio.phoneBook', 'nav.studio.membersTree'] },
+  { label: 'Account', keys: ['nav.studio.settings', 'nav.studio.paymentManagement', 'nav.studio.services', 'nav.studio.helpSupport'] },
 ] as const;
 
 export type SidebarGroupDef = { label: string; keys: readonly string[] };
@@ -208,8 +247,14 @@ export function getRoleMenuPermissionsFromApi(
   const resolved =
     config ?? getPortalConfigCache() ?? null;
   const fromConfig = resolved?.roleMenuPermissions?.[role];
-  if (Array.isArray(fromConfig) && fromConfig.length > 0) return fromConfig;
-  return readPermissionsFromStorage(role);
+  if (Array.isArray(fromConfig) && fromConfig.length > 0) {
+    return normalizeRoleMenuPermissions({ [role]: fromConfig })[role];
+  }
+  const stored = readPermissionsFromStorage(role);
+  if (stored.length > 0) {
+    return normalizeRoleMenuPermissions({ [role]: stored })[role];
+  }
+  return buildDefaultRolePermissions()[role];
 }
 
 /** Load /api/portal/config once and cache for sidebar (used if context not ready). */

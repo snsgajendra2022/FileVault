@@ -59,9 +59,9 @@ html.dark input:-webkit-autofill:focus,
 html.dark input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 1000px #121214 inset !important;
   box-shadow: 0 0 0 1000px #121214 inset !important;
-  -webkit-text-fill-color: #f8fafc !important;
-  color: #f8fafc !important;
-  caret-color: #f8fafc !important;
+  -webkit-text-fill-color: #ffffff !important;
+  color: #ffffff !important;
+  caret-color: #ffffff !important;
   background-color: #121214 !important;
   background-image: none !important;
 }
@@ -76,8 +76,8 @@ input:-internal-autofill-selected {
 
 html.dark input:-internal-autofill-selected {
   background-color: #121214 !important;
-  color: #f8fafc !important;
-  -webkit-text-fill-color: #f8fafc !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 input:-webkit-autofill ~ .text-icon,

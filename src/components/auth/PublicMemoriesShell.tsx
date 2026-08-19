@@ -46,7 +46,7 @@ const PublicMemoriesShell: React.FC<PublicMemoriesShellProps> = ({
                 >
                   {t('brand.ourMemories')}
                 </span>
-                <span className="block truncate text-[11px] font-medium text-[#8a847a] dark:text-[#78746c]">
+                <span className="block truncate text-[11px] font-medium text-[#94a3b8] dark:text-[#78746c]">
                   {t('login.omFooterProduct')}
                 </span>
               </div>

@@ -1556,7 +1556,7 @@ const ClientImagesPage = () => {
                   );
                 })}
               </div>
-              <p className="mt-3 text-xs leading-5 text-[#4a4455]">{t('imagesPage.familySectionHint bdfbgd')}</p>
+              <p className="mt-3 text-xs leading-5 text-[#4a4455]">{t('imagesPage.familySectionHint')}</p>
             </section>
           )}
 

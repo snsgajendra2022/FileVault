@@ -320,7 +320,7 @@ export default function FamilyTree() {
   return (
     <div
       ref={containerRef}
-      className="family-tree-scope fixed top-16 left-0 lg:left-64 right-0 bottom-0 bg-[#f8fafc] dark:bg-slate-950 transition-colors duration-200"
+      className="family-tree-scope fixed top-16 left-0 lg:left-64 right-0 bottom-0 bg-[#ffffff] dark:bg-slate-950 transition-colors duration-200"
       style={{ zIndex: 10 }}
     >
       {loading && <FamilyTreeLoadingOverlay />}

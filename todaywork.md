@@ -1,9 +1,9 @@
-# Work status — 28 Jul 2026
+# Work status — 5 Aug 2026
 
-Built album Studio Flipbook so you open an album, arrange pages with photos and text, save, and get the same book back later from the server instead of only the browser.
-
-Finished the flipbook APIs: list books for an album, create a book, load full pages, update title/theme/event details, replace all pages, one-call full save, publish, and delete.
-
-Wired the builder Save and reopen flow to those APIs; a local draft stays only as backup if the API fails.
-
-Fixed the save error where new books had no created date, and the page-load typing issue. Album flipbook work and APIs are complete and usable.
+Fixed Add Images to Album modal: photos and video posters now show (eager thumbs, reliable URLs) instead of filenames / “MP4” only.
+Raised album modal z-index so it sits above the header; selection and add-to-album flow still work.
+Studio Flipbook: left page thumbnails now match the main canvas (same crop, zoom, and frames).
+Fixed polaroid / padded frames collapsing photos into thin strips; shared frame chrome for canvas, thumbs, and preview.
+Box resize/move commits cleanly; width/height save to the API and reload correctly after Save.
+Flipbook preview remounts with latest layout so edited box sizes show in Flipbook view, not a stale book.
+Pages panel UI polished (selection, spacing); CropImageDisplay matches DraggableCropImage fill so thumbs/PDF stay WYSIWYG.

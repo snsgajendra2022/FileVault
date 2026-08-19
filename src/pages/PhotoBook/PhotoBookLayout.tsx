@@ -35,7 +35,7 @@ export function PhotoBookLayout() {
       className="min-h-full rounded-2xl border border-slate-200/60 bg-white/70 shadow-sm"
       style={{
         background:
-          'radial-gradient(1200px 800px at 20% 10%, #e0f2fe 0%, transparent 55%), radial-gradient(1200px 800px at 80% 10%, #ede9fe 0%, transparent 55%), linear-gradient(#f8fafc, #f1f5f9)',
+          'radial-gradient(1200px 800px at 20% 10%, #e0f2fe 0%, transparent 55%), radial-gradient(1200px 800px at 80% 10%, #ede9fe 0%, transparent 55%), linear-gradient(#ffffff, #f1f5f9)',
       }}
     >
       <header className="sticky top-0 z-10 border-b border-slate-200/60 bg-white/60 backdrop-blur">

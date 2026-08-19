@@ -8,7 +8,7 @@ const PrivacyPolicyPage = () => {
   const CONTACT_EMAIL = 'mobileapps@snssystem.com';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 px-4 py-10">
+    <div className="min-h-screen bg-[#ffffff] px-4 py-10">
       <div className="mx-auto w-full max-w-4xl">
 
         <div className="rounded-3xl border border-white/60 bg-white/70 p-8 shadow-2xl backdrop-blur-xl">

@@ -101,6 +101,7 @@ import PhoneBookCreatePage from './pages/PhoneBook/PhoneBookCreatePage';
 import PhoneBookDetailPage from './pages/PhoneBook/PhoneBookDetailPage';
 import PhoneBookEditPage from './pages/PhoneBook/PhoneBookEditPage';
 import FilterImagesPage from './pages/filter-images/FilterImagesPage';
+import AIPage from './pages/AI';
 
 // misc pages
 import NotFoundPage from './pages/misc/NotFoundPage';
@@ -108,6 +109,7 @@ import PrivacyPolicyPage from './pages/misc/PrivacyPolicyPage';
 import OMPrivacyPolicyPage from './pages/misc/OMPrivacyPolicyPage';
 import HelpSupportPage from './pages/misc/HelpSupportPage';
 import { photoStudioMarketingRoutes } from './photostudio-marketing/PhotoStudioMarketing';
+import StudioImageSelection from './pages/photo-studio/StudioImageSelection';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -118,13 +120,18 @@ const queryClient = new QueryClient({
   },
 });
 
-/** Only render public page when URL has a share identifier (sid, q, or token). Otherwise redirect to home. */
+/** Only render public page when URL has a share identifier. Otherwise redirect to home. */
 const PublicShareRoute = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const search = location.search || '';
   const params = new URLSearchParams(search);
-  const hasShareId = !!(params.get('sid')?.trim() || params.get('q')?.trim() || params.get('token')?.trim());
+  const hasShareId = !!(
+    params.get('sid')?.trim() ||
+    params.get('q')?.trim() ||
+    params.get('token')?.trim() ||
+    params.get('albumToken')?.trim()
+  );
   React.useEffect(() => {
     if (!hasShareId) {
       navigate('/', { replace: true });
@@ -142,10 +149,10 @@ const ProtectedRoute = ({ children, adminOnly = false }: { children: React.React
   // Show loading state while checking authentication
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#f7f6f3] flex items-center justify-center">
+      <div className="min-h-screen bg-[#ffffff] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#141210] border-t-transparent mx-auto mb-4"></div>
-          <p className="text-[#5c574f]">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#0f172a] border-t-transparent mx-auto mb-4"></div>
+          <p className="text-[#64748b]">Loading...</p>
         </div>
       </div>
     );
@@ -190,7 +197,7 @@ const AppRoutes = () => {
       {/* Public invitation acceptance route */}
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
 
-      {/* Public PhotoStudio routes - do not open without complete share URL (sid, q, or token) */}
+      {/* Public PhotoStudio routes - do not open without complete share URL (sid, q, token, or albumToken) */}
       <Route path="/public/selection" element={<PublicShareRoute><PublicSelectionPage /></PublicShareRoute>} />
       <Route path="/public/images-display" element={<PublicShareRoute><PublicImagesDisplayPage /></PublicShareRoute>} />
 
@@ -207,6 +214,7 @@ const AppRoutes = () => {
           <Layout />
         </ProtectedRoute>
       }>
+        <Route path="studio/image-selection" element={<StudioImageSelection />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="change-password" element={<ChangePasswordPage />} />
@@ -263,6 +271,7 @@ const AppRoutes = () => {
         <Route path="phonebook/:contactId/edit" element={<PhoneBookEditPage />} />
         {/* Face filter — inside main layout (sidebar + header) */}
         <Route path="filter-images" element={<FilterImagesPage />} />
+        <Route path="ai" element={<AIPage />} />
         <Route path="photo-themes/:categorySlug" element={<PhotoThemeCategoryPage />} />
         <Route path="photo-themes/:categorySlug/album" element={<PhotoThemeAlbumBuilderPage />} />
         {/* Admin route with proper protection */}
@@ -319,8 +328,8 @@ function App() {
                 toastOptions={{
                   duration: 4000,
                   style: {
-                    background: '#141210',
-                    color: '#fffcf8',
+                    background: '#0f172a',
+                    color: '#ffffff',
                     borderRadius: '14px',
                     border: '1px solid rgba(255,252,248,0.08)',
                   },

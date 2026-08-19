@@ -151,6 +151,11 @@ function fallbackPermissionRows(): Record<RoleType, RoleMenuPermission[]> {
     { role: 'studio', labelKey: 'nav.studio.myImages', href: '/client-images', group: 'studio', enabled: true, actions: studioActions },
     { role: 'studio', labelKey: 'nav.studio.album', href: '/studio/albums', group: 'studio', enabled: true, actions: studioActions },
     { role: 'studio', labelKey: 'nav.studio.ourMemories', href: '/memories/events', group: 'studio', enabled: true, actions: studioActions },
+    // { role: 'studio', labelKey: 'nav.studio.photoBooks', href: '/photo-book', group: 'studio', enabled: true, actions: studioActions },
+    // { role: 'studio', labelKey: 'nav.studio.ourMemoriesShared', href: '/memories/shared', group: 'studio', enabled: true, actions: studioActions },
+    // { role: 'studio', labelKey: 'nav.studio.sharedAlbums', href: '/studio/shared-albums', group: 'studio', enabled: true, actions: studioActions },
+    // { role: 'studio', labelKey: 'nav.studio.sharedPhotoLinks', href: '/studio/image-selection', group: 'studio', enabled: true, actions: studioActions },
+    // { role: 'studio', labelKey: 'nav.studio.paymentManagement', href: '/studio/payment-management', group: 'studio', enabled: true, actions: studioActions },
     { role: 'studio', labelKey: 'nav.studio.services', href: '/services', group: 'studio', enabled: true, actions: studioActions },
     { role: 'studio', labelKey: 'nav.studio.helpSupport', href: '/help-support', group: 'studio', enabled: true, actions: studioActions },
     { role: 'users', labelKey: 'nav.studio.createMembers', href: '/invitations', group: 'studio', enabled: true, actions: studioActions },
@@ -159,6 +164,10 @@ function fallbackPermissionRows(): Record<RoleType, RoleMenuPermission[]> {
     { role: 'users', labelKey: 'nav.studio.photoThemes', href: '/photo-themes', group: 'studio', enabled: true, actions: studioActions },
     { role: 'admin', labelKey: 'nav.studio.settings', href: '/portal-settings', group: 'admin', enabled: true, actions: studioActions },
     { role: 'studio', labelKey: 'nav.studio.filterImages', href: '/filter-images', group: 'studio', enabled: true, actions: studioActions },
+    // { role: 'studio', labelKey: 'nav.studio.ai', href: '/ai', group: 'studio', enabled: true, actions: studioActions },
+    // { role: 'studio', labelKey: 'nav.studio.publicSelection', href: '/public/selection', group: 'studio', enabled: true, actions: studioActions },
+    // { role: 'studio', labelKey: 'nav.studio.publicImagesDisplay', href: '/public/images-display', group: 'studio', enabled: true, actions: studioActions },
+  
   ];
   const users: RoleMenuPermission[] = [
     { role: 'users', labelKey: 'nav.studio.dashboard', href: '/studio/dashboard', group: 'users', enabled: true, actions: regularActions },
@@ -166,6 +175,11 @@ function fallbackPermissionRows(): Record<RoleType, RoleMenuPermission[]> {
     { role: 'users', labelKey: 'nav.studio.myImages', href: '/client-images', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.album', href: '/studio/albums', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.ourMemories', href: '/memories/events', group: 'users', enabled: true, actions: regularActions },
+    // { role: 'users', labelKey: 'nav.studio.photoBooks', href: '/photo-book', group: 'users', enabled: true, actions: regularActions },
+    // { role: 'users', labelKey: 'nav.studio.ourMemoriesShared', href: '/memories/shared', group: 'users', enabled: true, actions: regularActions },
+    // { role: 'users', labelKey: 'nav.studio.sharedAlbums', href: '/studio/shared-albums', group: 'users', enabled: true, actions: regularActions },
+    // { role: 'users', labelKey: 'nav.studio.sharedPhotoLinks', href: '/studio/shared-photo-links', group: 'users', enabled: true, actions: regularActions },
+    // { role: 'users', labelKey: 'nav.studio.paymentManagement', href: '/studio/payment-management', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.createMembers', href: '/invitations', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.phoneBook', href: '/phonebook', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.membersTree', href: '/family-tree', group: 'users', enabled: true, actions: regularActions },
@@ -173,6 +187,10 @@ function fallbackPermissionRows(): Record<RoleType, RoleMenuPermission[]> {
     { role: 'users', labelKey: 'nav.studio.services', href: '/services', group: 'users', enabled: true, actions: regularActions },
     { role: 'users', labelKey: 'nav.studio.helpSupport', href: '/help-support', group: 'users', enabled: true, actions: regularActions },
     { role: 'admin', labelKey: 'nav.studio.settings', href: '/portal-settings', group: 'admin', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.filterImages', href: '/filter-images', group: 'users', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.ai', href: '/ai', group: 'users', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.publicSelection', href: '/public/selection', group: 'users', enabled: true, actions: regularActions },
+    { role: 'users', labelKey: 'nav.studio.publicImagesDisplay', href: '/public/images-display', group: 'users', enabled: true, actions: regularActions },
   ];
   const regular: RoleMenuPermission[] = [];
 
@@ -210,6 +228,7 @@ const PORTAL_ROLE_KEYS: RoleType[] = ['admin', 'studio', 'regular', 'users'];
 
 /**
  * Ensure every role has a menu list (API may return empty arrays or omit `users`).
+ * Also appends any new default items (e.g. AI) missing from a saved portal config.
  */
 export function normalizeRoleMenuPermissions(
   raw?: Partial<Record<RoleType, RoleMenuPermission[]>> | null,
@@ -222,7 +241,14 @@ export function normalizeRoleMenuPermissions(
   for (const role of PORTAL_ROLE_KEYS) {
     const list = raw[role];
     if (Array.isArray(list) && list.length > 0) {
-      out[role] = list;
+      const seen = new Set(
+        list.map((item) => String(item.href || item.labelKey || '').toLowerCase()).filter(Boolean)
+      );
+      const missing = defaults[role].filter((item) => {
+        const key = String(item.href || item.labelKey || '').toLowerCase();
+        return key && !seen.has(key);
+      });
+      out[role] = missing.length > 0 ? [...list, ...missing] : list;
     }
   }
   return out;

@@ -25,7 +25,7 @@ const Layout = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#f7f6f3] dark:bg-[#151412] transition-colors duration-200">
+    <div className="min-h-screen bg-[#ffffff] dark:bg-[#151412] transition-colors duration-200">
       {/* Mobile Navigation */}
       <div className="lg:hidden">
         <Navigation isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -40,7 +40,7 @@ const Layout = () => {
       <div className="lg:ml-[240px] min-h-screen flex flex-col">
         <Header setSidebarOpen={setSidebarOpen} />
 
-        <main className="flex-1 p-2 lg:p-3 text-[#141210] dark:text-[#fffcf8] transition-colors duration-200">
+        <main className="flex-1 p-2 lg:p-3 text-[#0f172a] dark:text-[#ffffff] transition-colors duration-200">
           <div className="portal-page-surface w-full min-h-0">
             <Outlet />
           </div>

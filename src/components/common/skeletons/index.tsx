@@ -16,7 +16,7 @@ export  { SkeletonTheme };
 
 // ─── Shared theme defaults ────────────────────────────────────────────────────
 export const SKELETON_BASE_COLOR = '#e2e8f0';   // slate-200
-export const SKELETON_HIGHLIGHT = '#f1f5f9';    // slate-100
+export const SKELETON_HIGHLIGHT = '#ffffff';    // slate-100
 
 // ─── Tiny helper ─────────────────────────────────────────────────────────────
 const S = (props: React.ComponentProps<typeof Skeleton>) => (

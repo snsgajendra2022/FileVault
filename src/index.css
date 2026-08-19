@@ -5,28 +5,28 @@
 @import 'react-inner-image-zoom/lib/styles.min.css';
 @layer base {
   :root {
-    /* Our Memories ink / stone brand */
-    --primary-50: #f7f6f3;
-    --primary-100: #eceae4;
-    --primary-200: #c5c0b6;
-    --primary-300: #8a847a;
-    --primary-400: #5c574f;
-    --primary-500: #1f3a34;
-    --primary-600: #141210;
-    --primary-700: #141210;
-    --primary-800: #0f0e0c;
-    --primary-900: #0a0908;
-    --primary-950: #050504;
+    /* White / black / blue portal theme */
+    --primary-50: #eff6ff;
+    --primary-100: #dbeafe;
+    --primary-200: #bfdbfe;
+    --primary-300: #93c5fd;
+    --primary-400: #60a5fa;
+    --primary-500: #2563eb;
+    --primary-600: #1d4ed8;
+    --primary-700: #1e40af;
+    --primary-800: #1e3a8a;
+    --primary-900: #172554;
+    --primary-950: #0f172a;
 
-    --om-paper: #f7f6f3;
-    --om-surface: #fffcf8;
-    --om-ink: #141210;
-    --om-ink-soft: #5c574f;
-    --om-ink-faint: #8a847a;
-    --om-accent: #1f3a34;
+    --om-paper: #ffffff;
+    --om-surface: #ffffff;
+    --om-ink: #0f172a;
+    --om-ink-soft: #64748b;
+    --om-ink-faint: #94a3b8;
+    --om-accent: #2563eb;
     
-    --gray-50: #f7f6f3;
-    --gray-100: #eceae4;
+    --gray-50: #ffffff;
+    --gray-100: #f1f5f9;
     --gray-200: #e5e7eb;
     --gray-300: #d1d5db;
     --gray-400: #9ca3af;
@@ -34,16 +34,16 @@
     --gray-600: #4b5563;
     --gray-700: #374151;
     --gray-800: #1f2937;
-    --gray-900: #141210;
-    --gray-950: #050504;
-    --header-background: linear-gradient(135deg, #fffcf8 0%, #f7f6f3 50%, #eceae4 100%);
-    --header-border: 1px solid rgba(20, 18, 16, 0.1);
-    --header-box-shadow: 0 10px 40px rgba(20, 18, 16, 0.06);
-    --header-avatar-shadow: 0 4px 14px rgba(20, 18, 16, 0.12);
+    --gray-900: #0f172a;
+    --gray-950: #020617;
+    --header-background: #ffffff;
+    --header-border: 1px solid rgba(15, 23, 42, 0.08);
+    --header-box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    --header-avatar-shadow: 0 2px 8px rgba(37, 99, 235, 0.12);
   }
 
   html.dark {
-    --header-background: linear-gradient(135deg, #1c1a18 0%, #151412 50%, #0f0e0c 100%);
+    --header-background: #0f172a;
     --header-border: 1px solid rgba(255, 255, 255, 0.1);
     --header-box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
   }
@@ -54,15 +54,15 @@
   }
   
   .gradient-bg {
-    background: linear-gradient(135deg, #141210 0%, #1f3a34 100%);
+    background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%);
   }
   
   .gradient-bg-secondary {
-    background: linear-gradient(135deg, #5c574f 0%, #1f3a34 100%);
+    background: linear-gradient(135deg, #64748b 0%, #2563eb 100%);
   }
   
   .gradient-bg-success {
-    background: linear-gradient(135deg, #1f3a34 0%, #2a5248 100%);
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
   }
   
   .gradient-bg-warning {
@@ -74,11 +74,11 @@
   }
   
   .btn-primary {
-    @apply bg-[#141210] text-[#fffcf8] px-6 py-3 rounded-full font-semibold shadow-sm hover:bg-[#1f3a34] transition-all duration-300;
+    @apply bg-[#2563eb] text-white px-6 py-3 rounded-full font-semibold shadow-sm hover:bg-[#1d4ed8] transition-all duration-300;
   }
   
   .btn-secondary {
-    @apply bg-[#eceae4] text-[#141210] px-6 py-3 rounded-full font-semibold shadow-sm hover:bg-[#c5c0b6] transition-all duration-300;
+    @apply bg-[#f1f5f9] text-[#0f172a] px-6 py-3 rounded-full font-semibold shadow-sm hover:bg-[#e2e8f0] transition-all duration-300;
   }
   
   .btn-success {
@@ -132,8 +132,8 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #f7f6f3;
-  color: #141210;
+  background: #ffffff;
+  color: #0f172a;
   min-height: 100vh;
 }
 
@@ -167,12 +167,12 @@ code {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #8a847a;
+  background: #94a3b8;
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #5c574f;
+  background: #64748b;
 }
 
 /* Autofill: keep readable text on light and dark forms */
@@ -212,9 +212,9 @@ html.dark select:-webkit-autofill:focus,
 html.dark select:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 1000px #121214 inset !important;
   box-shadow: 0 0 0 1000px #121214 inset !important;
-  -webkit-text-fill-color: #f8fafc !important;
-  color: #f8fafc !important;
-  caret-color: #f8fafc !important;
+  -webkit-text-fill-color: #ffffff !important;
+  color: #ffffff !important;
+  caret-color: #ffffff !important;
   background-color: #121214 !important;
   background-image: none !important;
 }
@@ -229,8 +229,8 @@ input:-internal-autofill-selected {
 
 html.dark input:-internal-autofill-selected {
   background-color: #121214 !important;
-  color: #f8fafc !important;
-  -webkit-text-fill-color: #f8fafc !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 /* Icons next to autofilled fields */
@@ -273,7 +273,7 @@ html.dark input:-webkit-autofill:active + .text-icon {
 .to-indigo-600,
 .to-blue-600,
 .to-fuchsia-600 {
-  --tw-gradient-to: #1f3a34 var(--tw-gradient-to-position) !important;
+  --tw-gradient-to: #2563eb var(--tw-gradient-to-position) !important;
 }
 
 .from-purple-600,
@@ -281,7 +281,7 @@ html.dark input:-webkit-autofill:active + .text-icon {
 .from-indigo-600,
 .from-blue-600,
 .from-fuchsia-600 {
-  --tw-gradient-from: #141210 var(--tw-gradient-from-position) !important;
+  --tw-gradient-from: #0f172a var(--tw-gradient-from-position) !important;
   --tw-gradient-to: rgb(20 18 16 / 0) var(--tw-gradient-to-position);
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
 }

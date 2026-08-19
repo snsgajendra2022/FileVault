@@ -503,7 +503,7 @@ const MemoriesEventsListPage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/memories/events/new')}
-              className="inline-flex items-center gap-2 rounded-full bg-[#141210] px-6 py-3 font-bold text-[#fffcf8] transition-colors hover:bg-[#1f3a34] dark:bg-[#fffcf8] dark:text-[#141210] dark:hover:bg-white"
+              className="inline-flex items-center gap-2 rounded-full bg-[#0f172a] px-6 py-3 font-bold text-[#ffffff] transition-colors hover:bg-[#2563eb] dark:bg-[#ffffff] dark:text-[#0f172a] dark:hover:bg-white"
             >
               <Plus className="h-5 w-5" />
               {t('createFirst')}

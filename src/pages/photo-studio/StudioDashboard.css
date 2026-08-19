@@ -1,6 +1,6 @@
 /* Studio dashboard tokens — light / dark / system (via html.dark) */
 :root {
-  --sd-page-bg: #f1f5f9;
+  --sd-page-bg: #ffffff;
   --sd-card: #ffffff;
   --sd-text-primary: #0f172a;
   --sd-text-secondary: #475569;
@@ -10,7 +10,7 @@
   --sd-glass: rgba(255, 255, 255, 0.72);
   --sd-chip-bg: #eff6ff;
   --sd-surface-muted: #eff6ff;
-  --sd-hero-bg: linear-gradient(135deg, #eef4ff 0%, #e7f0ff 35%, #f5f9ff 100%);
+  --sd-hero-bg: linear-gradient(135deg, #ffffff 0%, #ffffff 35%, #eff6ff 100%);
   --sd-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
   --sd-shadow-medium: 0 10px 40px rgba(15, 23, 42, 0.08);
   --sd-btn-secondary-bg: rgba(255, 255, 255, 0.86);

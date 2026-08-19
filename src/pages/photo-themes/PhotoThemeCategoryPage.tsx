@@ -477,7 +477,7 @@ const COVER_STYLE_PRESETS: CoverStylePreset[] = [
   {
     id: 'editorial',
     labelKey: 'presetEditorial',
-    previewBg: 'linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%)',
+    previewBg: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)',
     labelClass: 'text-[#4648d4]',
     stylePatch: {
       fontFamily: FONT_FAMILY_PRESETS.elegant,
@@ -489,7 +489,7 @@ const COVER_STYLE_PRESETS: CoverStylePreset[] = [
       subheadlineColor: '#475569',
       descriptionColor: '#64748b',
       textLeafBgMode: 'gradient',
-      textLeafBgGradient: 'linear-gradient(145deg, #f8fafc 0%, #cbd5e1 50%, #94a3b8 100%)',
+      textLeafBgGradient: 'linear-gradient(145deg, #ffffff 0%, #cbd5e1 50%, #94a3b8 100%)',
       textPanelGlassColor: '#ffffff',
       textPanelGlassOpacity: 45,
       textPanelBlurPx: 18,
@@ -842,7 +842,7 @@ const PageEditorCard: React.FC<{
       x: 50,
       y: 72,
       fontSize: 13,
-      color: '#f8fafc',
+      color: '#ffffff',
       fontWeight: 600,
       fontStyle: 'normal',
       textAlign: 'center',
@@ -1208,7 +1208,7 @@ const PageEditorCard: React.FC<{
                         className="min-w-0 flex-1 rounded-lg border border-white/35 bg-black/30 px-2 py-1 text-[11px] text-white shadow-md backdrop-blur-sm placeholder:text-white/45 focus:border-white/60 focus:outline-none focus:ring-1 focus:ring-white/40 cursor-text"
                         style={{
                           fontSize: o.fontSize ?? 13,
-                          color: o.color ?? '#f8fafc',
+                          color: o.color ?? '#ffffff',
                           fontFamily: o.fontFamily?.trim() ? o.fontFamily : undefined,
                           fontWeight: o.fontWeight ?? 600,
                           fontStyle: o.fontStyle ?? 'normal',
@@ -1983,7 +1983,7 @@ const PageEditorCard: React.FC<{
                             <label className="block text-[10px] font-semibold text-slate-600 mb-1">{t('floatingTextColor')}</label>
                             <input
                               type="color"
-                              value={o.color ?? '#f8fafc'}
+                              value={o.color ?? '#ffffff'}
                               onChange={(e) => patchTextSideOverlay(o.id, { color: e.target.value })}
                               className="h-8 w-full rounded-xl border border-slate-200 p-0 bg-white"
                             />

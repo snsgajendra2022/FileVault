@@ -91,8 +91,8 @@
 .studio-flipbook-left {
   flex-shrink: 0;
   width: 280px;
-  background: #f7f6f3;
-  border-right: 1px solid rgba(20, 18, 16, 0.1);
+  background: #ffffff;
+  border-right: 1px solid rgba(15, 23, 42, 0.1);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -107,9 +107,9 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #5c574f;
-  border-bottom: 1px solid rgba(20, 18, 16, 0.08);
-  background: #fffcf8;
+  color: #64748b;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  background: #ffffff;
   flex-shrink: 0;
 }
 
@@ -117,7 +117,7 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  color: #1f3a34;
+  color: #2563eb;
   font-size: 14px;
   padding: 4px 8px;
   border-radius: 6px;
@@ -144,27 +144,27 @@
 }
 
 .studio-flipbook-thumb {
-  border: 1.5px solid rgba(20, 18, 16, 0.1);
+  border: 1.5px solid rgba(15, 23, 42, 0.1);
   border-radius: 10px;
   padding: 0;
-  background: #fffcf8;
+  background: #ffffff;
   cursor: pointer;
   text-align: left;
   width: 100%;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(20, 18, 16, 0.06);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .studio-flipbook-thumb:hover {
   border-color: rgba(31, 58, 52, 0.35);
-  box-shadow: 0 4px 14px rgba(20, 18, 16, 0.1);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
 }
 
 .studio-flipbook-thumb-wrapper.selected .studio-flipbook-thumb {
-  border-color: #1f3a34;
+  border-color: #2563eb;
   box-shadow:
-    0 0 0 1px #1f3a34,
+    0 0 0 1px #2563eb,
     0 6px 18px rgba(31, 58, 52, 0.18);
 }
 
@@ -178,15 +178,15 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: #5c574f;
+  color: #64748b;
   margin: 0;
   padding: 6px 8px 8px;
   text-align: center;
-  background: #fffcf8;
+  background: #ffffff;
 }
 
 .studio-flipbook-thumb-wrapper.selected .studio-flipbook-thumb-label {
-  color: #1f3a34;
+  color: #2563eb;
 }
 
 .studio-flipbook-thumb-actions {
@@ -206,7 +206,7 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  color: #8a847a;
+  color: #94a3b8;
   font-size: 11px;
   padding: 4px 6px;
   border-radius: 6px;
@@ -214,7 +214,7 @@
 }
 
 .studio-flipbook-thumb-actions button:hover {
-  color: #1f3a34;
+  color: #2563eb;
   background: rgba(31, 58, 52, 0.1);
 }
 
@@ -499,7 +499,7 @@
 }
 
 .studio-flipbook-ctx-submenu-row.is-open {
-  background: #f8fafc;
+  background: #ffffff;
 }
 
 .studio-flipbook-ctx-submenu-label-btn {
@@ -944,7 +944,7 @@
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
-  background: #f8fafc;
+  background: #ffffff;
 }
 
 .studio-flipbook-choose-image-initial-load {

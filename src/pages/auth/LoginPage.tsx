@@ -166,11 +166,11 @@ const LoginPage = () => {
   if (isLoading) {
     return (
       <div className={omLoadingPage}>
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#141210] dark:bg-[#fffcf8]">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0f172a] dark:bg-[#ffffff]">
           <img src="/favicon.svg" alt={t('brand.ourMemories')} className="h-8 w-8" />
         </div>
-        <div className="h-1 w-24 overflow-hidden rounded-full bg-[#eceae4] dark:bg-white/10">
-          <div className="h-full w-2/3 animate-pulse rounded-full bg-[#141210] dark:bg-[#fffcf8]" />
+        <div className="h-1 w-24 overflow-hidden rounded-full bg-[#f1f5f9] dark:bg-white/10">
+          <div className="h-full w-2/3 animate-pulse rounded-full bg-[#0f172a] dark:bg-[#ffffff]" />
         </div>
         <p className={`text-xs ${omMuted}`}>{t('login.signingIn')}</p>
       </div>
@@ -256,7 +256,7 @@ const LoginPage = () => {
 
         <div className="w-full max-w-md mx-auto lg:mx-0 lg:max-w-none">
           <div className="mb-6 text-center lg:hidden">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#141210] dark:bg-[#fffcf8]">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0f172a] dark:bg-[#ffffff]">
               <img src="/favicon.svg" alt={t('brand.ourMemories')} className="h-8 w-8" />
             </div>
             <h1 className={`om-auth-display text-[1.85rem] font-semibold tracking-[-0.02em] ${omHeading}`}>

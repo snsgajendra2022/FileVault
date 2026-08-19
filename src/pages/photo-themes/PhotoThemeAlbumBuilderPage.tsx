@@ -907,7 +907,7 @@ const PhotoThemeAlbumBuilderPage: React.FC = () => {
   ]);
 
   const [activeLayoutSlot, setActiveLayoutSlot] = useState<number | null>(0);
-  const [layoutStudioBg, setLayoutStudioBg] = useState('linear-gradient(135deg,#ffffff,#f8fafc)');
+  const [layoutStudioBg, setLayoutStudioBg] = useState('linear-gradient(135deg,#ffffff,#ffffff)');
   const [layoutStudioBgImage, setLayoutStudioBgImage] = useState('');
   const [layoutStudioRadius, setLayoutStudioRadius] = useState(14);
   const [layoutStudioShadow, setLayoutStudioShadow] = useState(true);
@@ -1843,7 +1843,7 @@ const customLayoutGeometry = useMemo(() => {
               transform: 'translate(-50%, -50%)',
               textAlign: o.textAlign || 'center',
               fontSize: o.fontSize ?? 13,
-              color: o.color ?? '#f8fafc',
+              color: o.color ?? '#ffffff',
               fontWeight: o.fontWeight ?? 600,
               fontStyle: o.fontStyle,
               fontFamily: o.fontFamily,
@@ -3647,7 +3647,7 @@ const customLayoutGeometry = useMemo(() => {
                             {
                               name: 'Polaroid Story',
                               slots: 4,
-                              bg: 'linear-gradient(135deg,#f8fafc,#e0f2fe)',
+                              bg: 'linear-gradient(135deg,#ffffff,#e0f2fe)',
                               geometry: [
                                 { x: 8, y: 10, width: 36, height: 36 },
                                 { x: 55, y: 8, width: 35, height: 35 },
@@ -3816,7 +3816,7 @@ const customLayoutGeometry = useMemo(() => {
                               onChange={(e) => setLayoutStudioBg(e.target.value)}
                               className="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm outline-none"
                             >
-                              <option value="linear-gradient(135deg,#ffffff,#f8fafc)">Clean White</option>
+                              <option value="linear-gradient(135deg,#ffffff,#ffffff)">Clean White</option>
                               <option value="linear-gradient(135deg,#0f172a,#312e81)">Royal Dark</option>
                               <option value="linear-gradient(135deg,#fff7ed,#fce7f3)">Wedding Soft</option>
                               <option value="linear-gradient(135deg,#fdf2f8,#ede9fe)">Romantic Pink</option>
