@@ -19,7 +19,8 @@
     "paths": {
       "swiper/react": ["node_modules/swiper/swiper-react.d.ts"],
       "swiper/modules": ["node_modules/swiper/types/modules/index.d.ts"],
-      "react-loading-skeleton": ["node_modules/react-loading-skeleton/dist/index.d.ts"]
+      "react-loading-skeleton": ["node_modules/react-loading-skeleton/dist/index.d.ts"],
+      "om-ai-assistant/react": ["node_modules/om-ai-assistant/dist/cjs/react/index.d.ts"]
     },
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -28,7 +29,6 @@
     "noImplicitAny": false,
     "noImplicitReturns": false,
     "noImplicitThis": false,
-    "skipLibCheck": true,
     "noImplicitOverride": false,
     "exactOptionalPropertyTypes": false
   },

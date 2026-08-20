@@ -511,3 +511,4 @@ For local dev without CORS on FaceSync, leave `REACT_APP_FACESYNC_API_URL` empty
 
 Restart `npm start` after changing FaceSync env vars.
 
+   "start": "concurrently -n web,om -c cyan,magenta \"npm run start:web\" \"npm run om-openclaw-server\"",
