@@ -404,7 +404,14 @@
     "clearDateFilter": "सभी तारीखें दिखाएँ",
     "searchPlaceholder": "फ़ाइल नाम से खोजें…",
     "photosOnDay": "इस दिन {{n}}",
-    "unknownDate": "अज्ञात तारीख"
+    "unknownDate": "अज्ञात तारीख",
+    "selectHint": "फ़ोटो चुनने के लिए माउस से खींचें, या प्रत्येक कार्ड पर चेकबॉक्स का उपयोग करें।",
+    "bulkDeleteConfirm": "{{n}} चयनित इमेज हटाएँ? यह पूर्ववत नहीं हो सकता।",
+    "bulkDeleteSuccess": "{{n}} इमेज हटाई गईं।",
+    "bulkDeletePartial": "{{ok}} हटाई गईं; {{failed}} विफल।",
+    "bulkDeleteFailed": "चयनित इमेज हटाने में विफल।",
+    "bulkDeleteNoIds": "हटाने के लिए इमेज ID निर्धारित नहीं हो सकी।",
+    "deleting": "हटाया जा रहा है…"
   },
   "faceSync": {
     "subtitle": "आपकी फ़ोटो लाइब्रेरी के लिए फेस इंटेलिजेंस",

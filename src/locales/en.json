@@ -448,7 +448,14 @@
     "clearDateFilter": "Show all dates",
     "searchPlaceholder": "Search by filename…",
     "photosOnDay": "{{n}} on this day",
-    "unknownDate": "Unknown date"
+    "unknownDate": "Unknown date",
+    "selectHint": "Drag across photos to select, or use the checkbox on each card.",
+    "bulkDeleteConfirm": "Delete {{n}} selected image(s)? This cannot be undone.",
+    "bulkDeleteSuccess": "Deleted {{n}} image(s).",
+    "bulkDeletePartial": "Deleted {{ok}}; {{failed}} failed.",
+    "bulkDeleteFailed": "Failed to delete selected images.",
+    "bulkDeleteNoIds": "Unable to determine image IDs for delete.",
+    "deleting": "Deleting…"
   },
   "faceSync": {
     "subtitle": "Face intelligence for your photo library",

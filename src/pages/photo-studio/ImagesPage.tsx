@@ -53,6 +53,7 @@ import type { ImageVariants } from '../../utils/progressiveImageVariants';
 import HlsVideoPlayer from '../../components/video/HlsVideoPlayer';
 import { resolveVideoPlayback, isVideoProcessing } from '../../utils/videoPlayback';
 import { useProgressiveImageSrc } from '../../hooks/useProgressiveImageSrc';
+import { useMarqueeSelect } from '../../hooks/useMarqueeSelect';
 import {
   getConnectionHint,
   getSaveData,
@@ -178,6 +179,14 @@ function imageDedupeKey(image: UserImage): string {
   return `f:${image.previewUrl}|${image.filename}|${image.uploadTime}`;
 }
 
+function resolveImageApiId(image: UserImage): string | undefined {
+  if (image.id != null && image.id !== '') return String(image.id);
+  const match =
+    image.downloadUrl.match(/\/api\/images\/(\d+)(?:\/|$|\?)/) ??
+    image.downloadUrl.match(/\/images\/(\d+)(?:\/|$|\?)/);
+  return match ? match[1] : undefined;
+}
+
 function getFileTypeIcon(fileType: string, filename?: string): string {
   if (fileType === 'unknown' && filename) {
     const ext = filename.split('.').pop()?.toLowerCase() || '';
@@ -291,9 +300,13 @@ interface ImageCardProps {
   viewMode: 'my' | 'invited';
   deletePending: boolean;
   cardRef: (el: HTMLDivElement | null) => void;
-  /** When set, show checkbox for share selection */
+  /** When set, show checkbox for share / bulk selection */
   isSelected?: boolean;
   onToggleSelect?: (image: UserImage) => void;
+  /** Stable id for marquee selection (`data-select-id`) */
+  selectId?: string;
+  /** When true, ignore click-to-open (active drag select) */
+  suppressOpen?: boolean;
 }
 
 const ImageCard = memo(function ImageCard({
@@ -308,6 +321,8 @@ const ImageCard = memo(function ImageCard({
   cardRef,
   isSelected,
   onToggleSelect,
+  selectId,
+  suppressOpen,
 }: ImageCardProps) {
   const { t } = useTranslation();
   const [loadState, setLoadState] = useState<ImageLoadState>('idle');
@@ -353,14 +368,20 @@ const ImageCard = memo(function ImageCard({
     <article
       ref={cardRef}
       data-index={index}
+      data-select-id={selectId || undefined}
       className={`lumina-gallery-card group ${isSelected ? 'lumina-gallery-card--selected' : ''}`}
     >
       <div
         className="lumina-media cursor-pointer"
-        onClick={() => onView(image)}
+        onClick={() => {
+          if (suppressOpen) return;
+          onView(image);
+        }}
+        onDragStart={(e) => e.preventDefault()}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
+          if (suppressOpen) return;
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             onView(image);
@@ -393,10 +414,12 @@ const ImageCard = memo(function ImageCard({
               <img
                 src={isVisible ? videoPosterUrl : undefined}
                 alt=""
+                draggable={false}
                 className="h-full w-full object-cover"
                 style={{ opacity: loadState === 'loaded' ? 1 : 0, transition: 'opacity 0.4s ease' }}
                 onLoad={handleLoad}
                 onError={handleError}
+                onDragStart={(e) => e.preventDefault()}
                 loading="lazy"
                 decoding="async"
               />
@@ -450,7 +473,7 @@ const ImageCard = memo(function ImageCard({
         <span className="lumina-ext-badge">{extLabel}</span>
 
         {onToggleSelect && (
-          <div className="lumina-card-select">
+          <div className="lumina-card-select" data-no-marquee>
             <input
               type="checkbox"
               checked={!!isSelected}
@@ -465,7 +488,7 @@ const ImageCard = memo(function ImageCard({
           </div>
         )}
 
-        <div className="lumina-card-actions">
+        <div className="lumina-card-actions" data-no-marquee>
           <button
             type="button"
             onClick={(e) => {
@@ -628,6 +651,32 @@ const ClientImagesPage = () => {
     },
   });
 
+  const bulkDeleteImagesMutation = useMutation({
+    mutationFn: async (imageIds: string[]) => {
+      const results = await Promise.allSettled(
+        imageIds.map((id) => api.delete(`/api/images/${id}`))
+      );
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      return { total: imageIds.length, failed, ok: imageIds.length - failed };
+    },
+    onSuccess: ({ ok, failed }) => {
+      if (ok > 0) {
+        toast.success(
+          failed > 0
+            ? t('imagesPage.bulkDeletePartial', { ok, failed })
+            : t('imagesPage.bulkDeleteSuccess', { n: ok })
+        );
+      } else {
+        toast.error(t('imagesPage.bulkDeleteFailed'));
+      }
+      setSelectedImageIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['userImages'] });
+    },
+    onError: () => {
+      toast.error(t('imagesPage.bulkDeleteFailed'));
+    },
+  });
+
   const images = useMemo(() => {
     const flat = userImagesData?.pages?.flatMap((p) => (p as UserImagesResponse).images ?? []) ?? [];
     const seen = new Set<string>();
@@ -745,6 +794,39 @@ const ClientImagesPage = () => {
     },
     [getImageKey]
   );
+
+  const handleMarqueeSelectionChange = useCallback((ids: string[]) => {
+    setSelectedImageIds(new Set(ids));
+  }, []);
+
+  const galleryMarqueeRef = useRef<HTMLDivElement | null>(null);
+  const {
+    isSelecting: isGalleryMarqueeSelecting,
+    marqueeStyle: galleryMarqueeStyle,
+    surfaceProps: galleryMarqueeSurfaceProps,
+  } = useMarqueeSelect({
+    containerRef: galleryMarqueeRef,
+    enabled: viewMode === 'my',
+    selectedIds: selectedImageIds,
+    onSelectionChange: handleMarqueeSelectionChange,
+  });
+
+  const handleBulkDeleteSelected = useCallback(() => {
+    if (selectedImageIds.size === 0) return;
+    const apiIds: string[] = [];
+    for (const img of images) {
+      const key = getImageKey(img);
+      if (!selectedImageIds.has(key)) continue;
+      const id = resolveImageApiId(img);
+      if (id) apiIds.push(id);
+    }
+    if (apiIds.length === 0) {
+      toast.error(t('imagesPage.bulkDeleteNoIds'));
+      return;
+    }
+    if (!window.confirm(t('imagesPage.bulkDeleteConfirm', { n: apiIds.length }))) return;
+    bulkDeleteImagesMutation.mutate(apiIds);
+  }, [selectedImageIds, images, getImageKey, bulkDeleteImagesMutation, t]);
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const tokenForUrl = typeof localStorage !== 'undefined' ? (localStorage.getItem('token') || '') : '';
@@ -1028,14 +1110,7 @@ const ClientImagesPage = () => {
 
   const handleDelete = useCallback(
     (image: UserImage) => {
-      // Prefer id from API; otherwise parse from URL (e.g. .../api/images/123/download)
-      let imageId: string | undefined;
-      if (image.id != null && image.id !== '') {
-        imageId = String(image.id);
-      } else {
-        const match = image.downloadUrl.match(/\/api\/images\/(\d+)(?:\/|$|\?)/) ?? image.downloadUrl.match(/\/images\/(\d+)(?:\/|$|\?)/);
-        imageId = match ? match[1] : undefined;
-      }
+      const imageId = resolveImageApiId(image);
       if (imageId) {
         deleteImageMutation.mutate(imageId);
       } else {
@@ -1482,7 +1557,7 @@ const ClientImagesPage = () => {
                     if (selectedImageIds.size > 0) {
                       setShowShareModal(true);
                     } else {
-                      toast('Select images using the checkbox on each card, then share.', { icon: '💡' });
+                      toast(t('imagesPage.selectHint'), { icon: '💡' });
                     }
                   }}
                   className="lumina-btn-secondary"
@@ -1492,6 +1567,28 @@ const ClientImagesPage = () => {
                     ? `${t('imagesPage.shareLink')} (${selectedImageIds.size})`
                     : t('imagesPage.shareLink')}
                 </button>
+                {viewMode === 'my' && selectedImageIds.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleBulkDeleteSelected}
+                    disabled={bulkDeleteImagesMutation.isPending}
+                    className="lumina-btn-secondary inline-flex items-center gap-2 text-red-700 border-red-200 hover:bg-red-50"
+                  >
+                    <FiTrash2 className="h-5 w-5" />
+                    {bulkDeleteImagesMutation.isPending
+                      ? t('imagesPage.deleting')
+                      : `${t('imagesPage.delete')} (${selectedImageIds.size})`}
+                  </button>
+                )}
+                {viewMode === 'my' && selectedImageIds.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedImageIds(new Set())}
+                    className="lumina-btn-secondary"
+                  >
+                    {t('imagesPage.clearSelection')}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -1740,7 +1837,16 @@ const ClientImagesPage = () => {
                   </button>
                 </div>
               </div>
-              <div className="space-y-10">
+              <div
+                ref={galleryMarqueeRef}
+                className={`lumina-marquee-surface space-y-10 relative ${
+                  isGalleryMarqueeSelecting ? 'lumina-marquee-surface--active' : ''
+                }`}
+                {...galleryMarqueeSurfaceProps}
+              >
+                {galleryMarqueeStyle && (
+                  <div className="lumina-marquee-box" style={galleryMarqueeStyle} aria-hidden />
+                )}
                 {galleryImagesByDay.map((group) => (
                   <div key={group.dayKey}>
                     <h4 className="lumina-day-title mb-4">
@@ -1764,10 +1870,12 @@ const ClientImagesPage = () => {
                           onDownload={handleDownload}
                           onDelete={handleDelete}
                           viewMode={viewMode}
-                          deletePending={deleteImageMutation.isPending}
+                          deletePending={deleteImageMutation.isPending || bulkDeleteImagesMutation.isPending}
                           cardRef={setCardRef(index)}
+                          selectId={viewMode === 'my' ? getImageKey(image) : undefined}
                           isSelected={viewMode === 'my' ? selectedImageIds.has(getImageKey(image)) : undefined}
                           onToggleSelect={viewMode === 'my' ? handleToggleSelect : undefined}
+                          suppressOpen={isGalleryMarqueeSelecting}
                         />
                       ))}
                     </div>

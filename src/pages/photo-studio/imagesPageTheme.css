@@ -432,6 +432,29 @@ html.dark .images-library-scope .lumina-top-bar {
   background: var(--lumina-surface);
   box-shadow: 0 1px 2px rgba(25, 28, 30, 0.05);
   transition: box-shadow 0.3s ease, transform 0.3s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.images-library-scope .lumina-gallery-card img,
+.images-library-scope .lumina-gallery-card video {
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
+}
+
+.images-library-scope .lumina-marquee-surface {
+  cursor: default;
+}
+
+.images-library-scope .lumina-marquee-surface--active {
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.images-library-scope .lumina-marquee-box {
+  pointer-events: none;
 }
 
 .images-library-scope .lumina-gallery-card:hover {

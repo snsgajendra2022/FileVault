@@ -28,6 +28,7 @@ import toast from 'react-hot-toast';
 import ShareAlbumModal from './ShareAlbumModal';
 import PublicShareModal from '../../components/modals/PublicShareModal';
 import { downloadSingleImage, downloadImagesAsZip as downloadZip } from '../../utils/downloadUtils';
+import { useMarqueeSelect } from '../../hooks/useMarqueeSelect';
 import Lightbox, { LightboxItem } from '../../components/lightbox/Lightbox';
 import AlbumGalleryThumb from '../../components/photo-studio/AlbumGalleryThumb';
 import { getImagePreloadManager } from '../../utils/imagePreloader/ImagePreloadManager';
@@ -1379,6 +1380,22 @@ const PhotoStudioAlbum: React.FC = () => {
       return next;
     });
   }, []);
+
+  const handleAddImagesMarqueeSelection = useCallback((ids: string[]) => {
+    setSelectedImages(new Set(ids));
+  }, []);
+
+  const addImagesMarqueeRef = useRef<HTMLDivElement | null>(null);
+  const {
+    isSelecting: isAddImagesMarqueeSelecting,
+    marqueeStyle: addImagesMarqueeStyle,
+    surfaceProps: addImagesMarqueeSurfaceProps,
+  } = useMarqueeSelect({
+    containerRef: addImagesMarqueeRef,
+    enabled: showAddImagesModal !== null,
+    selectedIds: selectedImages,
+    onSelectionChange: handleAddImagesMarqueeSelection,
+  });
 
   const downloadImagesAsZip = useCallback(
     async (images: AlbumImage[], zipNameBase: string) => {
@@ -3527,7 +3544,14 @@ const PhotoStudioAlbum: React.FC = () => {
                   <p>{t('photoStudioAlbumPage.noImagesAvailable')}</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <div
+                  ref={addImagesMarqueeRef}
+                  className={`relative select-none ${isAddImagesMarqueeSelecting ? 'cursor-crosshair' : ''}`}
+                  style={{ WebkitUserDrag: 'none' } as React.CSSProperties}
+                  {...addImagesMarqueeSurfaceProps}
+                >
+                  {addImagesMarqueeStyle && <div style={addImagesMarqueeStyle} aria-hidden />}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                   {userImages.map((image) => {
                     const imageId = String(image.id);
                     const isSelected = selectedImages.has(imageId);
@@ -3538,13 +3562,20 @@ const PhotoStudioAlbum: React.FC = () => {
                     return (
                       <div
                         key={image.id}
+                        data-select-id={imageId}
+                        draggable={false}
                         onClick={(e) => {
+                          if (isAddImagesMarqueeSelecting) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return;
+                          }
                           e.stopPropagation();
                           e.preventDefault();
                           toggleImageSelection(image.id);
                         }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        className={`relative rounded-xl overflow-hidden border cursor-pointer transition-all ${
+                        onDragStart={(e) => e.preventDefault()}
+                        className={`relative rounded-xl overflow-hidden border cursor-pointer transition-all select-none ${
                           isSelected
                             ? 'border-[#2731db] ring-2 ring-[#2731db] ring-opacity-50'
                             : 'border-gray-200 hover:border-gray-300'
@@ -3556,9 +3587,11 @@ const PhotoStudioAlbum: React.FC = () => {
                               <img
                                 src={thumbSrc}
                                 alt=""
+                                draggable={false}
                                 className="absolute inset-0 h-full w-full object-cover pointer-events-none"
                                 loading="eager"
                                 decoding="async"
+                                onDragStart={(e) => e.preventDefault()}
                                 onError={(e) => {
                                   const el = e.currentTarget;
                                   const tried = el.dataset.fallback || '0';
@@ -3617,6 +3650,7 @@ const PhotoStudioAlbum: React.FC = () => {
                       </div>
                     );
                   })}
+                  </div>
                 </div>
               )}
               {userImages.length > 0 && <div ref={addImagesModalSentinelRef} className="h-4" aria-hidden />}
